@@ -8,6 +8,7 @@
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "openocd",
+            "serverpath": "${env:STM32_OPENOCD_PATH}",
             "configFiles": [
                 "interface/stlink-dap.cfg",
                 "target/stm32g0x.cfg"
@@ -26,6 +27,7 @@
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "openocd",
+            "serverpath": "${env:STM32_OPENOCD_PATH}",
             "configFiles": [
                 "interface/stlink-dap.cfg",
                 "target/stm32g0x.cfg"

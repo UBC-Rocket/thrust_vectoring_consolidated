@@ -11,6 +11,7 @@
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "openocd",
+            "serverpath": "${env:STM32_OPENOCD_PATH}",
             "configFiles": [
                 "interface/stlink-dap.cfg",
                 "target/stm32h5x.cfg"
@@ -29,6 +30,7 @@
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "openocd",
+            "serverpath": "${env:STM32_OPENOCD_PATH}",
             "configFiles": [
                 "interface/stlink-dap.cfg",
                 "target/stm32h5x.cfg"

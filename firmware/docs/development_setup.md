@@ -237,31 +237,30 @@ D:/ST/STM32CubeIDE_1.19.0/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.debug.op
 
 #### Linux
 
-### Configuring the Cortex-Debug extension for OpenOCD
+### Configuring environment variables for OpenOCD
 
-To get Cortex-Debug to use this OpenOCD, create the file `.vscode/settings.json`
-if it does not exist, then add the configuration where you substitute
-`<OPENOCD_BINARY_PATH>` with the value `OPENOCD_BINARY_PATH` determined
-previously.
+The debug launch configurations reference two environment variables. You must
+set both of these in your shell profile (e.g. `~/.bashrc`, `~/.zshrc`, or
+`~/.config/fish/config.fish`).
 
-```json
-{
-  "cortex-debug.openocdPath": "<OPENOCD_BINARY_PATH>"
-}
-```
+See the [README](../../README.md#environment-variables) for platform-specific path
+examples.
 
-You will also need to set an environment variable with the name
-`STM32_OPENOCD_SCRIPTS_PATH` to the value of `STM32_OPENOCD_SCRIPTS_PATH` that
-was determined previously. For example, you can add the following line
-to your `~/.bashrc` on Linux.
+| Variable | Purpose |
+|---|---|
+| `STM32_OPENOCD_PATH` | Path to the OpenOCD **binary** bundled with STM32CubeIDE |
+| `STM32_OPENOCD_SCRIPTS_PATH` | Path to the OpenOCD **st_scripts** directory |
+
+For example, on Linux you would add the following to your `~/.bashrc`:
 
 ```shell
-export STM32_OPENOCD_SCRIPTS_PATH="/.../st_scripts"
+export STM32_OPENOCD_PATH="/opt/st/stm32cubeide_<version>/plugins/com.st.stm32cube.ide.mcu.externaltools.openocd.linux64_<version>/tools/bin/openocd"
+export STM32_OPENOCD_SCRIPTS_PATH="/opt/st/stm32cubeide_<version>/plugins/com.st.stm32cube.ide.mcu.debug.openocd_<version>/resources/openocd/st_scripts"
 ```
 
 > [!important]
 > You must restart VS Code (and potentially your shell) after adding the
-> environment variable to get VS Code to recognize it.
+> environment variables to get VS Code to recognize them.
 
 ## See also
 
