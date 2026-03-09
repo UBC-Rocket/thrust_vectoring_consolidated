@@ -1,6 +1,7 @@
 name: Firmware - Flight Controller
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - 'firmware/ulysses-flight-controller/**'

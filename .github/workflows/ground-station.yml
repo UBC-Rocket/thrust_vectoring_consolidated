@@ -1,6 +1,7 @@
 name: Ground Station
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - 'ground-station/**'

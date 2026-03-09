@@ -1,6 +1,7 @@
 name: Firmware Libraries Tests
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - 'firmware/libs/state_estimation/**'

@@ -1,6 +1,7 @@
 name: Protocol Library Tests
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - 'libs/rocket-protocol/**'

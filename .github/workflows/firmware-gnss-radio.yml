@@ -1,6 +1,7 @@
 name: Firmware - GNSS Radio
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - 'firmware/ulysses-gnss-radio/**'
