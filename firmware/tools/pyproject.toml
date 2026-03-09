@@ -1,0 +1,11 @@
+[project]
+name = "tvr-tools"
+version = "0.1.0"
+description = "UBC Rocket TVR development and post-flight analysis tools"
+requires-python = ">=3.10"
+dependencies = [
+    "pyserial>=3.5",
+]
+
+[dependency-groups]
+dev = []

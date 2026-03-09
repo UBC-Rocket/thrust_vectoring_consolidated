@@ -1,0 +1,12 @@
+syntax = "proto3";
+package tvr;
+import "telemetry.proto";
+import "status.proto";
+
+// FC → Ground envelope. Decode this, then switch on which_payload.
+message Downlink {
+  oneof payload {
+    TelemetryState telemetry = 1;
+    SystemStatus   status    = 2;
+  }
+}

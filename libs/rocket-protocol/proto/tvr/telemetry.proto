@@ -1,0 +1,23 @@
+syntax = "proto3";
+package tvr;
+import "common.proto";
+
+// Full state + control output, sent at 10Hz from FC to ground station.
+message TelemetryState {
+  // Timestamp (ms since boot, wraps at ~49 days)
+  uint32 timestamp_ms     = 1;
+
+  // EKF state (nav frame)
+  Vec3       position     = 2;   // [m]
+  Vec3       velocity     = 3;   // [m/s]
+  Quaternion attitude     = 4;   // body-to-nav
+  Vec3       angular_rate = 5;   // [rad/s] body frame
+
+  // Flight state machine
+  FlightState flight_state = 6;
+
+  // Control outputs (for ground display / debugging)
+  float thrust_cmd  = 7;   // [N]
+  float gimbal_x    = 8;   // [rad]
+  float gimbal_y    = 9;   // [rad]
+}

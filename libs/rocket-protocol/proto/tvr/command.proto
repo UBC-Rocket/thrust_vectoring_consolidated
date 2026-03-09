@@ -1,0 +1,53 @@
+syntax = "proto3";
+package tvr;
+import "common.proto";
+
+message FlightCommand {
+  oneof payload {
+    StateCommand    state_cmd     = 1;
+    SetPidGains     set_pid_gains = 2;
+    SetReference    set_reference = 3;
+    SetConfig       set_config    = 4;
+  }
+}
+
+// High-level state transitions
+message StateCommand {
+  enum Type {
+    CMD_NONE   = 0;
+    CMD_ARM    = 1;
+    CMD_LAUNCH = 2;
+    CMD_ABORT  = 3;
+    CMD_LAND   = 4;
+  }
+  Type type = 1;
+}
+
+// PID gain tuning (all gains in one message)
+message SetPidGains {
+  // Attitude controller (diagonal of 3x3 gain matrices)
+  Vec3  attitude_kp = 1;   // proportional
+  Vec3  attitude_kd = 2;   // derivative
+
+  // Z position PID
+  float z_kp             = 3;
+  float z_ki             = 4;
+  float z_kd             = 5;
+  float z_integral_limit = 6;
+}
+
+// Setpoint / reference commands
+message SetReference {
+  float      z_ref  = 1;   // target height [m]
+  float      vz_ref = 2;   // target z velocity [m/s]
+  Quaternion q_ref  = 3;   // target attitude (optional)
+}
+
+// Physical / limit configuration
+message SetConfig {
+  float mass      = 1;   // vehicle mass [kg]
+  float T_min     = 2;   // min thrust [N]
+  float T_max     = 3;   // max thrust [N]
+  float theta_min = 4;   // min gimbal angle [rad]
+  float theta_max = 5;   // max gimbal angle [rad]
+}

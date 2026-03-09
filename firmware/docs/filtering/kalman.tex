@@ -1,0 +1,192 @@
+\documentclass{article}
+\usepackage[margin=1in]{geometry} 
+\usepackage{amsmath,amsthm,amssymb}
+\usepackage{hyperref}
+
+\title{Kalman Filtering \& Sensor Fusion}
+\author{UBC Rocket (TVR, Ulysses)}
+\date{\today}
+
+\begin{document}
+
+\maketitle % Displays the title, author, and date
+
+\section{Introduction}
+
+The goal is to take the data-stream provided from the IMU and through some process determine the current orientation of Ulysses as a quaternion. 
+We have data from the IMU's accelerometer and gyroscope, which we can refer to as follows:
+$$
+\text{Acceleration} =
+\begin{pmatrix}
+a_x\\
+a_y\\
+a_z
+\end{pmatrix}
+\ \ \ \
+\text{Angular Velocity} =
+\begin{pmatrix}
+\omega_x\\
+\omega_y\\
+\omega_z
+\end{pmatrix}
+$$
+Which we want to use to find and continuously update $q=q_0+q_1i+q_2j+q_3k$. 
+\subsection{Notation}
+Denote $q_{n,k}$ as the prediction of $q$ for time $n$ made at time $k$.
+Similarly, we define $a_{x|t}$ and $\omega_{x|t}$ as the value of their respective measurements at time $t$.
+Our goal, then, is to find $q_{t,t}$ at our current timestep $t$, making use of $q_{t,t-1}$,$q_{t-1,t-1}$, and the measured data.
+Note that the initial state is $q=1+0i+0k+0j$. We will update the state via quaternion multiplication.
+\subsection{Accelerometer}
+When Ulysses is stationary or moving at a constant velocity, we expect the magnitude of its acceleration to be approximately equal to 1 (units in g). 
+We can use trigonometry to find the roll/pitch.
+\[
+\begin{gathered}
+\text{Roll}=\theta_x=\text{arctan}2(-a_y, -a_z)
+\\\text{Pitch}=\theta_y=\text{arctan}2(a_x, \sqrt{a_y^2 + a_z^2})
+\end{gathered}
+\]
+Each of these corresponds to a quaternion rotation:
+$$
+\begin{gathered}
+q_{\text{roll}}=\cos(0.5\cdot\theta_x)+\sin(0.5\cdot\theta_x)(i+0j+0k)\\
+q_{\text{pitch}}=\cos(0.5\cdot\theta_y)+\sin(0.5\cdot\theta_y)(0i+j+0k)
+\end{gathered}
+$$
+(there is a better way to do this)  
+To update the given state $q$ with any given quaternion rotation $r$, 
+$$
+q_{\text{new}}=r\cdot q\cdot r^{-1}
+$$
+Where $r^{-1}$ is the conjugate of $r$. These angles will not be accurate if Ulysses is experiencing acceleration from other sources. 
+We want to fuse this data in order to come to something more accurate regardless of experienced acceleration.
+
+\subsection{Gyroscope}
+By integrating over time with respect to angular velocity, we can find the current angles of Ulysses.
+$$
+q_{t,t}=q_{t-1,t-1}+\dfrac{\Delta t}{2}\cdot w\cdot q_{t-t,t-1}
+$$
+Where $w$ is the quaternion $w=0+\omega_xi+\omega_yj+\omega_zk$. \href{https://gamedev.stackexchange.com/questions/108920/applying-angular-velocity-to-quaternion}{Find the derivation here}.
+We expect the initial values of $\theta_{0,0}$ to be 0, as otherwise have no point of reference to begin our calculations.
+The key issue with the gyroscope is that it reports a noise 0.1\textdegree. Over the course of a flight, this uncertainty will compound, resulting in increasingly erroneous data eventually leading to a spectacular crash.
+Thus, while the gyroscope data is accurate regardless of acceleration, its noise makes it prone to drift.
+
+\section{Filtering}
+With the setups done, we can begin the process of filtering the data.
+%    jacobianF = np.array(v[[1.0+(tri[0,0]*tri[1,2]*g[1][0]-tri[0,1]*tri[1,2]*g[2][0])*self.dts, (tri[0,1]/tri[1,0]/tri[1,0]*g[1][0]+tri[0,0]/tri[1,0]/tri[1,0]*g[2][0])*self.dts], 
+%                               [-(tri[0,1]*g[1][0]+tri[0,0]*g[2][0])*self.dts, 1.0]])
+% The jacobian is given By
+% $$
+% H=\begin{bmatrix}
+    
+% \end{bmatrix}
+% $$
+\subsection{Process}
+We will begin first with orientation (as we utilize matrix operations, it will be fairly straightforward to combine multiple matrices later on to create an all-in-one orientation/position EKF).
+The high-level overview is that we predict the next state based on the previous state and the readings from the gyroscope (prediction step), compare the result to the value found from the accelerometer data \& decide some way to balance the two results (update step). This is described with the following equations:
+\begin{equation}
+    \hat{x}_k=f(\hat{x}_{k-1})
+\end{equation}
+Where $x$ is the state matrix and $f(x)$ is the state transition.
+\begin{equation}
+    P_{k,k-1}=F_kP_{k-1,k-1}F_k^T+Q
+\end{equation}
+Where $P$ is the state covariance matrix, $F$ is the Jacobian matrix of the state transition, and $Q$ is the process noise covariance matrix.
+\begin{equation}
+F_k=\dfrac{\partial f(\hat{x}_k)}{\partial\hat{x}_k}
+\end{equation}
+Concluding the prediction step. The update step is as follows:
+\begin{equation}
+    \tilde{y}_k=z_k-h(\hat{x}_k)
+\end{equation}
+Where $\tilde{y}_k$ is the 'innovation' (difference between prediction and measured), $z_k$ is the measurements of roll \& pitch we calculate from the accelerometer (filling 0 in for yaw/heading since we have no way of measuring that accurately), and $h(\hat{x})$ is the observation model previously described (converted into a vector representing the expected gravity/accel readings).
+\begin{equation}
+    K_k=P_{k,k-1}H_k^T(H_kP_{k,k-1}H_k^T+R_k)^{-1}
+\end{equation}
+Where $K$ is the Kalman gain, $H_k$ is the Jacobian of $h(\hat{x}_k)$, and $R$ is the measurement covariance matrix (can set to $0.02\times I$ where $I$ is a $3\times3$ identity matrix).
+\begin{equation}
+    \hat{x}_{k+1}=\hat{x}_k+K_k\cdot\tilde{y_k}
+\end{equation}
+\begin{equation}
+    P_{k,k}=(I-K_kH_k)P_k
+\end{equation}
+We will tune Q and R as necessary. The final expected value that will be fed to the PID is in (6).
+\subsection{State transition}
+We first need a way of estimating current orientation based on prior orientation.
+This is described with (8).
+\begin{equation}
+ \begin{bmatrix}
+ \dot{q_0}\\
+ \dot{q_1}\\
+ \dot{q_2}\\
+ \dot{q_3}
+ \end{bmatrix}
+ =
+ \dfrac{1}{2}
+ \begin{bmatrix}
+    -q_1 & -q_2 & -q_3\\
+    q_0 & -q_3 & q_2\\
+    q_3 & q_0 & -q_1\\
+    -q_2 & q_1 & q_0
+ \end{bmatrix}
+ \cdot
+ \begin{bmatrix}
+    \omega_x\\
+    \omega_y\\
+    \omega_z
+ \end{bmatrix}
+\end{equation}
+Which is an improvement of the previously described method. $\dot{q}$ is the new quaternion, $q$ is the previous quaternion.
+Note that this does not rely on the timestep. To arrive at a complete state transition matrix, we must integrate with respect to time, yielding (9).
+\begin{equation}
+ \begin{bmatrix}
+ \dot{q_0}\\
+ \dot{q_1}\\
+ \dot{q_2}\\
+ \dot{q_3}
+ \end{bmatrix}
+ =
+  \begin{bmatrix}
+ q_0\\
+ q_1\\
+ q_2\\
+ q_3
+ \end{bmatrix}
+ +
+ \dfrac{\Delta{t}}{2}
+ \begin{bmatrix}
+    0 & -\omega_x & -\omega_y & -\omega_z\\
+    \omega_x & 0 & \omega_z &-\omega_y \\
+   \omega_y & -\omega_z & 0 &\omega_x \\
+    \omega_z & \omega_y & -\omega_x & 0 
+ \end{bmatrix}
+ \cdot
+\begin{bmatrix}
+ q_0\\
+ q_1\\
+ q_2\\
+ q_3
+ \end{bmatrix}
+\end{equation}
+\subsection{Covariance matrix}
+We can set it to a $4\times4$ identity matrix (which we can tune I think).
+\subsection{State Jacobian}
+The Jacobian of the state transition is:
+$$
+\begin{bmatrix}
+    1 & -\omega_x\Delta t & -\omega_y\Delta t & -\omega_z\Delta t\\
+    \omega_x\Delta t  & 1 & \omega_z\Delta t & -\omega_y\Delta t\\
+    \omega_y\Delta t &  -\omega_z\Delta t  & 1 & \omega_x\Delta t\\
+    \omega_z\Delta t & \omega_y\Delta t & -\omega_x\Delta t & 1\\
+\end{bmatrix}
+$$
+\subsection{h Jacobian}
+The Jacobian of $h(x)$ is:
+$$
+\begin{bmatrix}
+    -2q_2 & 2q_3 & -2q_0 & 2q_1\\
+    2q_1 & 2q_0 & 2q_3 & 2q_2\\
+    2q_0 & -2q_1 & -2q_2 & -2q_3
+\end{bmatrix}
+$$
+Thus, with everything defined, simply follow the outlined process for a beautiful EKF. Position estimation coming soon!
+\end{document}

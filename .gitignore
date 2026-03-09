@@ -1,0 +1,103 @@
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Linker files
+*.ilk
+*.map
+*.exp
+
+# Debugger Files
+*.pdb
+*.dSYM/
+*.su
+*.idb
+*.dwo
+
+# Compiled Dynamic libraries
+*.so
+*.so.*
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+*.elf
+*.hex
+*.bin
+
+# CMake
+build/
+CMakeLists.txt.user*
+compile_commands.json
+
+# VS Code - allow shared configs
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+
+# Qt
+*.moc
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+*.qmlc
+*.jsc
+*.qm
+*.prl
+*_qmlcache.qrc
+*.pro.user
+*.pro.user.*
+*.qbs.user
+*.qbs.user.*
+*.qmlproject.user
+*.qmlproject.user.*
+*creator.user*
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Tools output
+firmware/tools/sd-log/logs/
+firmware/tools/serial/logs/
+
+# STM32CubeIDE
+.metadata
+
+# Kernel Module
+.tmp_versions/
+modules.order
+Module.symvers
+
+# Editor backups
+*~
+*.swp
+*.swo

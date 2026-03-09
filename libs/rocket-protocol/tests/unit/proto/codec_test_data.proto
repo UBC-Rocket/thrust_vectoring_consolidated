@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+enum MyOption {
+    MY_OPTIONS_UNSPECIFIED = 0;
+    MY_OPTIONS_VALUE1 = 1;
+    MY_OPTIONS_VALUE2 = 2;
+}
+
+message CodecTestData {
+    double d = 1;
+    uint32 ui32 = 2;
+    float f = 3;
+    reserved 4;
+    oneof oo {
+        uint64 ui64 = 7;
+        MyOption mo = 8;
+    }
+    bool b1 = 5;
+    bool b2 = 6;
+}

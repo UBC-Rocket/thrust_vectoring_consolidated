@@ -1,0 +1,30 @@
+# TVR CODEOWNERS
+# Each line is a file pattern followed by one or more owners.
+# Update the team handles below to match your GitHub organization.
+
+# Firmware
+firmware/ulysses-flight-controller/    @ubcrocket/firmware
+firmware/ulysses-gnss-radio/           @ubcrocket/firmware
+firmware/libs/                         @ubcrocket/firmware
+firmware/docs/                         @ubcrocket/firmware
+firmware/tools/                        @ubcrocket/firmware
+
+# Ground Station
+ground-station/                        @ubcrocket/firmware
+
+# Shared Protocol Library
+libs/rocket-protocol/                  @ubcrocket/firmware @ubcrocket/ground-station
+
+# Controls
+controls/                              @ubcrocket/controls
+
+# Hardware
+electrical-hardware/                   @ubcrocket/electrical
+mechanical-hardware/                   @ubcrocket/mechanical
+
+# Jetson
+jetson/                                @ubcrocket/firmware
+
+# CI/CD and repo config
+.github/                               @ubcrocket/leads
+CONTRIBUTING.md                        @ubcrocket/leads

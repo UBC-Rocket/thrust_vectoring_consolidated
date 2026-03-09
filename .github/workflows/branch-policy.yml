@@ -1,0 +1,57 @@
+name: Branch Policy
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+jobs:
+  check-branch-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce branch merge policy
+        env:
+          BASE: ${{ github.base_ref }}
+          HEAD: ${{ github.head_ref }}
+        run: |
+          echo "PR: $HEAD → $BASE"
+
+          # ── Rule 1: main only accepts */stage branches ──
+          if [ "$BASE" = "main" ]; then
+            if echo "$HEAD" | grep -qE '^[^/]+/stage$'; then
+              echo "✓ Merging team stage branch into main"
+              exit 0
+            else
+              echo "✗ Only */stage branches (e.g. firmware/stage) can merge into main."
+              echo "  Got: $HEAD"
+              exit 1
+            fi
+          fi
+
+          # ── Rule 2: */stage only accepts */*/stage branches ──
+          if echo "$BASE" | grep -qE '^[^/]+/stage$'; then
+            TEAM=$(echo "$BASE" | cut -d'/' -f1)
+            if echo "$HEAD" | grep -qE "^${TEAM}/[^/]+/stage$"; then
+              echo "✓ Merging sub-team stage into $BASE"
+              exit 0
+            else
+              echo "✗ Only ${TEAM}/*/stage branches can merge into $BASE."
+              echo "  Got: $HEAD"
+              exit 1
+            fi
+          fi
+
+          # ── Rule 3: */*/stage accepts feat/, bug/, refactor/, test/ branches ──
+          if echo "$BASE" | grep -qE '^[^/]+/[^/]+/stage$'; then
+            PREFIX=$(echo "$BASE" | sed 's|/stage$||')
+            if echo "$HEAD" | grep -qE "^${PREFIX}/(feat|bug|refactor|test)/"; then
+              echo "✓ Merging work branch into $BASE"
+              exit 0
+            else
+              echo "✗ Only ${PREFIX}/{feat,bug,refactor,test}/* branches can merge into $BASE."
+              echo "  Got: $HEAD"
+              exit 1
+            fi
+          fi
+
+          # ── Anything else: allow (e.g. PRs between feature branches) ──
+          echo "✓ No policy restriction for $HEAD → $BASE"

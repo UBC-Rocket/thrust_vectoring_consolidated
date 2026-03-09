@@ -1,0 +1,31 @@
+name: Ground Station
+
+on:
+  push:
+    paths:
+      - 'ground-station/**'
+      - 'libs/rocket-protocol/**'
+  pull_request:
+    paths:
+      - 'ground-station/**'
+      - 'libs/rocket-protocol/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt6
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.7.*'
+          modules: 'qtserialport qtquick3d'
+
+      - name: Configure CMake
+        working-directory: ground-station
+        run: cmake -B build
+
+      - name: Build
+        working-directory: ground-station
+        run: cmake --build build

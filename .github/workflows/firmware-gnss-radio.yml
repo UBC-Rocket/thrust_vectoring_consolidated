@@ -1,0 +1,39 @@
+name: Firmware - GNSS Radio
+
+on:
+  push:
+    paths:
+      - 'firmware/ulysses-gnss-radio/**'
+      - 'firmware/libs/lwgps/**'
+  pull_request:
+    paths:
+      - 'firmware/ulysses-gnss-radio/**'
+      - 'firmware/libs/lwgps/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ARM toolchain
+        uses: carlosperate/arm-none-eabi-gcc-action@v1
+        with:
+          release: '13.2.Rel1'
+
+      - name: Configure CMake (Debug)
+        working-directory: firmware/ulysses-gnss-radio
+        run: cmake --preset Debug
+
+      - name: Build (Debug)
+        working-directory: firmware/ulysses-gnss-radio
+        run: cmake --build --preset Debug
+
+      - name: Upload firmware artifact
+        if: startsWith(github.ref, 'refs/tags/firmware-gnss/')
+        uses: actions/upload-artifact@v4
+        with:
+          name: ulysses-gnss-radio-${{ github.ref_name }}
+          path: |
+            firmware/ulysses-gnss-radio/build/Debug/ulysses-gnss-radio.elf
+            firmware/ulysses-gnss-radio/build/Debug/ulysses-gnss-radio.bin

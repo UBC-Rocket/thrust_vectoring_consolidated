@@ -1,0 +1,48 @@
+name: Firmware Libraries Tests
+
+on:
+  push:
+    paths:
+      - 'firmware/libs/state_estimation/**'
+      - 'firmware/libs/controls/**'
+      - 'firmware/libs/unity/**'
+  pull_request:
+    paths:
+      - 'firmware/libs/state_estimation/**'
+      - 'firmware/libs/controls/**'
+      - 'firmware/libs/unity/**'
+
+jobs:
+  test-state-estimation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        working-directory: firmware/libs/state_estimation/tests
+        run: cmake -B build
+
+      - name: Build
+        working-directory: firmware/libs/state_estimation/tests
+        run: cmake --build build
+
+      - name: Run tests
+        working-directory: firmware/libs/state_estimation/tests
+        run: ctest --test-dir build --output-on-failure
+
+  test-controls:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        working-directory: firmware/libs/controls/tests
+        run: cmake -B build
+
+      - name: Build
+        working-directory: firmware/libs/controls/tests
+        run: cmake --build build
+
+      - name: Run tests
+        working-directory: firmware/libs/controls/tests
+        run: ctest --test-dir build --output-on-failure

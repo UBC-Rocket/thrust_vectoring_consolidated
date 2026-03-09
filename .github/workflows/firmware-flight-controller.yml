@@ -1,0 +1,44 @@
+name: Firmware - Flight Controller
+
+on:
+  push:
+    paths:
+      - 'firmware/ulysses-flight-controller/**'
+      - 'firmware/libs/state_estimation/**'
+      - 'firmware/libs/controls/**'
+      - 'libs/rocket-protocol/**'
+  pull_request:
+    paths:
+      - 'firmware/ulysses-flight-controller/**'
+      - 'firmware/libs/state_estimation/**'
+      - 'firmware/libs/controls/**'
+      - 'libs/rocket-protocol/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ARM toolchain
+        uses: carlosperate/arm-none-eabi-gcc-action@v1
+        with:
+          release: '13.2.Rel1'
+
+      - name: Configure CMake (Debug)
+        working-directory: firmware/ulysses-flight-controller
+        run: cmake --preset debug
+
+      - name: Build (Debug)
+        working-directory: firmware/ulysses-flight-controller
+        run: cmake --build --preset debug
+
+      - name: Upload firmware artifact
+        if: startsWith(github.ref, 'refs/tags/firmware-fc/')
+        uses: actions/upload-artifact@v4
+        with:
+          name: ulysses-firmware-${{ github.ref_name }}
+          path: |
+            firmware/ulysses-flight-controller/build/debug/ulysses.elf
+            firmware/ulysses-flight-controller/build/debug/ulysses.bin
+            firmware/ulysses-flight-controller/build/debug/ulysses.hex

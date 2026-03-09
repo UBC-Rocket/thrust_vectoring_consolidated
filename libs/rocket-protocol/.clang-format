@@ -1,0 +1,21 @@
+---
+BasedOnStyle: LLVM
+ColumnLimit: 100
+IndentWidth: 4
+InsertNewlineAtEOF: true
+AlignEscapedNewlines: Left
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortEnumsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+BreakBeforeBraces: Linux
+InsertBraces: true
+IndentGotoLabels: false
+SortIncludes:
+    Enabled: false
+ReflowComments: IndentOnly
+---
+Language: Proto
+BreakBeforeBraces: Attach

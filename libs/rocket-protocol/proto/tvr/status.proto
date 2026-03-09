@@ -1,0 +1,25 @@
+syntax = "proto3";
+package tvr;
+import "common.proto";
+
+// FC health/readiness, sent at 1Hz and on state changes
+message SystemStatus {
+  uint32 timestamp_ms   = 1;   // ms since boot
+  uint32 uptime_ms      = 2;   // same as timestamp_ms (alias for clarity)
+  FlightState flight_state = 3;
+
+  // Sensor health (set once at startup, static after)
+  bool accel_ok  = 4;
+  bool gyro_ok   = 5;
+  bool baro1_ok  = 6;
+  bool baro2_ok  = 7;
+
+  // GPS (updated as NMEA arrives)
+  bool   gps_connected = 8;    // true if any NMEA sentence received
+  // gps_fix and satellites deferred until NMEA parsing exists
+
+  // Radio link stats
+  uint32 radio_tx_count = 10;  // packets sent
+  uint32 radio_rx_count = 11;  // packets received
+  uint32 cmd_rx_count   = 12;  // valid commands decoded
+}
