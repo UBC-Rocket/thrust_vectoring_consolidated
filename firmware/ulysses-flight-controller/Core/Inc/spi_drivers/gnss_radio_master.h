@@ -25,7 +25,7 @@
 #define GNSS_RADIO_MASTER_H
 
 #include "stm32h5xx_hal.h"
-#include "gnss_radio_protocol.h"
+#include "sensors/gnss_radio_protocol.h"
 #include "spi1_bus.h"
 #include "sync.h"
 #include <stdbool.h>

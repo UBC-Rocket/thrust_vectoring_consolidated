@@ -6,12 +6,14 @@ on:
       - 'firmware/ulysses-flight-controller/**'
       - 'firmware/libs/state_estimation/**'
       - 'firmware/libs/controls/**'
+      - 'firmware/libs/sensors/**'
       - 'libs/rocket-protocol/**'
   pull_request:
     paths:
       - 'firmware/ulysses-flight-controller/**'
       - 'firmware/libs/state_estimation/**'
       - 'firmware/libs/controls/**'
+      - 'firmware/libs/sensors/**'
       - 'libs/rocket-protocol/**'
 
 jobs:

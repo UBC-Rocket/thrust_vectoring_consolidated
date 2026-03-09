@@ -25,9 +25,9 @@
 
 #include "stm32h5xx_hal.h"
 #include "SPI_queue.h"
-#include "BMI088_accel.h"
-#include "BMI088_gyro.h"
-#include "MS5611_baro.h"
+#include "sensors/bmi088_accel.h"
+#include "sensors/bmi088_gyro.h"
+#include "sensors/ms5611_baro.h"
 #include <stdbool.h>
 
 #ifdef __cplusplus

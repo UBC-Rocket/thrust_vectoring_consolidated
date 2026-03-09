@@ -1,6 +1,6 @@
 #include "stm32h5xx_hal.h"
 #include "SPI_queue.h"
-#include "BMI088_accel.h"
+#include "sensors/bmi088_accel.h"
 #include "main.h"
 #include "SPI_device_interactions.h"
 #include "gnss_radio_master.h"

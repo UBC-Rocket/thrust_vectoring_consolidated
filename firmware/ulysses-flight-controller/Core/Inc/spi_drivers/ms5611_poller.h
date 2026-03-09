@@ -16,7 +16,7 @@
 #ifndef MS5611_POLLER_H
 #define MS5611_POLLER_H
 
-#include "MS5611_baro.h"
+#include "sensors/ms5611_baro.h"
 #include "stm32h5xx_hal.h"
 #include <stdbool.h>
 #include <stdint.h>

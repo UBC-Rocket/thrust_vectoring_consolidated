@@ -23,7 +23,7 @@
 #include "stm32h5xx_hal.h"
 #include "spi_drivers/ms5611_poller.h"
 #include "spi_drivers/ms5607_poller.h"
-#include "sensor_config.h"
+#include "sensors/sensor_config.h"
 #include <stdbool.h>
 #include <stdint.h>
 

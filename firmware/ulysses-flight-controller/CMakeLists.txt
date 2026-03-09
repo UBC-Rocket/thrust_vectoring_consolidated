@@ -84,10 +84,6 @@ set(SPI_DRIVER_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/spi_drivers/bmi088_gyro_device.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/spi_drivers/ms5611_device.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/spi_drivers/ms5607_device.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/spi_drivers/BMI088_accel.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/spi_drivers/BMI088_gyro.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/spi_drivers/MS5611_baro.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/spi_drivers/MS5607_baro.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/spi_drivers/spi1_bus.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/spi_drivers/gnss_radio_master.c
 )
@@ -98,6 +94,10 @@ set(FW_LIBS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../libs)
 add_subdirectory(${TVR_LIBS_DIR}/rocket-protocol ${CMAKE_BINARY_DIR}/rocket-protocol)
 add_subdirectory(${FW_LIBS_DIR}/state_estimation ${CMAKE_BINARY_DIR}/state_estimation)
 add_subdirectory(${FW_LIBS_DIR}/controls ${CMAKE_BINARY_DIR}/controls)
+add_subdirectory(${FW_LIBS_DIR}/sensors ${CMAKE_BINARY_DIR}/sensors)
+
+# Enable ARM hardware memory barrier for sensor ring buffers (static inline in headers)
+target_compile_definitions(sensors INTERFACE SENSORS_USE_ARM_BARRIER)
 
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
@@ -155,6 +155,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     rocket-protocol
     state_estimation
     controls
+    sensors
 
     # Add user defined libraries
     printf::printf

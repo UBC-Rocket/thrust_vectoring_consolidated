@@ -15,13 +15,13 @@
 
 #include "stm32h5xx_hal.h"
 #include "SPI_queue.h"
-#include "BMI088_accel.h"
-#include "BMI088_gyro.h"
-#include "MS5611_baro.h"
-#include "MS5607_baro.h"
+#include "sensors/bmi088_accel.h"
+#include "sensors/bmi088_gyro.h"
+#include "sensors/ms5611_baro.h"
+#include "sensors/ms5607_baro.h"
 #include "ms5611_poller.h"
 #include "ms5607_poller.h"
-#include "sensor_config.h"
+#include "sensors/sensor_config.h"
 #include <stdbool.h>
 
 #ifdef __cplusplus
