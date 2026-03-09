@@ -1,0 +1,67 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    // ── Build All Boards ───────────────────────────────────────
+    {
+      "label": "Build Debug",
+      "dependsOn": ["FC: Build Debug", "GNSS: Build Debug"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Build Release",
+      "dependsOn": ["FC: Build Release", "GNSS: Build Release"],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "FC: Build Debug",
+      "type": "shell",
+      "command": "cmake --preset debug && cmake --build --preset debug",
+      "options": { "cwd": "${workspaceFolder}/ulysses-flight-controller" },
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "FC: Build Release",
+      "type": "shell",
+      "command": "cmake --preset release && cmake --build --preset release",
+      "options": { "cwd": "${workspaceFolder}/ulysses-flight-controller" },
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "GNSS: Build Debug",
+      "type": "shell",
+      "command": "cmake --preset debug && cmake --build --preset debug",
+      "options": { "cwd": "${workspaceFolder}/ulysses-gnss-radio" },
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "GNSS: Build Release",
+      "type": "shell",
+      "command": "cmake --preset release && cmake --build --preset release",
+      "options": { "cwd": "${workspaceFolder}/ulysses-gnss-radio" },
+      "problemMatcher": "$gcc"
+    },
+
+    // ── Library Tests ──────────────────────────────────────────
+    {
+      "label": "Test: State Estimation",
+      "type": "shell",
+      "command": "cmake -B build && cmake --build build && ctest --test-dir build --output-on-failure",
+      "options": { "cwd": "${workspaceFolder}/libs/state_estimation/tests" },
+      "group": "test",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Test: Controls",
+      "type": "shell",
+      "command": "cmake -B build && cmake --build build && ctest --test-dir build --output-on-failure",
+      "options": { "cwd": "${workspaceFolder}/libs/controls/tests" },
+      "group": "test",
+      "problemMatcher": "$gcc"
+    }
+  ]
+}

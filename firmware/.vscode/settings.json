@@ -1,0 +1,11 @@
+{
+  // ── Active board ─────────────────────────────────────────────
+  // Change this to switch which board CMake Tools configures/builds.
+  //   "${workspaceFolder}/ulysses-flight-controller"
+  //   "${workspaceFolder}/ulysses-gnss-radio"
+  "cmake.sourceDirectory": "${workspaceFolder}/ulysses-flight-controller",
+  "cmake.useCMakePresets": "always",
+
+  // ── Cortex-Debug ─────────────────────────────────────────────
+  "cortex-debug.variableUseNaturalFormat": true
+}

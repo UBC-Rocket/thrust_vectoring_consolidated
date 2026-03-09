@@ -1,0 +1,80 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    // ── Flight Controller ──────────────────────────────────────
+    {
+      "name": "FC - Debug",
+      "cwd": "${workspaceFolder}/ulysses-flight-controller",
+      "executable": "${workspaceFolder}/ulysses-flight-controller/build/debug/ulysses.elf",
+      "request": "launch",
+      "type": "cortex-debug",
+      "servertype": "openocd",
+      "serverpath": "${env:STM32_OPENOCD_PATH}",
+      "configFiles": [
+        "interface/stlink-dap.cfg",
+        "target/stm32h5x.cfg"
+      ],
+      "svdFile": "${workspaceFolder}/ulysses-flight-controller/platform/svd/STM32H563.svd",
+      "searchDir": ["${env:STM32_OPENOCD_SCRIPTS_PATH}"],
+      "runToEntryPoint": "main",
+      "showDevDebugOutput": "raw",
+      "preLaunchTask": "Build Debug"
+    },
+    {
+      "name": "FC - Release",
+      "cwd": "${workspaceFolder}/ulysses-flight-controller",
+      "executable": "${workspaceFolder}/ulysses-flight-controller/build/release/ulysses.elf",
+      "request": "launch",
+      "type": "cortex-debug",
+      "servertype": "openocd",
+      "serverpath": "${env:STM32_OPENOCD_PATH}",
+      "configFiles": [
+        "interface/stlink-dap.cfg",
+        "target/stm32h5x.cfg"
+      ],
+      "svdFile": "${workspaceFolder}/ulysses-flight-controller/platform/svd/STM32H563.svd",
+      "searchDir": ["${env:STM32_OPENOCD_SCRIPTS_PATH}"],
+      "runToEntryPoint": "main",
+      "showDevDebugOutput": "raw",
+      "preLaunchTask": "Build Release"
+    },
+
+    // ── GNSS Radio ─────────────────────────────────────────────
+    {
+      "name": "GNSS - Debug",
+      "cwd": "${workspaceFolder}/ulysses-gnss-radio",
+      "executable": "${workspaceFolder}/ulysses-gnss-radio/build/debug/ulysses-gnss-radio.elf",
+      "request": "launch",
+      "type": "cortex-debug",
+      "servertype": "openocd",
+      "serverpath": "${env:STM32_OPENOCD_PATH}",
+      "configFiles": [
+        "interface/stlink-dap.cfg",
+        "target/stm32g0x.cfg"
+      ],
+      "svdFile": "${workspaceFolder}/ulysses-gnss-radio/platform/svd/STM32G0B1.svd",
+      "searchDir": ["${env:STM32_OPENOCD_SCRIPTS_PATH}"],
+      "runToEntryPoint": "main",
+      "showDevDebugOutput": "raw",
+      "preLaunchTask": "Build Debug"
+    },
+    {
+      "name": "GNSS - Release",
+      "cwd": "${workspaceFolder}/ulysses-gnss-radio",
+      "executable": "${workspaceFolder}/ulysses-gnss-radio/build/release/ulysses-gnss-radio.elf",
+      "request": "launch",
+      "type": "cortex-debug",
+      "servertype": "openocd",
+      "serverpath": "${env:STM32_OPENOCD_PATH}",
+      "configFiles": [
+        "interface/stlink-dap.cfg",
+        "target/stm32g0x.cfg"
+      ],
+      "svdFile": "${workspaceFolder}/ulysses-gnss-radio/platform/svd/STM32G0B1.svd",
+      "searchDir": ["${env:STM32_OPENOCD_SCRIPTS_PATH}"],
+      "runToEntryPoint": "main",
+      "showDevDebugOutput": "raw",
+      "preLaunchTask": "Build Release"
+    }
+  ]
+}

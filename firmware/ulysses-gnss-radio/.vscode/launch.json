@@ -2,9 +2,9 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Ulysses GNSS - Debug",
+            "name": "GNSS - Debug",
             "cwd": "${workspaceFolder}",
-            "executable": "${workspaceFolder}/build/Debug/ulysses-gnss-radio.elf",
+            "executable": "${workspaceFolder}/build/debug/ulysses-gnss-radio.elf",
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "openocd",
@@ -21,9 +21,9 @@
             "showDevDebugOutput": "raw"
         },
         {
-            "name": "ulysses-gnss-radio - Release",
+            "name": "GNSS - Release",
             "cwd": "${workspaceFolder}",
-            "executable": "${config:cmake.buildDirectory}/Release/ulysses-gnss-radio.elf",
+            "executable": "${workspaceFolder}/build/release/ulysses-gnss-radio.elf",
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "openocd",
