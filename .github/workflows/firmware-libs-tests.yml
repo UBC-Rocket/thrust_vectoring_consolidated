@@ -4,14 +4,14 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'firmware/libs/state_estimation/**'
-      - 'firmware/libs/controls/**'
-      - 'firmware/libs/unity/**'
+      - 'embedded-software/firmware/libs/state_estimation/**'
+      - 'embedded-software/firmware/libs/controls/**'
+      - 'embedded-software/firmware/libs/unity/**'
   pull_request:
     paths:
-      - 'firmware/libs/state_estimation/**'
-      - 'firmware/libs/controls/**'
-      - 'firmware/libs/unity/**'
+      - 'embedded-software/firmware/libs/state_estimation/**'
+      - 'embedded-software/firmware/libs/controls/**'
+      - 'embedded-software/firmware/libs/unity/**'
 
 jobs:
   test-state-estimation:
@@ -20,15 +20,15 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Configure
-        working-directory: firmware/libs/state_estimation/tests
+        working-directory: embedded-software/firmware/libs/state_estimation/tests
         run: cmake -B build
 
       - name: Build
-        working-directory: firmware/libs/state_estimation/tests
+        working-directory: embedded-software/firmware/libs/state_estimation/tests
         run: cmake --build build
 
       - name: Run tests
-        working-directory: firmware/libs/state_estimation/tests
+        working-directory: embedded-software/firmware/libs/state_estimation/tests
         run: ctest --test-dir build --output-on-failure
 
   test-controls:
@@ -37,13 +37,13 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Configure
-        working-directory: firmware/libs/controls/tests
+        working-directory: embedded-software/firmware/libs/controls/tests
         run: cmake -B build
 
       - name: Build
-        working-directory: firmware/libs/controls/tests
+        working-directory: embedded-software/firmware/libs/controls/tests
         run: cmake --build build
 
       - name: Run tests
-        working-directory: firmware/libs/controls/tests
+        working-directory: embedded-software/firmware/libs/controls/tests
         run: ctest --test-dir build --output-on-failure

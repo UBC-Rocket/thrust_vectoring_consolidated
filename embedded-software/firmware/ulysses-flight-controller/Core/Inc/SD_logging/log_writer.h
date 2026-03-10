@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include "SD_logging/log_records.h"
+#include "log_records/log_records.h"
 
 /**
  * @brief Initialise the SD log writer subsystem.

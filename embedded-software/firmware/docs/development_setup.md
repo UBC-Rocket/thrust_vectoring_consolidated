@@ -243,7 +243,7 @@ The debug launch configurations reference two environment variables. You must
 set both of these in your shell profile (e.g. `~/.bashrc`, `~/.zshrc`, or
 `~/.config/fish/config.fish`).
 
-See the [README](../../README.md#environment-variables) for platform-specific path
+See the [README](../../../README.md#environment-variables) for platform-specific path
 examples.
 
 | Variable | Purpose |

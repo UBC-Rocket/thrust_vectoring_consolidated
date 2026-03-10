@@ -95,6 +95,7 @@ add_subdirectory(${TVR_LIBS_DIR}/rocket-protocol ${CMAKE_BINARY_DIR}/rocket-prot
 add_subdirectory(${FW_LIBS_DIR}/state_estimation ${CMAKE_BINARY_DIR}/state_estimation)
 add_subdirectory(${FW_LIBS_DIR}/controls ${CMAKE_BINARY_DIR}/controls)
 add_subdirectory(${FW_LIBS_DIR}/sensors ${CMAKE_BINARY_DIR}/sensors)
+add_subdirectory(${FW_LIBS_DIR}/log_records ${CMAKE_BINARY_DIR}/log_records)
 
 # Enable ARM hardware memory barrier for sensor ring buffers (static inline in headers)
 target_compile_definitions(sensors INTERFACE SENSORS_USE_ARM_BARRIER)
@@ -156,6 +157,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     state_estimation
     controls
     sensors
+    log_records
 
     # Add user defined libraries
     printf::printf

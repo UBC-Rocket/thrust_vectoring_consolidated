@@ -12,7 +12,7 @@ from pathlib import Path
 from textwrap import dedent
 
 ROOT = Path(__file__).resolve().parents[2]
-HEADER_PATH = ROOT / "firmware" / "ulysses-flight-controller" / "Core" / "Inc" / "SD_logging" / "log_records.h"
+HEADER_PATH = ROOT / "libs" / "log_records" / "include" / "log_records" / "log_records.h"
 OUTPUT_PATH = Path(__file__).resolve().parent / "log_schema.py"
 
 TYPE_FORMATS = {
@@ -78,7 +78,7 @@ def parse_fields(text: str, macro_name: str):
 def generate_python(records, schema_version):
     header = dedent(
         """\
-        \"\"\"Auto-generated from Core/Inc/SD_logging/log_records.h
+        \"\"\"Auto-generated from libs/log_records/include/log_records/log_records.h
         Do not edit manually. Run tools/logging/generate_log_schema.py instead.
         \"\"\"
 

@@ -7,6 +7,8 @@ Shared C libraries used by firmware targets. These are platform-independent and 
 | `state_estimation/` | Extended Kalman Filter (quaternion orientation + body position/velocity), matrix operations, quaternion/vector math |
 | `controls/` | PID controller, flight controller (attitude torque, control allocation, thrust PID, gimbal angles) |
 | `lwgps/` | Lightweight GPS NMEA parser (vendored third-party library) |
+| `sensors/` | Bus-agnostic sensor protocol drivers (BMI088, MS5611, MS5607) |
+| `log_records/` | SD log record schema (X-macros), frame encoding, CRC-16 CCITT |
 | `unity/` | Unity C test framework (vendored, v2.6.1) |
 
 ## Testing

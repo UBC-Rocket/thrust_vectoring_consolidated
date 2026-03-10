@@ -4,12 +4,12 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'firmware/ulysses-gnss-radio/**'
-      - 'firmware/libs/lwgps/**'
+      - 'embedded-software/firmware/ulysses-gnss-radio/**'
+      - 'embedded-software/firmware/libs/lwgps/**'
   pull_request:
     paths:
-      - 'firmware/ulysses-gnss-radio/**'
-      - 'firmware/libs/lwgps/**'
+      - 'embedded-software/firmware/ulysses-gnss-radio/**'
+      - 'embedded-software/firmware/libs/lwgps/**'
 
 jobs:
   build:
@@ -23,11 +23,11 @@ jobs:
           release: '13.2.Rel1'
 
       - name: Configure CMake (Debug)
-        working-directory: firmware/ulysses-gnss-radio
+        working-directory: embedded-software/firmware/ulysses-gnss-radio
         run: cmake --preset debug
 
       - name: Build (Debug)
-        working-directory: firmware/ulysses-gnss-radio
+        working-directory: embedded-software/firmware/ulysses-gnss-radio
         run: cmake --build --preset debug
 
       - name: Upload firmware artifact
@@ -36,5 +36,5 @@ jobs:
         with:
           name: ulysses-gnss-radio-${{ github.ref_name }}
           path: |
-            firmware/ulysses-gnss-radio/build/debug/ulysses-gnss-radio.elf
-            firmware/ulysses-gnss-radio/build/debug/ulysses-gnss-radio.bin
+            embedded-software/firmware/ulysses-gnss-radio/build/debug/ulysses-gnss-radio.elf
+            embedded-software/firmware/ulysses-gnss-radio/build/debug/ulysses-gnss-radio.bin

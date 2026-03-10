@@ -1,7 +1,7 @@
 #include "SD_logging/log_service.h"
 
 #include "SD_logging/log_writer.h"
-#include "SD_logging/log_records.h"
+#include "log_records/log_records.h"
 #include "mission_manager/mission_manager.h"
 #include "state_estimation/state.h"
 #include "main.h"

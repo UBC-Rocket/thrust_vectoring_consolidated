@@ -4,7 +4,7 @@
 
 ## Goals
 
-Simplify post-flight analysis by capturing structured telemetry directly to an SD card without needing an external PC. Records follow the shared schema in `Core/Inc/SD_logging/log_records.h`, so firmware and host tools stay in sync.
+Simplify post-flight analysis by capturing structured telemetry directly to an SD card without needing an external PC. Records follow the shared schema in `libs/log_records/include/log_records/log_records.h`, so firmware and host tools stay in sync.
 
 ## Architecture
 

@@ -1,30 +1,20 @@
 # TVR CODEOWNERS
-# Each line is a file pattern followed by one or more owners.
-# Update the team handles below to match your GitHub organization.
+# Maps directories to teams for automatic PR review requests.
+# Merge gating (lead approval) is enforced by GitHub Rulesets.
 
-# Firmware
-firmware/ulysses-flight-controller/    @ubcrocket/firmware
-firmware/ulysses-gnss-radio/           @ubcrocket/firmware
-firmware/libs/                         @ubcrocket/firmware
-firmware/docs/                         @ubcrocket/firmware
-firmware/tools/                        @ubcrocket/firmware
+# Embedded Software — firmware, ground station, Jetson, shared protocol lib
+/embedded-software/                       @UBC-Rocket/tvr-embedded-software
 
-# Ground Station
-ground-station/                        @ubcrocket/firmware
+# Controls — MATLAB/Simulink prototyping
+/controls/                                @UBC-Rocket/tvr-controls
 
-# Shared Protocol Library
-libs/rocket-protocol/                  @ubcrocket/firmware @ubcrocket/ground-station
+# Electrical Hardware
+/electrical-hardware/                     @UBC-Rocket/tvr-electrical-hardware
 
-# Controls
-controls/                              @ubcrocket/controls
+# Mechanical Hardware
+/mechanical-hardware/                     @UBC-Rocket/tvr-mechanical-hardware
 
-# Hardware
-electrical-hardware/                   @ubcrocket/electrical
-mechanical-hardware/                   @ubcrocket/mechanical
-
-# Jetson
-jetson/                                @ubcrocket/firmware
-
-# CI/CD and repo config
-.github/                               @ubcrocket/leads
-CONTRIBUTING.md                        @ubcrocket/leads
+# CI/CD, repo config, and root docs — parent TVR team
+/.github/                                 @UBC-Rocket/tvr
+/CONTRIBUTING.md                          @UBC-Rocket/tvr
+/README.md                                @UBC-Rocket/tvr

@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'libs/rocket-protocol/**'
+      - 'embedded-software/libs/rocket-protocol/**'
   pull_request:
     paths:
-      - 'libs/rocket-protocol/**'
+      - 'embedded-software/libs/rocket-protocol/**'
 
 jobs:
   test:
@@ -16,13 +16,13 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Configure CMake
-        working-directory: libs/rocket-protocol
+        working-directory: embedded-software/libs/rocket-protocol
         run: cmake -B build -DROCKET_PROTOCOL_BUILD_TESTS=ON
 
       - name: Build
-        working-directory: libs/rocket-protocol
+        working-directory: embedded-software/libs/rocket-protocol
         run: cmake --build build
 
       - name: Run tests
-        working-directory: libs/rocket-protocol
+        working-directory: embedded-software/libs/rocket-protocol
         run: ctest --test-dir build --output-on-failure

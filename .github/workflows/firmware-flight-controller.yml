@@ -4,18 +4,20 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'firmware/ulysses-flight-controller/**'
-      - 'firmware/libs/state_estimation/**'
-      - 'firmware/libs/controls/**'
-      - 'firmware/libs/sensors/**'
-      - 'libs/rocket-protocol/**'
+      - 'embedded-software/firmware/ulysses-flight-controller/**'
+      - 'embedded-software/firmware/libs/state_estimation/**'
+      - 'embedded-software/firmware/libs/controls/**'
+      - 'embedded-software/firmware/libs/sensors/**'
+      - 'embedded-software/firmware/libs/log_records/**'
+      - 'embedded-software/libs/rocket-protocol/**'
   pull_request:
     paths:
-      - 'firmware/ulysses-flight-controller/**'
-      - 'firmware/libs/state_estimation/**'
-      - 'firmware/libs/controls/**'
-      - 'firmware/libs/sensors/**'
-      - 'libs/rocket-protocol/**'
+      - 'embedded-software/firmware/ulysses-flight-controller/**'
+      - 'embedded-software/firmware/libs/state_estimation/**'
+      - 'embedded-software/firmware/libs/controls/**'
+      - 'embedded-software/firmware/libs/sensors/**'
+      - 'embedded-software/firmware/libs/log_records/**'
+      - 'embedded-software/libs/rocket-protocol/**'
 
 jobs:
   build:
@@ -29,11 +31,11 @@ jobs:
           release: '13.2.Rel1'
 
       - name: Configure CMake (Debug)
-        working-directory: firmware/ulysses-flight-controller
+        working-directory: embedded-software/firmware/ulysses-flight-controller
         run: cmake --preset debug
 
       - name: Build (Debug)
-        working-directory: firmware/ulysses-flight-controller
+        working-directory: embedded-software/firmware/ulysses-flight-controller
         run: cmake --build --preset debug
 
       - name: Upload firmware artifact
@@ -42,6 +44,6 @@ jobs:
         with:
           name: ulysses-firmware-${{ github.ref_name }}
           path: |
-            firmware/ulysses-flight-controller/build/debug/ulysses.elf
-            firmware/ulysses-flight-controller/build/debug/ulysses.bin
-            firmware/ulysses-flight-controller/build/debug/ulysses.hex
+            embedded-software/firmware/ulysses-flight-controller/build/debug/ulysses.elf
+            embedded-software/firmware/ulysses-flight-controller/build/debug/ulysses.bin
+            embedded-software/firmware/ulysses-flight-controller/build/debug/ulysses.hex

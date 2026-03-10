@@ -1,4 +1,5 @@
 #include "SD_logging/log_writer.h"
+#include "log_records/log_frame.h"
 
 #include "main.h"
 #include "FreeRTOS.h"
@@ -35,9 +36,6 @@ typedef struct {
 static log_writer_ctx_t g_log_ctx;
 static bool s_preflight_erased = false;
 
-static uint16_t crc16_ccitt_update(uint16_t crc, uint8_t data);
-static uint16_t crc16_ccitt_compute(const uint8_t *data, size_t len);
-static uint16_t crc16_ccitt_accumulate(uint16_t crc, const uint8_t *data, size_t len);
 static log_buffer_t *get_active_buffer(void);
 static uint8_t next_buffer_index(uint8_t idx);
 static void pad_buffer_to_block(log_buffer_t *buf);
@@ -130,9 +128,9 @@ bool log_writer_append_record(log_record_type_t type,
         .reserved = 0U
     };
 
-    uint16_t crc = crc16_ccitt_compute((const uint8_t *)&frame, sizeof(frame));
+    uint16_t crc = log_crc16_ccitt_compute((const uint8_t *)&frame, sizeof(frame));
     if (payload_size > 0U) {
-        crc = crc16_ccitt_accumulate(crc, (const uint8_t *)payload, payload_size);
+        crc = log_crc16_ccitt_accumulate(crc, (const uint8_t *)payload, payload_size);
     }
     frame.crc16 = crc;
 
@@ -315,33 +313,6 @@ static bool wait_for_card_ready(uint32_t timeout_ms)
     }
 
     return true;
-}
-
-static uint16_t crc16_ccitt_update(uint16_t crc, uint8_t data)
-{
-    crc ^= (uint16_t)data << 8;
-    for (uint8_t i = 0; i < 8U; ++i) {
-        if (crc & 0x8000U) {
-            crc = (crc << 1U) ^ 0x1021U;
-        } else {
-            crc <<= 1U;
-        }
-    }
-    return crc;
-}
-
-static uint16_t crc16_ccitt_compute(const uint8_t *data, size_t len)
-{
-    uint16_t crc = 0xFFFFU;
-    return crc16_ccitt_accumulate(crc, data, len);
-}
-
-static uint16_t crc16_ccitt_accumulate(uint16_t crc, const uint8_t *data, size_t len)
-{
-    for (size_t i = 0; i < len; ++i) {
-        crc = crc16_ccitt_update(crc, data[i]);
-    }
-    return crc;
 }
 
 void HAL_SD_TxCpltCallback(SD_HandleTypeDef *hsd)

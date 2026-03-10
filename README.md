@@ -12,19 +12,15 @@ Mono-repo for the TVR project, containing firmware, ground station, shared libra
 
 | Directory | Description |
 |-----------|-------------|
-| `firmware/ulysses-flight-controller/` | STM32H563 flight controller firmware (FreeRTOS, CMake) |
-| `firmware/ulysses-gnss-radio/` | STM32G0xx GNSS/radio module firmware |
-| `firmware/libs/state_estimation/` | EKF, quaternion math, and body state estimation library |
-| `firmware/libs/controls/` | PID controller and flight controller library |
-| `firmware/libs/sensors/` | Bus-agnostic sensor protocol drivers |
-| `firmware/libs/lwgps/` | Lightweight GPS NMEA parser (vendored) |
-| `firmware/libs/unity/` | Unity C test framework (vendored) |
-| `firmware/docs/` | Firmware documentation |
-| `firmware/tools/` | SD log decoding and serial debug tools |
-| `ground-station/` | Qt6/QML ground control station |
-| `libs/rocket-protocol/` | Shared protobuf protocol library (nanopb, COBS, CRC) |
-| `controls/prototyping/` | MATLAB/Simulink control system prototyping |
-| `jetson/` | Future Jetson compute module (placeholder) |
+| `embedded-software/firmware/ulysses-flight-controller/` | STM32H563 flight controller firmware (FreeRTOS, CMake) |
+| `embedded-software/firmware/ulysses-gnss-radio/` | STM32G0xx GNSS/radio module firmware |
+| `embedded-software/firmware/libs/` | Shared firmware libraries (EKF, controls, sensors, GPS) |
+| `embedded-software/firmware/docs/` | Firmware documentation |
+| `embedded-software/firmware/tools/` | SD log decoding and serial debug tools |
+| `embedded-software/ground-station/` | Qt6/QML ground control station |
+| `embedded-software/libs/rocket-protocol/` | Shared protobuf protocol library (nanopb, COBS, CRC) |
+| `embedded-software/jetson/` | Future Jetson compute module (placeholder) |
+| `controls/` | MATLAB/Simulink control system prototyping |
 | `electrical-hardware/` | Electrical hardware design files |
 | `mechanical-hardware/` | Mechanical hardware design files |
 
@@ -32,15 +28,19 @@ Mono-repo for the TVR project, containing firmware, ground station, shared libra
 
 For firmware development, open the board folder directly in VS Code:
 
-- `firmware/ulysses-flight-controller/`
-- `firmware/ulysses-gnss-radio/`
+- `embedded-software/firmware/ulysses-flight-controller/`
+- `embedded-software/firmware/ulysses-gnss-radio/`
 
-Each folder is self-contained with CMake presets, debug launch configs, and recommended extensions. See [firmware/docs/development_setup.md](firmware/docs/development_setup.md) for full setup instructions.
+Each folder is self-contained with CMake presets, debug launch configs, and recommended extensions. See [embedded-software/firmware/docs/development_setup.md](embedded-software/firmware/docs/development_setup.md) for full setup instructions.
+
+### Teams & Code Ownership
+
+Each directory is owned by a subteam — see [CONTRIBUTING.md](CONTRIBUTING.md) for the branching model, team leads, and PR review requirements.
 
 ### Prerequisites
 
 - ARM GCC toolchain (`arm-none-eabi-gcc`) for firmware
-- STM32CubeIDE (for ST's OpenOCD — see [development setup](firmware/docs/development_setup.md))
+- STM32CubeIDE (for ST's OpenOCD — see [development setup](embedded-software/firmware/docs/development_setup.md))
 - CMake 3.22+ and Ninja
 - Qt 6.6+ for ground station
 - Python 3.10+ with [uv](https://docs.astral.sh/uv/) for tools
@@ -90,7 +90,7 @@ export STM32_OPENOCD_SCRIPTS_PATH="/opt/st/stm32cubeide_<version>/plugins/com.st
 ### Building Firmware
 
 ```bash
-cd firmware/ulysses-flight-controller
+cd embedded-software/firmware/ulysses-flight-controller
 cmake --preset debug
 cmake --build --preset debug
 ```
@@ -99,12 +99,12 @@ cmake --build --preset debug
 
 ```bash
 # State estimation tests
-cd firmware/libs/state_estimation/tests
+cd embedded-software/firmware/libs/state_estimation/tests
 cmake -B build && cmake --build build
 ctest --test-dir build
 
 # Controls tests
-cd firmware/libs/controls/tests
+cd embedded-software/firmware/libs/controls/tests
 cmake -B build && cmake --build build
 ctest --test-dir build
 ```
@@ -112,7 +112,7 @@ ctest --test-dir build
 ### Building Ground Station
 
 ```bash
-cd ground-station
+cd embedded-software/ground-station
 cmake -B build
 cmake --build build
 ```
