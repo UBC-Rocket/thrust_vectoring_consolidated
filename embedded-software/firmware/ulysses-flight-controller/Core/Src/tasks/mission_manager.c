@@ -65,13 +65,13 @@ void mission_manager_task_start(void *argument) {
 
         /* ── Radio RX: decode FlightCommand ── */
         if (flags & GNSS_RADIO_MSG_READY_FLAG) {
-            uint8_t spi_msg[GNSS_RADIO_MESSAGE_MAX_LEN];
+            gnss_radio_msg_t spi_msg;
 
-            while (gnss_radio_dequeue(spi_msg)) {
+            while (gnss_radio_msg_q_pop(&gnss_radio_ctx.radio_queue, &spi_msg)) {
                 tvr_FlightCommand decoded = tvr_FlightCommand_init_zero;
 
                 rp_packet_decode_result_t dec = rp_packet_decode(
-                    spi_msg,
+                    spi_msg.data,
                     GNSS_RADIO_MESSAGE_MAX_LEN,
                     tvr_FlightCommand_fields,
                     &decoded
@@ -300,7 +300,7 @@ static void send_status(flight_state_t flight_state) {
     s->gyro_ok        = sensors->gyro_ok;
     s->baro1_ok       = sensors->baro_ok;
     s->baro2_ok       = sensors->baro2_ok;
-    s->gps_connected  = !gnss_gps_queue_empty();
+    s->gps_connected  = !gnss_gps_fix_q_empty(&gnss_radio_ctx.gps_queue);
     s->radio_tx_count = radio_tx_count;
     s->radio_rx_count = radio_rx_count;
     s->cmd_rx_count   = cmd_rx_count;

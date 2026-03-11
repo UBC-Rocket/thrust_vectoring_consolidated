@@ -51,10 +51,10 @@ extern "C" {
  */
 
 /** Sample ring buffers - ISR produces, state estimation task consumes */
-extern bmi088_accel_sample_queue_t bmi088_acc_sample_ring;
-extern bmi088_gyro_sample_queue_t bmi088_gyro_sample_ring;
-extern ms5611_sample_queue_t ms5611_sample_ring;
-extern ms5607_sample_queue_t ms5607_sample_ring;
+extern bmi088_acc_sample_q_t bmi088_acc_sample_ring;
+extern bmi088_gyro_sample_q_t bmi088_gyro_sample_ring;
+extern ms5611_sample_q_t ms5611_sample_ring;
+extern ms5607_sample_q_t ms5607_sample_ring;
 
 /** SPI job queues for each bus */
 extern spi_job_queue_t jobq_spi_1;

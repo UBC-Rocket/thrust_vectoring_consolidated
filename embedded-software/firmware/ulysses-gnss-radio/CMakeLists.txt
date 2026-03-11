@@ -40,6 +40,7 @@ add_subdirectory(cmake/stm32cubemx)
 # Shared libraries
 set(FW_LIBS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../libs)
 add_subdirectory(${FW_LIBS_DIR}/lwgps ${CMAKE_BINARY_DIR}/lwgps)
+add_subdirectory(${FW_LIBS_DIR}/gnss-protocol ${CMAKE_BINARY_DIR}/gnss-protocol)
 
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
@@ -78,6 +79,7 @@ list(REMOVE_ITEM CMAKE_C_IMPLICIT_LINK_LIBRARIES ob)
 target_link_libraries(${CMAKE_PROJECT_NAME}
     stm32cubemx
     lwgps
+    gnss-protocol
 
     # Add user defined libraries
 )

@@ -8,6 +8,9 @@ Shared C libraries used by firmware targets. These are platform-independent and 
 | `controls/` | PID controller, flight controller (attitude torque, control allocation, thrust PID, gimbal angles) |
 | `lwgps/` | Lightweight GPS NMEA parser (vendored third-party library) |
 | `sensors/` | Bus-agnostic sensor protocol drivers (BMI088, MS5611, MS5607) |
+| `collections/` | Generic SPSC ring buffer (`spsc_ring.h`) — header-only, macro-based, with portable memory barriers |
+| `gnss-protocol/` | Shared GPS fix struct (`gps_fix_t`) for SPI communication between FC and GNSS radio — header-only |
+| `timestamp/` | DWT cycle-counter microsecond timestamp utility (Cortex-M with DWT support) |
 | `log_records/` | SD log record schema (X-macros), frame encoding, CRC-16 CCITT |
 | `unity/` | Unity C test framework (vendored, v2.6.1) |
 
