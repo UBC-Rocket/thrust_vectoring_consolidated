@@ -38,7 +38,7 @@ void test_ekf_init_gives_identity_quaternion(void)
     diag_3x3(mn_b, 0.1f);
     float eg[3] = {0, 0, -1};
 
-    init_ekf(pn_q, mn_q, pn_b, mn_b, eg);
+    init_ekf(eg);
 
     float q[4], pos[3], vel[3];
     get_state(q, pos, vel);
@@ -63,7 +63,7 @@ void test_ekf_orientation_tick_stable_at_rest(void)
     diag_3x3(mn_b, 0.1f);
     float eg[3] = {0, 0, -1};
 
-    init_ekf(pn_q, mn_q, pn_b, mn_b, eg);
+    init_ekf(eg);
 
     /* Feed zero gyro and gravity-aligned accel for several ticks */
     float gyro[3] = {0, 0, 0};
@@ -99,14 +99,15 @@ void test_ekf_body_tick_zero_accel(void)
     diag_3x3(mn_b, 0.1f);
     float eg[3] = {0, 0, -1};
 
-    init_ekf(pn_q, mn_q, pn_b, mn_b, eg);
+    init_ekf(eg);
 
     float accel[3] = {0, 0, 0};
     float gps[3] = {0, 0, 0};
     float dt = 0.01f;
 
     for (int i = 0; i < 50; i++) {
-        tick_ekf_body(dt, accel, gps);
+        predict_ekf_body(dt, accel);
+        update_ekf_body(gps);
     }
 
     float q[4], pos[3], vel[3];
