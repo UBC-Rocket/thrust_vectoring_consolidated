@@ -19,6 +19,7 @@
 #include "status.pb.h"
 #include "common.pb.h"
 #include "rp/codec.h"
+#include "controls/flight_controller.h"
 
 static flight_state_t last_logged_flight_state = IDLE;
 static bool flight_header_logged = false;
@@ -96,19 +97,92 @@ void mission_manager_task_start(void *argument) {
                             break;
 
                         case tvr_FlightCommand_set_pid_gains_tag:
+                        {
                             cmd_rx_count++;
-                            /* TODO: apply PID gains to controller */
+                            bool armed = false;
+                            state_exchange_get_armed(&armed);
+                            if (armed) {
+                                const tvr_SetPidGains *g = &decoded.payload.set_pid_gains;
+                                flight_controller_config_t cfg = {0};
+                                state_exchange_get_config(&cfg);
+
+                                if (g->has_attitude_kp) {
+                                    cfg.attitude.Kp[0][0] = g->attitude_kp.x;
+                                    cfg.attitude.Kp[1][1] = g->attitude_kp.y;
+                                    cfg.attitude.Kp[2][2] = g->attitude_kp.z;
+                                }
+                                if (g->has_attitude_kd) {
+                                    cfg.attitude.Kd[0][0] = g->attitude_kd.x;
+                                    cfg.attitude.Kd[1][1] = g->attitude_kd.y;
+                                    cfg.attitude.Kd[2][2] = g->attitude_kd.z;
+                                }
+                                if (g->z_kp != 0.0f)             { cfg.thrust.kp = g->z_kp; }
+                                if (g->z_ki != 0.0f)             { cfg.thrust.ki = g->z_ki; }
+                                if (g->z_kd != 0.0f)             { cfg.thrust.kd = g->z_kd; }
+                                if (g->z_integral_limit != 0.0f) { cfg.thrust.integral_limit = g->z_integral_limit; }
+
+                                state_exchange_publish_config(&cfg);
+                                DLOG_PRINT("[MM] SetPidGains applied\r\n");
+                            } else {
+                                DLOG_PRINT("[MM] SetPidGains rejected: not armed\r\n");
+                            }
                             break;
+                        }
 
                         case tvr_FlightCommand_set_reference_tag:
+                        {
                             cmd_rx_count++;
-                            /* TODO: apply reference setpoints */
+                            bool armed = false;
+                            state_exchange_get_armed(&armed);
+                            if (armed) {
+                                const tvr_SetReference *r = &decoded.payload.set_reference;
+                                flight_controller_ref_t ref = {0};
+                                state_exchange_get_ref(&ref);
+
+                                ref.z_ref  = r->z_ref;
+                                ref.vz_ref = r->vz_ref;
+                                if (r->has_q_ref) {
+                                    ref.q_ref.w = r->q_ref.w;
+                                    ref.q_ref.x = r->q_ref.x;
+                                    ref.q_ref.y = r->q_ref.y;
+                                    ref.q_ref.z = r->q_ref.z;
+                                }
+
+                                state_exchange_publish_ref(&ref);
+                                DLOG_PRINT("[MM] SetReference applied z=%.3f vz=%.3f\r\n",
+                                           (double)ref.z_ref, (double)ref.vz_ref);
+                            } else {
+                                DLOG_PRINT("[MM] SetReference rejected: not armed\r\n");
+                            }
                             break;
+                        }
 
                         case tvr_FlightCommand_set_config_tag:
+                        {
                             cmd_rx_count++;
-                            /* TODO: apply vehicle config */
+                            bool armed = false;
+                            state_exchange_get_armed(&armed);
+                            if (armed) {
+                                const tvr_SetConfig *sc = &decoded.payload.set_config;
+                                flight_controller_config_t cfg = {0};
+                                state_exchange_get_config(&cfg);
+
+                                if (sc->mass      != 0.0f) { cfg.thrust.m          = sc->mass; }
+                                if (sc->T_min     != 0.0f) { cfg.thrust.T_min      = sc->T_min; }
+                                if (sc->T_max     != 0.0f) { cfg.thrust.T_max      = sc->T_max; }
+                                if (sc->theta_min != 0.0f) { cfg.gimbal.theta_min  = sc->theta_min; }
+                                if (sc->theta_max != 0.0f) { cfg.gimbal.theta_max  = sc->theta_max; }
+
+                                state_exchange_publish_config(&cfg);
+                                DLOG_PRINT("[MM] SetConfig applied m=%.3f T=[%.1f,%.1f]\r\n",
+                                           (double)cfg.thrust.m,
+                                           (double)cfg.thrust.T_min,
+                                           (double)cfg.thrust.T_max);
+                            } else {
+                                DLOG_PRINT("[MM] SetConfig rejected: not armed\r\n");
+                            }
                             break;
+                        }
 
                         default:
                             break;

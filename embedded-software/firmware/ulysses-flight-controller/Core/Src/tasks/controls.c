@@ -240,11 +240,18 @@ void controls_task_start(void *argument)
     uint8_t config_done = 0;
     uint32_t last_state_seq = 0;
     uint32_t stale_tick_count = 0;
+    uint32_t last_config_seq = 0;
+    uint32_t last_ref_seq = 0;
     bool esc_running = false;
     uint32_t esc_arm_tick = 0;
 
     init_default_config(&config);
     init_default_ref(&ref);
+
+    /* Seed state_exchange so mission_manager can do read-modify-write before
+     * any rearm completes. */
+    state_exchange_publish_config(&config);
+    state_exchange_publish_ref(&ref);
 
     /* Run cinematic startup test before entering the control loop. */
     run_startup_actuator_test();
@@ -271,6 +278,13 @@ void controls_task_start(void *argument)
             flight_controller_init(&config);
             config_done = 1;
 
+            /* Re-seed shared config/ref so mission_manager read-modify-write
+             * always starts from the current live values. */
+            state_exchange_publish_config(&config);
+            state_exchange_publish_ref(&ref);
+            last_config_seq = 0;
+            last_ref_seq = 0;
+
             state_exchange_publish_armed(true);
             DLOG_PRINT("[CTRL] Rearm complete, armed\r\n");
             continue;
@@ -281,6 +295,16 @@ void controls_task_start(void *argument)
 
         bool armed = false;
         state_exchange_get_armed(&armed);
+
+        /* Pick up any config/ref updates published by mission_manager. */
+        uint32_t new_cfg_seq = state_exchange_get_config(&config);
+        if (new_cfg_seq != last_config_seq) {
+            last_config_seq = new_cfg_seq;
+        }
+        uint32_t new_ref_seq = state_exchange_get_ref(&ref);
+        if (new_ref_seq != last_ref_seq) {
+            last_ref_seq = new_ref_seq;
+        }
 
         if (!config_done) {
             flight_controller_init(&config);
