@@ -133,20 +133,24 @@ void mission_manager_task_start(void *argument) {
         /* ── Periodic downlink ── */
         TickType_t now = xTaskGetTickCount();
 
-        /* 10 Hz telemetry */
+        /* 1 Hz system status */
+        static TickType_t last_status_tick = 0;
         static TickType_t last_telem_tick = 0;
-        if ((now - last_telem_tick) >= pdMS_TO_TICKS(TELEMETRY_INTERVAL_MS)) {
+        bool status_sent = false;
+        if ((now - last_status_tick) >= pdMS_TO_TICKS(STATUS_INTERVAL_MS)) {
+            last_status_tick = now;
+            last_telem_tick = now;  /* Ensure spacing between status and telemetry */
+            send_status(flight_state);
+            status_sent = true;
+        }
+
+        /* 10 Hz telemetry — skip on cycles where status is sent */
+        if (!status_sent &&
+            (now - last_telem_tick) >= pdMS_TO_TICKS(TELEMETRY_INTERVAL_MS)) {
             last_telem_tick = now;
             control_output_t ctrl = {0};
             state_exchange_get_control_output(&ctrl);
             send_telemetry(&current_state, &ctrl, flight_state);
-        }
-
-        /* 1 Hz system status */
-        static TickType_t last_status_tick = 0;
-        if ((now - last_status_tick) >= pdMS_TO_TICKS(STATUS_INTERVAL_MS)) {
-            last_status_tick = now;
-            send_status(flight_state);
         }
 
         /* ── Periodic GNSS stats (debug) ── */
