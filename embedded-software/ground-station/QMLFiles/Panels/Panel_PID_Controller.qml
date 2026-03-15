@@ -96,10 +96,84 @@ BasePanel {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.margins: 12
+        spacing: 8
 
-        TabButton { text: "PID" }
-        TabButton { text: "Reference" }
-        TabButton { text: "Config" }
+        background: Rectangle {
+            radius: Theme.radiusControl
+            color: Theme.surfaceInset
+            border.width: Theme.strokeControl
+            border.color: Theme.border
+        }
+
+        TabButton {
+            id: pidTab
+            text: "PID"
+            width: (tabs.width - (tabs.spacing * 2)) / 3
+            hoverEnabled: true
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontBody
+            background: Rectangle {
+                radius: Theme.radiusControl
+                color: pidTab.checked ? Theme.btnPrimaryBg
+                     : pidTab.down ? Theme.btnSecondaryPress
+                     : pidTab.hovered ? Theme.btnSecondaryHover
+                     : Theme.btnSecondaryBg
+                border.width: Theme.strokeControl
+                border.color: pidTab.checked ? Theme.btnPrimaryBorder : Theme.btnSecondaryBorder
+            }
+            contentItem: Text {
+                anchors.centerIn: parent
+                text: pidTab.text
+                color: pidTab.checked ? Theme.btnPrimaryText : Theme.btnSecondaryText
+                font: pidTab.font
+            }
+        }
+        TabButton {
+            id: referenceTab
+            text: "Reference"
+            width: (tabs.width - (tabs.spacing * 2)) / 3
+            hoverEnabled: true
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontBody
+            background: Rectangle {
+                radius: Theme.radiusControl
+                color: referenceTab.checked ? Theme.btnPrimaryBg
+                     : referenceTab.down ? Theme.btnSecondaryPress
+                     : referenceTab.hovered ? Theme.btnSecondaryHover
+                     : Theme.btnSecondaryBg
+                border.width: Theme.strokeControl
+                border.color: referenceTab.checked ? Theme.btnPrimaryBorder : Theme.btnSecondaryBorder
+            }
+            contentItem: Text {
+                anchors.centerIn: parent
+                text: referenceTab.text
+                color: referenceTab.checked ? Theme.btnPrimaryText : Theme.btnSecondaryText
+                font: referenceTab.font
+            }
+        }
+        TabButton {
+            id: configTab
+            text: "Config"
+            width: (tabs.width - (tabs.spacing * 2)) / 3
+            hoverEnabled: true
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontBody
+            background: Rectangle {
+                radius: Theme.radiusControl
+                color: configTab.checked ? Theme.btnPrimaryBg
+                     : configTab.down ? Theme.btnSecondaryPress
+                     : configTab.hovered ? Theme.btnSecondaryHover
+                     : Theme.btnSecondaryBg
+                border.width: Theme.strokeControl
+                border.color: configTab.checked ? Theme.btnPrimaryBorder : Theme.btnSecondaryBorder
+            }
+            contentItem: Text {
+                anchors.centerIn: parent
+                text: configTab.text
+                color: configTab.checked ? Theme.btnPrimaryText : Theme.btnSecondaryText
+                font: configTab.font
+            }
+        }
     }
 
     StackLayout {
@@ -121,7 +195,7 @@ BasePanel {
                 spacing: 12
 
                 CheckBox {
-                    text: "has_attitude_kp"
+                    text: "Proportional"
                     checked: hasAttitudeKp
                     onToggled: hasAttitudeKp = checked
                 }
@@ -129,13 +203,13 @@ BasePanel {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
-                    NumberField { label: "attitude_kp.x"; text: String(attKpX); onTextChanged: attKpX = panel.sanitizedNumber(text, attKpX) }
-                    NumberField { label: "attitude_kp.y"; text: String(attKpY); onTextChanged: attKpY = panel.sanitizedNumber(text, attKpY) }
-                    NumberField { label: "attitude_kp.z"; text: String(attKpZ); onTextChanged: attKpZ = panel.sanitizedNumber(text, attKpZ) }
+                    NumberField { label: "x"; text: String(attKpX); onTextChanged: attKpX = panel.sanitizedNumber(text, attKpX) }
+                    NumberField { label: "y"; text: String(attKpY); onTextChanged: attKpY = panel.sanitizedNumber(text, attKpY) }
+                    NumberField { label: "z"; text: String(attKpZ); onTextChanged: attKpZ = panel.sanitizedNumber(text, attKpZ) }
                 }
 
                 CheckBox {
-                    text: "has_attitude_kd"
+                    text: "Derivative"
                     checked: hasAttitudeKd
                     onToggled: hasAttitudeKd = checked
                 }
@@ -143,28 +217,35 @@ BasePanel {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
-                    NumberField { label: "attitude_kd.x"; text: String(attKdX); onTextChanged: attKdX = panel.sanitizedNumber(text, attKdX) }
-                    NumberField { label: "attitude_kd.y"; text: String(attKdY); onTextChanged: attKdY = panel.sanitizedNumber(text, attKdY) }
-                    NumberField { label: "attitude_kd.z"; text: String(attKdZ); onTextChanged: attKdZ = panel.sanitizedNumber(text, attKdZ) }
+                    NumberField { label: "x"; text: String(attKdX); onTextChanged: attKdX = panel.sanitizedNumber(text, attKdX) }
+                    NumberField { label: "y"; text: String(attKdY); onTextChanged: attKdY = panel.sanitizedNumber(text, attKdY) }
+                    NumberField { label: "z"; text: String(attKdZ); onTextChanged: attKdZ = panel.sanitizedNumber(text, attKdZ) }
+                }
+
+                Text {
+                    text: "z"
+                    color: Theme.textTertiary
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 12
                 }
 
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
-                    NumberField { label: "z_kp"; text: String(zKp); onTextChanged: zKp = panel.sanitizedNumber(text, zKp) }
-                    NumberField { label: "z_ki"; text: String(zKi); onTextChanged: zKi = panel.sanitizedNumber(text, zKi) }
-                    NumberField { label: "z_kd"; text: String(zKd); onTextChanged: zKd = panel.sanitizedNumber(text, zKd) }
+                    NumberField { label: "proportional"; text: String(zKp); onTextChanged: zKp = panel.sanitizedNumber(text, zKp) }
+                    NumberField { label: "integral"; text: String(zKi); onTextChanged: zKi = panel.sanitizedNumber(text, zKi) }
+                    NumberField { label: "derivative"; text: String(zKd); onTextChanged: zKd = panel.sanitizedNumber(text, zKd) }
                 }
 
                 NumberField {
-                    label: "z_integral_limit"
+                    label: "integral limit"
                     text: String(zIntegralLimit)
                     onTextChanged: zIntegralLimit = panel.sanitizedNumber(text, zIntegralLimit)
                 }
 
                 Basic.Button {
                     id: sendPidButton
-                    text: "Send SetPidGains"
+                    text: "Send PID"
                     Layout.alignment: Qt.AlignRight
                     padding: 10
                     font.family: Theme.fontFamily
@@ -210,8 +291,8 @@ BasePanel {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
-                    NumberField { label: "z_ref"; text: String(zRef); onTextChanged: zRef = panel.sanitizedNumber(text, zRef) }
-                    NumberField { label: "vz_ref"; text: String(vzRef); onTextChanged: vzRef = panel.sanitizedNumber(text, vzRef) }
+                    NumberField { label: "z ref"; text: String(zRef); onTextChanged: zRef = panel.sanitizedNumber(text, zRef) }
+                    NumberField { label: "vz ref"; text: String(vzRef); onTextChanged: vzRef = panel.sanitizedNumber(text, vzRef) }
                 }
 
                 CheckBox {
@@ -223,20 +304,20 @@ BasePanel {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
-                    NumberField { label: "q_ref.w"; text: String(qRefW); onTextChanged: qRefW = panel.sanitizedNumber(text, qRefW) }
-                    NumberField { label: "q_ref.x"; text: String(qRefX); onTextChanged: qRefX = panel.sanitizedNumber(text, qRefX) }
+                    NumberField { label: "q ref w"; text: String(qRefW); onTextChanged: qRefW = panel.sanitizedNumber(text, qRefW) }
+                    NumberField { label: "q ref x"; text: String(qRefX); onTextChanged: qRefX = panel.sanitizedNumber(text, qRefX) }
                 }
 
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
-                    NumberField { label: "q_ref.y"; text: String(qRefY); onTextChanged: qRefY = panel.sanitizedNumber(text, qRefY) }
-                    NumberField { label: "q_ref.z"; text: String(qRefZ); onTextChanged: qRefZ = panel.sanitizedNumber(text, qRefZ) }
+                    NumberField { label: "q ref y"; text: String(qRefY); onTextChanged: qRefY = panel.sanitizedNumber(text, qRefY) }
+                    NumberField { label: "q ref z"; text: String(qRefZ); onTextChanged: qRefZ = panel.sanitizedNumber(text, qRefZ) }
                 }
 
                 Basic.Button {
                     id: sendReferenceButton
-                    text: "Send SetReference"
+                    text: "Send Reference"
                     Layout.alignment: Qt.AlignRight
                     padding: 10
                     font.family: Theme.fontFamily
@@ -291,7 +372,7 @@ BasePanel {
 
                 Basic.Button {
                     id: sendConfigButton
-                    text: "Send SetConfig"
+                    text: "Send Config"
                     Layout.alignment: Qt.AlignRight
                     padding: 10
                     font.family: Theme.fontFamily
