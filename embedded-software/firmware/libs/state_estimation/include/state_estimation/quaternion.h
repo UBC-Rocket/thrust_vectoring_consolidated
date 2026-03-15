@@ -1,7 +1,7 @@
 #ifndef QUATERNION_H
 #define QUATERNION_H
 
-#include "state_estimation/ekf.h"
+#include <state_estimation/ekf.h>
 
 void state_transition_orientation(
     quaternion_state *state, // previous state
@@ -25,5 +25,7 @@ void get_h_jacobian_quaternion(
 );
 
 void quat_to_euler(float q[4], float e[3]);
+
+void quat_mult(const float q1[4], const float q2[4], float out[4]);
 
 #endif

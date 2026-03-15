@@ -2,15 +2,17 @@
 #include <stdio.h>
 #include <string.h>
 
-void longlat_to_meters(const float reference_point[3], const float gps[3],
-                        float relative_distance[3])
-{
+#define LONGITUDE_ADJUSTMENT 0.65605928066 
+#define PI 3.1415f
+
+/* Math Helpers: convert lat/lon/alt to meters relative to reference. Does not mutate gps[]. */
+void longlat_to_meters(const float reference_point[3], const float longitude, const float latitude, const float altitude, float relative_distance[3]) {
     const float R = 6371000.0f;
-    float delta_lat = gps[0] - reference_point[0];
-    float delta_lon = gps[1] - reference_point[1];
-    relative_distance[0] = R * delta_lat;
-    relative_distance[1] = R * delta_lon;
-    relative_distance[2] = gps[2] - reference_point[2];
+    float delta_lat = (latitude - reference_point[0]);
+    float delta_lon = (longitude - reference_point[1]);
+    relative_distance[0] = R * delta_lat * PI / 180;
+    relative_distance[1] = R * delta_lon * PI / 180 * (float) LONGITUDE_ADJUSTMENT;
+    relative_distance[2] = altitude - reference_point[2];  /* altitude in meters */
 }
 
 static float nmea_to_decimal(float nmea_coord, char quadrant) {

@@ -12,8 +12,7 @@ typedef struct {
     uint8_t num_sats;
 } gps_data_t;
 
-void longlat_to_meters(const float reference_point[3], const float gps[3],
-                        float relative_distance[3]);
+void longlat_to_meters(const float reference_point[3], const float longitude, const float latitude, const float altitude, float relative_distance[3]);
 
 bool parse_gpgga(const char *nmea, gps_data_t *data);
 

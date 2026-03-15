@@ -1,9 +1,10 @@
 /**
  * @file state_estimation.c
- * @brief State estimation task - Merged EKF logic with Event-Driven Architecture
+ * @brief State estimation task - Event-driven EKF fusion of IMU, baro, and GPS.
  */
 
 #include <stdbool.h>
+#include <math.h>
 #include "cmsis_os2.h"
 #include "FreeRTOS.h"
 #include "task.h"
@@ -24,11 +25,158 @@
 #include "mission_manager/mission_manager.h"
 #include "SD_logging/log_service.h"
 #include "spi_drivers/gnss_radio_master.h"
+#include "utils/gnss_utils.h"
+#include "timestamp.h"
 
 #define GRAV 9.807f
-#define FUSION_VECTOR_SAMPLE_SIZE 32
+#define FUSION_VECTOR_SAMPLE_SIZE       32
+#define STARTUP_CALIBRATION_SAMPLES     2000U
+#define GYRO_BIAS_TIME_CONSTANT_S       30.0f
 
-float EXPECTED_GRAVITY[3] = {0, 0, 1};
+/* IMU axis alignment (sensor -> body frame). Adjust signs/swaps as needed. */
+#define ACCEL_AXIS_SIGN_X  1.0f
+#define ACCEL_AXIS_SIGN_Y  1.0f
+#define ACCEL_AXIS_SIGN_Z -1.0f
+#define GYRO_AXIS_SIGN_X   1.0f
+#define GYRO_AXIS_SIGN_Y   1.0f
+#define GYRO_AXIS_SIGN_Z   1.0f
+
+static float EXPECTED_GRAVITY[3] = {0.0f, 0.0f, 1.0f};
+
+/* Persistent sensor buffers (static to avoid stack pressure) */
+static bmi088_accel_sample_t s_accel_samples[FUSION_VECTOR_SAMPLE_SIZE];
+static bmi088_gyro_sample_t  s_gyro_samples[FUSION_VECTOR_SAMPLE_SIZE];
+static float s_baro1_heights[FUSION_VECTOR_SAMPLE_SIZE];
+static float s_baro2_heights[FUSION_VECTOR_SAMPLE_SIZE];
+
+/* Forward declarations */
+static void se_drain_sensor_queues(uint8_t *num_accel, uint8_t *num_gyro,
+                                   uint8_t *num_baro1, uint8_t *num_baro2);
+static void se_process_gps(uint32_t isr_flags,
+                           float gps_reference[3], bool *have_ref,
+                           float pos_meters[3], bool *have_pos);
+
+/* ========================================================================== */
+/* Single IMU sample processing                                               */
+/* ========================================================================== */
+
+typedef struct {
+    float    accel_bias[3];
+    float    gyro_bias[3];
+    uint32_t calibration_samples;
+    uint32_t last_tick_us;
+    float    delta_time;
+    uint64_t ticks;
+} se_imu_context_t;
+
+static void se_run_imu_step(se_imu_context_t *ctx,
+                            const bmi088_gyro_sample_t *gyro_s,
+                            const bmi088_accel_sample_t *accel_s,
+                            bool have_gps, const float pos_meters[3],
+                            bool have_baro, float baro_altitude_m)
+{
+    const float g_data_raw[3] = {gyro_s->gx,
+                                 gyro_s->gy,
+                                 gyro_s->gz};
+    const float a_data_raw[3] = {accel_s->ax / GRAV,
+                                 accel_s->ay / GRAV,
+                                 accel_s->az / GRAV};
+    const bool stationary = imu_is_stationary(g_data_raw, a_data_raw);
+
+    /* Compute delta time */
+    if (ctx->last_tick_us != 0U) {
+        uint32_t dt_us = timestamp_elapsed_us(ctx->last_tick_us, gyro_s->t_us);
+        if ((dt_us < 5U) || (dt_us > 5000U)) {
+            ctx->last_tick_us = gyro_s->t_us;
+            return;
+        }
+        ctx->delta_time = (float)dt_us / 1000000.0f;
+    }
+    ctx->last_tick_us = gyro_s->t_us;
+
+    /* Startup calibration */
+    if (ctx->calibration_samples < STARTUP_CALIBRATION_SAMPLES) {
+        ctx->calibration_samples++;
+        update_bias(ctx->gyro_bias, (float *)g_data_raw,
+                    ctx->accel_bias, (float *)a_data_raw,
+                    (float *)EXPECTED_GRAVITY, ctx->calibration_samples);
+        return;
+    }
+
+    /* Online gyro bias adaptation while stationary */
+    if (stationary && (ctx->delta_time > 0.0f)) {
+        const float alpha = ctx->delta_time / (GYRO_BIAS_TIME_CONSTANT_S + ctx->delta_time);
+        for (int axis = 0; axis < 3; axis++) {
+            ctx->gyro_bias[axis] += alpha * (g_data_raw[axis] - ctx->gyro_bias[axis]);
+        }
+    }
+
+    /* Bias-corrected sensor data */
+    float g_data[3] = {g_data_raw[0] - ctx->gyro_bias[0],
+                       g_data_raw[1] - ctx->gyro_bias[1],
+                       g_data_raw[2] - ctx->gyro_bias[2]};
+    float a_data[3] = {a_data_raw[0] - ctx->accel_bias[0],
+                       a_data_raw[1] - ctx->accel_bias[1],
+                       a_data_raw[2] - ctx->accel_bias[2]};
+
+    if (stationary) {
+        g_data[0] = 0.0f;
+        g_data[1] = 0.0f;
+        g_data[2] = 0.0f;
+    }
+
+    /* Orientation EKF: gyro predicts, accel corrects */
+    tick_ekf_orientation(ctx->delta_time, g_data, a_data);
+
+    /* Body EKF: rotate accel to nav frame, predict every cycle */
+    float q[4], pos[3], vel[3];
+    float a_nav[3];
+    get_state(q, pos, vel);
+    transform_accel_data(a_data, q, a_nav);
+
+    predict_ekf_body(ctx->delta_time, a_nav);
+
+    /* GPS update only when measurement is available */
+    if (have_gps) {
+        float gps_pos[3] = {pos_meters[0], pos_meters[1], pos_meters[2]};
+        update_ekf_body(gps_pos);
+    }
+
+    /* Baro altitude update */
+    if (have_baro) {
+        update_ekf_body_baro(baro_altitude_m);
+    }
+
+    /* Re-read state after body EKF */
+    get_state(q, pos, vel);
+
+    /* Publish state */
+    state_t data = {
+        .pos = {pos[0], pos[1], pos[2]},
+        .vel = {vel[0], vel[1], vel[2]},
+        .omega_b = {g_data[0], g_data[1], g_data[2]},
+        .q_bn = {.w = q[0], .x = q[1], .y = q[2], .z = q[3]},
+        .u_s = gyro_s->t_us
+    };
+    state_exchange_publish_state(&data);
+
+    /* Logging */
+    float e[3];
+    quat_to_euler(q, e);
+
+    flight_state_t flight_state;
+    state_exchange_get_flight_state(&flight_state);
+    log_service_log_state(&data, flight_state);
+
+    if (ctx->ticks % 500 == 0) {
+        DLOG_PRINT("[%f, %f, %f, %f]\r\n", pos[0], pos[1], pos[2], ((float)sqrtf(a_data[0] * a_data[0] + a_data[1] * a_data[1] + a_data[2] * a_data[2])));
+    }
+    ctx->ticks++;
+}
+
+/* ========================================================================== */
+/* Task entry point                                                           */
+/* ========================================================================== */
 
 void state_estimation_task_start(void *argument)
 {
@@ -37,166 +185,99 @@ void state_estimation_task_start(void *argument)
     ms5611_poller_t *baro_poller = sensors_get_baro_poller();
     ms5607_poller_t *baro2_poller = sensors_get_baro2_poller();
 
-    static bmi088_accel_sample_t accel_samples[FUSION_VECTOR_SAMPLE_SIZE];
-    static bmi088_gyro_sample_t gyro_samples[FUSION_VECTOR_SAMPLE_SIZE];
-    static float baro1_heights[FUSION_VECTOR_SAMPLE_SIZE];
-    static float baro2_heights[FUSION_VECTOR_SAMPLE_SIZE];
+    init_ekf(EXPECTED_GRAVITY);
 
-    float process_noise_quaternion[4][4] = {{0.01, 0, 0, 0}, {0, 0.01, 0, 0}, {0, 0, 0.01, 0}, {0, 0, 0, 0.01}};
-    float measurement_noise_quaternion[3][3] = {{0.001, 0, 0}, {0, 0.001, 0}, {0, 0, 0.001}};
-    float process_noise_body[6][6] = {
-        {0.01, 0, 0, 0, 0, 0}, {0, 0.01, 0, 0, 0, 0}, {0, 0, 0.01, 0, 0, 0},
-        {0, 0, 0, 0.001, 0, 0}, {0, 0, 0, 0, 0.001, 0}, {0, 0, 0, 0, 0, 0.001}
+    se_imu_context_t imu_ctx = {
+        .accel_bias = {0},
+        .gyro_bias = {0},
+        .calibration_samples = 0,
+        .last_tick_us = 0,
+        .delta_time = 0.0f,
+        .ticks = 0
     };
-    float measurement_noise_body[3][3] = {{15, 0, 0}, {0, 15, 0}, {0, 0, 15}};
 
-    init_ekf(process_noise_quaternion, measurement_noise_quaternion, process_noise_body, measurement_noise_body, EXPECTED_GRAVITY);
+    float gps_reference_point[3] = {0};
+    bool have_gps_reference_point = false;
 
-    float delta_time = 0;
-    float last_tick = 0;
-    uint64_t CALIBRATION = 20;
-    uint64_t ticks = 0;
-
-    float accel_bias[3] = {0, 0, 0};
-    float gyro_bias[3] = {0, 0, 0};
-    float gps_bias[3] = {0, 0, 0};
-    float gps_reference_point[3];
-    bool have_gps_reference_point = 0;
+    float baro_reference_alt = 0.0f;
+    float baro_reference_accum = 0.0f;
+    uint32_t baro_reference_count = 0;
+    bool have_baro_reference = false;
 
     const TickType_t period_ticks = pdMS_TO_TICKS(1);
     uint32_t ISR_flags = 0;
 
-    /* Persistent across iterations so accel/gyro samples accumulate even when
-       SPI2 bus serialization delivers them on separate wakeups. */
     uint8_t num_accel_samples = 0;
     uint8_t num_gyro_samples = 0;
     uint8_t num_baro1_samples = 0;
     uint8_t num_baro2_samples = 0;
-    float pos_meters[3];
+    float pos_meters[3] = {0};
     bool have_pos_meters_this_cycle = false;
 
     while (true) {
         xTaskNotifyWaitIndexed(0, 0, UINT32_MAX, &ISR_flags, period_ticks);
 
-        /* Always dequeue from all sensor rings (no-op when empty). */
-        bmi088_accel_sample_t accel_sample;
-        while (bmi088_acc_sample_q_pop(&bmi088_acc_sample_ring, &accel_sample))
-        {
-            log_service_log_accel_sample((uint32_t)accel_sample.t_us, accel_sample.ax, accel_sample.ay, accel_sample.az);
-            if (num_accel_samples < FUSION_VECTOR_SAMPLE_SIZE)
-            {
-                accel_samples[num_accel_samples++] = accel_sample;
-            }
-        }
+        /* Drain all sensor ring buffers */
+        se_drain_sensor_queues(&num_accel_samples, &num_gyro_samples,
+                               &num_baro1_samples, &num_baro2_samples);
 
-        bmi088_gyro_sample_t gyro_sample;
-        while (bmi088_gyro_sample_q_pop(&bmi088_gyro_sample_ring, &gyro_sample))
-        {
-            log_service_log_gyro_sample(gyro_sample.t_us, gyro_sample.gx, gyro_sample.gy, gyro_sample.gz);
-            if (num_gyro_samples < FUSION_VECTOR_SAMPLE_SIZE)
-            {
-                gyro_samples[num_gyro_samples++] = gyro_sample;
-            }
-        }
+        /* Process GPS fixes */
+        se_process_gps(ISR_flags, gps_reference_point, &have_gps_reference_point,
+                       pos_meters, &have_pos_meters_this_cycle);
 
-        ms5611_sample_t baro_sample;
-        while (ms5611_sample_q_pop(&ms5611_sample_ring, &baro_sample))
-        {
-            log_service_log_baro_sample(baro_sample.t_us, baro_sample.temp_centi, baro_sample.pressure_centi, baro_sample.seq);
-            if (num_baro1_samples < FUSION_VECTOR_SAMPLE_SIZE)
-            {
-                baro1_heights[num_baro1_samples++] = pressure_to_height(baro_sample.pressure_centi);
-            }
-        }
-
-        ms5607_sample_t baro2_sample;
-        while (ms5607_sample_q_pop(&ms5607_sample_ring, &baro2_sample))
-        {
-            log_service_log_baro2_sample(baro2_sample.t_us, baro2_sample.temp_centi, baro2_sample.pressure_centi, baro2_sample.seq);
-            if (num_baro2_samples < FUSION_VECTOR_SAMPLE_SIZE)
-            {
-                baro2_heights[num_baro2_samples++] = pressure_to_height(baro2_sample.pressure_centi);
-            }
-        }
-
-        /* GPS: only check on flag. */
-        if (ISR_flags & GNSS_GPS_FIX_READY_FLAG) {
-            gnss_gps_fix_t gps_fix;
-            while (gnss_gps_fix_q_pop(&gnss_radio_ctx.gps_queue, &gps_fix)) {
-                //TODO: integrate into kalman properly the gnss board always parses the nema and only presents us with the struct
-            }
-        }
-
-        /* Process when we have matched IMU pairs. */
-        uint8_t imu_loops = (num_accel_samples < num_gyro_samples) ? num_accel_samples : num_gyro_samples;
-
-        if (imu_loops > 0) {
-            float h1 = -1;
-            float h2 = -1;
+        /* Process matched IMU pairs (time-align accel to gyro) */
+        if ((num_accel_samples > 0U) && (num_gyro_samples > 0U)) {
+            /* Average barometer heights from both sensors */
+            float baro_alt = 0.0f;
+            bool have_baro_this_cycle = false;
+            uint8_t baro_count = 0;
 
             for (int i = 0; i < num_baro1_samples; i++) {
-                h1 = h1 * (i / (i + 1)) + baro1_heights[i] * 1 / (i + 1);
+                baro_alt += s_baro1_heights[i];
+                baro_count++;
             }
-
             for (int i = 0; i < num_baro2_samples; i++) {
-                h2 = h2 * (i / (i + 1)) + baro2_heights[i] * 1 / (i + 1);
+                baro_alt += s_baro2_heights[i];
+                baro_count++;
             }
 
-            for (uint8_t i = 0; i < imu_loops; i++) {
-                float g_data_raw[3] = {gyro_samples[i].gx, gyro_samples[i].gy, gyro_samples[i].gz};
-                float a_data_raw[3] = {accel_samples[i].ax / -GRAV, accel_samples[i].ay / -GRAV, accel_samples[i].az / -GRAV};
+            if (baro_count > 0) {
+                baro_alt /= baro_count;
 
-                if (last_tick != 0) {
-                    delta_time = (gyro_samples[i].t_us - last_tick) / 1000000.0f;
+                /* Accumulate reference during calibration, use for updates after */
+                if (!have_baro_reference) {
+                    baro_reference_accum += baro_alt;
+                    baro_reference_count++;
+                    if (imu_ctx.calibration_samples >= STARTUP_CALIBRATION_SAMPLES) {
+                        baro_reference_alt = baro_reference_accum / baro_reference_count;
+                        have_baro_reference = true;
+                    }
+                } else {
+                    baro_alt -= baro_reference_alt;
+                    have_baro_this_cycle = true;
                 }
-                last_tick = gyro_samples[i].t_us;
-
-                // Calibration
-                if (ticks < CALIBRATION) {
-                    ticks++;
-                    update_bias(gyro_bias, g_data_raw, accel_bias, a_data_raw, EXPECTED_GRAVITY, ticks);
-                    continue;
-                }
-
-                // EKF Update
-                float g_data[3] = {g_data_raw[0] - gyro_bias[0], g_data_raw[1] - gyro_bias[1], g_data_raw[2] - gyro_bias[2]};
-                float a_data[3] = {a_data_raw[0] - accel_bias[0], a_data_raw[1] - accel_bias[1], a_data_raw[2] - accel_bias[2]};
-
-                tick_ekf_orientation(delta_time, g_data, a_data);
-
-                /* Body EKF: use nav-frame acceleration and only when we have valid GPS this cycle. */
-                float q[4], pos[3], vel[3];
-                get_state(q, pos, vel);
-                float a_nav[3];
-                transform_accel_data(a_data, q, a_nav);
-                if (have_pos_meters_this_cycle) {
-                    tick_ekf_body(delta_time, a_nav, pos_meters);
-                }
-                get_state(q, pos, vel);
-
-                /* Publish State */
-                state_t data = {
-                    .pos = {pos[0], pos[1], pos[2]},
-                    .vel = {vel[0], vel[1], vel[2]},
-                    .omega_b = {g_data[0], g_data[1], g_data[2]},
-                    .q_bn = {.w=q[0], .x=q[1], .y=q[2], .z=q[3]},
-                    .u_s = gyro_samples[i].t_us
-                };
-
-                state_exchange_publish_state(&data);
-
-                // Flight State Logging
-                flight_state_t flight_state;
-                state_exchange_get_flight_state(&flight_state);
-                log_service_log_state(&data, flight_state);
-
-                if (ticks % 20 == 0) {
-                    DLOG_PRINT("%f, %f, %f, %f]deg\r\n", q[0], q[1], q[2], q[3]);
-                }
-                ticks++;
             }
 
-            /* Reset counters after processing. */
+            for (uint8_t i = 0; i < num_gyro_samples; i++) {
+                const uint32_t gyro_t = s_gyro_samples[i].t_us;
+                uint8_t best_idx = 0;
+                uint32_t best_dt = UINT32_MAX;
+
+                for (uint8_t j = 0; j < num_accel_samples; j++) {
+                    const uint32_t accel_t = (uint32_t)s_accel_samples[j].t_us;
+                    const int32_t diff = (int32_t)(gyro_t - accel_t);
+                    const uint32_t abs_diff = (uint32_t)(diff < 0 ? -diff : diff);
+                    if (abs_diff < best_dt) {
+                        best_dt = abs_diff;
+                        best_idx = j;
+                    }
+                }
+
+                se_run_imu_step(&imu_ctx, &s_gyro_samples[i], &s_accel_samples[best_idx],
+                                have_pos_meters_this_cycle, pos_meters,
+                                have_baro_this_cycle, baro_alt);
+            }
+
             num_accel_samples = 0;
             num_gyro_samples = 0;
             num_baro1_samples = 0;
@@ -206,5 +287,81 @@ void state_estimation_task_start(void *argument)
 
         ms5611_poller_tick(baro_poller);
         ms5607_poller_tick(baro2_poller);
+    }
+}
+
+/* ========================================================================== */
+/* Sensor dequeuing                                                           */
+/* ========================================================================== */
+
+static void se_drain_sensor_queues(uint8_t *num_accel, uint8_t *num_gyro,
+                                   uint8_t *num_baro1, uint8_t *num_baro2)
+{
+    bmi088_accel_sample_t accel_sample;
+    while (bmi088_acc_sample_q_pop(&bmi088_acc_sample_ring, &accel_sample)) {
+        log_service_log_accel_sample((uint32_t)accel_sample.t_us,
+                                     accel_sample.ax, accel_sample.ay, accel_sample.az);
+        if (*num_accel < FUSION_VECTOR_SAMPLE_SIZE) {
+            s_accel_samples[(*num_accel)++] = accel_sample;
+        }
+    }
+
+    bmi088_gyro_sample_t gyro_sample;
+    while (bmi088_gyro_sample_q_pop(&bmi088_gyro_sample_ring, &gyro_sample)) {
+        log_service_log_gyro_sample(gyro_sample.t_us,
+                                    gyro_sample.gx, gyro_sample.gy, gyro_sample.gz);
+        if (*num_gyro < FUSION_VECTOR_SAMPLE_SIZE) {
+            s_gyro_samples[(*num_gyro)++] = gyro_sample;
+        }
+    }
+
+    ms5611_sample_t baro_sample;
+    while (ms5611_sample_q_pop(&ms5611_sample_ring, &baro_sample)) {
+        log_service_log_baro_sample(baro_sample.t_us, baro_sample.temp_centi,
+                                    baro_sample.pressure_centi, baro_sample.seq);
+        if (*num_baro1 < FUSION_VECTOR_SAMPLE_SIZE) {
+            s_baro1_heights[(*num_baro1)++] = pressure_to_height(baro_sample.pressure_centi);
+        }
+    }
+
+    ms5607_sample_t baro2_sample;
+    while (ms5607_sample_q_pop(&ms5607_sample_ring, &baro2_sample)) {
+        log_service_log_baro2_sample(baro2_sample.t_us, baro2_sample.temp_centi,
+                                     baro2_sample.pressure_centi, baro2_sample.seq);
+        if (*num_baro2 < FUSION_VECTOR_SAMPLE_SIZE) {
+            s_baro2_heights[(*num_baro2)++] = pressure_to_height(baro2_sample.pressure_centi);
+        }
+    }
+}
+
+/* ========================================================================== */
+/* GPS processing                                                             */
+/* ========================================================================== */
+
+static void se_process_gps(uint32_t isr_flags,
+                           float gps_reference[3], bool *have_ref,
+                           float pos_meters[3], bool *have_pos)
+{
+    if (!(isr_flags & GNSS_GPS_FIX_READY_FLAG))
+        return;
+
+    gnss_gps_fix_t gps_fix;
+    while (gnss_gps_fix_q_pop(&gnss_radio_ctx.gps_queue, &gps_fix)) {
+        if (!*have_ref) {
+            /* Sanity check: reject fixes outside North America */
+            if (!(gps_fix.latitude > 30 && gps_fix.latitude < 60) ||
+                !(gps_fix.longitude > -150 && gps_fix.longitude < -60)) {
+                continue;
+            }
+            gps_reference[0] = gps_fix.latitude;
+            gps_reference[1] = gps_fix.longitude;
+            gps_reference[2] = (float)gps_fix.altitude_msl;
+            *have_ref = true;
+            continue;
+        }
+
+        longlat_to_meters(gps_reference, gps_fix.longitude,
+                          gps_fix.latitude, gps_fix.altitude_msl, pos_meters);
+        *have_pos = true;
     }
 }
