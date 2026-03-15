@@ -14,7 +14,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include "sensors/spsc_queue.h"
+#include <collections/spsc_ring.h>
 
 /* -------------------------------------------------------------------------- */
 /* Register map (accelerometer side of BMI088)                                */
@@ -322,67 +322,7 @@ bool bmi088_accel_parse_fifo(const uint8_t *rx_buf, size_t len,
                              size_t *max_samples,
                              const bmi088_accel_t *dev);
 
-/* --- Ring buffer for accelerometer samples ----*/
-
-/**
- * @brief SPSC ring buffer for accelerometer samples.
- *
- * Thread Safety:
- * - Single Producer (ISR/DMA callback) writes samples via bmi088_acc_sample_queue()
- * - Single Consumer (state estimation task) reads via bmi088_acc_sample_dequeue()
- * - Memory barriers ensure proper ordering between producer and consumer.
- */
-typedef struct {
-    bmi088_accel_sample_t samples[BMI088_ACC_SAMPLE_Q_SIZE];
-    volatile uint8_t head;  /**< Written by producer only */
-    volatile uint8_t tail;  /**< Written by consumer only */
-} bmi088_accel_sample_queue_t;
-
-/**
- * @brief Check if sample queue is empty.
- */
-static inline bool bmi088_acc_sample_queue_empty(bmi088_accel_sample_queue_t *q) {
-    return q->head == q->tail;
-}
-
-/**
- * @brief Check if sample queue is full.
- */
-static inline bool bmi088_acc_sample_queue_full(bmi088_accel_sample_queue_t *q) {
-    return ((q->head + 1) % BMI088_ACC_SAMPLE_Q_SIZE) == q->tail;
-}
-
-/**
- * @brief Enqueue a new accelerometer sample (producer side - ISR context).
- * @param q Pointer to the sample queue.
- * @param sample Pointer to sample to enqueue.
- * @return True if successful, false if queue full.
- * @note Memory barrier ensures sample data is visible before head update.
- */
-static inline bool bmi088_acc_sample_queue(bmi088_accel_sample_queue_t *q,
-                                           const bmi088_accel_sample_t *sample) {
-    if (bmi088_acc_sample_queue_full(q)) return false;
-    q->samples[q->head] = *sample;
-    SENSORS_MEMORY_BARRIER();  /* Ensure sample data written before head update is visible */
-    q->head = (q->head + 1) % BMI088_ACC_SAMPLE_Q_SIZE;
-    return true;
-}
-
-/**
- * @brief Dequeue the next accelerometer sample (consumer side - task context).
- * @param q Pointer to the sample queue.
- * @param sample Pointer to receive dequeued sample.
- * @return True if successful, false if queue empty.
- * @note Memory barriers ensure proper ordering with producer.
- */
-static inline bool bmi088_acc_sample_dequeue(bmi088_accel_sample_queue_t *q,
-                                             bmi088_accel_sample_t *sample) {
-    if (bmi088_acc_sample_queue_empty(q)) return false;
-    SENSORS_MEMORY_BARRIER();  /* Ensure we see sample data written before head was updated */
-    *sample = q->samples[q->tail];
-    SENSORS_MEMORY_BARRIER();  /* Ensure sample read completes before tail update */
-    q->tail = (q->tail + 1) % BMI088_ACC_SAMPLE_Q_SIZE;
-    return true;
-}
+/* --- Ring buffer for accelerometer samples -------------------------------- */
+SPSC_RING_DECLARE(bmi088_acc_sample_q, bmi088_accel_sample_t, BMI088_ACC_SAMPLE_Q_SIZE)
 
 #endif /* BMI088_ACCEL_H */

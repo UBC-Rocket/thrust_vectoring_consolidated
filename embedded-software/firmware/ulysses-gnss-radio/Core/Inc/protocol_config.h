@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <gnss_protocol/gps_fix.h>
 
 // ============================================================================
 // SPI SLAVE PROTOCOL CONFIGURATION
@@ -76,29 +77,9 @@ typedef struct {
 #define CONFIG_FRAME_SIZE sizeof(config_frame_t)  // 8 bytes
 
 // ----------------------------------------------------------------------------
-// GPS Fix Structure (Push Mode)
+// GPS Fix Structure (Push Mode) — defined in shared libs/gnss-protocol
 // ----------------------------------------------------------------------------
-typedef struct {
-    // Position
-    double   latitude;         // Degrees, signed (-90 to +90)          [8 bytes]
-    double   longitude;        // Degrees, signed (-180 to +180)        [8 bytes]
-    float    altitude_msl;     // Meters above sea level                [4 bytes]
-
-    // Velocity & Heading
-    float    ground_speed;     // m/s                                   [4 bytes]
-    float    course;           // Degrees true north (0-360)            [4 bytes]
-
-    // Quality indicators
-    uint8_t  fix_quality;      // 0=invalid, 1=GPS, 2=DGPS, etc.        [1 byte]
-    uint8_t  num_satellites;   // Number of satellites used             [1 byte]
-    uint8_t  padding1[2];      // Alignment padding                     [2 bytes]
-    float    hdop;             // Horizontal dilution of precision      [4 bytes]
-
-    // Timestamp
-    uint32_t time_of_week_ms;  // GPS time of week in milliseconds      [4 bytes]
-
-    uint8_t  padding2[8];      // Padding to 48 bytes total             [8 bytes]
-} __attribute__((packed)) gps_fix_t;  // Total: 48 bytes (reserved for future parsed GPS)
+// gps_fix_t is included from <gnss_protocol/gps_fix.h>
 
 // ----------------------------------------------------------------------------
 // Buffer Limits

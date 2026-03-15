@@ -80,7 +80,7 @@ void state_estimation_task_start(void *argument)
 
         /* Always dequeue from all sensor rings (no-op when empty). */
         bmi088_accel_sample_t accel_sample;
-        while (bmi088_acc_sample_dequeue(&bmi088_acc_sample_ring, &accel_sample))
+        while (bmi088_acc_sample_q_pop(&bmi088_acc_sample_ring, &accel_sample))
         {
             log_service_log_accel_sample((uint32_t)accel_sample.t_us, accel_sample.ax, accel_sample.ay, accel_sample.az);
             if (num_accel_samples < FUSION_VECTOR_SAMPLE_SIZE)
@@ -90,7 +90,7 @@ void state_estimation_task_start(void *argument)
         }
 
         bmi088_gyro_sample_t gyro_sample;
-        while (bmi088_gyro_sample_dequeue(&bmi088_gyro_sample_ring, &gyro_sample))
+        while (bmi088_gyro_sample_q_pop(&bmi088_gyro_sample_ring, &gyro_sample))
         {
             log_service_log_gyro_sample(gyro_sample.t_us, gyro_sample.gx, gyro_sample.gy, gyro_sample.gz);
             if (num_gyro_samples < FUSION_VECTOR_SAMPLE_SIZE)
@@ -100,7 +100,7 @@ void state_estimation_task_start(void *argument)
         }
 
         ms5611_sample_t baro_sample;
-        while (ms5611_sample_dequeue(&ms5611_sample_ring, &baro_sample))
+        while (ms5611_sample_q_pop(&ms5611_sample_ring, &baro_sample))
         {
             log_service_log_baro_sample(baro_sample.t_us, baro_sample.temp_centi, baro_sample.pressure_centi, baro_sample.seq);
             if (num_baro1_samples < FUSION_VECTOR_SAMPLE_SIZE)
@@ -110,7 +110,7 @@ void state_estimation_task_start(void *argument)
         }
 
         ms5607_sample_t baro2_sample;
-        while (ms5607_sample_dequeue(&ms5607_sample_ring, &baro2_sample))
+        while (ms5607_sample_q_pop(&ms5607_sample_ring, &baro2_sample))
         {
             log_service_log_baro2_sample(baro2_sample.t_us, baro2_sample.temp_centi, baro2_sample.pressure_centi, baro2_sample.seq);
             if (num_baro2_samples < FUSION_VECTOR_SAMPLE_SIZE)
@@ -122,7 +122,7 @@ void state_estimation_task_start(void *argument)
         /* GPS: only check on flag. */
         if (ISR_flags & GNSS_GPS_FIX_READY_FLAG) {
             gnss_gps_fix_t gps_fix;
-            while (gnss_gps_dequeue(&gps_fix)) {
+            while (gnss_gps_fix_q_pop(&gnss_radio_ctx.gps_queue, &gps_fix)) {
                 //TODO: integrate into kalman properly the gnss board always parses the nema and only presents us with the struct
             }
         }

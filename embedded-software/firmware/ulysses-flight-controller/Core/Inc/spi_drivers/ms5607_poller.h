@@ -140,7 +140,7 @@ void ms5607_poller_tick(ms5607_poller_t *p);
  *       the next conversion cycle completes.
  *
  * @note For streaming applications, prefer using the ring buffer directly
- *       via ms5607_sample_dequeue() to avoid missing samples.
+ *       via ms5607_sample_q_pop() to avoid missing samples.
  */
 bool ms5607_fetch_latest(ms5607_poller_t *p, ms5607_t *out, uint32_t *seq);
 
