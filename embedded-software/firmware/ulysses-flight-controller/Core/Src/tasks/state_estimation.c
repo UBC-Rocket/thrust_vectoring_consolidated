@@ -33,7 +33,7 @@
 #define STARTUP_CALIBRATION_SAMPLES     2000U
 #define GYRO_BIAS_TIME_CONSTANT_S       30.0f
 
-static const float EXPECTED_GRAVITY[3] = {0.0f, 0.0f, 1.0f};
+static float EXPECTED_GRAVITY[3] = {0.0f, 0.0f, 1.0f};
 
 /* Persistent sensor buffers (static to avoid stack pressure) */
 static bmi088_accel_sample_t s_accel_samples[FUSION_VECTOR_SAMPLE_SIZE];
@@ -69,8 +69,8 @@ static void se_run_imu_step(se_imu_context_t *ctx,
 {
     const float g_data_raw[3] = {gyro_s->gx, gyro_s->gy, gyro_s->gz};
     const float a_data_raw[3] = {accel_s->ax / -GRAV,
-                                  accel_s->ay / -GRAV,
-                                  accel_s->az / -GRAV};
+                                 accel_s->ay / -GRAV,
+                                 accel_s->az / -GRAV};
     const bool stationary = imu_is_stationary(g_data_raw, a_data_raw);
 
     /* Compute delta time */
@@ -86,12 +86,10 @@ static void se_run_imu_step(se_imu_context_t *ctx,
 
     /* Startup calibration */
     if (ctx->calibration_samples < STARTUP_CALIBRATION_SAMPLES) {
-
         ctx->calibration_samples++;
         update_bias(ctx->gyro_bias, (float *)g_data_raw,
                     ctx->accel_bias, (float *)a_data_raw,
                     (float *)EXPECTED_GRAVITY, ctx->calibration_samples);
-        
         return;
     }
 
@@ -160,7 +158,7 @@ static void se_run_imu_step(se_imu_context_t *ctx,
     log_service_log_state(&data, flight_state);
 
     if (ctx->ticks % 500 == 0) {
-        DLOG_PRINT("[%f, %f, %f]deg\r\n", (double)e[0], (double)e[1], (double)e[2]);
+        DLOG_PRINT("[%f, %f, %f]deg\r\n", e[0], e[1], e[2]);
     }
     ctx->ticks++;
 }
@@ -208,57 +206,17 @@ void state_estimation_task_start(void *argument)
     while (true) {
         xTaskNotifyWaitIndexed(0, 0, UINT32_MAX, &ISR_flags, period_ticks);
 
-        /* Always dequeue from all sensor rings (no-op when empty). */
-        bmi088_accel_sample_t accel_sample;
-        while (bmi088_acc_sample_q_pop(&bmi088_acc_sample_ring, &accel_sample))
-        {
-            log_service_log_accel_sample((uint32_t)accel_sample.t_us, accel_sample.ax, accel_sample.ay, accel_sample.az);
-            if (num_accel_samples < FUSION_VECTOR_SAMPLE_SIZE)
-            {
-                accel_samples[num_accel_samples++] = accel_sample;
-            }
-        }
+        /* Drain all sensor ring buffers */
+        se_drain_sensor_queues(&num_accel_samples, &num_gyro_samples,
+                               &num_baro1_samples, &num_baro2_samples);
 
-        bmi088_gyro_sample_t gyro_sample;
-        while (bmi088_gyro_sample_q_pop(&bmi088_gyro_sample_ring, &gyro_sample))
-        {
-            log_service_log_gyro_sample(gyro_sample.t_us, gyro_sample.gx, gyro_sample.gy, gyro_sample.gz);
-            if (num_gyro_samples < FUSION_VECTOR_SAMPLE_SIZE)
-            {
-                gyro_samples[num_gyro_samples++] = gyro_sample;
-            }
-        }
+        /* Process GPS fixes */
+        se_process_gps(ISR_flags, gps_reference_point, &have_gps_reference_point,
+                       pos_meters, &have_pos_meters_this_cycle);
 
-        ms5611_sample_t baro_sample;
-        while (ms5611_sample_q_pop(&ms5611_sample_ring, &baro_sample))
-        {
-            log_service_log_baro_sample(baro_sample.t_us, baro_sample.temp_centi, baro_sample.pressure_centi, baro_sample.seq);
-            if (num_baro1_samples < FUSION_VECTOR_SAMPLE_SIZE)
-            {
-                baro1_heights[num_baro1_samples++] = pressure_to_height(baro_sample.pressure_centi);
-            }
-        }
-
-        ms5607_sample_t baro2_sample;
-        while (ms5607_sample_q_pop(&ms5607_sample_ring, &baro2_sample))
-        {
-            log_service_log_baro2_sample(baro2_sample.t_us, baro2_sample.temp_centi, baro2_sample.pressure_centi, baro2_sample.seq);
-            if (num_baro2_samples < FUSION_VECTOR_SAMPLE_SIZE)
-            {
-                baro2_heights[num_baro2_samples++] = pressure_to_height(baro2_sample.pressure_centi);
-            }
-        }
-
-        /* GPS: only check on flag. */
-        if (ISR_flags & GNSS_GPS_FIX_READY_FLAG) {
-            gnss_gps_fix_t gps_fix;
-            while (gnss_gps_fix_q_pop(&gnss_radio_ctx.gps_queue, &gps_fix)) {
-                //TODO: integrate into kalman properly the gnss board always parses the nema and only presents us with the struct
-            }
-        }
-
-        /* Process when we have matched IMU pairs. */
-        uint8_t imu_loops = (num_accel_samples < num_gyro_samples) ? num_accel_samples : num_gyro_samples;
+        /* Process matched IMU pairs */
+        const uint8_t imu_loops = (num_accel_samples < num_gyro_samples)
+                                  ? num_accel_samples : num_gyro_samples;
 
         if (imu_loops > 0) {
             /* Average barometer heights from both sensors */
@@ -318,7 +276,7 @@ static void se_drain_sensor_queues(uint8_t *num_accel, uint8_t *num_gyro,
                                    uint8_t *num_baro1, uint8_t *num_baro2)
 {
     bmi088_accel_sample_t accel_sample;
-    while (bmi088_acc_sample_dequeue(&bmi088_acc_sample_ring, &accel_sample)) {
+    while (bmi088_acc_sample_q_pop(&bmi088_acc_sample_ring, &accel_sample)) {
         log_service_log_accel_sample((uint32_t)accel_sample.t_us,
                                      accel_sample.ax, accel_sample.ay, accel_sample.az);
         if (*num_accel < FUSION_VECTOR_SAMPLE_SIZE) {
@@ -327,7 +285,7 @@ static void se_drain_sensor_queues(uint8_t *num_accel, uint8_t *num_gyro,
     }
 
     bmi088_gyro_sample_t gyro_sample;
-    while (bmi088_gyro_sample_dequeue(&bmi088_gyro_sample_ring, &gyro_sample)) {
+    while (bmi088_gyro_sample_q_pop(&bmi088_gyro_sample_ring, &gyro_sample)) {
         log_service_log_gyro_sample(gyro_sample.t_us,
                                     gyro_sample.gx, gyro_sample.gy, gyro_sample.gz);
         if (*num_gyro < FUSION_VECTOR_SAMPLE_SIZE) {
@@ -336,7 +294,7 @@ static void se_drain_sensor_queues(uint8_t *num_accel, uint8_t *num_gyro,
     }
 
     ms5611_sample_t baro_sample;
-    while (ms5611_sample_dequeue(&ms5611_sample_ring, &baro_sample)) {
+    while (ms5611_sample_q_pop(&ms5611_sample_ring, &baro_sample)) {
         log_service_log_baro_sample(baro_sample.t_us, baro_sample.temp_centi,
                                     baro_sample.pressure_centi, baro_sample.seq);
         if (*num_baro1 < FUSION_VECTOR_SAMPLE_SIZE) {
@@ -345,7 +303,7 @@ static void se_drain_sensor_queues(uint8_t *num_accel, uint8_t *num_gyro,
     }
 
     ms5607_sample_t baro2_sample;
-    while (ms5607_sample_dequeue(&ms5607_sample_ring, &baro2_sample)) {
+    while (ms5607_sample_q_pop(&ms5607_sample_ring, &baro2_sample)) {
         log_service_log_baro2_sample(baro2_sample.t_us, baro2_sample.temp_centi,
                                      baro2_sample.pressure_centi, baro2_sample.seq);
         if (*num_baro2 < FUSION_VECTOR_SAMPLE_SIZE) {
@@ -366,7 +324,7 @@ static void se_process_gps(uint32_t isr_flags,
         return;
 
     gnss_gps_fix_t gps_fix;
-    while (gnss_gps_dequeue(&gps_fix)) {
+    while (gnss_gps_fix_q_pop(&gnss_radio_ctx.gps_queue, &gps_fix)) {
         if (!*have_ref) {
             /* Sanity check: reject fixes outside North America */
             if (!(gps_fix.latitude > 30 && gps_fix.latitude < 60) ||
