@@ -135,15 +135,16 @@ void mission_manager_task_start(void *argument) {
 
         /* 1 Hz system status */
         static TickType_t last_status_tick = 0;
+        static TickType_t last_telem_tick = 0;
         bool status_sent = false;
         if ((now - last_status_tick) >= pdMS_TO_TICKS(STATUS_INTERVAL_MS)) {
             last_status_tick = now;
+            last_telem_tick = now;  /* Ensure spacing between status and telemetry */
             send_status(flight_state);
             status_sent = true;
         }
 
         /* 10 Hz telemetry — skip on cycles where status is sent */
-        static TickType_t last_telem_tick = 0;
         if (!status_sent &&
             (now - last_telem_tick) >= pdMS_TO_TICKS(TELEMETRY_INTERVAL_MS)) {
             last_telem_tick = now;
