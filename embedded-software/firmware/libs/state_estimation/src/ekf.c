@@ -62,7 +62,7 @@ static EKF ekf;
 #define MAX_QUAT_VARIANCE                0.5f
 #define ACCEL_UPDATE_MIN_NORM_G          0.85f
 #define ACCEL_UPDATE_MAX_NORM_G          1.15f
-#define ACCEL_UPDATE_MAX_GYRO_NORM_RAD_S 0.6f
+#define ACCEL_UPDATE_MAX_GYRO_NORM_RAD_S 3.0f
 
 static uint32_t s_orientation_tick_count = 0;
 static uint32_t s_body_tick_count = 0;
@@ -75,9 +75,9 @@ static const float R_orientation[3][3] = {
 };
 
 static const float R_body[3][3] = {
-    {GPS_NOISE_VAR_XY, 0, 0},
-    {0, GPS_NOISE_VAR_XY, 0},
-    {0, 0, GPS_NOISE_VAR_Z}
+    {0.005, 0, 0},
+    {0, 0.005, 0},
+    {0, 0, 0.005}
 };
 
 /* ========================================================================== */
@@ -158,7 +158,7 @@ static void predict_covar_body_sparse(float dt, float predicted_covar[6][6])
     const float dt2 = dt * dt;
     const float dt3 = dt2 * dt;
     const float dt4 = dt2 * dt2;
-    const float s2 = ACCEL_NOISE_VAR_MS2;
+    const float s2 = 2;
     const float (*P)[6] = (const float (*)[6])ekf.body.covar;
 
     for (int i = 0; i < 3; i++) {
@@ -420,9 +420,6 @@ void update_ekf_body(float gps_pos[3])
     }
 
     /* Covariance update: P = (I-KH)*P = P - K * P[0:3,:] */
-    if (ekf.body.index <= UPDATE_COVAR) {
-        return;
-    }
     ekf.body.index = 0;
 
     float new_covar[6][6];

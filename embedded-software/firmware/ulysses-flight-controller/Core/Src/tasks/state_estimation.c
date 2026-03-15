@@ -33,6 +33,14 @@
 #define STARTUP_CALIBRATION_SAMPLES     2000U
 #define GYRO_BIAS_TIME_CONSTANT_S       30.0f
 
+/* IMU axis alignment (sensor -> body frame). Adjust signs/swaps as needed. */
+#define ACCEL_AXIS_SIGN_X  1.0f
+#define ACCEL_AXIS_SIGN_Y  1.0f
+#define ACCEL_AXIS_SIGN_Z -1.0f
+#define GYRO_AXIS_SIGN_X   1.0f
+#define GYRO_AXIS_SIGN_Y   1.0f
+#define GYRO_AXIS_SIGN_Z   1.0f
+
 static float EXPECTED_GRAVITY[3] = {0.0f, 0.0f, 1.0f};
 
 /* Persistent sensor buffers (static to avoid stack pressure) */
@@ -67,10 +75,12 @@ static void se_run_imu_step(se_imu_context_t *ctx,
                             bool have_gps, const float pos_meters[3],
                             bool have_baro, float baro_altitude_m)
 {
-    const float g_data_raw[3] = {gyro_s->gx, gyro_s->gy, gyro_s->gz};
-    const float a_data_raw[3] = {accel_s->ax / -GRAV,
-                                 accel_s->ay / -GRAV,
-                                 accel_s->az / -GRAV};
+    const float g_data_raw[3] = {gyro_s->gx,
+                                 gyro_s->gy,
+                                 gyro_s->gz};
+    const float a_data_raw[3] = {accel_s->ax / GRAV,
+                                 accel_s->ay / GRAV,
+                                 accel_s->az / GRAV};
     const bool stationary = imu_is_stationary(g_data_raw, a_data_raw);
 
     /* Compute delta time */
@@ -128,7 +138,8 @@ static void se_run_imu_step(se_imu_context_t *ctx,
 
     /* GPS update only when measurement is available */
     if (have_gps) {
-        update_ekf_body((float *)pos_meters);
+        float gps_pos[3] = {pos_meters[0], pos_meters[1], pos_meters[2]};
+        update_ekf_body(gps_pos);
     }
 
     /* Baro altitude update */
@@ -158,7 +169,7 @@ static void se_run_imu_step(se_imu_context_t *ctx,
     log_service_log_state(&data, flight_state);
 
     if (ctx->ticks % 500 == 0) {
-        DLOG_PRINT("[%f, %f, %f]deg\r\n", e[0], e[1], e[2]);
+        DLOG_PRINT("[%f, %f, %f, %f]\r\n", pos[0], pos[1], pos[2], ((float)sqrtf(a_data[0] * a_data[0] + a_data[1] * a_data[1] + a_data[2] * a_data[2])));
     }
     ctx->ticks++;
 }
@@ -214,11 +225,8 @@ void state_estimation_task_start(void *argument)
         se_process_gps(ISR_flags, gps_reference_point, &have_gps_reference_point,
                        pos_meters, &have_pos_meters_this_cycle);
 
-        /* Process matched IMU pairs */
-        const uint8_t imu_loops = (num_accel_samples < num_gyro_samples)
-                                  ? num_accel_samples : num_gyro_samples;
-
-        if (imu_loops > 0) {
+        /* Process matched IMU pairs (time-align accel to gyro) */
+        if ((num_accel_samples > 0U) && (num_gyro_samples > 0U)) {
             /* Average barometer heights from both sensors */
             float baro_alt = 0.0f;
             bool have_baro_this_cycle = false;
@@ -250,8 +258,22 @@ void state_estimation_task_start(void *argument)
                 }
             }
 
-            for (uint8_t i = 0; i < imu_loops; i++) {
-                se_run_imu_step(&imu_ctx, &s_gyro_samples[i], &s_accel_samples[i],
+            for (uint8_t i = 0; i < num_gyro_samples; i++) {
+                const uint32_t gyro_t = s_gyro_samples[i].t_us;
+                uint8_t best_idx = 0;
+                uint32_t best_dt = UINT32_MAX;
+
+                for (uint8_t j = 0; j < num_accel_samples; j++) {
+                    const uint32_t accel_t = (uint32_t)s_accel_samples[j].t_us;
+                    const int32_t diff = (int32_t)(gyro_t - accel_t);
+                    const uint32_t abs_diff = (uint32_t)(diff < 0 ? -diff : diff);
+                    if (abs_diff < best_dt) {
+                        best_dt = abs_diff;
+                        best_idx = j;
+                    }
+                }
+
+                se_run_imu_step(&imu_ctx, &s_gyro_samples[i], &s_accel_samples[best_idx],
                                 have_pos_meters_this_cycle, pos_meters,
                                 have_baro_this_cycle, baro_alt);
             }
