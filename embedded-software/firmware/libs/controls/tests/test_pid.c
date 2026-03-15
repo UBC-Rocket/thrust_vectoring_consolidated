@@ -100,3 +100,45 @@ void test_pid_zero_error(void)
     float out = pid_compute(&pid, 5.0f, 5.0f, 0.01f);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out);
 }
+
+/* ---------- derivative on measurement ---------- */
+
+void test_pid_derivative_on_measurement(void)
+{
+    pid_controller_t pid;
+    /* kp=1, ki=0, kd=1: output = error + derivative-on-measurement */
+    pid_init(&pid, 1.0f, 0.0f, 1.0f, 100.0f, -1000.0f, 1000.0f);
+
+    /* First call: measurement=0->0, derivative = -(0-0)/1 = 0, error=0, output=0 */
+    float out1 = pid_compute(&pid, 0.0f, 0.0f, 1.0f);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out1);
+
+    /* Second call: measurement jumps to 5, setpoint still 0
+     * error = -5, derivative = -(5-0)/1 = -5
+     * output = kp*(-5) + kd*(-5) = -5 + (-5) = -10 */
+    float out2 = pid_compute(&pid, 0.0f, 5.0f, 1.0f);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -10.0f, out2);
+}
+
+/* ---------- pid_set_limits clamps existing integral ---------- */
+
+void test_pid_set_limits(void)
+{
+    pid_controller_t pid;
+    /* ki=1 to accumulate integral; wide limits so nothing else clips */
+    pid_init(&pid, 0.0f, 1.0f, 0.0f, 1000.0f, -1000.0f, 1000.0f);
+
+    /* 8 steps: error=100, dt=0.1 -> integral += 100*0.1=10 per step -> integral=80 */
+    for (int i = 0; i < 8; i++) {
+        pid_compute(&pid, 100.0f, 0.0f, 0.1f);
+    }
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 80.0f, pid_get_integral(&pid));
+
+    /* Tighten limit to 50: integral should be clamped */
+    pid_set_limits(&pid, 50.0f, -200.0f, 200.0f);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 50.0f, pid_get_integral(&pid));
+
+    /* Tighten further to 30 */
+    pid_set_limits(&pid, 30.0f, -100.0f, 100.0f);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 30.0f, pid_get_integral(&pid));
+}

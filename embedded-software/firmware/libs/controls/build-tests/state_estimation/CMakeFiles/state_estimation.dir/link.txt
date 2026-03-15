@@ -1,0 +1,2 @@
+/usr/bin/ar qc libstate_estimation.a CMakeFiles/state_estimation.dir/src/ekf.c.o CMakeFiles/state_estimation.dir/src/state_math.c.o CMakeFiles/state_estimation.dir/src/matrix.c.o CMakeFiles/state_estimation.dir/src/quaternion.c.o CMakeFiles/state_estimation.dir/src/body.c.o CMakeFiles/state_estimation.dir/src/calibration.c.o
+/usr/bin/ranlib libstate_estimation.a

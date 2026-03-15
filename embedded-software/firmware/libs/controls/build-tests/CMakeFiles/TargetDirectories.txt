@@ -1,0 +1,16 @@
+/Users/ivan/ubc_rocket/thrust_vectoring_consolidated/embedded-software/firmware/libs/controls/build-tests/CMakeFiles/test_controls.dir
+/Users/ivan/ubc_rocket/thrust_vectoring_consolidated/embedded-software/firmware/libs/controls/build-tests/CMakeFiles/test.dir
+/Users/ivan/ubc_rocket/thrust_vectoring_consolidated/embedded-software/firmware/libs/controls/build-tests/CMakeFiles/edit_cache.dir
+/Users/ivan/ubc_rocket/thrust_vectoring_consolidated/embedded-software/firmware/libs/controls/build-tests/CMakeFiles/rebuild_cache.dir
+/Users/ivan/ubc_rocket/thrust_vectoring_consolidated/embedded-software/firmware/libs/controls/build-tests/state_estimation/CMakeFiles/state_estimation.dir
+/Users/ivan/ubc_rocket/thrust_vectoring_consolidated/embedded-software/firmware/libs/controls/build-tests/state_estimation/CMakeFiles/test.dir
+/Users/ivan/ubc_rocket/thrust_vectoring_consolidated/embedded-software/firmware/libs/controls/build-tests/state_estimation/CMakeFiles/edit_cache.dir
+/Users/ivan/ubc_rocket/thrust_vectoring_consolidated/embedded-software/firmware/libs/controls/build-tests/state_estimation/CMakeFiles/rebuild_cache.dir
+/Users/ivan/ubc_rocket/thrust_vectoring_consolidated/embedded-software/firmware/libs/controls/build-tests/controls/CMakeFiles/controls.dir
+/Users/ivan/ubc_rocket/thrust_vectoring_consolidated/embedded-software/firmware/libs/controls/build-tests/controls/CMakeFiles/test.dir
+/Users/ivan/ubc_rocket/thrust_vectoring_consolidated/embedded-software/firmware/libs/controls/build-tests/controls/CMakeFiles/edit_cache.dir
+/Users/ivan/ubc_rocket/thrust_vectoring_consolidated/embedded-software/firmware/libs/controls/build-tests/controls/CMakeFiles/rebuild_cache.dir
+/Users/ivan/ubc_rocket/thrust_vectoring_consolidated/embedded-software/firmware/libs/controls/build-tests/unity/CMakeFiles/unity.dir
+/Users/ivan/ubc_rocket/thrust_vectoring_consolidated/embedded-software/firmware/libs/controls/build-tests/unity/CMakeFiles/test.dir
+/Users/ivan/ubc_rocket/thrust_vectoring_consolidated/embedded-software/firmware/libs/controls/build-tests/unity/CMakeFiles/edit_cache.dir
+/Users/ivan/ubc_rocket/thrust_vectoring_consolidated/embedded-software/firmware/libs/controls/build-tests/unity/CMakeFiles/rebuild_cache.dir

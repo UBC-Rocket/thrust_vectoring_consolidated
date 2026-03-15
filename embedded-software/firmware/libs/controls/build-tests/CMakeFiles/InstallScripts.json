@@ -1,0 +1,10 @@
+{
+	"InstallScripts" : 
+	[
+		"/Users/ivan/ubc_rocket/thrust_vectoring_consolidated/embedded-software/firmware/libs/controls/build-tests/cmake_install.cmake",
+		"/Users/ivan/ubc_rocket/thrust_vectoring_consolidated/embedded-software/firmware/libs/controls/build-tests/state_estimation/cmake_install.cmake",
+		"/Users/ivan/ubc_rocket/thrust_vectoring_consolidated/embedded-software/firmware/libs/controls/build-tests/controls/cmake_install.cmake",
+		"/Users/ivan/ubc_rocket/thrust_vectoring_consolidated/embedded-software/firmware/libs/controls/build-tests/unity/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

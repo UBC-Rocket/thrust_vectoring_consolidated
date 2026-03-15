@@ -1,0 +1,1 @@
+/usr/bin/cc  -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/test_controls.dir/test_pid.c.o CMakeFiles/test_controls.dir/test_flight_controller.c.o CMakeFiles/test_controls.dir/test_main.c.o -o test_controls  controls/libcontrols.a state_estimation/libstate_estimation.a unity/libunity.a -lm

@@ -1,0 +1,2 @@
+/usr/bin/ar qc libcontrols.a CMakeFiles/controls.dir/src/pid.c.o CMakeFiles/controls.dir/src/flight_controller.c.o
+/usr/bin/ranlib libcontrols.a
