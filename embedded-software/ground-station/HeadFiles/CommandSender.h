@@ -40,7 +40,7 @@ public:
     /// Return true if periodic sending is active on the given channel.
     Q_INVOKABLE bool isPeriodicRunning(int which) const;
 
-    // Send PID values as an array out via the given channel on the bridge.
+    // Send PID values as a 10-element array: [attKpX, attKpY, attKpZ, attKdX, attKdY, attKdZ, zKp, zKi, zKd, zIntegralLimit].
     Q_INVOKABLE bool sendPIDValues(int which, const QVariantList& PIDValues);
 
 signals:

@@ -158,8 +158,8 @@ bool CommandSender::sendPIDValues(int which, const QVariantList& PIDValues) {
         return false;
     }
 
-    if (PIDValues.size() < 9) {
-        emit errorOccurred("PIDValues must contain 9 entries");
+    if (PIDValues.size() < 10) {
+        emit errorOccurred("PIDValues must contain 10 entries");
         return false;
     }
 
@@ -177,7 +177,7 @@ bool CommandSender::sendPIDValues(int which, const QVariantList& PIDValues) {
     pid.z_kp = static_cast<float>(PIDValues[6].toDouble());
     pid.z_ki = static_cast<float>(PIDValues[7].toDouble());
     pid.z_kd = static_cast<float>(PIDValues[8].toDouble());
-    pid.z_integral_limit = 0.0f;
+    pid.z_integral_limit = static_cast<float>(PIDValues[9].toDouble());
 
     tvr_FlightCommand cmd = tvr_FlightCommand_init_zero;
     cmd.which_payload = tvr_FlightCommand_set_pid_gains_tag;

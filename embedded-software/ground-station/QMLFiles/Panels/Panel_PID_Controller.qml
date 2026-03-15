@@ -9,30 +9,20 @@ BasePanel {
 
     signal commandTriggered(int which, var code)
 
-    // Emits whenever the user saves new gains in the editor.
-    signal pidGainsUpdated(string mode, double pGain, double iGain, double dGain)
-
     property int displayPrecision: 2
-    property var editBuffer: []
-    property var pidValues: []
 
     // TODO: check if channel 1 is valid for PID Value sending
     property int which: 1
 
-    // Local store of PID gains for each mode.
-    ListModel {
-        id: pidModel
-        ListElement { mode: "Hover"; pGain: 1.0; iGain: 2.2; dGain: 3.33 }
-        ListElement { mode: "Up";    pGain: 2.0; iGain: 0.0; dGain: 0.0  }
-        ListElement { mode: "Down";  pGain: 1.5; iGain: 1.0; dGain: 2.0  }
-    }
+    // Attitude Controller gains (Vec3 each)
+    property double attKpX: 0.0;  property double attKpY: 0.0;  property double attKpZ: 0.0
+    property double attKdX: 0.0;  property double attKdY: 0.0;  property double attKdZ: 0.0
 
-    function modeColor(name) {
-        if (name === "Hover") return "#60A5FA"
-        if (name === "Up")    return "#34D399"
-        if (name === "Down")  return "#FBBF24"
-        return Theme.accent
-    }
+    // Z Position Controller gains (scalars)
+    property double zKp: 0.0;     property double zKi: 0.0;     property double zKd: 0.0
+    property double zIntegralLimit: 0.0
+
+    property var editBuffer: ({})
 
     function formatGain(value) {
         return Number(value).toFixed(displayPrecision)
@@ -44,44 +34,67 @@ BasePanel {
     }
 
     function syncEditBuffer() {
-        const buffer = []
-        for (let idx = 0; idx < pidModel.count; ++idx) {
-            const row = pidModel.get(idx)
-            buffer.push({
-                mode: row.mode,
-                pGain: row.pGain,
-                iGain: row.iGain,
-                dGain: row.dGain
-            })
+        editBuffer = {
+            attKpX: attKpX, attKpY: attKpY, attKpZ: attKpZ,
+            attKdX: attKdX, attKdY: attKdY, attKdZ: attKdZ,
+            zKp: zKp, zKi: zKi, zKd: zKd,
+            zIntegralLimit: zIntegralLimit
         }
-        editBuffer = buffer
     }
 
     function applyEdits() {
+        attKpX = sanitizedNumber(editBuffer.attKpX, attKpX)
+        attKpY = sanitizedNumber(editBuffer.attKpY, attKpY)
+        attKpZ = sanitizedNumber(editBuffer.attKpZ, attKpZ)
+        attKdX = sanitizedNumber(editBuffer.attKdX, attKdX)
+        attKdY = sanitizedNumber(editBuffer.attKdY, attKdY)
+        attKdZ = sanitizedNumber(editBuffer.attKdZ, attKdZ)
+        zKp = sanitizedNumber(editBuffer.zKp, zKp)
+        zKi = sanitizedNumber(editBuffer.zKi, zKi)
+        zKd = sanitizedNumber(editBuffer.zKd, zKd)
+        zIntegralLimit = sanitizedNumber(editBuffer.zIntegralLimit, zIntegralLimit)
 
-        for (let idx = 0; idx < editBuffer.length; ++idx) {
-            const current = pidModel.get(idx)
-            const updated = editBuffer[idx] || {}
-
-            const pVal = sanitizedNumber(updated.pGain, current.pGain)
-            const iVal = sanitizedNumber(updated.iGain, current.iGain)
-            const dVal = sanitizedNumber(updated.dGain, current.dGain)
-
-            pidValues[idx * 3] = pVal
-            pidValues[idx * 3 + 1] = iVal
-            pidValues[idx * 3 + 2] = dVal
-
-            pidModel.setProperty(idx, "pGain", pVal)
-            pidModel.setProperty(idx, "iGain", iVal)
-            pidModel.setProperty(idx, "dGain", dVal)
-
-            pidPanel.pidGainsUpdated(current.mode, pVal, iVal, dVal)
-        }
-
-        pidPanel.commandTriggered(which, pidValues);
+        var pidValues = [attKpX, attKpY, attKpZ, attKdX, attKdY, attKdZ, zKp, zKi, zKd, zIntegralLimit]
+        pidPanel.commandTriggered(which, pidValues)
 
         editorPopup.close()
+    }
 
+    // --- Reusable gain chip component ---
+    component GainChip: Rectangle {
+        property string label: ""
+        property string value: ""
+        Layout.fillWidth: true
+        implicitHeight: 48
+        radius: Theme.radiusCard
+        color: Theme.background
+        border.width: Theme.strokeControl
+        border.color: Theme.border
+
+        Column {
+            anchors.centerIn: parent
+            spacing: 2
+            Text { text: label; color: Theme.textTertiary; font.family: Theme.fontFamily; font.pixelSize: 12; font.bold: true; anchors.horizontalCenter: parent.horizontalCenter }
+            Text { text: value; color: Theme.textPrimary; font.family: Theme.monoFamily; font.pixelSize: Theme.fontH2; font.bold: true; anchors.horizontalCenter: parent.horizontalCenter }
+        }
+    }
+
+    // --- Reusable text field for edit popup ---
+    component GainField: Basic.TextField {
+        property string label: ""
+        Layout.fillWidth: true
+        placeholderText: label
+        color: Theme.textPrimary
+        font.family: Theme.monoFamily
+        font.pixelSize: Theme.fontBody
+        inputMethodHints: Qt.ImhFormattedNumbersOnly
+        validator: DoubleValidator { decimals: 4 }
+        background: Rectangle {
+            radius: Theme.radiusCard
+            color: Theme.background
+            border.width: Theme.strokeControl
+            border.color: Theme.border
+        }
     }
 
     BaseHeader {
@@ -132,107 +145,138 @@ BasePanel {
         }
         spacing: 10
 
+        // ── Attitude Controller Section ──
+        Text {
+            text: "Attitude Controller"
+            color: "#60A5FA"
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontH2
+            font.bold: true
+        }
 
-        // PID rows
-        Repeater {
-            model: pidModel
-            delegate: Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 72
-                radius: Theme.radiusCard
-                color: Theme.surfaceInset
-                border.width: Theme.strokeControl
-                border.color: Theme.border
+        // Kp row
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 72
+            radius: Theme.radiusCard
+            color: Theme.surfaceInset
+            border.width: Theme.strokeControl
+            border.color: Theme.border
 
-                property color accent: modeColor(mode)
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: 10
+                spacing: 10
+
+                Rectangle { width: 6; radius: 3; color: "#60A5FA"; Layout.fillHeight: true }
+
+                Column {
+                    Layout.preferredWidth: 90
+                    spacing: 2
+                    Text { text: "Kp"; color: Theme.textPrimary; font.family: Theme.fontFamily; font.pixelSize: Theme.fontH2; font.bold: true }
+                    Text { text: "Proportional"; color: Theme.textTertiary; font.family: Theme.fontFamily; font.pixelSize: 12 }
+                }
 
                 RowLayout {
-                    anchors.fill: parent
-                    anchors.margins: 10
-                    spacing: 10
+                    Layout.fillWidth: true
+                    spacing: 8
+                    GainChip { label: "X"; value: formatGain(attKpX) }
+                    GainChip { label: "Y"; value: formatGain(attKpY) }
+                    GainChip { label: "Z"; value: formatGain(attKpZ) }
+                }
+            }
+        }
 
-                    Rectangle {
-                        width: 6
-                        radius: 3
-                        color: accent
-                        Layout.fillHeight: true
-                    }
+        // Kd row
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 72
+            radius: Theme.radiusCard
+            color: Theme.surfaceInset
+            border.width: Theme.strokeControl
+            border.color: Theme.border
 
-                    Column {
-                        Layout.preferredWidth: 90
-                        spacing: 2
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: 10
+                spacing: 10
 
-                        Text {
-                            text: mode
-                            color: Theme.textPrimary
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontH2
-                            font.bold: true
-                        }
+                Rectangle { width: 6; radius: 3; color: "#60A5FA"; Layout.fillHeight: true }
 
-                        Text {
-                            text: "Flight Mode"
-                            color: Theme.textTertiary
-                            font.family: Theme.fontFamily
-                            font.pixelSize: 12
-                        }
-                    }
+                Column {
+                    Layout.preferredWidth: 90
+                    spacing: 2
+                    Text { text: "Kd"; color: Theme.textPrimary; font.family: Theme.fontFamily; font.pixelSize: Theme.fontH2; font.bold: true }
+                    Text { text: "Derivative"; color: Theme.textTertiary; font.family: Theme.fontFamily; font.pixelSize: 12 }
+                }
 
-                    // Gain chips
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    GainChip { label: "X"; value: formatGain(attKdX) }
+                    GainChip { label: "Y"; value: formatGain(attKdY) }
+                    GainChip { label: "Z"; value: formatGain(attKdZ) }
+                }
+            }
+        }
+
+        // ── Z Position Controller Section ──
+        Text {
+            text: "Z Position Controller"
+            color: "#34D399"
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontH2
+            font.bold: true
+            Layout.topMargin: 6
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 120
+            radius: Theme.radiusCard
+            color: Theme.surfaceInset
+            border.width: Theme.strokeControl
+            border.color: Theme.border
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: 10
+                spacing: 10
+
+                Rectangle { width: 6; radius: 3; color: "#34D399"; Layout.fillHeight: true }
+
+                Column {
+                    Layout.preferredWidth: 90
+                    spacing: 2
+                    Text { text: "Gains"; color: Theme.textPrimary; font.family: Theme.fontFamily; font.pixelSize: Theme.fontH2; font.bold: true }
+                    Text { text: "Z Position"; color: Theme.textTertiary; font.family: Theme.fontFamily; font.pixelSize: 12 }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 8
+                        GainChip { label: "Kp"; value: formatGain(zKp) }
+                        GainChip { label: "Ki"; value: formatGain(zKi) }
+                        GainChip { label: "Kd"; value: formatGain(zKd) }
+                    }
 
-                        Rectangle {
-                            Layout.fillWidth: true
-                            radius: Theme.radiusCard
-                            color: Theme.background
-                            border.width: Theme.strokeControl
-                            border.color: Theme.border
-
-                            Column {
-                                anchors.centerIn: parent
-                                spacing: 2
-                                Text { text: "P"; color: Theme.textTertiary; font.family: Theme.fontFamily; font.pixelSize: 12; font.bold: true; horizontalAlignment: Text.AlignHCenter }
-                                Text { text: formatGain(pGain); color: Theme.textPrimary; font.family: Theme.monoFamily; font.pixelSize: Theme.fontH2; font.bold: true; horizontalAlignment: Text.AlignHCenter }
-                            }
-                        }
-
-                        Rectangle {
-                            Layout.fillWidth: true
-                            radius: Theme.radiusCard
-                            color: Theme.background
-                            border.width: Theme.strokeControl
-                            border.color: Theme.border
-
-                            Column {
-                                anchors.centerIn: parent
-                                spacing: 2
-                                Text { text: "I"; color: Theme.textTertiary; font.family: Theme.fontFamily; font.pixelSize: 12; font.bold: true; horizontalAlignment: Text.AlignHCenter }
-                                Text { text: formatGain(iGain); color: Theme.textPrimary; font.family: Theme.monoFamily; font.pixelSize: Theme.fontH2; font.bold: true; horizontalAlignment: Text.AlignHCenter }
-                            }
-                        }
-
-                        Rectangle {
-                            Layout.fillWidth: true
-                            radius: Theme.radiusCard
-                            color: Theme.background
-                            border.width: Theme.strokeControl
-                            border.color: Theme.border
-
-                            Column {
-                                anchors.centerIn: parent
-                                spacing: 2
-                                Text { text: "D"; color: Theme.textTertiary; font.family: Theme.fontFamily; font.pixelSize: 12; font.bold: true; horizontalAlignment: Text.AlignHCenter }
-                                Text { text: formatGain(dGain); color: Theme.textPrimary; font.family: Theme.monoFamily; font.pixelSize: Theme.fontH2; font.bold: true; horizontalAlignment: Text.AlignHCenter }
-                            }
-                        }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        GainChip { label: "I Limit"; value: formatGain(zIntegralLimit) }
                     }
                 }
             }
         }
+
+        Item { Layout.fillHeight: true }
     }
 
+    // ── Edit Popup ──
     Popup {
         id: editorPopup
         modal: true
@@ -254,92 +298,50 @@ BasePanel {
             anchors.margins: 18
             spacing: 12
 
-            ColumnLayout {
-                spacing: 4
+            Text { text: "Edit PID Values"; color: Theme.textPrimary; font.family: Theme.fontFamily; font.pixelSize: 20; font.bold: true }
+
+            // ── Attitude Controller ──
+            Text { text: "Attitude Controller"; color: "#60A5FA"; font.family: Theme.fontFamily; font.pixelSize: Theme.fontH2; font.bold: true }
+
+            Text { text: "Proportional (Kp)"; color: Theme.textTertiary; font.family: Theme.fontFamily; font.pixelSize: 12 }
+            RowLayout {
                 Layout.fillWidth: true
-                Text { text: "Edit PID Values"; color: Theme.textPrimary; font.family: Theme.fontFamily; font.pixelSize: 20; font.bold: true }
+                spacing: 8
+                GainField { label: "X"; text: editBuffer.attKpX !== undefined ? editBuffer.attKpX : ""; onTextChanged: editBuffer.attKpX = text }
+                GainField { label: "Y"; text: editBuffer.attKpY !== undefined ? editBuffer.attKpY : ""; onTextChanged: editBuffer.attKpY = text }
+                GainField { label: "Z"; text: editBuffer.attKpZ !== undefined ? editBuffer.attKpZ : ""; onTextChanged: editBuffer.attKpZ = text }
             }
 
-            Repeater {
-                model: editBuffer
-                delegate: ColumnLayout {
-                    required property var modelData
-                    required property int index
-                    spacing: 6
-                    Layout.fillWidth: true
-
-                    Text {
-                        text: modelData.mode
-                        color: modeColor(modelData.mode)
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontH2
-                        font.bold: true
-                    }
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 8
-
-                        Basic.TextField {
-                            Layout.preferredWidth: (editorPopup.width - 60) / 3
-                            Layout.maximumWidth: Layout.preferredWidth
-                            text: modelData.pGain
-                            placeholderText: "P"
-                            color: Theme.textPrimary
-                            font.family: Theme.monoFamily
-                            font.pixelSize: Theme.fontBody
-                            inputMethodHints: Qt.ImhFormattedNumbersOnly
-                            validator: DoubleValidator { decimals: 4 }
-                            background: Rectangle {
-                                radius: Theme.radiusCard
-                                color: Theme.background
-                                border.width: Theme.strokeControl
-                                border.color: Theme.border
-                            }
-                            onTextChanged: editBuffer[index].pGain = text
-                        }
-
-                        Basic.TextField {
-                            Layout.preferredWidth: (editorPopup.width - 60) / 3
-                            Layout.maximumWidth: Layout.preferredWidth
-                            text: modelData.iGain
-                            placeholderText: "I"
-                            color: Theme.textPrimary
-                            font.family: Theme.monoFamily
-                            font.pixelSize: Theme.fontBody
-                            inputMethodHints: Qt.ImhFormattedNumbersOnly
-                            validator: DoubleValidator { decimals: 4 }
-                            background: Rectangle {
-                                radius: Theme.radiusCard
-                                color: Theme.background
-                                border.width: Theme.strokeControl
-                                border.color: Theme.border
-                            }
-                            onTextChanged: editBuffer[index].iGain = text
-                        }
-
-                        Basic.TextField {
-                            Layout.preferredWidth: (editorPopup.width - 60) / 3
-                            Layout.maximumWidth: Layout.preferredWidth
-                            text: modelData.dGain
-                            placeholderText: "D"
-                            color: Theme.textPrimary
-                            font.family: Theme.monoFamily
-                            font.pixelSize: Theme.fontBody
-                            inputMethodHints: Qt.ImhFormattedNumbersOnly
-                            validator: DoubleValidator { decimals: 4 }
-                            background: Rectangle {
-                                radius: Theme.radiusCard
-                                color: Theme.background
-                                border.width: Theme.strokeControl
-                                border.color: Theme.border
-                            }
-                            onTextChanged: editBuffer[index].dGain = text
-                        }
-                    }
-                }
+            Text { text: "Derivative (Kd)"; color: Theme.textTertiary; font.family: Theme.fontFamily; font.pixelSize: 12 }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                GainField { label: "X"; text: editBuffer.attKdX !== undefined ? editBuffer.attKdX : ""; onTextChanged: editBuffer.attKdX = text }
+                GainField { label: "Y"; text: editBuffer.attKdY !== undefined ? editBuffer.attKdY : ""; onTextChanged: editBuffer.attKdY = text }
+                GainField { label: "Z"; text: editBuffer.attKdZ !== undefined ? editBuffer.attKdZ : ""; onTextChanged: editBuffer.attKdZ = text }
             }
 
+            // ── Divider ──
+            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
+
+            // ── Z Position Controller ──
+            Text { text: "Z Position Controller"; color: "#34D399"; font.family: Theme.fontFamily; font.pixelSize: Theme.fontH2; font.bold: true }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                GainField { label: "Kp"; text: editBuffer.zKp !== undefined ? editBuffer.zKp : ""; onTextChanged: editBuffer.zKp = text }
+                GainField { label: "Ki"; text: editBuffer.zKi !== undefined ? editBuffer.zKi : ""; onTextChanged: editBuffer.zKi = text }
+                GainField { label: "Kd"; text: editBuffer.zKd !== undefined ? editBuffer.zKd : ""; onTextChanged: editBuffer.zKd = text }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                GainField { label: "Integral Limit"; text: editBuffer.zIntegralLimit !== undefined ? editBuffer.zIntegralLimit : ""; onTextChanged: editBuffer.zIntegralLimit = text }
+            }
+
+            // ── Buttons ──
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 10
@@ -392,11 +394,12 @@ BasePanel {
             }
         }
     }
-    // --- Signal wiring: when a card is clicked, forward the code to the C++ CommandSender object ---
+
+    // --- Signal wiring: forward PID values to the C++ CommandSender ---
     Connections {
         target: pidPanel
         function onCommandTriggered(txWhich, code) {
-            commandsender.sendPIDValues(txWhich, code) // Delegate to Q_INVOKABLE; panel stays transport-agnostic.
+            commandsender.sendPIDValues(txWhich, code)
         }
     }
 }
