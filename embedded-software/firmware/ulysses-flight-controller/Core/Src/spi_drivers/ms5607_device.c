@@ -252,7 +252,7 @@ static void ms5607_cb_read_d2(spi_job_t *job, const uint8_t *rx, void *arg)
         .pressure_centi = p->dev.P_centi_mbar,
         .seq            = p->seq
     };
-    ms5607_sample_queue(&ms5607_sample_ring, &sample);
+    ms5607_sample_q_push(&ms5607_sample_ring, &sample);
 }
 
 /* -------------------------------------------------------------------------- */

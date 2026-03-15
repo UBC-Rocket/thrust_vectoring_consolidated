@@ -18,6 +18,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <gnss_protocol/gps_fix.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -107,32 +108,11 @@ typedef enum {
 #define GNSS_NMEA_MAX_LEN             87
 
 /**
- * @brief Parsed GPS fix structure (for future use)
+ * @brief GPS fix structure — canonical definition in <gnss_protocol/gps_fix.h>.
  *
- * Reserved for when NMEA parsing is implemented on the slave.
- * Total size: 48 bytes
+ * gnss_gps_fix_t is a backward-compatible alias for gps_fix_t.
  */
-typedef struct {
-    /* Position */
-    double   latitude;         /**< Degrees, signed (-90 to +90)          [8 bytes] */
-    double   longitude;        /**< Degrees, signed (-180 to +180)        [8 bytes] */
-    float    altitude_msl;     /**< Meters above sea level                [4 bytes] */
-
-    /* Velocity & Heading */
-    float    ground_speed;     /**< m/s                                   [4 bytes] */
-    float    course;           /**< Degrees true north (0-360)            [4 bytes] */
-
-    /* Quality indicators */
-    uint8_t  fix_quality;      /**< 0=invalid, 1=GPS, 2=DGPS, etc.        [1 byte] */
-    uint8_t  num_satellites;   /**< Number of satellites used             [1 byte] */
-    uint8_t  padding1[2];      /**< Alignment padding                     [2 bytes] */
-    float    hdop;             /**< Horizontal dilution of precision      [4 bytes] */
-
-    /* Timestamp */
-    uint32_t time_of_week_ms;  /**< GPS time of week in milliseconds      [4 bytes] */
-
-    uint8_t  padding2[8];      /**< Padding to 48 bytes total             [8 bytes] */
-} __attribute__((packed)) gnss_gps_fix_t;
+typedef gps_fix_t gnss_gps_fix_t;
 
 /* -------------------------------------------------------------------------- */
 /* Radio Message Constants                                                    */

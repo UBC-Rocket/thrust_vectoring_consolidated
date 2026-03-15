@@ -1,10 +1,10 @@
 #include "SPI_device_interactions.h"
 
 /* Sample ring buffers */
-bmi088_accel_sample_queue_t bmi088_acc_sample_ring;
-bmi088_gyro_sample_queue_t bmi088_gyro_sample_ring;
-ms5611_sample_queue_t ms5611_sample_ring;
-ms5607_sample_queue_t ms5607_sample_ring;
+bmi088_acc_sample_q_t bmi088_acc_sample_ring;
+bmi088_gyro_sample_q_t bmi088_gyro_sample_ring;
+ms5611_sample_q_t ms5611_sample_ring;
+ms5607_sample_q_t ms5607_sample_ring;
 
 /* Device configuration structs */
 bmi088_accel_t accel;

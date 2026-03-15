@@ -201,7 +201,7 @@ static void ms5611_cb_read_d2(spi_job_t *job, const uint8_t *rx, void *arg)
         .pressure_centi = p->dev.P_centi_mbar,
         .seq            = p->seq
     };
-    ms5611_sample_queue(&ms5611_sample_ring, &sample);
+    ms5611_sample_q_push(&ms5611_sample_ring, &sample);
 }
 
 void ms5611_poller_tick(ms5611_poller_t *p)

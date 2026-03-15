@@ -208,17 +208,57 @@ void state_estimation_task_start(void *argument)
     while (true) {
         xTaskNotifyWaitIndexed(0, 0, UINT32_MAX, &ISR_flags, period_ticks);
 
-        /* Drain all sensor ring buffers */
-        se_drain_sensor_queues(&num_accel_samples, &num_gyro_samples,
-                               &num_baro1_samples, &num_baro2_samples);
+        /* Always dequeue from all sensor rings (no-op when empty). */
+        bmi088_accel_sample_t accel_sample;
+        while (bmi088_acc_sample_q_pop(&bmi088_acc_sample_ring, &accel_sample))
+        {
+            log_service_log_accel_sample((uint32_t)accel_sample.t_us, accel_sample.ax, accel_sample.ay, accel_sample.az);
+            if (num_accel_samples < FUSION_VECTOR_SAMPLE_SIZE)
+            {
+                accel_samples[num_accel_samples++] = accel_sample;
+            }
+        }
 
-        /* Process GPS fixes */
-        se_process_gps(ISR_flags, gps_reference_point, &have_gps_reference_point,
-                       pos_meters, &have_pos_meters_this_cycle);
+        bmi088_gyro_sample_t gyro_sample;
+        while (bmi088_gyro_sample_q_pop(&bmi088_gyro_sample_ring, &gyro_sample))
+        {
+            log_service_log_gyro_sample(gyro_sample.t_us, gyro_sample.gx, gyro_sample.gy, gyro_sample.gz);
+            if (num_gyro_samples < FUSION_VECTOR_SAMPLE_SIZE)
+            {
+                gyro_samples[num_gyro_samples++] = gyro_sample;
+            }
+        }
 
-        /* Process matched IMU pairs */
-        const uint8_t imu_loops = (num_accel_samples < num_gyro_samples)
-                                  ? num_accel_samples : num_gyro_samples;
+        ms5611_sample_t baro_sample;
+        while (ms5611_sample_q_pop(&ms5611_sample_ring, &baro_sample))
+        {
+            log_service_log_baro_sample(baro_sample.t_us, baro_sample.temp_centi, baro_sample.pressure_centi, baro_sample.seq);
+            if (num_baro1_samples < FUSION_VECTOR_SAMPLE_SIZE)
+            {
+                baro1_heights[num_baro1_samples++] = pressure_to_height(baro_sample.pressure_centi);
+            }
+        }
+
+        ms5607_sample_t baro2_sample;
+        while (ms5607_sample_q_pop(&ms5607_sample_ring, &baro2_sample))
+        {
+            log_service_log_baro2_sample(baro2_sample.t_us, baro2_sample.temp_centi, baro2_sample.pressure_centi, baro2_sample.seq);
+            if (num_baro2_samples < FUSION_VECTOR_SAMPLE_SIZE)
+            {
+                baro2_heights[num_baro2_samples++] = pressure_to_height(baro2_sample.pressure_centi);
+            }
+        }
+
+        /* GPS: only check on flag. */
+        if (ISR_flags & GNSS_GPS_FIX_READY_FLAG) {
+            gnss_gps_fix_t gps_fix;
+            while (gnss_gps_fix_q_pop(&gnss_radio_ctx.gps_queue, &gps_fix)) {
+                //TODO: integrate into kalman properly the gnss board always parses the nema and only presents us with the struct
+            }
+        }
+
+        /* Process when we have matched IMU pairs. */
+        uint8_t imu_loops = (num_accel_samples < num_gyro_samples) ? num_accel_samples : num_gyro_samples;
 
         if (imu_loops > 0) {
             /* Average barometer heights from both sensors */
