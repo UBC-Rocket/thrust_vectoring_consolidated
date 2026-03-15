@@ -2,13 +2,11 @@
 #define EKF_H
 
 #define STATE_DIM 4
-#define UPDATE_COVAR 10
+#define UPDATE_COVAR -1
 
 typedef struct {
     float vals[4];            // real, i, j, k (or w, x, y, z)
     float covar[4][4];        // covariance matrix
-    float process[4][4];      // process noise
-    float measurement[3][3];  // measurement noise (of accel)
     int index;
 } quaternion_state;
 
@@ -16,41 +14,37 @@ typedef struct {
     float velocity[3];
     float position[3];            // x, y, z
     float covar[6][6];        // covariance matrix
-    float process[6][6];      // process noise
-    float measurement[3][3];  // measurement noise (of gps)
     int index;
 } body_state;
 
 typedef struct {
-    quaternion_state quaternion;  
-    body_state body;  
-    float expected_g[3];               
+    quaternion_state quaternion;
+    body_state body;
+    float expected_g[3];
 } EKF;
 
-void init_ekf_body(
-    float process_noise[6][6],
-    float measurement_noise[3][3]
-);
-
-void init_ekf_orientation(
-    float process_noise[4][4],
-    float measurement_noise[3][3],
-    float expected_g[3]
-);
+void init_ekf(const float expected_g[3]);
 
 void get_state(float quat[4], float pos[3], float vel[3]);
 
-void init_ekf(
-    float process_noise_quaternion[4][4],
-    float measurement_noise_quaternion[3][3],
-    float process_noise_body[6][6],
-    float measurement_noise_body[3][3],
-    float expected_g[3]
-);
-
 void tick_ekf_orientation(float deltaTime, float gyro[3], float accel[3]);
 
-void tick_ekf_body(float deltaTime, float accel[3], float gps_pos[3]);
+void predict_ekf_body(float dt, float accel_nav[3]);
+void update_ekf_body(float gps_pos[3]);
+void update_ekf_body_baro(float altitude_m);
+
+/* Macro to multiply any given A (r1 x c1) by B (c1 x c2), producing (r1 x c2) */
+#define MAT_MUL(A, B, C, r1, c1, c2)                          \
+    do {                                                      \
+        for (int i = 0; i < (r1); ++i) {                      \
+            for (int j = 0; j < (c2); ++j) {                  \
+                (C)[i][j] = 0;                                \
+                for (int k = 0; k < (c1); ++k) {              \
+                    (C)[i][j] += (A)[i][k] * (B)[k][j];       \
+                }                                             \
+            }                                                 \
+        }                                                     \
+    } while (0)
 
 /**
  * @brief shared orientation data

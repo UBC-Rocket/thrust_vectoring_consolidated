@@ -1,4 +1,24 @@
 #include "state_estimation/calibration.h"
+#include <math.h>
+
+#define STATIONARY_ACCEL_NORM_MIN_G   0.95f
+#define STATIONARY_ACCEL_NORM_MAX_G   1.05f
+#define STATIONARY_GYRO_NORM_MAX_RAD_S 0.08f
+
+bool imu_is_stationary(const float g_data_raw[3], const float a_data_raw[3])
+{
+    float g_norm = sqrtf(g_data_raw[0] * g_data_raw[0] +
+                         g_data_raw[1] * g_data_raw[1] +
+                         g_data_raw[2] * g_data_raw[2]);
+
+    float a_norm = sqrtf(a_data_raw[0] * a_data_raw[0] +
+                         a_data_raw[1] * a_data_raw[1] +
+                         a_data_raw[2] * a_data_raw[2]);
+
+    return (g_norm < STATIONARY_GYRO_NORM_MAX_RAD_S) &&
+           (a_norm > STATIONARY_ACCEL_NORM_MIN_G) &&
+           (a_norm < STATIONARY_ACCEL_NORM_MAX_G);
+}
 
 void update_bias(float g_bias[3], float g_data_raw[3],
                  float a_bias[3], float a_data_raw[3],
