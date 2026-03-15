@@ -5,401 +5,317 @@ import QtQuick.Layouts
 import "../Items"
 
 BasePanel {
-    id: pidPanel
+    id: panel
 
-    signal commandTriggered(int which, var code)
-
-    property int displayPrecision: 2
-
-    // TODO: check if channel 1 is valid for PID Value sending
+    // TODO: check if channel 1 is valid for command sending.
     property int which: 1
 
-    // Attitude Controller gains (Vec3 each)
-    property double attKpX: 0.0;  property double attKpY: 0.0;  property double attKpZ: 0.0
-    property double attKdX: 0.0;  property double attKdY: 0.0;  property double attKdZ: 0.0
-
-    // Z Position Controller gains (scalars)
-    property double zKp: 0.0;     property double zKi: 0.0;     property double zKd: 0.0
+    // SetPidGains
+    property bool hasAttitudeKp: true
+    property bool hasAttitudeKd: true
+    property double attKpX: 0.0
+    property double attKpY: 0.0
+    property double attKpZ: 0.0
+    property double attKdX: 0.0
+    property double attKdY: 0.0
+    property double attKdZ: 0.0
+    property double zKp: 0.0
+    property double zKi: 0.0
+    property double zKd: 0.0
     property double zIntegralLimit: 0.0
 
-    property var editBuffer: ({})
+    // SetReference
+    property double zRef: 0.0
+    property double vzRef: 0.0
+    property bool hasQRef: true
+    property double qRefW: 1.0
+    property double qRefX: 0.0
+    property double qRefY: 0.0
+    property double qRefZ: 0.0
 
-    function formatGain(value) {
-        return Number(value).toFixed(displayPrecision)
-    }
+    // SetConfig
+    property double mass: 0.0
+    property double tMin: 0.0
+    property double tMax: 0.0
+    property double thetaMin: 0.0
+    property double thetaMax: 0.0
 
     function sanitizedNumber(value, fallback) {
         const parsed = Number(value)
         return isNaN(parsed) ? fallback : parsed
     }
 
-    function syncEditBuffer() {
-        editBuffer = {
-            attKpX: attKpX, attKpY: attKpY, attKpZ: attKpZ,
-            attKdX: attKdX, attKdY: attKdY, attKdZ: attKdZ,
-            zKp: zKp, zKi: zKi, zKd: zKd,
-            zIntegralLimit: zIntegralLimit
-        }
-    }
-
-    function applyEdits() {
-        attKpX = sanitizedNumber(editBuffer.attKpX, attKpX)
-        attKpY = sanitizedNumber(editBuffer.attKpY, attKpY)
-        attKpZ = sanitizedNumber(editBuffer.attKpZ, attKpZ)
-        attKdX = sanitizedNumber(editBuffer.attKdX, attKdX)
-        attKdY = sanitizedNumber(editBuffer.attKdY, attKdY)
-        attKdZ = sanitizedNumber(editBuffer.attKdZ, attKdZ)
-        zKp = sanitizedNumber(editBuffer.zKp, zKp)
-        zKi = sanitizedNumber(editBuffer.zKi, zKi)
-        zKd = sanitizedNumber(editBuffer.zKd, zKd)
-        zIntegralLimit = sanitizedNumber(editBuffer.zIntegralLimit, zIntegralLimit)
-
-        var pidValues = [attKpX, attKpY, attKpZ, attKdX, attKdY, attKdZ, zKp, zKi, zKd, zIntegralLimit]
-        pidPanel.commandTriggered(which, pidValues)
-
-        editorPopup.close()
-    }
-
-    // --- Reusable gain chip component ---
-    component GainChip: Rectangle {
+    component NumberField: ColumnLayout {
         property string label: ""
-        property string value: ""
+        property alias text: input.text
         Layout.fillWidth: true
-        implicitHeight: 48
-        radius: Theme.radiusCard
-        color: Theme.background
-        border.width: Theme.strokeControl
-        border.color: Theme.border
+        spacing: 4
 
-        Column {
-            anchors.centerIn: parent
-            spacing: 2
-            Text { text: label; color: Theme.textTertiary; font.family: Theme.fontFamily; font.pixelSize: 12; font.bold: true; anchors.horizontalCenter: parent.horizontalCenter }
-            Text { text: value; color: Theme.textPrimary; font.family: Theme.monoFamily; font.pixelSize: Theme.fontH2; font.bold: true; anchors.horizontalCenter: parent.horizontalCenter }
+        Text {
+            text: parent.label
+            color: Theme.textTertiary
+            font.family: Theme.fontFamily
+            font.pixelSize: 12
         }
-    }
 
-    // --- Reusable text field for edit popup ---
-    component GainField: Basic.TextField {
-        property string label: ""
-        Layout.fillWidth: true
-        placeholderText: label
-        color: Theme.textPrimary
-        font.family: Theme.monoFamily
-        font.pixelSize: Theme.fontBody
-        inputMethodHints: Qt.ImhFormattedNumbersOnly
-        validator: DoubleValidator { decimals: 4 }
-        background: Rectangle {
-            radius: Theme.radiusCard
-            color: Theme.background
-            border.width: Theme.strokeControl
-            border.color: Theme.border
+        Basic.TextField {
+            id: input
+            Layout.fillWidth: true
+            color: Theme.textPrimary
+            font.family: Theme.monoFamily
+            font.pixelSize: Theme.fontBody
+            inputMethodHints: Qt.ImhFormattedNumbersOnly
+            validator: DoubleValidator { decimals: 6 }
+            background: Rectangle {
+                radius: Theme.radiusCard
+                color: Theme.background
+                border.width: Theme.strokeControl
+                border.color: Theme.border
+            }
         }
     }
 
     BaseHeader {
         id: header
-        headerText: "PID Controller"
+        headerText: "Controller Commands"
     }
 
-    Basic.Button {
-        id: editButton
-        text: "Edit PID Values"
+    Text {
         anchors.top: parent.top
         anchors.right: parent.right
         anchors.margins: 12
-        padding: 10
+        text: "TX channel: " + which
+        color: Theme.textTertiary
         font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontBody
-        hoverEnabled: true
-        background: Rectangle {
-            radius: Theme.radiusControl
-            color: editButton.down    ? Theme.btnPrimaryPress
-                 : editButton.hovered ? Theme.btnPrimaryHover
-                 :                      Theme.btnPrimaryBg
-            border.width: Theme.strokeControl
-            border.color: Theme.btnPrimaryBorder
-        }
-        contentItem: Text {
-            anchors.centerIn: parent
-            text: editButton.text
-            color: Theme.btnPrimaryText
-            font: editButton.font
-        }
-        onClicked: {
-            syncEditBuffer()
-            editorPopup.open()
-        }
+        font.pixelSize: 12
     }
 
-    ColumnLayout {
-        anchors {
-            top: header.bottom
-            left: parent.left
-            right: parent.right
-            bottom: parent.bottom
-            topMargin: 12
-            leftMargin: 12
-            rightMargin: 12
-            bottomMargin: 12
-        }
-        spacing: 10
+    TabBar {
+        id: tabs
+        anchors.top: header.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.margins: 12
 
-        // ── Attitude Controller Section ──
-        Text {
-            text: "Attitude Controller"
-            color: "#60A5FA"
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontH2
-            font.bold: true
-        }
+        TabButton { text: "PID" }
+        TabButton { text: "Reference" }
+        TabButton { text: "Config" }
+    }
 
-        // Kp row
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 72
-            radius: Theme.radiusCard
-            color: Theme.surfaceInset
-            border.width: Theme.strokeControl
-            border.color: Theme.border
+    StackLayout {
+        anchors.top: tabs.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.margins: 12
+        currentIndex: tabs.currentIndex
 
-            RowLayout {
-                anchors.fill: parent
-                anchors.margins: 10
-                spacing: 10
+        // PID tab (tvr_SetPidGains)
+        ScrollView {
+            id: pidScroll
+            clip: true
+            contentWidth: availableWidth
 
-                Rectangle { width: 6; radius: 3; color: "#60A5FA"; Layout.fillHeight: true }
+            ColumnLayout {
+                width: pidScroll.availableWidth
+                spacing: 12
 
-                Column {
-                    Layout.preferredWidth: 90
-                    spacing: 2
-                    Text { text: "Kp"; color: Theme.textPrimary; font.family: Theme.fontFamily; font.pixelSize: Theme.fontH2; font.bold: true }
-                    Text { text: "Proportional"; color: Theme.textTertiary; font.family: Theme.fontFamily; font.pixelSize: 12 }
+                CheckBox {
+                    text: "has_attitude_kp"
+                    checked: hasAttitudeKp
+                    onToggled: hasAttitudeKp = checked
                 }
 
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
-                    GainChip { label: "X"; value: formatGain(attKpX) }
-                    GainChip { label: "Y"; value: formatGain(attKpY) }
-                    GainChip { label: "Z"; value: formatGain(attKpZ) }
+                    NumberField { label: "attitude_kp.x"; text: String(attKpX); onTextChanged: attKpX = panel.sanitizedNumber(text, attKpX) }
+                    NumberField { label: "attitude_kp.y"; text: String(attKpY); onTextChanged: attKpY = panel.sanitizedNumber(text, attKpY) }
+                    NumberField { label: "attitude_kp.z"; text: String(attKpZ); onTextChanged: attKpZ = panel.sanitizedNumber(text, attKpZ) }
                 }
-            }
-        }
 
-        // Kd row
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 72
-            radius: Theme.radiusCard
-            color: Theme.surfaceInset
-            border.width: Theme.strokeControl
-            border.color: Theme.border
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.margins: 10
-                spacing: 10
-
-                Rectangle { width: 6; radius: 3; color: "#60A5FA"; Layout.fillHeight: true }
-
-                Column {
-                    Layout.preferredWidth: 90
-                    spacing: 2
-                    Text { text: "Kd"; color: Theme.textPrimary; font.family: Theme.fontFamily; font.pixelSize: Theme.fontH2; font.bold: true }
-                    Text { text: "Derivative"; color: Theme.textTertiary; font.family: Theme.fontFamily; font.pixelSize: 12 }
+                CheckBox {
+                    text: "has_attitude_kd"
+                    checked: hasAttitudeKd
+                    onToggled: hasAttitudeKd = checked
                 }
 
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
-                    GainChip { label: "X"; value: formatGain(attKdX) }
-                    GainChip { label: "Y"; value: formatGain(attKdY) }
-                    GainChip { label: "Z"; value: formatGain(attKdZ) }
-                }
-            }
-        }
-
-        // ── Z Position Controller Section ──
-        Text {
-            text: "Z Position Controller"
-            color: "#34D399"
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontH2
-            font.bold: true
-            Layout.topMargin: 6
-        }
-
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 120
-            radius: Theme.radiusCard
-            color: Theme.surfaceInset
-            border.width: Theme.strokeControl
-            border.color: Theme.border
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.margins: 10
-                spacing: 10
-
-                Rectangle { width: 6; radius: 3; color: "#34D399"; Layout.fillHeight: true }
-
-                Column {
-                    Layout.preferredWidth: 90
-                    spacing: 2
-                    Text { text: "Gains"; color: Theme.textPrimary; font.family: Theme.fontFamily; font.pixelSize: Theme.fontH2; font.bold: true }
-                    Text { text: "Z Position"; color: Theme.textTertiary; font.family: Theme.fontFamily; font.pixelSize: 12 }
+                    NumberField { label: "attitude_kd.x"; text: String(attKdX); onTextChanged: attKdX = panel.sanitizedNumber(text, attKdX) }
+                    NumberField { label: "attitude_kd.y"; text: String(attKdY); onTextChanged: attKdY = panel.sanitizedNumber(text, attKdY) }
+                    NumberField { label: "attitude_kd.z"; text: String(attKdZ); onTextChanged: attKdZ = panel.sanitizedNumber(text, attKdZ) }
                 }
 
-                ColumnLayout {
+                RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 8
-                        GainChip { label: "Kp"; value: formatGain(zKp) }
-                        GainChip { label: "Ki"; value: formatGain(zKi) }
-                        GainChip { label: "Kd"; value: formatGain(zKd) }
-                    }
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 8
-                        GainChip { label: "I Limit"; value: formatGain(zIntegralLimit) }
-                    }
+                    NumberField { label: "z_kp"; text: String(zKp); onTextChanged: zKp = panel.sanitizedNumber(text, zKp) }
+                    NumberField { label: "z_ki"; text: String(zKi); onTextChanged: zKi = panel.sanitizedNumber(text, zKi) }
+                    NumberField { label: "z_kd"; text: String(zKd); onTextChanged: zKd = panel.sanitizedNumber(text, zKd) }
                 }
-            }
-        }
 
-        Item { Layout.fillHeight: true }
-    }
-
-    // ── Edit Popup ──
-    Popup {
-        id: editorPopup
-        modal: true
-        focus: true
-        closePolicy: Popup.CloseOnEscape
-        anchors.centerIn: Overlay.overlay
-        width: 640
-        padding: 0
-
-        background: Rectangle {
-            color: Theme.surfaceInset
-            radius: 12
-            border.width: Theme.strokeControl
-            border.color: Theme.border
-        }
-
-        ColumnLayout {
-            anchors.fill: parent
-            anchors.margins: 18
-            spacing: 12
-
-            Text { text: "Edit PID Values"; color: Theme.textPrimary; font.family: Theme.fontFamily; font.pixelSize: 20; font.bold: true }
-
-            // ── Attitude Controller ──
-            Text { text: "Attitude Controller"; color: "#60A5FA"; font.family: Theme.fontFamily; font.pixelSize: Theme.fontH2; font.bold: true }
-
-            Text { text: "Proportional (Kp)"; color: Theme.textTertiary; font.family: Theme.fontFamily; font.pixelSize: 12 }
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 8
-                GainField { label: "X"; text: editBuffer.attKpX !== undefined ? editBuffer.attKpX : ""; onTextChanged: editBuffer.attKpX = text }
-                GainField { label: "Y"; text: editBuffer.attKpY !== undefined ? editBuffer.attKpY : ""; onTextChanged: editBuffer.attKpY = text }
-                GainField { label: "Z"; text: editBuffer.attKpZ !== undefined ? editBuffer.attKpZ : ""; onTextChanged: editBuffer.attKpZ = text }
-            }
-
-            Text { text: "Derivative (Kd)"; color: Theme.textTertiary; font.family: Theme.fontFamily; font.pixelSize: 12 }
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 8
-                GainField { label: "X"; text: editBuffer.attKdX !== undefined ? editBuffer.attKdX : ""; onTextChanged: editBuffer.attKdX = text }
-                GainField { label: "Y"; text: editBuffer.attKdY !== undefined ? editBuffer.attKdY : ""; onTextChanged: editBuffer.attKdY = text }
-                GainField { label: "Z"; text: editBuffer.attKdZ !== undefined ? editBuffer.attKdZ : ""; onTextChanged: editBuffer.attKdZ = text }
-            }
-
-            // ── Divider ──
-            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
-
-            // ── Z Position Controller ──
-            Text { text: "Z Position Controller"; color: "#34D399"; font.family: Theme.fontFamily; font.pixelSize: Theme.fontH2; font.bold: true }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 8
-                GainField { label: "Kp"; text: editBuffer.zKp !== undefined ? editBuffer.zKp : ""; onTextChanged: editBuffer.zKp = text }
-                GainField { label: "Ki"; text: editBuffer.zKi !== undefined ? editBuffer.zKi : ""; onTextChanged: editBuffer.zKi = text }
-                GainField { label: "Kd"; text: editBuffer.zKd !== undefined ? editBuffer.zKd : ""; onTextChanged: editBuffer.zKd = text }
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 8
-                GainField { label: "Integral Limit"; text: editBuffer.zIntegralLimit !== undefined ? editBuffer.zIntegralLimit : ""; onTextChanged: editBuffer.zIntegralLimit = text }
-            }
-
-            // ── Buttons ──
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 10
-
-                Item { Layout.fillWidth: true }
+                NumberField {
+                    label: "z_integral_limit"
+                    text: String(zIntegralLimit)
+                    onTextChanged: zIntegralLimit = panel.sanitizedNumber(text, zIntegralLimit)
+                }
 
                 Basic.Button {
-                    id: cancelButton
-                    text: "Cancel"
+                    id: sendPidButton
+                    text: "Send SetPidGains"
+                    Layout.alignment: Qt.AlignRight
                     padding: 10
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontBody
                     background: Rectangle {
                         radius: Theme.radiusControl
-                        color: Theme.btnSecondaryBg
-                        border.width: Theme.strokeControl
-                        border.color: Theme.btnSecondaryBorder
-                    }
-                    contentItem: Text {
-                        anchors.centerIn: parent
-                        text: cancelButton.text
-                        color: Theme.btnSecondaryText
-                        font: cancelButton.font
-                    }
-                    onClicked: editorPopup.close()
-                }
-
-                Basic.Button {
-                    id: saveButton
-                    text: "Save Changes"
-                    padding: 10
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontBody
-                    background: Rectangle {
-                        radius: Theme.radiusControl
-                        color: saveButton.down    ? Theme.btnPrimaryPress
-                             : saveButton.hovered ? Theme.btnPrimaryHover
-                             :                      Theme.btnPrimaryBg
+                        color: sendPidButton.down ? Theme.btnPrimaryPress
+                             : sendPidButton.hovered ? Theme.btnPrimaryHover
+                             : Theme.btnPrimaryBg
                         border.width: Theme.strokeControl
                         border.color: Theme.btnPrimaryBorder
                     }
                     contentItem: Text {
                         anchors.centerIn: parent
-                        text: saveButton.text
+                        text: sendPidButton.text
                         color: Theme.btnPrimaryText
-                        font: saveButton.font
+                        font: sendPidButton.font
                     }
-                    onClicked: applyEdits()
+                    onClicked: {
+                        const values = [
+                            hasAttitudeKp,
+                            attKpX, attKpY, attKpZ,
+                            hasAttitudeKd,
+                            attKdX, attKdY, attKdZ,
+                            zKp, zKi, zKd, zIntegralLimit
+                        ]
+                        commandsender.sendPIDValues(which, values)
+                    }
                 }
             }
         }
-    }
 
-    // --- Signal wiring: forward PID values to the C++ CommandSender ---
-    Connections {
-        target: pidPanel
-        function onCommandTriggered(txWhich, code) {
-            commandsender.sendPIDValues(txWhich, code)
+        // Reference tab (tvr_SetReference)
+        ScrollView {
+            id: referenceScroll
+            clip: true
+            contentWidth: availableWidth
+
+            ColumnLayout {
+                width: referenceScroll.availableWidth
+                spacing: 12
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    NumberField { label: "z_ref"; text: String(zRef); onTextChanged: zRef = panel.sanitizedNumber(text, zRef) }
+                    NumberField { label: "vz_ref"; text: String(vzRef); onTextChanged: vzRef = panel.sanitizedNumber(text, vzRef) }
+                }
+
+                CheckBox {
+                    text: "has_q_ref"
+                    checked: hasQRef
+                    onToggled: hasQRef = checked
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    NumberField { label: "q_ref.w"; text: String(qRefW); onTextChanged: qRefW = panel.sanitizedNumber(text, qRefW) }
+                    NumberField { label: "q_ref.x"; text: String(qRefX); onTextChanged: qRefX = panel.sanitizedNumber(text, qRefX) }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    NumberField { label: "q_ref.y"; text: String(qRefY); onTextChanged: qRefY = panel.sanitizedNumber(text, qRefY) }
+                    NumberField { label: "q_ref.z"; text: String(qRefZ); onTextChanged: qRefZ = panel.sanitizedNumber(text, qRefZ) }
+                }
+
+                Basic.Button {
+                    id: sendReferenceButton
+                    text: "Send SetReference"
+                    Layout.alignment: Qt.AlignRight
+                    padding: 10
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontBody
+                    background: Rectangle {
+                        radius: Theme.radiusControl
+                        color: sendReferenceButton.down ? Theme.btnPrimaryPress
+                             : sendReferenceButton.hovered ? Theme.btnPrimaryHover
+                             : Theme.btnPrimaryBg
+                        border.width: Theme.strokeControl
+                        border.color: Theme.btnPrimaryBorder
+                    }
+                    contentItem: Text {
+                        anchors.centerIn: parent
+                        text: sendReferenceButton.text
+                        color: Theme.btnPrimaryText
+                        font: sendReferenceButton.font
+                    }
+                    onClicked: {
+                        const values = [zRef, vzRef, hasQRef, qRefW, qRefX, qRefY, qRefZ]
+                        commandsender.sendReferenceValues(which, values)
+                    }
+                }
+            }
+        }
+
+        // Config tab (tvr_SetConfig)
+        ScrollView {
+            id: configScroll
+            clip: true
+            contentWidth: availableWidth
+
+            ColumnLayout {
+                width: configScroll.availableWidth
+                spacing: 12
+
+                NumberField { label: "mass"; text: String(mass); onTextChanged: mass = panel.sanitizedNumber(text, mass) }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    NumberField { label: "T_min"; text: String(tMin); onTextChanged: tMin = panel.sanitizedNumber(text, tMin) }
+                    NumberField { label: "T_max"; text: String(tMax); onTextChanged: tMax = panel.sanitizedNumber(text, tMax) }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    NumberField { label: "theta_min"; text: String(thetaMin); onTextChanged: thetaMin = panel.sanitizedNumber(text, thetaMin) }
+                    NumberField { label: "theta_max"; text: String(thetaMax); onTextChanged: thetaMax = panel.sanitizedNumber(text, thetaMax) }
+                }
+
+                Basic.Button {
+                    id: sendConfigButton
+                    text: "Send SetConfig"
+                    Layout.alignment: Qt.AlignRight
+                    padding: 10
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontBody
+                    background: Rectangle {
+                        radius: Theme.radiusControl
+                        color: sendConfigButton.down ? Theme.btnPrimaryPress
+                             : sendConfigButton.hovered ? Theme.btnPrimaryHover
+                             : Theme.btnPrimaryBg
+                        border.width: Theme.strokeControl
+                        border.color: Theme.btnPrimaryBorder
+                    }
+                    contentItem: Text {
+                        anchors.centerIn: parent
+                        text: sendConfigButton.text
+                        color: Theme.btnPrimaryText
+                        font: sendConfigButton.font
+                    }
+                    onClicked: {
+                        const values = [mass, tMin, tMax, thetaMin, thetaMax]
+                        commandsender.sendConfigValues(which, values)
+                    }
+                }
+            }
         }
     }
 }
