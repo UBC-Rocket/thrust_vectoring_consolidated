@@ -25,15 +25,13 @@ void test_inverse_known_matrix(void)
     int ok = inverse(A, inv);
     TEST_ASSERT_EQUAL_INT(1, ok);
 
-    /* A * inv should be identity */
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 3; i++)
         for (int j = 0; j < 3; j++) {
             float sum = 0;
             for (int k = 0; k < 3; k++)
                 sum += A[i][k] * inv[k][j];
             TEST_ASSERT_FLOAT_WITHIN(TOL, (i == j) ? 1.0f : 0.0f, sum);
         }
-    }
 }
 
 void test_inverse_singular_returns_zero(void)
@@ -56,20 +54,17 @@ void test_transpose3x3(void)
             TEST_ASSERT_FLOAT_WITHIN(TOL, A[j][i], AT[i][j]);
 }
 
-/* ---------- transpose4x4 ---------- */
+/* ---------- mat_transpose (generic) ---------- */
 
-void test_transpose4x4(void)
+void test_mat_transpose_3x4(void)
 {
-    float A[4][4];
-    float AT[4][4];
-    int v = 0;
-    for (int i = 0; i < 4; i++)
+    float A[12]; /* 3x4 */
+    float AT[12]; /* 4x3 */
+    for (int i = 0; i < 12; i++) A[i] = (float)i;
+    mat_transpose(A, AT, 3, 4);
+    for (int i = 0; i < 3; i++)
         for (int j = 0; j < 4; j++)
-            A[i][j] = (float)(v++);
-    transpose4x4(A, AT);
-    for (int i = 0; i < 4; i++)
-        for (int j = 0; j < 4; j++)
-            TEST_ASSERT_FLOAT_WITHIN(TOL, A[j][i], AT[i][j]);
+            TEST_ASSERT_FLOAT_WITHIN(TOL, A[i * 4 + j], AT[j * 3 + i]);
 }
 
 /* ---------- matrix33_vec3_mul ---------- */

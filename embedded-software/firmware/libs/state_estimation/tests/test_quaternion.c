@@ -4,6 +4,7 @@
 #include "state_estimation/quaternion.h"
 #include "state_estimation/matrix.h"
 #include <math.h>
+#include <string.h>
 
 #define TOL 1e-5f
 
@@ -36,7 +37,6 @@ void test_quaternion_multiply_identity(void)
 
 void test_quaternion_multiply_inverse_gives_identity(void)
 {
-    /* q * conj(q) should give identity for unit quaternion */
     quaternion_t q = {0.5f, 0.5f, 0.5f, 0.5f};
     quaternion_t qc, out;
     quaternion_conjugate(&q, &qc);
@@ -61,13 +61,11 @@ void test_identity_quaternion_gives_identity_matrix(void)
 
 void test_90deg_z_rotation_matrix(void)
 {
-    /* 90 degrees around z: q = cos(45) + sin(45)*k */
     float s = sinf((float)M_PI / 4.0f);
     float c = cosf((float)M_PI / 4.0f);
     quaternion_t q = {c, 0, 0, s};
     rotation_matrix_t R;
     quaternion_to_rotation_matrix(&q, &R);
-    /* R should be [[0,-1,0],[1,0,0],[0,0,1]] */
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, R.R[0][0]);
     TEST_ASSERT_FLOAT_WITHIN(TOL, -1.0f, R.R[0][1]);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 1.0f, R.R[1][0]);
@@ -141,23 +139,69 @@ void test_quat_to_euler_identity(void)
     float q[4] = {1, 0, 0, 0};
     float e[3];
     quat_to_euler(q, e);
-    TEST_ASSERT_FLOAT_WITHIN(0.1f, 0.0f, e[0]); /* roll */
-    TEST_ASSERT_FLOAT_WITHIN(0.1f, 0.0f, e[1]); /* pitch */
-    TEST_ASSERT_FLOAT_WITHIN(0.1f, 0.0f, e[2]); /* yaw */
+    TEST_ASSERT_FLOAT_WITHIN(0.1f, 0.0f, e[0]);
+    TEST_ASSERT_FLOAT_WITHIN(0.1f, 0.0f, e[1]);
+    TEST_ASSERT_FLOAT_WITHIN(0.1f, 0.0f, e[2]);
 }
 
-/* ---------- state_transition_orientation ---------- */
+/* ---------- quaternion_from_rotation_vector ---------- */
 
-void test_state_transition_orientation_zero_gyro(void)
+void test_quaternion_from_rotation_vector_zero(void)
 {
-    /* With zero gyro, quaternion should remain identity */
-    quaternion_state qs;
-    qs.vals[0] = 1; qs.vals[1] = 0; qs.vals[2] = 0; qs.vals[3] = 0;
+    float rv[3] = {0, 0, 0};
+    quaternion_t out;
+    quaternion_from_rotation_vector(rv, &out);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 1.0f, out.w);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.x);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.y);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.z);
+}
+
+void test_quaternion_from_rotation_vector_90deg_z(void)
+{
+    float angle = (float)M_PI / 2.0f;
+    float rv[3] = {0, 0, angle};
+    quaternion_t out;
+    quaternion_from_rotation_vector(rv, &out);
+    float expected_w = cosf(angle / 2.0f);
+    float expected_z = sinf(angle / 2.0f);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, expected_w, out.w);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.x);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.y);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, expected_z, out.z);
+}
+
+/* ---------- eskf_propagate_nominal ---------- */
+
+void test_eskf_propagate_nominal_zero_gyro(void)
+{
+    orientation_eskf_state_t state;
+    memset(&state, 0, sizeof(state));
+    state.q_nom[0] = 1.0f; /* identity */
+
     float gyro[3] = {0, 0, 0};
-    float out[4];
-    state_transition_orientation(&qs, 0.01f, gyro, out);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 1.0f, out[0]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out[1]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out[2]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out[3]);
+    eskf_propagate_nominal(&state, gyro, 0.01f);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 1.0f, state.q_nom[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, state.q_nom[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, state.q_nom[2]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, state.q_nom[3]);
+}
+
+/* ---------- skew_symmetric_3x3 ---------- */
+
+void test_skew_symmetric_3x3(void)
+{
+    float v[3] = {1, 2, 3};
+    float S[3][3];
+    skew_symmetric_3x3(v, S);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, S[0][0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -3.0f, S[0][1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 2.0f, S[0][2]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 3.0f, S[1][0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, S[1][1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -1.0f, S[1][2]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -2.0f, S[2][0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 1.0f, S[2][1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, S[2][2]);
 }

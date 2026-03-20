@@ -94,8 +94,8 @@ static void start_job(spi_job_t *job, spi_job_queue_t *q) {
  *
  * @param job Job descriptor (copied into queue or current_job).
  * @param q Pointer to the queue that the job is for.
- * @return true  if the job was started immediately
- *         false if it was queued (will run later), or dropped if queue full
+ * @return true  if the job was accepted (started immediately or queued)
+ *         false if the queue is full and the job was dropped
  *
  * @note Critical section covers both busy check AND enqueue to prevent race
  *       conditions when called from multiple contexts (ISR + task).
@@ -103,7 +103,7 @@ static void start_job(spi_job_t *job, spi_job_queue_t *q) {
 
 bool spi_submit_job(spi_job_t job, spi_job_queue_t *q)
 {
-    bool started = false;
+    bool accepted = false;
     bool should_start = false;
     spi_job_t *active_job = NULL;
 
@@ -126,7 +126,7 @@ bool spi_submit_job(spi_job_t job, spi_job_queue_t *q)
         q->current_job = job;
         active_job = &q->current_job;
         should_start = true;
-        started = true;
+        accepted = true;
     } else {
         /* Bus is busy - enqueue for later */
         uint8_t next_head = (q->head + 1U) % SPI_JOB_QUEUE_SIZE;
@@ -134,10 +134,9 @@ bool spi_submit_job(spi_job_t job, spi_job_queue_t *q)
             q->jobs[q->head] = job;
             SYNC_DMB();  /* Ensure job data visible before head update */
             q->head = next_head;
-            started = false;  /* Queued, not started */
+            accepted = true;  /* Queued — will execute when bus is free */
         } else {
-            //TODO: Queue full - job dropped. Consider adding error callback.
-            started = false;
+            accepted = false;  /* Queue full — job dropped */
         }
     }
 
@@ -148,7 +147,7 @@ bool spi_submit_job(spi_job_t job, spi_job_queue_t *q)
         start_job(active_job, q);
     }
 
-    return started;
+    return accepted;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -241,6 +240,53 @@ static void spi_dma_complete_common(SPI_HandleTypeDef *hspi) {
     }
 
     portYIELD_FROM_ISR(xWoken);
+}
+
+/**
+ * @brief HAL weak callback for SPI DMA error.
+ *
+ * Without this, a mid-transfer DMA error leaves spi_busy permanently true,
+ * which jams the queue and stalls all devices on that bus (baro, IMU).
+ * Recovery: deassert CS, skip the failed job's callback, drain the queue.
+ */
+void HAL_SPI_ErrorCallback(SPI_HandleTypeDef *hspi) {
+    bool should_start_next = false;
+
+    /* SPI1 uses separate driver — nothing to recover here */
+    if (hspi == spi1_ctx.hspi) {
+        return;
+    }
+
+    spi_job_queue_t *jobq;
+    if (hspi == jobq_spi_2.spi_bus) {
+        jobq = &jobq_spi_2;
+    } else if (hspi == jobq_spi_4.spi_bus) {
+        jobq = &jobq_spi_4;
+    } else {
+        return;
+    }
+
+    /* Deassert CS for the failed job */
+    CS_DEASSERT(jobq->current_job.cs_port, jobq->current_job.cs_pin);
+    jobq->dma_error_count++;
+
+    /* Dequeue and start next job if available */
+    UBaseType_t s = SYNC_ENTER_CRITICAL_FROM_ISR();
+
+    spi_job_t next;
+    if (dequeue_job(jobq, &next)) {
+        jobq->current_job = next;
+        jobq->spi_busy = true;
+        should_start_next = true;
+    } else {
+        jobq->spi_busy = false;
+    }
+
+    SYNC_EXIT_CRITICAL_FROM_ISR(s);
+
+    if (should_start_next) {
+        start_job(&jobq->current_job, jobq);
+    }
 }
 
 /**
