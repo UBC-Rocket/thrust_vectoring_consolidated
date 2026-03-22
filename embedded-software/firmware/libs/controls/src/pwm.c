@@ -44,13 +44,9 @@ pwm_setpoint_t pwm_setpoint_from_forces(double thrust, double torque)
     double lower_period = sqrt(lower_normalized) + PWM_MIN_PERIOD_US;
     double upper_period = sqrt(upper_normalized) + PWM_MIN_PERIOD_US;
 
-    // Model could extrapolate to values outside the valid range of PWM periods
-    lower_period = clamp(round(lower_period), PWM_MIN_PERIOD_US, PWM_MAX_PERIOD_US);
-    upper_period = clamp(round(upper_period), PWM_MIN_PERIOD_US, PWM_MAX_PERIOD_US);
-
     pwm_setpoint_t setpoint = {
-        .lower_motor_us = lower_period,
-        .upper_motor_us = upper_period,
+        .lower_motor_us = clamp(round(lower_period), PWM_MIN_PERIOD_US, PWM_MAX_PERIOD_US),
+        .upper_motor_us = clamp(round(upper_period), PWM_MIN_PERIOD_US, PWM_MAX_PERIOD_US),
     };
 
     return setpoint;
