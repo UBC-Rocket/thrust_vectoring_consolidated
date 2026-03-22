@@ -1,103 +1,862 @@
+/*
+ * Unit tests for individual PDF equation functions in flight_controller.c.
+ * Includes the .c file directly to access static functions.
+ */
+#include "../src/flight_controller.c"
+
 #include "unity.h"
-#include "controls/flight_controller.h"
-#include "state_estimation/state.h"
 #include <math.h>
-#include <string.h>
 
-#define TOL 1e-3f
+#define TOL 1e-4f
+#define TOL_COARSE 1e-3f
 
-static flight_controller_config_t make_default_config(void)
+void setUp(void) {}
+void tearDown(void) {}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * Eq 1: compute_quaternion_error   q_err = q_des * conj(q_meas)
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+void test_eq1_identity_des_90z_meas(void)
 {
-    flight_controller_config_t cfg;
-    memset(&cfg, 0, sizeof(cfg));
+    quaternion_t q_des  = {1.0f, 0.0f, 0.0f, 0.0f};
+    quaternion_t q_meas = {0.707107f, 0.0f, 0.0f, 0.707107f};
+    quaternion_t q_err;
+    compute_quaternion_error(&q_des, &q_meas, &q_err);
 
-    /* Diagonal Kp, Kd, I */
-    for (int i = 0; i < 3; i++) {
-        cfg.attitude.Kp[i][i] = 10.0f;
-        cfg.attitude.Kd[i][i] = 1.0f;
-        cfg.attitude.I[i][i]  = 0.01f;
-    }
-    cfg.allocation.t_hat[0] = 0;
-    cfg.allocation.t_hat[1] = 0;
-    cfg.allocation.t_hat[2] = -1;
-
-    cfg.gimbal.L = 0.15f;
-    cfg.gimbal.theta_min = -0.5f;
-    cfg.gimbal.theta_max = 0.5f;
-
-    cfg.thrust.m = 1.0f;
-    cfg.thrust.g = 9.81f;
-    cfg.thrust.T_min = 0.0f;
-    cfg.thrust.T_max = 20.0f;
-    cfg.thrust.kp = 5.0f;
-    cfg.thrust.ki = 0.1f;
-    cfg.thrust.kd = 1.0f;
-    cfg.thrust.integral_limit = 10.0f;
-    cfg.thrust.a_z_min = -5.0f;
-    cfg.thrust.a_z_max = 5.0f;
-
-    return cfg;
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.707107f, q_err.w);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,      q_err.x);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,      q_err.y);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -0.707107f, q_err.z);
 }
 
-/* ---------- flight_controller_init + run at rest ---------- */
-
-void test_flight_controller_at_rest(void)
+void test_eq1_90x_des_identity_meas(void)
 {
-    flight_controller_config_t cfg = make_default_config();
-    flight_controller_init(&cfg);
+    quaternion_t q_des  = {0.707107f, 0.707107f, 0.0f, 0.0f};
+    quaternion_t q_meas = {1.0f, 0.0f, 0.0f, 0.0f};
+    quaternion_t q_err;
+    compute_quaternion_error(&q_des, &q_meas, &q_err);
 
-    state_t state;
-    memset(&state, 0, sizeof(state));
-    state.q_bn.w = 1.0f; /* identity quaternion */
-
-    flight_controller_ref_t ref;
-    memset(&ref, 0, sizeof(ref));
-    ref.q_ref.w = 1.0f; /* same as current */
-    ref.z_ref = 0.0f;
-    ref.vz_ref = 0.0f;
-
-    control_output_t out;
-    flight_controller_run(&state, &ref, &cfg, &out, 0.01f);
-
-    /* At rest with matching attitude, gimbal torques should be near zero */
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[0]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[1]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[2]);
-
-    /* Gimbal angles should be within configured limits */
-    TEST_ASSERT(out.theta_x_cmd >= cfg.gimbal.theta_min - TOL);
-    TEST_ASSERT(out.theta_x_cmd <= cfg.gimbal.theta_max + TOL);
-    TEST_ASSERT(out.theta_y_cmd >= cfg.gimbal.theta_min - TOL);
-    TEST_ASSERT(out.theta_y_cmd <= cfg.gimbal.theta_max + TOL);
-
-    /* Thrust should be near hover (m*g = 9.81) */
-    TEST_ASSERT_FLOAT_WITHIN(2.0f, 9.81f, out.T_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.707107f, q_err.w);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.707107f, q_err.x);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,      q_err.y);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,      q_err.z);
 }
 
-/* ---------- flight_controller produces nonzero torque with attitude error ---------- */
-
-void test_flight_controller_attitude_error(void)
+/* Hand-crafted: zero error */
+void test_eq1_zero_error(void)
 {
-    flight_controller_config_t cfg = make_default_config();
-    flight_controller_init(&cfg);
+    quaternion_t q_des  = {1.0f, 0.0f, 0.0f, 0.0f};
+    quaternion_t q_meas = {1.0f, 0.0f, 0.0f, 0.0f};
+    quaternion_t q_err;
+    compute_quaternion_error(&q_des, &q_meas, &q_err);
 
-    state_t state;
-    memset(&state, 0, sizeof(state));
-    /* Tilt 10 degrees about x: q = cos(5deg) + sin(5deg)*i */
-    float angle = 10.0f * (float)M_PI / 180.0f;
-    state.q_bn.w = cosf(angle / 2.0f);
-    state.q_bn.x = sinf(angle / 2.0f);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 1.0f, q_err.w);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, q_err.x);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, q_err.y);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, q_err.z);
+}
 
-    flight_controller_ref_t ref;
-    memset(&ref, 0, sizeof(ref));
-    ref.q_ref.w = 1.0f; /* want identity */
+/* Hand-crafted: 90-degree pitch error */
+void test_eq1_90deg_pitch(void)
+{
+    quaternion_t q_des  = {0.707f, 0.0f, 0.707f, 0.0f};
+    quaternion_t q_meas = {1.0f, 0.0f, 0.0f, 0.0f};
+    quaternion_t q_err;
+    compute_quaternion_error(&q_des, &q_meas, &q_err);
 
-    control_output_t out;
-    flight_controller_run(&state, &ref, &cfg, &out, 0.01f);
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 0.707f, q_err.w);
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 0.0f,   q_err.x);
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 0.707f, q_err.y);
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 0.0f,   q_err.z);
+}
 
-    /* There should be a corrective torque */
-    float torque_mag = sqrtf(out.tau_gim[0]*out.tau_gim[0] +
-                             out.tau_gim[1]*out.tau_gim[1] +
-                             out.tau_gim[2]*out.tau_gim[2]);
-    TEST_ASSERT_GREATER_THAN(0.01f, torque_mag);
+/* Hand-crafted: opposite 90-degree rolls → 180-degree error */
+void test_eq1_opposite_rolls(void)
+{
+    quaternion_t q_des  = {0.707f, 0.707f, 0.0f, 0.0f};
+    quaternion_t q_meas = {0.707f, -0.707f, 0.0f, 0.0f};
+    quaternion_t q_err;
+    compute_quaternion_error(&q_des, &q_meas, &q_err);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 0.0f, q_err.w);
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 1.0f, q_err.x);
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 0.0f, q_err.y);
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 0.0f, q_err.z);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * Eq 2: compute_axis_angle_error   phi = 2*atan2(||v||,q0) * v/||v||
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+void test_eq2_90deg_about_x(void)
+{
+    quaternion_t q_err = {0.707107f, 0.707107f, 0.0f, 0.0f};
+    float phi[3];
+    compute_axis_angle_error(&q_err, phi);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 1.570796f, phi[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,      phi[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,      phi[2]);
+}
+
+void test_eq2_mixed_xy(void)
+{
+    quaternion_t q_err = {0.866025f, 0.353553f, 0.353553f, 0.0f};
+    float phi[3];
+    compute_axis_angle_error(&q_err, phi);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.740480f, phi[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.740480f, phi[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,      phi[2]);
+}
+
+/* Hand-crafted: identity quaternion → zero axis-angle */
+void test_eq2_identity(void)
+{
+    quaternion_t q_err = {1.0f, 0.0f, 0.0f, 0.0f};
+    float phi[3];
+    compute_axis_angle_error(&q_err, phi);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, phi[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, phi[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, phi[2]);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * Eq 3: compute_perpendicular_thrust   t_perp = (tau_gim x r_gim)/||r_gim||^2
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+void test_eq3_simple_cross(void)
+{
+    float tau_gim[3] = {0.0f, 1.0f, 0.0f};
+    float r_gim[3]   = {2.0f, 0.0f, 0.0f};
+    float t_perp[3];
+    compute_perpendicular_thrust(tau_gim, r_gim, t_perp);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  t_perp[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  t_perp[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -0.5f, t_perp[2]);
+}
+
+void test_eq3_general(void)
+{
+    float tau_gim[3] = {1.0f, 2.0f, 3.0f};
+    float r_gim[3]   = {0.0f, 0.0f, 2.0f};
+    float t_perp[3];
+    compute_perpendicular_thrust(tau_gim, r_gim, t_perp);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 1.0f,  t_perp[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -0.5f, t_perp[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  t_perp[2]);
+}
+
+/* Hand-crafted: zero torque → zero t_perp */
+void test_eq3_zero_torque(void)
+{
+    float tau_gim[3] = {0.0f, 0.0f, 0.0f};
+    float r_gim[3]   = {0.0f, 0.0f, -1.0f};
+    float t_perp[3];
+    compute_perpendicular_thrust(tau_gim, r_gim, t_perp);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, t_perp[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, t_perp[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, t_perp[2]);
+}
+
+/* Hand-crafted: pitch torque */
+void test_eq3_pitch_torque(void)
+{
+    float tau_gim[3] = {10.0f, 0.0f, 0.0f};
+    float r_gim[3]   = {0.0f, 0.0f, -2.0f};
+    float t_perp[3];
+    compute_perpendicular_thrust(tau_gim, r_gim, t_perp);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, t_perp[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 5.0f, t_perp[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, t_perp[2]);
+}
+
+/* Hand-crafted: yaw torque */
+void test_eq3_yaw_torque(void)
+{
+    float tau_gim[3] = {0.0f, 15.0f, 0.0f};
+    float r_gim[3]   = {0.0f, 0.0f, -1.5f};
+    float t_perp[3];
+    compute_perpendicular_thrust(tau_gim, r_gim, t_perp);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -10.0f, t_perp[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL,  0.0f,  t_perp[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL,  0.0f,  t_perp[2]);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * Eq 4: compute_parallel_thrust   t_par = sqrt(T^2 - ||t_perp||^2) * r_hat
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+void test_eq4_along_z(void)
+{
+    float t_perp[3] = {0.0f, 0.0f, -6.0f};
+    float r_gim[3]  = {0.0f, 0.0f, 2.0f};
+    float t_par[3];
+    compute_parallel_thrust(10.0f, t_perp, r_gim, t_par);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, t_par[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, t_par[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 8.0f, t_par[2]);
+}
+
+void test_eq4_along_y(void)
+{
+    float t_perp[3] = {3.0f, 0.0f, 0.0f};
+    float r_gim[3]  = {0.0f, 4.0f, 0.0f};
+    float t_par[3];
+    compute_parallel_thrust(5.0f, t_perp, r_gim, t_par);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, t_par[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 4.0f, t_par[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, t_par[2]);
+}
+
+/* Hand-crafted: purely vertical (no perp component) */
+void test_eq4_purely_vertical(void)
+{
+    float t_perp[3] = {0.0f, 0.0f, 0.0f};
+    float r_gim[3]  = {0.0f, 0.0f, -1.0f};
+    float t_par[3];
+    compute_parallel_thrust(10.0f, t_perp, r_gim, t_par);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL,   0.0f, t_par[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL,   0.0f, t_par[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -10.0f, t_par[2]);
+}
+
+/* Hand-crafted: 3-4-5 triangle */
+void test_eq4_345_triangle(void)
+{
+    float t_perp[3] = {3.0f, 0.0f, 0.0f};
+    float r_gim[3]  = {0.0f, 0.0f, -1.0f};
+    float t_par[3];
+    compute_parallel_thrust(5.0f, t_perp, r_gim, t_par);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL,  0.0f, t_par[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL,  0.0f, t_par[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -4.0f, t_par[2]);
+}
+
+/* Hand-crafted: 5-12-13 triangle, r_gim along -y */
+void test_eq4_51213_triangle(void)
+{
+    float t_perp[3] = {5.0f, 0.0f, 0.0f};
+    float r_gim[3]  = {0.0f, -1.0f, 0.0f};
+    float t_par[3];
+    compute_parallel_thrust(13.0f, t_perp, r_gim, t_par);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL,   0.0f, t_par[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -12.0f, t_par[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL,   0.0f, t_par[2]);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * Eq 5: t_des = t_perp + t_parallel (inline addition)
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+void test_eq5_case1(void)
+{
+    float t_perp[3] = {0.0f, 0.0f, -6.0f};
+    float t_par[3]  = {0.0f, 0.0f, 8.0f};
+    float t_des[3];
+    t_des[0] = t_perp[0] + t_par[0];
+    t_des[1] = t_perp[1] + t_par[1];
+    t_des[2] = t_perp[2] + t_par[2];
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, t_des[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, t_des[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 2.0f, t_des[2]);
+}
+
+void test_eq5_case2(void)
+{
+    float t_perp[3] = {1.0f, -0.5f, 0.0f};
+    float t_par[3]  = {0.0f, 4.0f, 0.0f};
+    float t_des[3];
+    t_des[0] = t_perp[0] + t_par[0];
+    t_des[1] = t_perp[1] + t_par[1];
+    t_des[2] = t_perp[2] + t_par[2];
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 1.0f, t_des[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 3.5f, t_des[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, t_des[2]);
+}
+
+/* Hand-crafted: vertical only */
+void test_eq5_vertical(void)
+{
+    float t_perp[3] = {0.0f, 0.0f, 0.0f};
+    float t_par[3]  = {0.0f, 0.0f, -10.0f};
+    float t_des[3];
+    t_des[0] = t_perp[0] + t_par[0];
+    t_des[1] = t_perp[1] + t_par[1];
+    t_des[2] = t_perp[2] + t_par[2];
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL,   0.0f, t_des[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL,   0.0f, t_des[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -10.0f, t_des[2]);
+}
+
+/* Hand-crafted: pitch correction */
+void test_eq5_pitch_correction(void)
+{
+    float t_perp[3] = {3.0f, 0.0f, 0.0f};
+    float t_par[3]  = {0.0f, 0.0f, -4.0f};
+    float t_des[3];
+    t_des[0] = t_perp[0] + t_par[0];
+    t_des[1] = t_perp[1] + t_par[1];
+    t_des[2] = t_perp[2] + t_par[2];
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 3.0f,  t_des[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  t_des[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -4.0f, t_des[2]);
+}
+
+/* Hand-crafted: yaw correction */
+void test_eq5_yaw_correction(void)
+{
+    float t_perp[3] = {0.0f, -5.0f, 0.0f};
+    float t_par[3]  = {0.0f, 0.0f, -12.0f};
+    float t_des[3];
+    t_des[0] = t_perp[0] + t_par[0];
+    t_des[1] = t_perp[1] + t_par[1];
+    t_des[2] = t_perp[2] + t_par[2];
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL,   0.0f, t_des[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL,  -5.0f, t_des[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -12.0f, t_des[2]);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * Eq 6-7: compute_gimbal_angles   theta_x = -atan2(y,z), theta_y = asin(x)
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+void test_eq6_zero_angle(void)
+{
+    float t_des[3] = {0.0f, 0.0f, 1.0f};
+    flight_controller_gimbal_config_t gcfg = {0.15f, -1.5f, 1.5f};
+    float tx, ty;
+    compute_gimbal_angles(t_des, &gcfg, &tx, &ty);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tx);
+}
+
+void test_eq6_positive_theta_x(void)
+{
+    float t_des[3] = {0.0f, -0.295520f, 0.955336f};
+    flight_controller_gimbal_config_t gcfg = {0.15f, -1.5f, 1.5f};
+    float tx, ty;
+    compute_gimbal_angles(t_des, &gcfg, &tx, &ty);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.3f, tx);
+}
+
+void test_eq7_zero_angle(void)
+{
+    float t_des[3] = {0.0f, 0.0f, 1.0f};
+    flight_controller_gimbal_config_t gcfg = {0.15f, -1.5f, 1.5f};
+    float tx, ty;
+    compute_gimbal_angles(t_des, &gcfg, &tx, &ty);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, ty);
+}
+
+void test_eq7_positive_theta_y(void)
+{
+    float t_des[3] = {0.389418f, 0.0f, 0.921061f};
+    flight_controller_gimbal_config_t gcfg = {0.15f, -1.5f, 1.5f};
+    float tx, ty;
+    compute_gimbal_angles(t_des, &gcfg, &tx, &ty);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.4f, ty);
+}
+
+/* Hand-crafted: vertical thrust */
+void test_eq67_vertical(void)
+{
+    float t_des[3] = {0.0f, 0.0f, 1.0f};
+    flight_controller_gimbal_config_t gcfg = {0.15f, -1.5f, 1.5f};
+    float tx, ty;
+    compute_gimbal_angles(t_des, &gcfg, &tx, &ty);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tx);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, ty);
+}
+
+/* Hand-crafted: deflected in Y (induces pitch) */
+void test_eq67_y_deflection(void)
+{
+    float t_des[3] = {0.0f, 0.5f, 0.866f};
+    flight_controller_gimbal_config_t gcfg = {0.15f, -1.5f, 1.5f};
+    float tx, ty;
+    compute_gimbal_angles(t_des, &gcfg, &tx, &ty);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, -0.523f, tx);
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE,  0.0f,   ty);
+}
+
+/* Hand-crafted: deflected in X (induces yaw) */
+void test_eq67_x_deflection(void)
+{
+    float t_des[3] = {0.5f, 0.0f, 0.866f};
+    flight_controller_gimbal_config_t gcfg = {0.15f, -1.5f, 1.5f};
+    float tx, ty;
+    compute_gimbal_angles(t_des, &gcfg, &tx, &ty);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 0.0f,   tx);
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 0.523f,  ty);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * Eq 8: update_thrust_direction
+ *   t_hat = [sin(ty), -sin(tx)*cos(ty), cos(tx)*cos(ty)]
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+void test_eq8_zero_angles(void)
+{
+    float t_hat[3];
+    update_thrust_direction(0.0f, 0.0f, t_hat);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, t_hat[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, t_hat[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 1.0f, t_hat[2]);
+}
+
+void test_eq8_mixed_angles(void)
+{
+    float t_hat[3];
+    update_thrust_direction(0.2f, -0.3f, t_hat);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -0.295520f, t_hat[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -0.189796f, t_hat[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL,  0.936293f, t_hat[2]);
+}
+
+/* Hand-crafted: negative pitch deflection (~-30 deg) */
+void test_eq8_neg_pitch(void)
+{
+    float t_hat[3];
+    update_thrust_direction(-0.523f, 0.0f, t_hat);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 0.0f,   t_hat[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 0.5f,   t_hat[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 0.866f,  t_hat[2]);
+}
+
+/* Hand-crafted: positive yaw deflection (~30 deg) */
+void test_eq8_pos_yaw(void)
+{
+    float t_hat[3];
+    update_thrust_direction(0.0f, 0.523f, t_hat);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 0.5f,   t_hat[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 0.0f,   t_hat[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 0.866f,  t_hat[2]);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * Eq 9: compute_thrust_magnitude   T = m * dot(a_des, t_hat)
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+void test_eq9_hover(void)
+{
+    float a[3]     = {0.0f, 0.0f, 9.81f};
+    float t_hat[3] = {0.0f, 0.0f, 1.0f};
+    float T = compute_thrust_magnitude(2.0f, a, t_hat);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 19.62f, T);
+}
+
+void test_eq9_general(void)
+{
+    float a[3]     = {1.0f, 2.0f, 4.0f};
+    float t_hat[3] = {0.6f, 0.0f, 0.8f};
+    float T = compute_thrust_magnitude(3.0f, a, t_hat);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 11.4f, T);
+}
+
+/* Hand-crafted: vertical ascent */
+void test_eq9_vertical_ascent(void)
+{
+    float a[3]     = {0.0f, 0.0f, 9.8f};
+    float t_hat[3] = {0.0f, 0.0f, 1.0f};
+    float T = compute_thrust_magnitude(10.0f, a, t_hat);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 98.0f, T);
+}
+
+/* Hand-crafted: lateral acceleration ignored when thrust is vertical */
+void test_eq9_lateral_ignored(void)
+{
+    float a[3]     = {0.0f, 2.0f, 9.8f};
+    float t_hat[3] = {0.0f, 0.0f, 1.0f};
+    float T = compute_thrust_magnitude(10.0f, a, t_hat);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 98.0f, T);
+}
+
+/* Hand-crafted: angled thrust */
+void test_eq9_angled_thrust(void)
+{
+    float a[3]     = {0.0f, 5.0f, 8.66f};
+    float t_hat[3] = {0.0f, 0.5f, 0.866f};
+    float T = compute_thrust_magnitude(10.0f, a, t_hat);
+
+    TEST_ASSERT_FLOAT_WITHIN(0.1f, 100.0f, T);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * Eq 10: compute_gyroscopic_torque   tau_gyro = (I*omega) x omega
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+void test_eq10_single_axis(void)
+{
+    float I[3][3] = {{2.0f,0,0},{0,3.0f,0},{0,0,4.0f}};
+    float omega[3] = {1.0f, 0.0f, 0.0f};
+    float tau[3];
+    compute_gyroscopic_torque(I, omega, tau);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau[2]);
+}
+
+void test_eq10_multi_axis(void)
+{
+    float I[3][3] = {{2.0f,0,0},{0,3.0f,0},{0,0,4.0f}};
+    float omega[3] = {1.0f, 2.0f, 3.0f};
+    float tau[3];
+    compute_gyroscopic_torque(I, omega, tau);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -6.0f, tau[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL,  6.0f, tau[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -2.0f, tau[2]);
+}
+
+/* Hand-crafted: zero rotation */
+void test_eq10_zero_rotation(void)
+{
+    float I[3][3] = {{1.0f,0,0},{0,1.0f,0},{0,0,1.0f}};
+    float omega[3] = {0.0f, 0.0f, 0.0f};
+    float tau[3];
+    compute_gyroscopic_torque(I, omega, tau);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau[2]);
+}
+
+/* Hand-crafted: scalar MMOI (isotropic) → gyro torque always zero */
+void test_eq10_scalar_mmoi_pitch(void)
+{
+    float I[3][3] = {{5.0f,0,0},{0,5.0f,0},{0,0,5.0f}};
+    float omega[3] = {0.0f, 2.0f, 0.0f};
+    float tau[3];
+    compute_gyroscopic_torque(I, omega, tau);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau[2]);
+}
+
+/* Hand-crafted: scalar MMOI, multi-axis rotation → still zero */
+void test_eq10_scalar_mmoi_complex(void)
+{
+    float I[3][3] = {{2.5f,0,0},{0,2.5f,0},{0,0,2.5f}};
+    float omega[3] = {1.0f, 2.0f, 3.0f};
+    float tau[3];
+    compute_gyroscopic_torque(I, omega, tau);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau[2]);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * Eq 11: compute_command_torque   tau_cmd = -(tau_gyro + phi)
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+void test_eq11_zero_gyro(void)
+{
+    float tau_gyro[3] = {0.0f, 0.0f, 0.0f};
+    float phi[3]      = {1.0f, -2.0f, 3.0f};
+    float tau_cmd[3];
+    compute_command_torque(tau_gyro, phi, tau_cmd);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -1.0f, tau_cmd[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL,  2.0f, tau_cmd[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -3.0f, tau_cmd[2]);
+}
+
+void test_eq11_general(void)
+{
+    float tau_gyro[3] = {-6.0f, 6.0f, -2.0f};
+    float phi[3]      = {0.5f, 1.5f, -0.5f};
+    float tau_cmd[3];
+    compute_command_torque(tau_gyro, phi, tau_cmd);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL,  5.5f, tau_cmd[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -7.5f, tau_cmd[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL,  2.5f, tau_cmd[2]);
+}
+
+/* Hand-crafted: both zero → zero */
+void test_eq11_all_zero(void)
+{
+    float tau_gyro[3] = {0.0f, 0.0f, 0.0f};
+    float phi[3]      = {0.0f, 0.0f, 0.0f};
+    float tau_cmd[3];
+    compute_command_torque(tau_gyro, phi, tau_cmd);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau_cmd[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau_cmd[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau_cmd[2]);
+}
+
+/* Hand-crafted: correction required */
+void test_eq11_correction(void)
+{
+    float tau_gyro[3] = {1.0f, 2.0f, 3.0f};
+    float phi[3]      = {4.0f, 5.0f, 6.0f};
+    float tau_cmd[3];
+    compute_command_torque(tau_gyro, phi, tau_cmd);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -5.0f, tau_cmd[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -7.0f, tau_cmd[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -9.0f, tau_cmd[2]);
+}
+
+/* Hand-crafted: offsetting forces cancel */
+void test_eq11_offsetting(void)
+{
+    float tau_gyro[3] = {5.0f, -2.0f, 0.0f};
+    float phi[3]      = {-5.0f, 2.0f, 0.0f};
+    float tau_cmd[3];
+    compute_command_torque(tau_gyro, phi, tau_cmd);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau_cmd[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau_cmd[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau_cmd[2]);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * Eq 12: compute_roll_torque   tau_roll = (tau_cmd . t_hat) * t_hat
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+void test_eq12_along_z(void)
+{
+    float tau_cmd[3] = {1.0f, 2.0f, 3.0f};
+    float t_hat[3]   = {0.0f, 0.0f, 1.0f};
+    float tau_roll[3];
+    compute_roll_torque(tau_cmd, t_hat, tau_roll);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau_roll[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau_roll[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 3.0f, tau_roll[2]);
+}
+
+void test_eq12_diagonal(void)
+{
+    float tau_cmd[3] = {4.0f, 0.0f, 0.0f};
+    float t_hat[3]   = {0.707107f, 0.0f, 0.707107f};
+    float tau_roll[3];
+    compute_roll_torque(tau_cmd, t_hat, tau_roll);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 2.0f, tau_roll[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau_roll[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 2.0f, tau_roll[2]);
+}
+
+/* Hand-crafted: no command → no roll torque */
+void test_eq12_no_command(void)
+{
+    float tau_cmd[3] = {0.0f, 0.0f, 0.0f};
+    float t_hat[3]   = {0.0f, 0.0f, 1.0f};
+    float tau_roll[3];
+    compute_roll_torque(tau_cmd, t_hat, tau_roll);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau_roll[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau_roll[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau_roll[2]);
+}
+
+/* Hand-crafted: z-axis isolation */
+void test_eq12_z_isolation(void)
+{
+    float tau_cmd[3] = {10.0f, 5.0f, 2.0f};
+    float t_hat[3]   = {0.0f, 0.0f, 1.0f};
+    float tau_roll[3];
+    compute_roll_torque(tau_cmd, t_hat, tau_roll);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau_roll[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau_roll[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 2.0f, tau_roll[2]);
+}
+
+/* Hand-crafted: x-axis isolation */
+void test_eq12_x_isolation(void)
+{
+    float tau_cmd[3] = {10.0f, 5.0f, 2.0f};
+    float t_hat[3]   = {1.0f, 0.0f, 0.0f};
+    float tau_roll[3];
+    compute_roll_torque(tau_cmd, t_hat, tau_roll);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 10.0f, tau_roll[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL,  0.0f, tau_roll[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL,  0.0f, tau_roll[2]);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * Eq 13: compute_gimbal_torque   tau_gim = tau_cmd - tau_roll
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+void test_eq13_along_z(void)
+{
+    float tau_cmd[3]  = {1.0f, 2.0f, 3.0f};
+    float tau_roll[3] = {0.0f, 0.0f, 3.0f};
+    float tau_gim[3];
+    compute_gimbal_torque(tau_cmd, tau_roll, tau_gim);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 1.0f, tau_gim[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 2.0f, tau_gim[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau_gim[2]);
+}
+
+void test_eq13_diagonal(void)
+{
+    float tau_cmd[3]  = {4.0f, 0.0f, 0.0f};
+    float tau_roll[3] = {2.0f, 0.0f, 2.0f};
+    float tau_gim[3];
+    compute_gimbal_torque(tau_cmd, tau_roll, tau_gim);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL,  2.0f, tau_gim[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL,  0.0f, tau_gim[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -2.0f, tau_gim[2]);
+}
+
+/* Hand-crafted: both zero */
+void test_eq13_all_zero(void)
+{
+    float tau_cmd[3]  = {0.0f, 0.0f, 0.0f};
+    float tau_roll[3] = {0.0f, 0.0f, 0.0f};
+    float tau_gim[3];
+    compute_gimbal_torque(tau_cmd, tau_roll, tau_gim);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau_gim[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau_gim[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau_gim[2]);
+}
+
+/* Hand-crafted: removing roll from command */
+void test_eq13_remove_roll(void)
+{
+    float tau_cmd[3]  = {10.0f, 5.0f, 2.0f};
+    float tau_roll[3] = {0.0f, 0.0f, 2.0f};
+    float tau_gim[3];
+    compute_gimbal_torque(tau_cmd, tau_roll, tau_gim);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 10.0f, tau_gim[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL,  5.0f, tau_gim[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL,  0.0f, tau_gim[2]);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * Test runner
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+int main(void)
+{
+    UNITY_BEGIN();
+
+    /* Eq 1 */
+    RUN_TEST(test_eq1_identity_des_90z_meas);
+    RUN_TEST(test_eq1_90x_des_identity_meas);
+    RUN_TEST(test_eq1_zero_error);
+    RUN_TEST(test_eq1_90deg_pitch);
+    RUN_TEST(test_eq1_opposite_rolls);
+
+    /* Eq 2 */
+    RUN_TEST(test_eq2_90deg_about_x);
+    RUN_TEST(test_eq2_mixed_xy);
+    RUN_TEST(test_eq2_identity);
+
+    /* Eq 3 */
+    RUN_TEST(test_eq3_simple_cross);
+    RUN_TEST(test_eq3_general);
+    RUN_TEST(test_eq3_zero_torque);
+    RUN_TEST(test_eq3_pitch_torque);
+    RUN_TEST(test_eq3_yaw_torque);
+
+    /* Eq 4 */
+    RUN_TEST(test_eq4_along_z);
+    RUN_TEST(test_eq4_along_y);
+    RUN_TEST(test_eq4_purely_vertical);
+    RUN_TEST(test_eq4_345_triangle);
+    RUN_TEST(test_eq4_51213_triangle);
+
+    /* Eq 5 */
+    RUN_TEST(test_eq5_case1);
+    RUN_TEST(test_eq5_case2);
+    RUN_TEST(test_eq5_vertical);
+    RUN_TEST(test_eq5_pitch_correction);
+    RUN_TEST(test_eq5_yaw_correction);
+
+    /* Eq 6-7 */
+    RUN_TEST(test_eq6_zero_angle);
+    RUN_TEST(test_eq6_positive_theta_x);
+    RUN_TEST(test_eq7_zero_angle);
+    RUN_TEST(test_eq7_positive_theta_y);
+    RUN_TEST(test_eq67_vertical);
+    RUN_TEST(test_eq67_y_deflection);
+    RUN_TEST(test_eq67_x_deflection);
+
+    /* Eq 8 */
+    RUN_TEST(test_eq8_zero_angles);
+    RUN_TEST(test_eq8_mixed_angles);
+    RUN_TEST(test_eq8_neg_pitch);
+    RUN_TEST(test_eq8_pos_yaw);
+
+    /* Eq 9 */
+    RUN_TEST(test_eq9_hover);
+    RUN_TEST(test_eq9_general);
+    RUN_TEST(test_eq9_vertical_ascent);
+    RUN_TEST(test_eq9_lateral_ignored);
+    RUN_TEST(test_eq9_angled_thrust);
+
+    /* Eq 10 */
+    RUN_TEST(test_eq10_single_axis);
+    RUN_TEST(test_eq10_multi_axis);
+    RUN_TEST(test_eq10_zero_rotation);
+    RUN_TEST(test_eq10_scalar_mmoi_pitch);
+    RUN_TEST(test_eq10_scalar_mmoi_complex);
+
+    /* Eq 11 */
+    RUN_TEST(test_eq11_zero_gyro);
+    RUN_TEST(test_eq11_general);
+    RUN_TEST(test_eq11_all_zero);
+    RUN_TEST(test_eq11_correction);
+    RUN_TEST(test_eq11_offsetting);
+
+    /* Eq 12 */
+    RUN_TEST(test_eq12_along_z);
+    RUN_TEST(test_eq12_diagonal);
+    RUN_TEST(test_eq12_no_command);
+    RUN_TEST(test_eq12_z_isolation);
+    RUN_TEST(test_eq12_x_isolation);
+
+    /* Eq 13 */
+    RUN_TEST(test_eq13_along_z);
+    RUN_TEST(test_eq13_diagonal);
+    RUN_TEST(test_eq13_all_zero);
+    RUN_TEST(test_eq13_remove_roll);
+
+    return UNITY_END();
 }

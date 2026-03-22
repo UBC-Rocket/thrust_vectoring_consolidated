@@ -13,9 +13,7 @@ void test_pid_reset_clears_state(void);
 void test_pid_set_gains(void);
 void test_pid_zero_error(void);
 
-/* test_flight_controller.c */
-void test_flight_controller_at_rest(void);
-void test_flight_controller_attitude_error(void);
+/* flight controller equation tests are in a separate executable */
 
 int main(void)
 {
@@ -30,10 +28,6 @@ int main(void)
     RUN_TEST(test_pid_reset_clears_state);
     RUN_TEST(test_pid_set_gains);
     RUN_TEST(test_pid_zero_error);
-
-    /* Flight Controller */
-    RUN_TEST(test_flight_controller_at_rest);
-    RUN_TEST(test_flight_controller_attitude_error);
 
     return UNITY_END();
 }

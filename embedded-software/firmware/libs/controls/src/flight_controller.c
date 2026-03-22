@@ -54,6 +54,8 @@ static void compute_quaternion_error(const quaternion_t *q_des,
     quaternion_t q_meas_conj;
     quaternion_conjugate(q_meas, &q_meas_conj);
     quaternion_multiply(q_des, &q_meas_conj, q_err);
+    
+    // flip is w < 0 to ensure shortest rotation
     if (q_err->w < 0.0f) {
         q_err->w = -q_err->w;
         q_err->x = -q_err->x;
