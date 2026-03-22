@@ -84,6 +84,34 @@ void test_eq13_diagonal(void);
 void test_eq13_all_zero(void);
 void test_eq13_remove_roll(void);
 
+/* public APIs — set 1 */
+void test_api_nominal_hover(void);
+void test_api_pitch_error(void);
+void test_api_yaw_error(void);
+void test_api_gyro_compensation(void);
+void test_api_boundary_clamp(void);
+/* public APIs — set 2 */
+void test_api_v2_perfect_hover(void);
+void test_api_v2_altitude_climb(void);
+void test_api_v2_roll_correction(void);
+void test_api_v2_rate_damping(void);
+void test_api_v2_saturation(void);
+/* public APIs — set 3 (altitude) */
+void test_api_v3_hover(void);
+void test_api_v3_climb(void);
+void test_api_v3_descent(void);
+void test_api_v3_velocity_damping(void);
+void test_api_v3_integral_windup(void);
+void test_api_v3_thrust_saturation(void);
+/* public APIs — set 3 (attitude) */
+void test_api_v3_pitch_correction(void);
+void test_api_v3_yaw_correction(void);
+void test_api_v3_pitch_rate_damping(void);
+void test_api_v3_shortest_path(void);
+/* public APIs — set 3 (allocation/gimbal) */
+void test_api_v3_gimbal_mapping(void);
+void test_api_v3_gimbal_saturation(void);
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -180,6 +208,38 @@ int main(void)
     RUN_TEST(test_eq13_diagonal);
     RUN_TEST(test_eq13_all_zero);
     RUN_TEST(test_eq13_remove_roll);
+
+    /* public APIs — set 1 */
+    RUN_TEST(test_api_nominal_hover);
+    RUN_TEST(test_api_pitch_error);
+    RUN_TEST(test_api_yaw_error);
+    RUN_TEST(test_api_gyro_compensation);
+    RUN_TEST(test_api_boundary_clamp);
+
+    /* public APIs — set 2 */
+    RUN_TEST(test_api_v2_perfect_hover);
+    RUN_TEST(test_api_v2_altitude_climb);
+    RUN_TEST(test_api_v2_roll_correction);
+    RUN_TEST(test_api_v2_rate_damping);
+    RUN_TEST(test_api_v2_saturation);
+
+    /* public APIs — set 3 (altitude) */
+    RUN_TEST(test_api_v3_hover);
+    RUN_TEST(test_api_v3_climb);
+    RUN_TEST(test_api_v3_descent);
+    RUN_TEST(test_api_v3_velocity_damping);
+    RUN_TEST(test_api_v3_integral_windup);
+    RUN_TEST(test_api_v3_thrust_saturation);
+
+    /* public APIs — set 3 (attitude) */
+    RUN_TEST(test_api_v3_pitch_correction);
+    RUN_TEST(test_api_v3_yaw_correction);
+    RUN_TEST(test_api_v3_pitch_rate_damping);
+    RUN_TEST(test_api_v3_shortest_path);
+
+    /* public APIs — set 3 (allocation/gimbal) */
+    RUN_TEST(test_api_v3_gimbal_mapping);
+    RUN_TEST(test_api_v3_gimbal_saturation);
 
     return UNITY_END();
 }
