@@ -1,17 +1,26 @@
 /*
  * Unit tests for individual PDF equation functions in flight_controller.c.
- * Includes the .c file directly to access static functions.
  */
-#include "../src/flight_controller.c"
-
 #include "unity.h"
+#include "controls/flight_controller.h"
+#include "state_estimation/state.h"
 #include <math.h>
 
 #define TOL 1e-4f
 #define TOL_COARSE 1e-3f
 
-void setUp(void) {}
-void tearDown(void) {}
+/* Forward declarations for equation functions (non-static in flight_controller.c) */
+void compute_quaternion_error(const quaternion_t *q_des, const quaternion_t *q_meas, quaternion_t *q_err);
+void compute_axis_angle_error(const quaternion_t *q_err, float phi[3]);
+void compute_gyroscopic_torque(const float I[3][3], const float omega[3], float tau_gyro[3]);
+void compute_command_torque(const float tau_gyro[3], const float phi[3], float tau_cmd[3]);
+void compute_roll_torque(const float tau_cmd[3], const float t_hat[3], float tau_roll[3]);
+void compute_gimbal_torque(const float tau_cmd[3], const float tau_roll[3], float tau_gim[3]);
+void compute_perpendicular_thrust(const float tau_gim[3], const float r_gim[3], float t_perp[3]);
+void compute_parallel_thrust(float t_mag, const float t_perp[3], const float r_gim[3], float t_par[3]);
+void compute_gimbal_angles(const float t_des[3], const flight_controller_gimbal_config_t *cfg, float *theta_x_cmd, float *theta_y_cmd);
+void update_thrust_direction(float theta_x, float theta_y, float t_hat[3]);
+float compute_thrust_magnitude(float m, const float a_des[3], const float t_hat[3]);
 
 /* ════════════════════════════════════════════════════════════════════════════
  * Eq 1: compute_quaternion_error   q_err = q_des * conj(q_meas)
