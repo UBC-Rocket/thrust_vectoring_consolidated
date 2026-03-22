@@ -141,12 +141,12 @@ typedef struct {
 /**
  * @brief Default barometer configuration.
  *
- * OSR: 4096 (highest resolution, ~8.2ms conversion)
- * ODR: 50 Hz (suitable for altitude estimation)
+ * OSR: 512 (~1.06ms conversion, EMA-filtered in state estimation)
+ * ODR: 200 Hz (high-rate altitude updates for ESKF)
  */
 #define MS5611_CONFIG_DEFAULT {     \
-    .osr    = MS5611_OSR_4096,      \
-    .odr_hz = 50                    \
+    .osr    = MS5611_OSR_512,       \
+    .odr_hz = 200                   \
 }
 
 /**
@@ -175,12 +175,12 @@ typedef struct {
 /**
  * @brief Default barometer 2 configuration.
  *
- * OSR: 4096 (highest resolution, ~8.2ms conversion)
- * ODR: 50 Hz (suitable for altitude estimation)
+ * OSR: 512 (~1.06ms conversion, EMA-filtered in state estimation)
+ * ODR: 200 Hz (high-rate altitude updates for ESKF)
  */
 #define MS5607_CONFIG_DEFAULT {     \
-    .osr    = MS5607_OSR_4096,      \
-    .odr_hz = 50                    \
+    .osr    = MS5607_OSR_512,       \
+    .odr_hz = 200                   \
 }
 
 /**

@@ -32,6 +32,8 @@ gnss_radio_context_t gnss_radio_ctx;
 
 static void submit_type_read(void);
 static void submit_payload_read(uint8_t type);
+static bool enqueue_gps_fix(const uint8_t *rx_data);
+static bool enqueue_radio_msg(const uint8_t *msg);
 
 /* -------------------------------------------------------------------------- */
 /* Initialization                                                             */
@@ -52,7 +54,11 @@ void gnss_radio_init(void)
     gnss_radio_ctx.state = GNSS_STATE_IDLE;
     gnss_radio_ctx.irq_pending = false;
 
-    /* Queues are zeroed by memset above (head = tail = 0 → empty) */
+    /* Initialize queues */
+    gnss_radio_ctx.gps_queue.head = 0;
+    gnss_radio_ctx.gps_queue.tail = 0;
+    gnss_radio_ctx.radio_queue.head = 0;
+    gnss_radio_ctx.radio_queue.tail = 0;
 
     /* Initialize TX dummy buffer (zeros for read operations) */
     memset(gnss_radio_ctx.tx_dummy, 0x00, sizeof(gnss_radio_ctx.tx_dummy));
@@ -205,8 +211,7 @@ void gnss_radio_phase2_done(spi1_job_t *job, const uint8_t *rx_buf, void *arg)
     switch (type) {
     case GNSS_PUSH_TYPE_GPS:
         /* Parsed GPS fix from rx_buf */
-        if (gnss_gps_fix_q_push(&gnss_radio_ctx.gps_queue,
-                                 (const gnss_gps_fix_t *)rx_buf)) {
+        if (enqueue_gps_fix(rx_buf)) {
             gnss_radio_ctx.gps_fixes_received++;
             xTaskNotifyFromISR(StateEstimationHandle,
                                GNSS_GPS_FIX_READY_FLAG,
@@ -217,8 +222,7 @@ void gnss_radio_phase2_done(spi1_job_t *job, const uint8_t *rx_buf, void *arg)
         break;
 
     case GNSS_PUSH_TYPE_RADIO:
-        if (gnss_radio_msg_q_push(&gnss_radio_ctx.radio_queue,
-                                   (const gnss_radio_msg_t *)rx_buf)) {
+        if (enqueue_radio_msg(rx_buf)) {
             gnss_radio_ctx.radio_msgs_received++;
             xTaskNotifyFromISR(MissionManagerHandle,
                                GNSS_RADIO_MSG_READY_FLAG,
@@ -247,10 +251,98 @@ void gnss_radio_phase2_done(spi1_job_t *job, const uint8_t *rx_buf, void *arg)
 }
 
 /* -------------------------------------------------------------------------- */
-/* Queue operations are now provided by SPSC_RING_DECLARE macros:             */
-/*   gnss_gps_fix_q_push/pop/peek/empty/full/count                           */
-/*   gnss_radio_msg_q_push/pop/peek/empty/full/count                         */
+/* Queue Operations                                                           */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * @brief Enqueue a parsed GPS fix (called from ISR context)
+ */
+static bool enqueue_gps_fix(const uint8_t *rx_data)
+{
+    gnss_gps_fix_queue_t *q = &gnss_radio_ctx.gps_queue;
+
+    if (gnss_gps_queue_full()) {
+        return false;
+    }
+
+    memcpy(&q->fixes[q->head], rx_data, sizeof(gnss_gps_fix_t));
+    SYNC_DMB();
+    q->head = (q->head + 1) % GNSS_GPS_FIX_QUEUE_LEN;
+    return true;
+}
+
+/**
+ * @brief Enqueue a radio message (called from ISR context)
+ */
+static bool enqueue_radio_msg(const uint8_t *msg)
+{
+    gnss_radio_msg_queue_t *q = &gnss_radio_ctx.radio_queue;
+
+    if (gnss_radio_queue_full()) {
+        return false;
+    }
+
+    memcpy(q->messages[q->head], msg, GNSS_RADIO_MESSAGE_MAX_LEN);
+    SYNC_DMB();
+    q->head = (q->head + 1) % GNSS_RADIO_MSG_QUEUE_LEN;
+    return true;
+}
+
+bool gnss_gps_dequeue(gnss_gps_fix_t *fix)
+{
+    gnss_gps_fix_queue_t *q = &gnss_radio_ctx.gps_queue;
+
+    if (gnss_gps_queue_empty()) {
+        return false;
+    }
+
+    SYNC_DMB();
+    *fix = q->fixes[q->tail];
+    SYNC_DMB();
+    q->tail = (q->tail + 1) % GNSS_GPS_FIX_QUEUE_LEN;
+    return true;
+}
+
+bool gnss_gps_peek(gnss_gps_fix_t *fix)
+{
+    gnss_gps_fix_queue_t *q = &gnss_radio_ctx.gps_queue;
+
+    if (gnss_gps_queue_empty()) {
+        return false;
+    }
+
+    SYNC_DMB();
+    *fix = q->fixes[q->tail];
+    return true;
+}
+
+bool gnss_radio_dequeue(uint8_t *msg)
+{
+    gnss_radio_msg_queue_t *q = &gnss_radio_ctx.radio_queue;
+
+    if (gnss_radio_queue_empty()) {
+        return false;
+    }
+
+    SYNC_DMB();
+    memcpy(msg, q->messages[q->tail], GNSS_RADIO_MESSAGE_MAX_LEN);
+    SYNC_DMB();
+    q->tail = (q->tail + 1) % GNSS_RADIO_MSG_QUEUE_LEN;
+    return true;
+}
+
+bool gnss_radio_peek(uint8_t *msg)
+{
+    gnss_radio_msg_queue_t *q = &gnss_radio_ctx.radio_queue;
+
+    if (gnss_radio_queue_empty()) {
+        return false;
+    }
+
+    SYNC_DMB();
+    memcpy(msg, q->messages[q->tail], GNSS_RADIO_MESSAGE_MAX_LEN);
+    return true;
+}
 
 /* -------------------------------------------------------------------------- */
 /* Radio TX (Master to Slave)                                                 */

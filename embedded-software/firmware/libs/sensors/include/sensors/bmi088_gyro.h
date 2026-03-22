@@ -14,7 +14,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include <collections/spsc_ring.h>
+#include "sensors/spsc_queue.h"
 
 /* -------------------------------------------------------------------------- */
 /* Register map (gyroscope side of BMI088)                                    */
@@ -242,7 +242,67 @@ bool bmi088_gyro_parse_fifo(const uint8_t *rx_buf, size_t len,
                             size_t *max_samples,
                             const bmi088_gyro_t *dev);
 
-/* --- Ring buffer for gyroscope samples ------------------------------------- */
-SPSC_RING_DECLARE(bmi088_gyro_sample_q, bmi088_gyro_sample_t, BMI088_GYRO_SAMPLE_Q_SIZE)
+/* --- Ring buffer for gyroscope samples ----*/
+
+/**
+ * @brief SPSC ring buffer for gyroscope samples.
+ *
+ * Thread Safety:
+ * - Single Producer (ISR/DMA callback) writes samples via bmi088_gyro_sample_queue()
+ * - Single Consumer (state estimation task) reads via bmi088_gyro_sample_dequeue()
+ * - Memory barriers ensure proper ordering between producer and consumer.
+ */
+typedef struct {
+    bmi088_gyro_sample_t samples[BMI088_GYRO_SAMPLE_Q_SIZE];
+    volatile uint8_t head;  /**< Written by producer only */
+    volatile uint8_t tail;  /**< Written by consumer only */
+} bmi088_gyro_sample_queue_t;
+
+/**
+ * @brief Check if sample queue is empty.
+ */
+static inline bool bmi088_gyro_sample_queue_empty(bmi088_gyro_sample_queue_t *q) {
+    return q->head == q->tail;
+}
+
+/**
+ * @brief Check if sample queue is full.
+ */
+static inline bool bmi088_gyro_sample_queue_full(bmi088_gyro_sample_queue_t *q) {
+    return ((q->head + 1) % BMI088_GYRO_SAMPLE_Q_SIZE) == q->tail;
+}
+
+/**
+ * @brief Enqueue a new gyroscope sample (producer side - ISR context).
+ * @param q Pointer to the sample queue.
+ * @param sample Pointer to sample to enqueue.
+ * @return True if successful, false if queue full.
+ * @note Memory barrier ensures sample data is visible before head update.
+ */
+static inline bool bmi088_gyro_sample_queue(bmi088_gyro_sample_queue_t *q,
+                                            const bmi088_gyro_sample_t *sample) {
+    if (bmi088_gyro_sample_queue_full(q)) return false;
+    q->samples[q->head] = *sample;
+    SENSORS_MEMORY_BARRIER();  /* Ensure sample data written before head update is visible */
+    q->head = (q->head + 1) % BMI088_GYRO_SAMPLE_Q_SIZE;
+    return true;
+}
+
+/**
+ * @brief Dequeue the next gyroscope sample (consumer side - task context).
+ * @param q Pointer to the sample queue.
+ * @param sample Pointer to receive dequeued sample.
+ * @return True if successful, false if queue empty.
+ * @note Memory barriers ensure proper ordering with producer.
+ */
+static inline bool bmi088_gyro_sample_dequeue(bmi088_gyro_sample_queue_t *q,
+                                              bmi088_gyro_sample_t *sample) {
+    if (bmi088_gyro_sample_queue_empty(q)) return false;
+    SENSORS_MEMORY_BARRIER();  /* Ensure we see sample data written before head was updated */
+    *sample = q->samples[q->tail];
+    SENSORS_MEMORY_BARRIER();  /* Ensure sample read completes before tail update */
+    q->tail = (q->tail + 1) % BMI088_GYRO_SAMPLE_Q_SIZE;
+    return true;
+}
 
 #endif /* BMI088_GYRO_H */

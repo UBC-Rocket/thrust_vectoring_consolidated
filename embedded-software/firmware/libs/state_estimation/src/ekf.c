@@ -1,490 +1,547 @@
 /**
- * @file ekf.c
- * @brief Extended Kalman Filter for orientation (quaternion) and body (position/velocity).
+ * @file    ekf.c
+ * @brief   Error-State Kalman Filter — multi-sensor batch processing.
  *
- * Noise parameters derived from BMI088 datasheet (DS066-00, Rev 1.7):
- *   Gyroscope noise density:      0.014 deg/s/sqrt(Hz)  (Table 3)
- *   Accelerometer noise density:  175 ug/sqrt(Hz)       (Table 1)
- *
- * GPS measurement noise assumes a u-blox receiver with ~2.5m CEP horizontal.
+ * Orientation: ESKF_ERR_DIM error state [δθ, δb_g0, δb_a0, ..., δb_gN, δb_aN]
+ * with per-IMU bias tracking and multiplicative quaternion updates.
+ * Body: standard 6D KF [pos, vel].
  */
-
 #include "state_estimation/ekf.h"
-#include "state_estimation/body.h"
-#include "state_estimation/matrix.h"
 #include "state_estimation/quaternion.h"
+#include "state_estimation/body.h"
+#include "state_estimation/calibration.h"
+#include "state_estimation/matrix.h"
 #include "state_estimation/state.h"
-#include "math.h"
-#include "string.h"
-#include <stdbool.h>
+#include <math.h>
+#include <string.h>
 
-static EKF ekf;
+/* ========================================================================
+ * Helpers
+ * ====================================================================== */
 
-/* ========================================================================== */
-/* BMI088 datasheet noise parameters                                          */
-/* ========================================================================== */
-
-/* Gyroscope: 0.014 deg/s/sqrt(Hz) = 2.443e-4 rad/s/sqrt(Hz) */
-#define GYRO_NOISE_DENSITY_RAD_S   2.443e-4f
-/* Effective noise bandwidth at 400 Hz ODR / 116 Hz BW setting */
-#define GYRO_BW_HZ                 116.0f
-/* sigma^2_gyro = noise_density^2 * BW = 6.92e-6 (rad/s)^2 */
-#define GYRO_NOISE_VAR             (GYRO_NOISE_DENSITY_RAD_S * GYRO_NOISE_DENSITY_RAD_S * GYRO_BW_HZ)
-
-/* Accelerometer: 175 ug/sqrt(Hz) */
-#define ACCEL_NOISE_DENSITY_G      175e-6f
-/* Effective noise bandwidth at 800 Hz ODR, normal mode (~280 Hz) */
-#define ACCEL_BW_HZ                280.0f
-/* sigma^2_accel in g^2 (for normalized accel measurement in orientation EKF) */
-#define ACCEL_NOISE_VAR_G2         (ACCEL_NOISE_DENSITY_G * ACCEL_NOISE_DENSITY_G * ACCEL_BW_HZ)
-
-/* sigma_accel in m/s^2 for body EKF process noise */
-#define GRAV_MPS2                  9.807f
-#define ACCEL_NOISE_DENSITY_MS2    (ACCEL_NOISE_DENSITY_G * GRAV_MPS2)
-/* sigma^2_accel in (m/s^2)^2 */
-#define ACCEL_NOISE_VAR_MS2        (ACCEL_NOISE_DENSITY_MS2 * ACCEL_NOISE_DENSITY_MS2 * ACCEL_BW_HZ)
-
-/* GPS measurement noise: u-blox CEP ~2.5m horizontal, ~5m vertical */
-#define GPS_NOISE_VAR_XY           6.25f    /* (2.5 m)^2 */
-#define GPS_NOISE_VAR_Z            25.0f    /* (5.0 m)^2 */
-
-/*
- * MS5611 barometer noise at OSR 4096: ~0.012 mbar RMS (datasheet Table 3)
- * Altitude sensitivity ~8.43 m/mbar at sea level => ~0.1 m altitude RMS
- */
-#define BARO_NOISE_VAR_M2          0.01f    /* (0.1 m)^2 */
-
-/* ========================================================================== */
-/* EKF tuning constants                                                       */
-/* ========================================================================== */
-
-#define EKF_DEBUG_LOG_PERIOD             50U
-#define MAX_QUAT_VARIANCE                0.5f
-#define ACCEL_UPDATE_MIN_NORM_G          0.85f
-#define ACCEL_UPDATE_MAX_NORM_G          1.15f
-#define ACCEL_UPDATE_MAX_GYRO_NORM_RAD_S 3.0f
-
-static uint32_t s_orientation_tick_count = 0;
-static uint32_t s_body_tick_count = 0;
-
-/* Measurement noise matrices (constant, derived from datasheet) */
-static const float R_orientation[3][3] = {
-    {ACCEL_NOISE_VAR_G2, 0, 0},
-    {0, ACCEL_NOISE_VAR_G2, 0},
-    {0, 0, ACCEL_NOISE_VAR_G2}
-};
-
-static const float R_body[3][3] = {
-    {0.005, 0, 0},
-    {0, 0.005, 0},
-    {0, 0, 0.005}
-};
-
-/* ========================================================================== */
-/* Static helpers                                                             */
-/* ========================================================================== */
-
-static uint8_t ekf_accel_update_valid(float a_norm_g)
+static const eskf_sensor_noise_config_t *find_sensor_config(
+    const eskf_t *eskf, eskf_sensor_type_t type, uint8_t id)
 {
-    return (a_norm_g >= ACCEL_UPDATE_MIN_NORM_G) &&
-           (a_norm_g <= ACCEL_UPDATE_MAX_NORM_G);
-}
-
-static uint8_t ekf_gyro_update_valid(float g_norm_rad_s)
-{
-    return g_norm_rad_s <= ACCEL_UPDATE_MAX_GYRO_NORM_RAD_S;
-}
-
-static void ekf_preserve_predicted_yaw(const float q_pred[4], float q_corr[4])
-{
-    float norm_corr = sqrtf(q_corr[0] * q_corr[0] + q_corr[3] * q_corr[3]);
-    float twist_corr_inv[4] = { 1.0f, 0, 0, 0 };
-    if (norm_corr > 1e-6f) {
-        twist_corr_inv[0] = q_corr[0] / norm_corr;
-        twist_corr_inv[3] = -q_corr[3] / norm_corr;
-    }
-
-    float swing_corr[4];
-    quat_mult(q_corr, twist_corr_inv, swing_corr);
-
-    float norm_pred = sqrtf(q_pred[0] * q_pred[0] + q_pred[3] * q_pred[3]);
-    float twist_pred[4] = { 1.0f, 0, 0, 0 };
-    if (norm_pred > 1e-6f) {
-        twist_pred[0] = q_pred[0] / norm_pred;
-        twist_pred[3] = q_pred[3] / norm_pred;
-    }
-
-    quat_mult(swing_corr, twist_pred, q_corr);
-    normalize(q_corr);
-}
-
-/* ========================================================================== */
-/* Covariance prediction                                                      */
-/* ========================================================================== */
-
-/**
- * Orientation covariance prediction: P = F*P*F' + Q_d
- * Q_d is computed from gyro noise density scaled by dt:
- *   Q_d_diag = (dt/2)^2 * sigma^2_gyro
- */
-static void predict_covar_orientation(float jacobian[4][4],
-                                      float dt,
-                                      float predicted_covar[4][4])
-{
-    float m1[4][4];
-    float jacobian_transposed[4][4];
-
-    transpose4x4(jacobian, jacobian_transposed);
-    MAT_MUL(jacobian, ekf.quaternion.covar, m1, 4, 4, 4);
-    MAT_MUL(m1, jacobian_transposed, predicted_covar, 4, 4, 4);
-
-    /* Q_d = (dt/2)^2 * sigma^2_gyro  (diagonal) */
-    const float q_d = (dt * 0.5f) * (dt * 0.5f) * GYRO_NOISE_VAR;
-    for (int i = 0; i < 4; i++)
-        predicted_covar[i][i] += q_d;
-}
-
-/**
- * Sparse covariance prediction exploiting F = [[I, dt*I], [0, I]].
- *
- * Process noise Q_d is derived from accelerometer noise density:
- *   G = [[dt^2/2 * I], [dt * I]]
- *   Q_d = G * sigma^2_accel * G'
- *     = [[dt^4/4 * s2, dt^3/2 * s2],
- *        [dt^3/2 * s2, dt^2   * s2]]   (diagonal blocks)
- */
-static void predict_covar_body_sparse(float dt, float predicted_covar[6][6])
-{
-    const float dt2 = dt * dt;
-    const float dt3 = dt2 * dt;
-    const float dt4 = dt2 * dt2;
-    const float s2 = 2;
-    const float (*P)[6] = (const float (*)[6])ekf.body.covar;
-
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            const float Ppp = P[i][j];
-            const float Ppv = P[i][j + 3];
-            const float Pvp = P[i + 3][j];
-            const float Pvv = P[i + 3][j + 3];
-
-            /* Q_d blocks are diagonal, so only add on i==j */
-            const float q_pp = (i == j) ? (dt4 * 0.25f * s2) : 0.0f;
-            const float q_pv = (i == j) ? (dt3 * 0.5f  * s2) : 0.0f;
-            const float q_vv = (i == j) ? (dt2 * s2)         : 0.0f;
-
-            predicted_covar[i][j]         = Ppp + dt * (Ppv + Pvp) + dt2 * Pvv + q_pp;
-            predicted_covar[i][j + 3]     = Ppv + dt * Pvv + q_pv;
-            predicted_covar[i + 3][j]     = Pvp + dt * Pvv + q_pv;
-            predicted_covar[i + 3][j + 3] = Pvv + q_vv;
+    for (size_t i = 0; i < eskf->num_sensor_configs; i++) {
+        if (eskf->sensor_configs[i].type == type &&
+            eskf->sensor_configs[i].id == id) {
+            return &eskf->sensor_configs[i];
         }
     }
+    return NULL;
 }
 
-/* ========================================================================== */
-/* Initialization                                                             */
-/* ========================================================================== */
+typedef struct {
+    uint64_t timestamp_us;
+    eskf_sensor_type_t type;
+    uint8_t id;
+    float data[3];
+} timeline_event_t;
 
-void init_ekf(const float expected_g[3])
+/* ========================================================================
+ * Initialization
+ * ====================================================================== */
+
+void eskf_init(eskf_t *eskf, const eskf_config_t *config)
 {
-    /* Orientation: quaternion to identity, covariance to identity */
-    ekf.quaternion.vals[0] = 1.0f;
-    ekf.quaternion.vals[1] = 0.0f;
-    ekf.quaternion.vals[2] = 0.0f;
-    ekf.quaternion.vals[3] = 0.0f;
-    ekf.quaternion.index = 0;
+    memset(eskf, 0, sizeof(eskf_t));
 
-    for (int i = 0; i < 4; i++)
-        for (int j = 0; j < 4; j++)
-            ekf.quaternion.covar[i][j] = (i == j) ? 1.0f : 0.0f;
+    /* Orientation: identity quaternion, zero biases */
+    eskf->orientation.q_nom[0] = 1.0f;
+    eskf->orientation.num_imus = config->num_imus;
 
-    for (int i = 0; i < 3; i++)
-        ekf.expected_g[i] = expected_g[i];
+    /* Initial covariance */
+    for (int i = 0; i < ESKF_ERR_DIM; i++)
+        eskf->orientation.covar[i][i] = 1.0f;
 
-    /* Body: state to zero, covariance to identity */
-    for (int i = 0; i < 3; i++) {
-        ekf.body.position[i] = 0.0f;
-        ekf.body.velocity[i] = 0.0f;
-    }
-    ekf.body.index = 0;
+    /* Process noise */
+    memcpy(eskf->orientation.process, config->orientation_process_noise,
+           sizeof(eskf->orientation.process));
 
+    /* Body: zero state, identity covariance */
     for (int i = 0; i < 6; i++)
-        for (int j = 0; j < 6; j++)
-            ekf.body.covar[i][j] = (i == j) ? 1.0f : 0.0f;
+        eskf->body.covar[i][i] = 1.0f;
+
+    memcpy(eskf->body.process, config->body_process_noise,
+           sizeof(eskf->body.process));
+
+    /* Environment */
+    memcpy(eskf->expected_g, config->expected_g, sizeof(eskf->expected_g));
+    memcpy(eskf->mag_ref, config->mag_ref, sizeof(eskf->mag_ref));
+
+    /* Calibration */
+    eskf->cal.calibration_target = config->calibration_samples;
+    eskf->cal.calibrated = (config->calibration_samples == 0);
+
+    /* Sensor noise configs */
+    size_t n = config->num_sensors;
+    if (n > ESKF_MAX_SENSORS) n = ESKF_MAX_SENSORS;
+    eskf->num_sensor_configs = n;
+    for (size_t i = 0; i < n; i++)
+        eskf->sensor_configs[i] = config->sensors[i];
 }
 
-/* ========================================================================== */
-/* Orientation EKF tick                                                       */
-/* ========================================================================== */
+/* ========================================================================
+ * ESKF Orientation: Predict
+ * ====================================================================== */
 
-void tick_ekf_orientation(float deltaTime, float gyro[3], float accel[3])
+static void orientation_predict(eskf_t *eskf, const float gyro_raw[3],
+                                float dt, uint8_t imu_idx)
 {
-    ekf.quaternion.index += 1;
-    s_orientation_tick_count++;
+    orientation_eskf_state_t *ori = &eskf->orientation;
 
-    /* --- 1. PREDICTION --- */
-    static float processing_quaternion[4];
-    state_transition_orientation(&ekf.quaternion, deltaTime, gyro, processing_quaternion);
+    /* Correct gyro with this IMU's bias estimate */
+    float gyro_corr[3] = { gyro_raw[0] - ori->b_gyro[imu_idx][0],
+                           gyro_raw[1] - ori->b_gyro[imu_idx][1],
+                           gyro_raw[2] - ori->b_gyro[imu_idx][2] };
 
-    static float state_jacobian_quaternion[4][4];
-    get_state_jacobian_orientation(gyro, deltaTime, state_jacobian_quaternion);
+    /* Propagate nominal quaternion */
+    eskf_propagate_nominal(ori, gyro_corr, dt);
 
-    static float predicted_covar_quaternion[4][4];
-    predict_covar_orientation(state_jacobian_quaternion, deltaTime, predicted_covar_quaternion);
+    /* Error-state covariance prediction: P = F_d * P * F_d^T + Q */
+    float F_d[ESKF_ERR_DIM][ESKF_ERR_DIM];
+    eskf_get_F(gyro_corr, dt, F_d, imu_idx);
 
-    /* --- 2. UPDATE (Correction) --- */
-    static float innovation_quaternion[3][1];
-    static float predicted_accel[3];
+    float F_dT[ESKF_ERR_DIM][ESKF_ERR_DIM];
+    mat_transpose((const float *)F_d, (float *)F_dT, ESKF_ERR_DIM, ESKF_ERR_DIM);
 
-    float a_norm = sqrtf(accel[0]*accel[0] + accel[1]*accel[1] + accel[2]*accel[2]);
-    float g_norm = sqrtf(gyro[0]*gyro[0] + gyro[1]*gyro[1] + gyro[2]*gyro[2]);
+    float FP[ESKF_ERR_DIM][ESKF_ERR_DIM];
+    mat_mul((const float *)F_d, (const float *)ori->covar, (float *)FP,
+            ESKF_ERR_DIM, ESKF_ERR_DIM, ESKF_ERR_DIM);
 
-    /* Skip measurement correction during strong linear accel or fast rotation */
-     if (!ekf_accel_update_valid(a_norm) || !ekf_gyro_update_valid(g_norm)) {
-         memcpy(ekf.quaternion.vals, processing_quaternion, sizeof(processing_quaternion));
-         memcpy(ekf.quaternion.covar, predicted_covar_quaternion, sizeof(predicted_covar_quaternion));
-         return;
-    }
+    float FPFT[ESKF_ERR_DIM][ESKF_ERR_DIM];
+    mat_mul((const float *)FP, (const float *)F_dT, (float *)FPFT,
+            ESKF_ERR_DIM, ESKF_ERR_DIM, ESKF_ERR_DIM);
 
-    predict_accel_from_quat(processing_quaternion, predicted_accel, ekf.expected_g);
+    for (int i = 0; i < ESKF_ERR_DIM; i++)
+        for (int j = 0; j < ESKF_ERR_DIM; j++)
+            ori->covar[i][j] = FPFT[i][j] + ori->process[i][j] * dt;
+}
 
-    static float a_normalized[3];
-    if (a_norm > 0.1f) {
-        for (int i = 0; i < 3; i++) a_normalized[i] = accel[i] / a_norm;
-    } else {
-        for (int i = 0; i < 3; i++) a_normalized[i] = ekf.expected_g[i];
-    }
+/* ========================================================================
+ * ESKF Orientation: Measurement Update (generic 3 x ESKF_ERR_DIM)
+ * ====================================================================== */
 
-    for (int i = 0; i < 3; i++)
-        innovation_quaternion[i][0] = a_normalized[i] - predicted_accel[i];
+static void orientation_measurement_update(eskf_t *eskf,
+                                           const float innovation[3],
+                                           const float H[3][ESKF_ERR_DIM],
+                                           const float R[3][3])
+{
+    orientation_eskf_state_t *ori = &eskf->orientation;
 
-    /* H Jacobian */
-    static float h_jacobian_quaternion[3][4];
-    get_h_jacobian_quaternion(processing_quaternion, ekf.expected_g, h_jacobian_quaternion);
+    /* S = H * P * H^T + R  (3x3) */
+    float HT[ESKF_ERR_DIM][3];
+    mat_transpose((const float *)H, (float *)HT, 3, ESKF_ERR_DIM);
 
-    static float h_jacobian_quaternion_t[4][3];
-    transpose3x4_to_4x3(h_jacobian_quaternion, h_jacobian_quaternion_t);
+    float PH_T[ESKF_ERR_DIM][3];
+    mat_mul((const float *)ori->covar, (const float *)HT, (float *)PH_T,
+            ESKF_ERR_DIM, ESKF_ERR_DIM, 3);
 
-    /* S = H * P * H' + R */
-    static float mat1_q[4][3];
-    MAT_MUL(predicted_covar_quaternion, h_jacobian_quaternion_t, mat1_q, 4, 4, 3);
-
-    static float mat3_q[3][3];
-    MAT_MUL(h_jacobian_quaternion, mat1_q, mat3_q, 3, 4, 3);
+    float S[3][3];
+    mat_mul((const float *)H, (const float *)PH_T, (float *)S,
+            3, ESKF_ERR_DIM, 3);
 
     for (int i = 0; i < 3; i++)
         for (int j = 0; j < 3; j++)
-            mat3_q[i][j] += R_orientation[i][j];
+            S[i][j] += R[i][j];
 
-    static float inv_mat3_q[3][3];
-    bool inverse_success = inverse(mat3_q, inv_mat3_q);
-    if (!inverse(mat3_q, inv_mat3_q)) {
-        return;
+    float S_inv[3][3];
+    if (!inverse(S, S_inv)) return;
+
+    /* K = P * H^T * S^-1  (ESKF_ERR_DIM x 3) */
+    float K[ESKF_ERR_DIM][3];
+    mat_mul((const float *)PH_T, (const float *)S_inv, (float *)K,
+            ESKF_ERR_DIM, 3, 3);
+
+    /* Error correction: δx = K * innovation */
+    float dx[ESKF_ERR_DIM];
+    for (int i = 0; i < ESKF_ERR_DIM; i++) {
+        dx[i] = K[i][0] * innovation[0]
+              + K[i][1] * innovation[1]
+              + K[i][2] * innovation[2];
     }
 
-    /* K = P * H' * S^-1 */
-    static float kalman_gain_quaternion[4][3];
-    MAT_MUL(mat1_q, inv_mat3_q, kalman_gain_quaternion, 4, 3, 3);
+    /* Inject: quaternion ← q_nom ⊗ exp(δθ/2) */
+    quaternion_t dq;
+    quaternion_from_rotation_vector(dx, &dq);  /* dx[0..2] = δθ */
 
-    /* State update */
-    static float adjustment_quaternion[4][1];
-    MAT_MUL(kalman_gain_quaternion, innovation_quaternion, adjustment_quaternion, 4, 3, 1);
+    quaternion_t q_old;
+    q_old.w = ori->q_nom[0];
+    q_old.x = ori->q_nom[1];
+    q_old.y = ori->q_nom[2];
+    q_old.z = ori->q_nom[3];
 
-    for (int i = 0; i < 4; i++)
-        ekf.quaternion.vals[i] = processing_quaternion[i] + adjustment_quaternion[i][0];
+    quaternion_t q_new;
+    quaternion_multiply(&q_old, &dq, &q_new);
 
-    normalize(ekf.quaternion.vals);
-    ekf_preserve_predicted_yaw(processing_quaternion, ekf.quaternion.vals);
+    ori->q_nom[0] = q_new.w;
+    ori->q_nom[1] = q_new.x;
+    ori->q_nom[2] = q_new.y;
+    ori->q_nom[3] = q_new.z;
+    normalize(ori->q_nom);
 
-    /* Covariance update: Joseph form P = (I-KH)*P*(I-KH)' + K*R*K' */
-    if (ekf.quaternion.index <= UPDATE_COVAR) {
-        return;
-    }
-    ekf.quaternion.index = 0;
-
-    static float IKH[4][4];
-    MAT_MUL(kalman_gain_quaternion, h_jacobian_quaternion, IKH, 4, 3, 4);
-    for (int i = 0; i < 4; i++)
-        for (int j = 0; j < 4; j++)
-            IKH[i][j] = (i == j) ? (1.0f - IKH[i][j]) : (-IKH[i][j]);
-
-    static float IKH_P[4][4];
-    MAT_MUL(IKH, predicted_covar_quaternion, IKH_P, 4, 4, 4);
-
-    static float IKH_t[4][4];
-    transpose4x4(IKH, IKH_t);
-    static float new_covar_quaternion[4][4];
-    MAT_MUL(IKH_P, IKH_t, new_covar_quaternion, 4, 4, 4);
-
-    static float KR[4][3];
-    float R_ori_copy[3][3];
-    memcpy(R_ori_copy, R_orientation, sizeof(R_orientation));
-    MAT_MUL(kalman_gain_quaternion, R_ori_copy, KR, 4, 3, 3);
-    static float KR_Kt[4][4];
-    static float K_t[3][4];
-    transpose4x3_to_3x4(kalman_gain_quaternion, K_t);
-    MAT_MUL(KR, K_t, KR_Kt, 4, 3, 4);
-
-    for (int i = 0; i < 4; i++)
-        for (int j = 0; j < 4; j++)
-            new_covar_quaternion[i][j] += KR_Kt[i][j];
-
-    memcpy(ekf.quaternion.covar, new_covar_quaternion, sizeof(new_covar_quaternion));
-
-    for (int i = 0; i < 4; i++) {
-        if (ekf.quaternion.covar[i][i] > MAX_QUAT_VARIANCE) {
-            ekf.quaternion.covar[i][i] = MAX_QUAT_VARIANCE;
-        }
-        for (int j = i + 1; j < 4; j++) {
-            float avg = (ekf.quaternion.covar[i][j] + ekf.quaternion.covar[j][i]) * 0.5f;
-            ekf.quaternion.covar[i][j] = ekf.quaternion.covar[j][i] = avg;
+    /* Inject: per-IMU biases */
+    for (int k = 0; k < ori->num_imus; k++) {
+        for (int i = 0; i < 3; i++) {
+            ori->b_gyro[k][i]  += dx[3 + 6 * k + i];
+            ori->b_accel[k][i] += dx[6 + 6 * k + i];
         }
     }
+
+    /* Covariance update: P = (I - K*H) * P */
+    float KH[ESKF_ERR_DIM][ESKF_ERR_DIM];
+    mat_mul((const float *)K, (const float *)H, (float *)KH,
+            ESKF_ERR_DIM, 3, ESKF_ERR_DIM);
+
+    float IKH[ESKF_ERR_DIM][ESKF_ERR_DIM];
+    memset(IKH, 0, sizeof(IKH));
+    for (int i = 0; i < ESKF_ERR_DIM; i++) IKH[i][i] = 1.0f;
+    for (int i = 0; i < ESKF_ERR_DIM; i++)
+        for (int j = 0; j < ESKF_ERR_DIM; j++)
+            IKH[i][j] -= KH[i][j];
+
+    float P_new[ESKF_ERR_DIM][ESKF_ERR_DIM];
+    mat_mul((const float *)IKH, (const float *)ori->covar, (float *)P_new,
+            ESKF_ERR_DIM, ESKF_ERR_DIM, ESKF_ERR_DIM);
+
+    memcpy(ori->covar, P_new, sizeof(ori->covar));
 }
 
-/* ========================================================================== */
-/* Body EKF: predict (IMU-driven) and update (GPS measurement) split          */
-/* ========================================================================== */
+/* ========================================================================
+ * Body: GPS measurement update (position, 3x6)
+ * ====================================================================== */
 
-/* Predicted state stored between predict and update calls */
-static float s_body_predicted_pos[3];
-static float s_body_predicted_vel[3];
-static float s_body_predicted_covar[6][6];
-
-/**
- * Body EKF prediction step. Run every IMU cycle.
- * Uses nav-frame acceleration to propagate position and velocity.
- */
-void predict_ekf_body(float dt, float accel_nav[3])
+static void body_gps_update(eskf_t *eskf, const float gps_pos[3],
+                            const float R[3][3])
 {
-    s_body_tick_count++;
+    body_state_t *body = &eskf->body;
 
-    state_transition_body(&ekf.body, dt, accel_nav,
-                          s_body_predicted_pos, s_body_predicted_vel);
-    predict_covar_body_sparse(dt, s_body_predicted_covar);
-
-    /* Commit predicted state (will be corrected by update if GPS available) */
-    for (int i = 0; i < 3; i++) {
-        ekf.body.position[i] = s_body_predicted_pos[i];
-        ekf.body.velocity[i] = s_body_predicted_vel[i];
-    }
-    memcpy(ekf.body.covar, s_body_predicted_covar, sizeof(s_body_predicted_covar));
-}
-
-/**
- * Body EKF update step. Run only when GPS measurement is available.
- * Exploits H = [I_3, 0_3] sparsity:
- *   S = P[0:3][0:3] + R
- *   K = P[:,0:3] * S^-1
- */
-void update_ekf_body(float gps_pos[3])
-{
-    ekf.body.index += 1;
-
-    const float (*P)[6] = (const float (*)[6])ekf.body.covar;
-
-    /* Innovation: y = z - H*x = gps - position */
     float innovation[3];
     for (int i = 0; i < 3; i++)
-        innovation[i] = gps_pos[i] - ekf.body.position[i];
+        innovation[i] = gps_pos[i] - body->position[i];
 
-    /* S = P[0:3][0:3] + R */
     float S[3][3];
     for (int i = 0; i < 3; i++)
         for (int j = 0; j < 3; j++)
-            S[i][j] = P[i][j] + R_body[i][j];
+            S[i][j] = body->covar[i][j] + R[i][j];
 
     float S_inv[3][3];
-    if (!inverse(S, S_inv)) {
-        return;
-    }
+    if (!inverse(S, S_inv)) return;
 
-    /* K = P[:,0:3] * S^-1 */
     float K[6][3];
     for (int i = 0; i < 6; i++)
         for (int j = 0; j < 3; j++) {
             float sum = 0.0f;
             for (int k = 0; k < 3; k++)
-                sum += P[i][k] * S_inv[k][j];
+                sum += body->covar[i][k] * S_inv[k][j];
             K[i][j] = sum;
         }
 
-    /* State update: x += K * y */
     for (int i = 0; i < 3; i++) {
-        float adj = K[i][0]*innovation[0] + K[i][1]*innovation[1] + K[i][2]*innovation[2];
-        ekf.body.position[i] += adj;
+        float adj = K[i][0] * innovation[0]
+                  + K[i][1] * innovation[1]
+                  + K[i][2] * innovation[2];
+        body->position[i] += adj;
     }
     for (int i = 0; i < 3; i++) {
-        float adj = K[i+3][0]*innovation[0] + K[i+3][1]*innovation[1] + K[i+3][2]*innovation[2];
-        ekf.body.velocity[i] += adj;
+        float adj = K[i + 3][0] * innovation[0]
+                  + K[i + 3][1] * innovation[1]
+                  + K[i + 3][2] * innovation[2];
+        body->velocity[i] += adj;
     }
 
-    /* Covariance update: P = (I-KH)*P = P - K * P[0:3,:] */
-    ekf.body.index = 0;
-
-    float new_covar[6][6];
+    float P_new[6][6];
     for (int i = 0; i < 6; i++)
         for (int j = 0; j < 6; j++) {
-            float kp = K[i][0]*P[0][j] + K[i][1]*P[1][j] + K[i][2]*P[2][j];
-            new_covar[i][j] = P[i][j] - kp;
+            float kp = K[i][0] * body->covar[0][j]
+                     + K[i][1] * body->covar[1][j]
+                     + K[i][2] * body->covar[2][j];
+            P_new[i][j] = body->covar[i][j] - kp;
         }
 
-    memcpy(ekf.body.covar, new_covar, sizeof(new_covar));
+    memcpy(body->covar, P_new, sizeof(body->covar));
 }
 
-/**
- * Body EKF barometer update. Run when baro measurement is available.
- *
- * H = [0, 0, 1, 0, 0, 0] (scalar observation of z-position only).
- * All operations reduce to scalar math — no matrix inversion needed.
- *
- * @param altitude_m  Barometric altitude in meters, relative to launch site.
- */
-void update_ekf_body_baro(float altitude_m)
+/* ========================================================================
+ * Body: Barometer measurement update (scalar, z-position only)
+ * ====================================================================== */
+
+static void body_baro_update(eskf_t *eskf, float baro_height, float R_baro)
 {
-    float (*P)[6] = ekf.body.covar;
+    body_state_t *body = &eskf->body;
 
-    /* Innovation: y = z_baro - position_z */
-    const float innovation = altitude_m - ekf.body.position[2];
+    float innovation = baro_height - body->position[2];
 
-    /* S = H*P*H' + R = P[2][2] + R_baro  (scalar) */
-    const float S = P[2][2] + BARO_NOISE_VAR_M2;
-    if (S < 1e-12f)
-        return;
-    const float S_inv = 1.0f / S;
+    float S = body->covar[2][2] + R_baro;
+    if (fabsf(S) < 1e-10f) return;
+    float S_inv = 1.0f / S;
 
-    /* K = P * H' * S^-1 = P[:,2] / S  (6x1 vector) */
     float K[6];
     for (int i = 0; i < 6; i++)
-        K[i] = P[i][2] * S_inv;
+        K[i] = body->covar[i][2] * S_inv;
 
-    /* State update: x += K * y */
     for (int i = 0; i < 3; i++)
-        ekf.body.position[i] += K[i] * innovation;
+        body->position[i] += K[i] * innovation;
     for (int i = 0; i < 3; i++)
-        ekf.body.velocity[i] += K[i + 3] * innovation;
+        body->velocity[i] += K[i + 3] * innovation;
 
-    /* Covariance update: P = P - K * P[2,:]  (rank-1) */
-    float P_row2[6];
-    for (int j = 0; j < 6; j++)
-        P_row2[j] = P[2][j];
-
+    float P_new[6][6];
     for (int i = 0; i < 6; i++)
         for (int j = 0; j < 6; j++)
-            P[i][j] -= K[i] * P_row2[j];
+            P_new[i][j] = body->covar[i][j] - K[i] * body->covar[2][j];
+
+    memcpy(body->covar, P_new, sizeof(body->covar));
+
+    /* Zero-velocity pseudo-measurement on Z when near stationary.
+     * When baro innovation is small, position hasn't changed, so velocity
+     * should be near zero. This damps velocity drift that accumulates from
+     * tiny accel biases when no GPS velocity correction is available. */
+    if (fabsf(innovation) < 0.5f) {
+        float R_vel = 0.1f;
+        float S_vel = body->covar[5][5] + R_vel;
+        if (fabsf(S_vel) < 1e-10f) return;
+        float S_vel_inv = 1.0f / S_vel;
+
+        float Kv[6];
+        for (int i = 0; i < 6; i++)
+            Kv[i] = body->covar[i][5] * S_vel_inv;
+
+        float vel_innov = 0.0f - body->velocity[2];
+        for (int i = 0; i < 3; i++)
+            body->position[i] += Kv[i] * vel_innov;
+        for (int i = 0; i < 3; i++)
+            body->velocity[i] += Kv[i + 3] * vel_innov;
+
+        float P_zupt[6][6];
+        for (int i = 0; i < 6; i++)
+            for (int j = 0; j < 6; j++)
+                P_zupt[i][j] = body->covar[i][j] - Kv[i] * body->covar[5][j];
+
+        memcpy(body->covar, P_zupt, sizeof(body->covar));
+    }
 }
 
-/* ========================================================================== */
-/* Getters                                                                    */
-/* ========================================================================== */
+/* ========================================================================
+ * Body: Predict
+ * ====================================================================== */
 
-void get_state(float quaternion[4], float position[3], float velocity[3])
+static void body_predict(eskf_t *eskf, const float a_nav[3], float dt)
 {
-    for (int i = 0; i < 4; i++)
-        quaternion[i] = ekf.quaternion.vals[i];
+    body_state_t *body = &eskf->body;
 
-    for (int i = 0; i < 3; i++) {
-        position[i] = ekf.body.position[i];
-        velocity[i] = ekf.body.velocity[i];
+    float pred_p[3], pred_v[3];
+    state_transition_body(body, dt, a_nav, pred_p, pred_v);
+
+    float P_pred[6][6];
+    predict_covar_body_sparse((const float (*)[6])body->covar,
+                              (const float (*)[6])body->process,
+                              dt, P_pred);
+
+    memcpy(body->position, pred_p, sizeof(body->position));
+    memcpy(body->velocity, pred_v, sizeof(body->velocity));
+    memcpy(body->covar, P_pred, sizeof(body->covar));
+}
+
+/* ========================================================================
+ * Batch Processing
+ * ====================================================================== */
+
+static int sensor_priority(eskf_sensor_type_t type)
+{
+    switch (type) {
+    case ESKF_SENSOR_GYRO:  return 0;
+    case ESKF_SENSOR_ACCEL: return 1;
+    case ESKF_SENSOR_MAG:   return 2;
+    case ESKF_SENSOR_GPS:   return 3;
+    case ESKF_SENSOR_BARO:  return 4;
+    default:                return 5;
     }
+}
+
+static int event_compare(const void *a, const void *b)
+{
+    const timeline_event_t *ea = (const timeline_event_t *)a;
+    const timeline_event_t *eb = (const timeline_event_t *)b;
+    if (ea->timestamp_us < eb->timestamp_us) return -1;
+    if (ea->timestamp_us > eb->timestamp_us) return 1;
+    return sensor_priority(ea->type) - sensor_priority(eb->type);
+}
+
+static void process_accel(eskf_t *eskf, const float accel_raw[3],
+                          const float R[3][3], float dt, uint8_t imu_idx)
+{
+    orientation_eskf_state_t *ori = &eskf->orientation;
+
+    /* Correct accel with this IMU's bias */
+    float a_corr[3] = { accel_raw[0] - ori->b_accel[imu_idx][0],
+                        accel_raw[1] - ori->b_accel[imu_idx][1],
+                        accel_raw[2] - ori->b_accel[imu_idx][2] };
+
+    /* Normalize */
+    float a_norm[3] = { a_corr[0], a_corr[1], a_corr[2] };
+    float mag = vec3_normalize(a_norm);
+    if (mag < 0.1f) return;
+
+    /* Predicted accel from nominal quaternion */
+    float a_pred[3];
+    eskf_predict_accel(ori->q_nom, eskf->expected_g, a_pred);
+
+    /* Innovation */
+    float innov[3] = { a_norm[0] - a_pred[0],
+                       a_norm[1] - a_pred[1],
+                       a_norm[2] - a_pred[2] };
+
+    /* H Jacobian */
+    float H[3][ESKF_ERR_DIM];
+    eskf_get_H_accel(ori->q_nom, eskf->expected_g, H, imu_idx);
+
+    /* Measurement update */
+    orientation_measurement_update(eskf, innov, H, R);
+
+    /* Body predict: transform accel to nav frame */
+    if (dt > 0.0f) {
+        float a_nav[3];
+        transform_accel_data(a_corr, ori->q_nom, a_nav);
+        body_predict(eskf, a_nav, dt);
+    }
+}
+
+void eskf_process(eskf_t *eskf, const eskf_input_t *input)
+{
+    /* Count total events */
+    size_t total = 0;
+    for (size_t c = 0; c < input->num_channels; c++)
+        total += input->channels[c].count;
+
+    if (total == 0) return;
+
+    /* Build timeline (static buffer avoids VLA stack overflow on embedded) */
+#ifndef ESKF_MAX_TIMELINE_EVENTS
+#define ESKF_MAX_TIMELINE_EVENTS 16000
+#endif
+    static timeline_event_t events[ESKF_MAX_TIMELINE_EVENTS];
+    if (total > ESKF_MAX_TIMELINE_EVENTS) total = ESKF_MAX_TIMELINE_EVENTS;
+
+    size_t idx = 0;
+    for (size_t c = 0; c < input->num_channels; c++) {
+        const eskf_sensor_channel_t *ch = &input->channels[c];
+        for (size_t s = 0; s < ch->count; s++) {
+            events[idx].timestamp_us = ch->samples[s].timestamp_us;
+            events[idx].type = ch->type;
+            events[idx].id = ch->id;
+            memcpy(events[idx].data, ch->samples[s].data, sizeof(float) * 3);
+            idx++;
+        }
+    }
+
+    /* Sort chronologically with priority tie-break */
+    for (size_t i = 1; i < total; i++) {
+        timeline_event_t key = events[i];
+        size_t j = i;
+        while (j > 0 && event_compare(&key, &events[j - 1]) < 0) {
+            events[j] = events[j - 1];
+            j--;
+        }
+        events[j] = key;
+    }
+
+    /* Process events chronologically.
+     * Timestamps persist in eskf->last_gyro_ts / last_accel_ts so that
+     * dt is correct across consecutive eskf_process() calls (critical
+     * when the caller feeds small batches of 1-2 samples per call). */
+
+    for (size_t i = 0; i < total; i++) {
+        const timeline_event_t *ev = &events[i];
+
+        /* During calibration, only accumulate biases */
+        if (!eskf->cal.calibrated) {
+            if (ev->type == ESKF_SENSOR_GYRO) {
+                eskf_calibration_update(eskf, ev->data, NULL, ev->id);
+                eskf->last_gyro_ts = ev->timestamp_us;
+            } else if (ev->type == ESKF_SENSOR_ACCEL) {
+                eskf_calibration_update(eskf, NULL, ev->data, ev->id);
+                eskf->last_accel_ts = ev->timestamp_us;
+            } else if (ev->type == ESKF_SENSOR_MAG) {
+                eskf_calibration_update_mag(eskf, ev->data);
+            }
+            continue;
+        }
+
+        const eskf_sensor_noise_config_t *cfg =
+            find_sensor_config(eskf, ev->type, ev->id);
+
+        switch (ev->type) {
+        case ESKF_SENSOR_GYRO: {
+            float dt = 0.0f;
+            if (eskf->last_gyro_ts > 0 && ev->timestamp_us > eskf->last_gyro_ts)
+                dt = (float)(ev->timestamp_us - eskf->last_gyro_ts) / 1e6f;
+            if (dt > 0.0f)
+                orientation_predict(eskf, ev->data, dt, ev->id);
+            eskf->last_gyro_ts = ev->timestamp_us;
+            break;
+        }
+
+        case ESKF_SENSOR_ACCEL: {
+            float dt_body = 0.0f;
+            if (eskf->last_accel_ts > 0 && ev->timestamp_us > eskf->last_accel_ts)
+                dt_body = (float)(ev->timestamp_us - eskf->last_accel_ts) / 1e6f;
+            if (cfg)
+                process_accel(eskf, ev->data, cfg->noise, dt_body, ev->id);
+            eskf->last_accel_ts = ev->timestamp_us;
+            break;
+        }
+
+        case ESKF_SENSOR_GPS:
+            if (cfg)
+                body_gps_update(eskf, ev->data, cfg->noise);
+            break;
+
+        case ESKF_SENSOR_BARO:
+            if (cfg)
+                body_baro_update(eskf, ev->data[0], cfg->noise[0][0]);
+            break;
+
+        case ESKF_SENSOR_MAG:
+            if (cfg) {
+                float m_norm[3] = { ev->data[0], ev->data[1], ev->data[2] };
+                float mag = vec3_normalize(m_norm);
+                if (mag > 0.1f) {
+                    float m_pred[3];
+                    eskf_predict_mag(eskf->orientation.q_nom,
+                                    eskf->mag_ref, m_pred);
+
+                    float innov[3] = { m_norm[0] - m_pred[0],
+                                       m_norm[1] - m_pred[1],
+                                       m_norm[2] - m_pred[2] };
+
+                    float H[3][ESKF_ERR_DIM];
+                    eskf_get_H_mag(eskf->orientation.q_nom,
+                                  eskf->mag_ref, H);
+
+                    orientation_measurement_update(eskf, innov, H, cfg->noise);
+                }
+            }
+            break;
+
+        default:
+            break;
+        }
+    }
+}
+
+/* ========================================================================
+ * State Getters
+ * ====================================================================== */
+
+void eskf_get_state(const eskf_t *eskf, float quat[4], float pos[3],
+                    float vel[3])
+{
+    memcpy(quat, eskf->orientation.q_nom, sizeof(float) * 4);
+    memcpy(pos, eskf->body.position, sizeof(float) * 3);
+    memcpy(vel, eskf->body.velocity, sizeof(float) * 3);
+}
+
+bool eskf_is_calibrated(const eskf_t *eskf)
+{
+    return eskf->cal.calibrated;
 }

@@ -160,10 +160,10 @@ void ms5607_poller_set_rate(ms5607_poller_t *p, ms5607_osr_t osr, uint32_t odr_h
 /* DMA job submission helpers                                                 */
 /* -------------------------------------------------------------------------- */
 
-static void ms5607_submit_convert_d1(void)
+static bool ms5607_submit_convert_d1(void)
 {
     ms5607_poller_t *p = g_baro2;
-    if (!p) return;
+    if (!p) return false;
 
     spi_job_t j = {0};
     j.cs_port = g_baro2_hw.cs_port;
@@ -171,13 +171,13 @@ static void ms5607_submit_convert_d1(void)
     j.len     = ms5607_build_convert_d1(p->osr, j.tx);
     j.type    = SPI_XFER_TX;
     j.sensor  = SENSOR_ID_BARO2;
-    spi_submit_job(j, &jobq_spi_4);
+    return spi_submit_job(j, &jobq_spi_4);
 }
 
-static void ms5607_submit_convert_d2(void)
+static bool ms5607_submit_convert_d2(void)
 {
     ms5607_poller_t *p = g_baro2;
-    if (!p) return;
+    if (!p) return false;
 
     spi_job_t j = {0};
     j.cs_port = g_baro2_hw.cs_port;
@@ -185,12 +185,12 @@ static void ms5607_submit_convert_d2(void)
     j.len     = ms5607_build_convert_d2(p->osr, j.tx);
     j.type    = SPI_XFER_TX;
     j.sensor  = SENSOR_ID_BARO2;
-    spi_submit_job(j, &jobq_spi_4);
+    return spi_submit_job(j, &jobq_spi_4);
 }
 
-static void ms5607_submit_read_d1(void)
+static bool ms5607_submit_read_d1(void)
 {
-    if (!g_baro2) return;
+    if (!g_baro2) return false;
 
     spi_job_t j = {0};
     j.cs_port = g_baro2_hw.cs_port;
@@ -200,12 +200,12 @@ static void ms5607_submit_read_d1(void)
     j.sensor  = SENSOR_ID_BARO2;
     j.done    = ms5607_cb_read_d1;
     j.task_notification_flag = MS5607_BARO2_SAMPLE_FLAG;
-    spi_submit_job(j, &jobq_spi_4);
+    return spi_submit_job(j, &jobq_spi_4);
 }
 
-static void ms5607_submit_read_d2(void)
+static bool ms5607_submit_read_d2(void)
 {
-    if (!g_baro2) return;
+    if (!g_baro2) return false;
 
     spi_job_t j = {0};
     j.cs_port = g_baro2_hw.cs_port;
@@ -216,7 +216,7 @@ static void ms5607_submit_read_d2(void)
     j.sensor  = SENSOR_ID_BARO2;
     j.done    = ms5607_cb_read_d2;
     j.task_notification_flag = MS5607_BARO2_SAMPLE_FLAG;
-    spi_submit_job(j, &jobq_spi_4);
+    return spi_submit_job(j, &jobq_spi_4);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -231,6 +231,7 @@ static void ms5607_cb_read_d1(spi_job_t *job, const uint8_t *rx, void *arg)
     if (!p) return;
 
     ms5607_parse_adc_result(&rx[1], &p->dev.D1_raw);
+    p->spi_done = true;
 }
 
 static void ms5607_cb_read_d2(spi_job_t *job, const uint8_t *rx, void *arg)
@@ -252,7 +253,8 @@ static void ms5607_cb_read_d2(spi_job_t *job, const uint8_t *rx, void *arg)
         .pressure_centi = p->dev.P_centi_mbar,
         .seq            = p->seq
     };
-    ms5607_sample_q_push(&ms5607_sample_ring, &sample);
+    ms5607_sample_queue(&ms5607_sample_ring, &sample);
+    p->spi_done = true;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -266,24 +268,24 @@ void ms5607_poller_tick(ms5607_poller_t *p)
     switch (p->state) {
         case MS5607_POLLER_IDLE:
             if ((int32_t)(now - p->t_next_action_us) >= 0) {
+                if (!ms5607_submit_convert_d1()) break;  /* queue full, retry */
                 p->t_cycle_start_us = now;
-                ms5607_submit_convert_d1();
-                p->t_next_action_us = now + p->conv_us;  /* when D1 is ready */
+                p->t_next_action_us = now + p->conv_us;
                 p->state = MS5607_POLLER_WAIT_D1;
             }
             break;
 
         case MS5607_POLLER_WAIT_D1:
             if ((int32_t)(now - p->t_next_action_us) >= 0) {
-                ms5607_submit_read_d1();
-                p->t_next_action_us = now;
+                p->spi_done = false;
+                if (!ms5607_submit_read_d1()) break;     /* queue full, retry */
                 p->state = MS5607_POLLER_READ_D1;
             }
             break;
 
         case MS5607_POLLER_READ_D1:
-            if ((int32_t)(now - p->t_next_action_us) >= 0) {
-                ms5607_submit_convert_d2();
+            if (p->spi_done) {                           /* DMA callback parsed D1 */
+                if (!ms5607_submit_convert_d2()) break;  /* queue full, retry */
                 p->t_next_action_us = now + p->conv_us;
                 p->state = MS5607_POLLER_WAIT_D2;
             }
@@ -291,20 +293,20 @@ void ms5607_poller_tick(ms5607_poller_t *p)
 
         case MS5607_POLLER_WAIT_D2:
             if ((int32_t)(now - p->t_next_action_us) >= 0) {
-                ms5607_submit_read_d2();
-                p->t_next_action_us = p->t_cycle_start_us + p->period_us;
+                p->spi_done = false;
+                if (!ms5607_submit_read_d2()) break;     /* queue full, retry */
                 p->state = MS5607_POLLER_READ_D2;
             }
             break;
 
         case MS5607_POLLER_READ_D2:
-            if ((int32_t)(now - p->t_next_action_us) >= 0) {
+            if (p->spi_done) {                           /* DMA callback queued sample */
+                p->t_next_action_us = p->t_cycle_start_us + p->period_us;
                 p->state = MS5607_POLLER_IDLE;
             }
             break;
 
         default:
-            /* Unknown state - reset to idle */
             p->state = MS5607_POLLER_IDLE;
             break;
     }

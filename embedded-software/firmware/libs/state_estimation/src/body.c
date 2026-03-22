@@ -1,87 +1,77 @@
-#include <math.h>
-#include "state_estimation/matrix.h"
-#include "state_estimation/ekf.h"
-#include <string.h>
-#include "state_estimation/quaternion.h"
+/**
+ * @file    body.c
+ * @brief   Body-frame state transitions and measurement models (position/velocity).
+ */
+#include "state_estimation/body.h"
 #include "state_estimation/state.h"
+#include "state_estimation/matrix.h"
+#include <math.h>
+#include <string.h>
 
 #define GRAV_MPS2 9.807f
 
-/**
- * Rotate body-frame acceleration to nav frame and subtract gravity.
- * a is in g (specific force); new_a is linear acceleration in nav frame [m/s^2].
- */
-void transform_accel_data(
-    float a[3], // body-frame accel in g
-    float q[4], // orientation in quat (body-to-nav, w,x,y,z)
-    float new_a[3]
-)
+void transform_accel_data(const float a_body[3], const float q[4],
+                          float a_nav[3])
 {
-    quaternion_t quat;
-    quat.w = q[0];
-    quat.x = q[1];
-    quat.y = q[2];
-    quat.z = q[3];
+    quaternion_t qt;
+    qt.w = q[0]; qt.x = q[1]; qt.y = q[2]; qt.z = q[3];
+
     rotation_matrix_t R;
-    quaternion_to_rotation_matrix(&quat, &R);
+    quaternion_to_rotation_matrix(&qt, &R);
 
-    float a_body_ms2[3] = { a[0] * GRAV_MPS2, a[1] * GRAV_MPS2, a[2] * GRAV_MPS2 };
-    rotation_matrix_vector_mul(&R, a_body_ms2, new_a);
-    /* Linear accel in nav: a_linear = f_nav - g_nav. Z-up => g_nav = [0,0,-GRAV]. With f = a_data*GRAV (at rest f_nav = [0,0,+GRAV]), subtract [0,0,GRAV] to get a_linear = 0. */
-    new_a[0] += 0.0f;
-    new_a[1] += 0.0f;
-    new_a[2] -= GRAV_MPS2;
+    /* Convert body-frame specific force [g] to [m/s²] and rotate to nav */
+    float a_body_ms2[3] = { a_body[0] * GRAV_MPS2,
+                            a_body[1] * GRAV_MPS2,
+                            a_body[2] * GRAV_MPS2 };
+
+    rotation_matrix_vector_mul(&R, a_body_ms2, a_nav);
+
+    /* Subtract gravity (z-up convention: g_nav = [0, 0, +GRAV]) */
+    a_nav[2] -= GRAV_MPS2;
 }
 
-void state_transition_body(
-    body_state *state,
-    float time_step,
-    float a[3], // accel data
-    float out_p[3],
-    float out_v[3]
-)
+void state_transition_body(const body_state_t *state, float dt,
+                           const float a_nav[3],
+                           float out_p[3], float out_v[3])
 {
     for (int i = 0; i < 3; i++) {
-        out_p[i] = state->position[i] + time_step * state->velocity[i]
-                              + 0.5f * time_step * time_step * a[i];
-    }
-
-    for (int i = 0; i < 3; i++) {
-        out_v[i] = state->velocity[i] + time_step * a[i];
+        out_p[i] = state->position[i]
+                 + dt * state->velocity[i]
+                 + 0.5f * dt * dt * a_nav[i];
+        out_v[i] = state->velocity[i] + dt * a_nav[i];
     }
 }
 
-
-void get_state_jacobian_body(
-    float dT,
-    float j[6][6]
-)
+void get_state_jacobian_body(float dt, float F[6][6])
 {
-    memcpy(j,
-        (float[6][6]) {
-            {1, 0, 0, dT, 0, 0},
-            {0, 1, 0, 0, dT, 0},
-            {0, 0, 1, 0, 0, dT},
-            {0, 0, 0, 1, 0, 0},
-            {0, 0, 0, 0,1, 0},
-            {0, 0, 0, 0, 0, 1}
-        },
-        (sizeof (float[6][6])));
+    memset(F, 0, sizeof(float) * 6 * 6);
+    for (int i = 0; i < 6; i++) F[i][i] = 1.0f;
+    F[0][3] = dt;
+    F[1][4] = dt;
+    F[2][5] = dt;
 }
 
-void get_h_jacobian_body(
-    float h_jacobian[3][6]
-)
+void predict_covar_body_sparse(const float P[6][6], const float Q[6][6],
+                               float dt, float P_pred[6][6])
 {
-    memcpy(h_jacobian,
-    (float[3][6]) {
-        {1, 0, 0, 0, 0, 0},
-        {0, 1, 0, 0, 0, 0},
-        {0, 0, 1, 0, 0, 0},
-    },
-    (sizeof (float[3][6])));
+    const float dt2 = dt * dt;
+
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            float Ppp = P[i][j];
+            float Ppv = P[i][j + 3];
+            float Pvp = P[i + 3][j];
+            float Pvv = P[i + 3][j + 3];
+
+            P_pred[i][j]         = Ppp + dt * (Ppv + Pvp) + dt2 * Pvv + Q[i][j] * dt;
+            P_pred[i][j + 3]     = Ppv + dt * Pvv + Q[i][j + 3] * dt;
+            P_pred[i + 3][j]     = Pvp + dt * Pvv + Q[i + 3][j] * dt;
+            P_pred[i + 3][j + 3] = Pvv + Q[i + 3][j + 3] * dt;
+        }
+    }
 }
 
-float pressure_to_height(uint32_t pressure_centi) {
+float pressure_to_height(int32_t pressure_centi)
+{
     return 44307.69f * (1.0f - powf((float)pressure_centi / 101325.0f, 0.190284f));
 }

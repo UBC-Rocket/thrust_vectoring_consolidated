@@ -1,13 +1,29 @@
+/**
+ * @file    calibration.h
+ * @brief   Stationary calibration for the ESKF.
+ */
 #ifndef CALIBRATION_H
 #define CALIBRATION_H
 
-#include <stdbool.h>
-#include <stdint.h>
+#include "state_estimation/ekf.h"
 
-void update_bias(float g_bias[3], float g_data_raw[3],
-                 float a_bias[3], float a_data_raw[3],
-                 float expected_g[3], int64_t ticks);
+/**
+ * @brief Process one calibration sample (stationary assumption).
+ *
+ * Accumulates gyro and/or accel readings per IMU to estimate initial biases.
+ * Calibration completes when all active IMUs have enough samples.
+ *
+ * @param eskf     ESKF instance.
+ * @param gyro     Raw gyro reading [rad/s], or NULL.
+ * @param accel    Raw accel reading [g], or NULL.
+ * @param imu_idx  Which IMU this sample belongs to.
+ */
+void eskf_calibration_update(eskf_t *eskf, const float gyro[3],
+                             const float accel[3], uint8_t imu_idx);
 
-bool imu_is_stationary(const float g_data_raw[3], const float a_data_raw[3]);
+/**
+ * @brief Process one magnetometer calibration sample.
+ */
+void eskf_calibration_update_mag(eskf_t *eskf, const float mag[3]);
 
-#endif
+#endif /* CALIBRATION_H */

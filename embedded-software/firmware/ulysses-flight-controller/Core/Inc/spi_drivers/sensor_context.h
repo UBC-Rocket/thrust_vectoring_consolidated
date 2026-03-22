@@ -52,7 +52,7 @@ typedef struct {
     bmi088_accel_t config;
 
     /** Sample ring buffer - producer: ISR, consumer: state estimation task */
-    bmi088_acc_sample_q_t samples;
+    bmi088_accel_sample_queue_t samples;
 
     /** True when device is initialized and ready for interrupt-driven operation */
     volatile bool ready;
@@ -79,7 +79,7 @@ typedef struct {
     bmi088_gyro_t config;
 
     /** Sample ring buffer - producer: ISR, consumer: state estimation task */
-    bmi088_gyro_sample_q_t samples;
+    bmi088_gyro_sample_queue_t samples;
 
     /** True when device is initialized and ready for interrupt-driven operation */
     volatile bool ready;
@@ -109,7 +109,7 @@ typedef struct {
     ms5611_t config;
 
     /** Sample ring buffer - producer: poller callback, consumer: state estimation */
-    ms5611_sample_q_t samples;
+    ms5611_sample_queue_t samples;
 
     /** True when device is initialized */
     volatile bool ready;

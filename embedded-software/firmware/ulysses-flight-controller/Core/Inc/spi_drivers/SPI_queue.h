@@ -119,6 +119,7 @@ typedef struct {
     /** @brief DMA RX staging buffer - cache-line aligned for coherency. */
     SYNC_CACHE_ALIGNED volatile uint8_t spi_rx_staging[SPI_RX_STAGING_SIZE];
     volatile HAL_StatusTypeDef last_submit_status;
+    volatile uint32_t dma_error_count;  /**< DMA errors recovered by ErrorCallback */
 } spi_job_queue_t;
 
 /* -------------------------------------------------------------------------- */

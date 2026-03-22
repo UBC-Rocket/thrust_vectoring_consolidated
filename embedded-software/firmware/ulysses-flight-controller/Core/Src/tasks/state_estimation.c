@@ -1,6 +1,6 @@
 /**
  * @file state_estimation.c
- * @brief State estimation task - Event-driven EKF fusion of IMU, baro, and GPS.
+ * @brief State estimation task — feeds sensor data to ESKF via batch API.
  */
 
 #include <stdbool.h>
@@ -18,350 +18,360 @@
 #include "state_estimation/ekf.h"
 #include "state_estimation/body.h"
 #include "state_estimation/quaternion.h"
-#include "state_estimation/calibration.h"
 #include "debug/log.h"
 #include "state_exchange.h"
 #include "state_estimation/state.h"
 #include "mission_manager/mission_manager.h"
 #include "SD_logging/log_service.h"
 #include "spi_drivers/gnss_radio_master.h"
-#include "utils/gnss_utils.h"
-#include "timestamp.h"
 
 #define GRAV 9.807f
-#define FUSION_VECTOR_SAMPLE_SIZE       32
-#define STARTUP_CALIBRATION_SAMPLES     2000U
-#define GYRO_BIAS_TIME_CONSTANT_S       30.0f
+#define FUSION_VECTOR_SAMPLE_SIZE 16
+#define CALIBRATION_SAMPLES 3200  /* ~4s at 800 Hz — sensor warm-up */
 
-/* IMU axis alignment (sensor -> body frame). Adjust signs/swaps as needed. */
-#define ACCEL_AXIS_SIGN_X  1.0f
-#define ACCEL_AXIS_SIGN_Y  1.0f
-#define ACCEL_AXIS_SIGN_Z -1.0f
-#define GYRO_AXIS_SIGN_X   1.0f
-#define GYRO_AXIS_SIGN_Y   1.0f
-#define GYRO_AXIS_SIGN_Z   1.0f
+/* ESKF tuning — continuous-time spectral densities (Q_c).
+ * Library applies Q_d = Q_c * dt internally.
+ * Values validated by 31 passing trajectory tests. */
+#define ESKF_Q_THETA     0.01f     /* Attitude error [rad^2/s]           */
+#define ESKF_Q_BIAS_G    1e-4f     /* Gyro bias drift [(rad/s)^2/s]      */
+#define ESKF_Q_BIAS_A    1e-4f     /* Accel bias drift [g^2/s]           */
+#define ESKF_Q_POS       5.0f      /* Position process noise [m^2/s^3]   */
+#define ESKF_Q_VEL       2.0f      /* Velocity process noise [(m/s)^2/s^3] */
 
-static float EXPECTED_GRAVITY[3] = {0.0f, 0.0f, 1.0f};
+/* ---- Barometer EMA filter + reference ---- */
 
-/* Persistent sensor buffers (static to avoid stack pressure) */
-static bmi088_accel_sample_t s_accel_samples[FUSION_VECTOR_SAMPLE_SIZE];
-static bmi088_gyro_sample_t  s_gyro_samples[FUSION_VECTOR_SAMPLE_SIZE];
-static float s_baro1_heights[FUSION_VECTOR_SAMPLE_SIZE];
-static float s_baro2_heights[FUSION_VECTOR_SAMPLE_SIZE];
+#define BARO_EMA_ALPHA 0.05f  /* EMA smoothing factor (~0.1s time constant at 200 Hz) */
 
-/* Forward declarations */
-static void se_drain_sensor_queues(uint8_t *num_accel, uint8_t *num_gyro,
-                                   uint8_t *num_baro1, uint8_t *num_baro2);
-static void se_process_gps(uint32_t isr_flags,
-                           float gps_reference[3], bool *have_ref,
-                           float pos_meters[3], bool *have_pos);
+static struct {
+    float height_m;
+    bool  set;
+} baro_ref = {0};
 
-/* ========================================================================== */
-/* Single IMU sample processing                                               */
-/* ========================================================================== */
+static struct {
+    float value;
+    bool  init;
+} baro_ema = {0};
 
-typedef struct {
-    float    accel_bias[3];
-    float    gyro_bias[3];
-    uint32_t calibration_samples;
-    uint32_t last_tick_us;
-    float    delta_time;
-    uint64_t ticks;
-} se_imu_context_t;
+/* ---- GPS reference (first valid fix becomes local origin) ---- */
 
-static void se_run_imu_step(se_imu_context_t *ctx,
-                            const bmi088_gyro_sample_t *gyro_s,
-                            const bmi088_accel_sample_t *accel_s,
-                            bool have_gps, const float pos_meters[3],
-                            bool have_baro, float baro_altitude_m)
+#define WGS84_A  6378137.0        /* WGS84 semi-major axis [m] */
+#define DEG2RAD  (M_PI / 180.0)
+
+static struct {
+    double lat_rad;
+    double lon_rad;
+    float  alt_m;
+    bool   set;
+} gps_ref = {0};
+
+static void gps_to_local(const gnss_gps_fix_t *fix, float out[3])
 {
-    const float g_data_raw[3] = {gyro_s->gx,
-                                 gyro_s->gy,
-                                 gyro_s->gz};
-    const float a_data_raw[3] = {accel_s->ax / GRAV,
-                                 accel_s->ay / GRAV,
-                                 accel_s->az / GRAV};
-    const bool stationary = imu_is_stationary(g_data_raw, a_data_raw);
+    double dlat = (fix->latitude  * DEG2RAD) - gps_ref.lat_rad;
+    double dlon = (fix->longitude * DEG2RAD) - gps_ref.lon_rad;
 
-    /* Compute delta time */
-    if (ctx->last_tick_us != 0U) {
-        uint32_t dt_us = timestamp_elapsed_us(ctx->last_tick_us, gyro_s->t_us);
-        if ((dt_us < 5U) || (dt_us > 5000U)) {
-            ctx->last_tick_us = gyro_s->t_us;
-            return;
-        }
-        ctx->delta_time = (float)dt_us / 1000000.0f;
-    }
-    ctx->last_tick_us = gyro_s->t_us;
-
-    /* Startup calibration */
-    if (ctx->calibration_samples < STARTUP_CALIBRATION_SAMPLES) {
-        ctx->calibration_samples++;
-        update_bias(ctx->gyro_bias, (float *)g_data_raw,
-                    ctx->accel_bias, (float *)a_data_raw,
-                    (float *)EXPECTED_GRAVITY, ctx->calibration_samples);
-        return;
-    }
-
-    /* Online gyro bias adaptation while stationary */
-    if (stationary && (ctx->delta_time > 0.0f)) {
-        const float alpha = ctx->delta_time / (GYRO_BIAS_TIME_CONSTANT_S + ctx->delta_time);
-        for (int axis = 0; axis < 3; axis++) {
-            ctx->gyro_bias[axis] += alpha * (g_data_raw[axis] - ctx->gyro_bias[axis]);
-        }
-    }
-
-    /* Bias-corrected sensor data */
-    float g_data[3] = {g_data_raw[0] - ctx->gyro_bias[0],
-                       g_data_raw[1] - ctx->gyro_bias[1],
-                       g_data_raw[2] - ctx->gyro_bias[2]};
-    float a_data[3] = {a_data_raw[0] - ctx->accel_bias[0],
-                       a_data_raw[1] - ctx->accel_bias[1],
-                       a_data_raw[2] - ctx->accel_bias[2]};
-
-    if (stationary) {
-        g_data[0] = 0.0f;
-        g_data[1] = 0.0f;
-        g_data[2] = 0.0f;
-    }
-
-    /* Orientation EKF: gyro predicts, accel corrects */
-    tick_ekf_orientation(ctx->delta_time, g_data, a_data);
-
-    /* Body EKF: rotate accel to nav frame, predict every cycle */
-    float q[4], pos[3], vel[3];
-    float a_nav[3];
-    get_state(q, pos, vel);
-    transform_accel_data(a_data, q, a_nav);
-
-    predict_ekf_body(ctx->delta_time, a_nav);
-
-    /* GPS update only when measurement is available */
-    if (have_gps) {
-        float gps_pos[3] = {pos_meters[0], pos_meters[1], pos_meters[2]};
-        update_ekf_body(gps_pos);
-    }
-
-    /* Baro altitude update */
-    if (have_baro) {
-        update_ekf_body_baro(baro_altitude_m);
-    }
-
-    /* Re-read state after body EKF */
-    get_state(q, pos, vel);
-
-    /* Publish state */
-    state_t data = {
-        .pos = {pos[0], pos[1], pos[2]},
-        .vel = {vel[0], vel[1], vel[2]},
-        .omega_b = {g_data[0], g_data[1], g_data[2]},
-        .q_bn = {.w = q[0], .x = q[1], .y = q[2], .z = q[3]},
-        .u_s = gyro_s->t_us
-    };
-    state_exchange_publish_state(&data);
-
-    /* Logging */
-    float e[3];
-    quat_to_euler(q, e);
-
-    flight_state_t flight_state;
-    state_exchange_get_flight_state(&flight_state);
-    log_service_log_state(&data, flight_state);
-
-    if (ctx->ticks % 500 == 0) {
-        DLOG_PRINT("[%f, %f, %f, %f]\r\n", pos[0], pos[1], pos[2], ((float)sqrtf(a_data[0] * a_data[0] + a_data[1] * a_data[1] + a_data[2] * a_data[2])));
-    }
-    ctx->ticks++;
+    out[0] = (float)(dlat * WGS84_A);                          /* North [m] */
+    out[1] = (float)(dlon * WGS84_A * cos(gps_ref.lat_rad));   /* East  [m] */
+    out[2] = fix->altitude_msl - gps_ref.alt_m;                /* Up    [m] */
 }
 
-/* ========================================================================== */
-/* Task entry point                                                           */
-/* ========================================================================== */
+/* ---- Task entry point ---- */
 
 void state_estimation_task_start(void *argument)
 {
     (void)argument;
 
-    ms5611_poller_t *baro_poller = sensors_get_baro_poller();
-    ms5607_poller_t *baro2_poller = sensors_get_baro2_poller();
+    /* ---- ESKF initialization ---- */
+    static eskf_t eskf;
 
-    init_ekf(EXPECTED_GRAVITY);
-
-    se_imu_context_t imu_ctx = {
-        .accel_bias = {0},
-        .gyro_bias = {0},
-        .calibration_samples = 0,
-        .last_tick_us = 0,
-        .delta_time = 0.0f,
-        .ticks = 0
+    static eskf_sensor_noise_config_t sensor_configs[] = {
+        { ESKF_SENSOR_ACCEL, 0, {{0.001f,0,0},{0,0.001f,0},{0,0,0.001f}} },
+        { ESKF_SENSOR_GYRO,  0, {{0.01f,0,0},{0,0.01f,0},{0,0,0.01f}} },
+        { ESKF_SENSOR_GPS,   0, {{15.0f,0,0},{0,15.0f,0},{0,0,15.0f}} },
+        { ESKF_SENSOR_BARO,  0, {{0.1f,0,0},{0,0,0},{0,0,0}} },
+        { ESKF_SENSOR_BARO,  1, {{0.1f,0,0},{0,0,0},{0,0,0}} },
     };
 
-    float gps_reference_point[3] = {0};
-    bool have_gps_reference_point = false;
+    eskf_config_t config = {0};
+    config.num_imus = 1;
 
-    float baro_reference_alt = 0.0f;
-    float baro_reference_accum = 0.0f;
-    uint32_t baro_reference_count = 0;
-    bool have_baro_reference = false;
+    /* Orientation process noise: θ (attitude), per-IMU gyro/accel bias */
+    for (int i = 0; i < 3; i++)
+        config.orientation_process_noise[i][i] = ESKF_Q_THETA;
+    for (int k = 0; k < config.num_imus; k++) {
+        for (int i = 0; i < 3; i++) {
+            config.orientation_process_noise[3 + 6*k + i][3 + 6*k + i] = ESKF_Q_BIAS_G;
+            config.orientation_process_noise[6 + 6*k + i][6 + 6*k + i] = ESKF_Q_BIAS_A;
+        }
+    }
+
+    /* Body process noise: position, velocity */
+    for (int i = 0; i < 3; i++) config.body_process_noise[i][i] = ESKF_Q_POS;
+    for (int i = 3; i < 6; i++) config.body_process_noise[i][i] = ESKF_Q_VEL;
+
+    config.sensors = sensor_configs;
+    config.num_sensors = sizeof(sensor_configs) / sizeof(sensor_configs[0]);
+    config.expected_g[0] = 0.0f;
+    config.expected_g[1] = 0.0f;
+    config.expected_g[2] = 1.0f;
+    config.mag_ref[0] = 1.0f; /* North */
+    config.mag_ref[1] = 0.0f;
+    config.mag_ref[2] = 0.0f;
+    config.calibration_samples = CALIBRATION_SAMPLES;
+
+    eskf_init(&eskf, &config);
+
+    /* ---- Sensor buffers ---- */
+    static eskf_sample_t gyro_buf[FUSION_VECTOR_SAMPLE_SIZE];
+    static eskf_sample_t accel_buf[FUSION_VECTOR_SAMPLE_SIZE];
+    static eskf_sample_t baro1_buf[FUSION_VECTOR_SAMPLE_SIZE];
+    static eskf_sample_t baro2_buf[FUSION_VECTOR_SAMPLE_SIZE];
+    static eskf_sample_t gps_buf[4];
+
+    uint8_t n_gyro = 0, n_accel = 0, n_baro1 = 0, n_baro2 = 0, n_gps = 0;
+    static int32_t last_baro_p = 0;
+    static uint32_t baro_total = 0;
+    bool calibration_logged = false;
+    uint8_t debug_phase = 0;
+    uint32_t last_test_seq = 0;
 
     const TickType_t period_ticks = pdMS_TO_TICKS(1);
     uint32_t ISR_flags = 0;
-
-    uint8_t num_accel_samples = 0;
-    uint8_t num_gyro_samples = 0;
-    uint8_t num_baro1_samples = 0;
-    uint8_t num_baro2_samples = 0;
-    float pos_meters[3] = {0};
-    bool have_pos_meters_this_cycle = false;
+    uint64_t ticks = 0;
 
     while (true) {
         xTaskNotifyWaitIndexed(0, 0, UINT32_MAX, &ISR_flags, period_ticks);
 
-        /* Drain all sensor ring buffers */
-        se_drain_sensor_queues(&num_accel_samples, &num_gyro_samples,
-                               &num_baro1_samples, &num_baro2_samples);
-
-        /* Process GPS fixes */
-        se_process_gps(ISR_flags, gps_reference_point, &have_gps_reference_point,
-                       pos_meters, &have_pos_meters_this_cycle);
-
-        /* Process matched IMU pairs (time-align accel to gyro) */
-        if ((num_accel_samples > 0U) && (num_gyro_samples > 0U)) {
-            /* Average barometer heights from both sensors */
-            float baro_alt = 0.0f;
-            bool have_baro_this_cycle = false;
-            uint8_t baro_count = 0;
-
-            for (int i = 0; i < num_baro1_samples; i++) {
-                baro_alt += s_baro1_heights[i];
-                baro_count++;
+        /* Reset body state after actuator test to discard vibration-induced drift */
+        {
+            bool test_done = false;
+            uint32_t seq = state_exchange_get_startup_test_complete(&test_done);
+            if (test_done && seq != last_test_seq) {
+                last_test_seq = seq;
+                memset(eskf.body.position, 0, sizeof(eskf.body.position));
+                memset(eskf.body.velocity, 0, sizeof(eskf.body.velocity));
+                /* Reset covariance to initial uncertainty */
+                memset(eskf.body.covar, 0, sizeof(eskf.body.covar));
+                for (int i = 0; i < 3; i++) eskf.body.covar[i][i] = 10.0f;
+                for (int i = 3; i < 6; i++) eskf.body.covar[i][i] = 1.0f;
+                /* Reset baro reference so it re-establishes baseline */
+                baro_ref.set = false;
+                baro_ema.init = false;
             }
-            for (int i = 0; i < num_baro2_samples; i++) {
-                baro_alt += s_baro2_heights[i];
-                baro_count++;
+        }
+
+        /* ---- Dequeue all available sensor data ---- */
+
+        bmi088_accel_sample_t accel_sample;
+        while (bmi088_acc_sample_dequeue(&bmi088_acc_sample_ring, &accel_sample)) {
+            log_service_log_accel_sample((uint32_t)accel_sample.t_us,
+                accel_sample.ax, accel_sample.ay, accel_sample.az);
+            if (n_accel < FUSION_VECTOR_SAMPLE_SIZE) {
+                accel_buf[n_accel].timestamp_us = accel_sample.t_us;
+                /* BMI088 Z-axis points down on PCB; negate Z to match Z-up body frame */
+                accel_buf[n_accel].data[0] =  accel_sample.ax / GRAV;
+                accel_buf[n_accel].data[1] =  accel_sample.ay / GRAV;
+                accel_buf[n_accel].data[2] = -accel_sample.az / GRAV;
+                n_accel++;
             }
+        }
 
-            if (baro_count > 0) {
-                baro_alt /= baro_count;
+        bmi088_gyro_sample_t gyro_sample;
+        while (bmi088_gyro_sample_dequeue(&bmi088_gyro_sample_ring, &gyro_sample)) {
+            log_service_log_gyro_sample(gyro_sample.t_us,
+                gyro_sample.gx, gyro_sample.gy, gyro_sample.gz);
+            if (n_gyro < FUSION_VECTOR_SAMPLE_SIZE) {
+                gyro_buf[n_gyro].timestamp_us = gyro_sample.t_us;
+                /* BMI088 Z-axis points down on PCB; negate Z to match Z-up */
+                gyro_buf[n_gyro].data[0] =  gyro_sample.gx;
+                gyro_buf[n_gyro].data[1] =  gyro_sample.gy;
+                gyro_buf[n_gyro].data[2] = -gyro_sample.gz;
+                n_gyro++;
+            }
+        }
 
-                /* Accumulate reference during calibration, use for updates after */
-                if (!have_baro_reference) {
-                    baro_reference_accum += baro_alt;
-                    baro_reference_count++;
-                    if (imu_ctx.calibration_samples >= STARTUP_CALIBRATION_SAMPLES) {
-                        baro_reference_alt = baro_reference_accum / baro_reference_count;
-                        have_baro_reference = true;
-                    }
-                } else {
-                    baro_alt -= baro_reference_alt;
-                    have_baro_this_cycle = true;
+        ms5611_sample_t baro_sample;
+        while (ms5611_sample_dequeue(&ms5611_sample_ring, &baro_sample)) {
+            log_service_log_baro_sample(baro_sample.t_us,
+                baro_sample.temp_centi, baro_sample.pressure_centi, baro_sample.seq);
+            if (n_baro1 < FUSION_VECTOR_SAMPLE_SIZE) {
+                last_baro_p = baro_sample.pressure_centi;
+                float h = pressure_to_height(baro_sample.pressure_centi);
+
+                /* EMA filter — smooths sensor noise and warm-up transients */
+                if (!baro_ema.init) { baro_ema.value = h; baro_ema.init = true; }
+                else { baro_ema.value += BARO_EMA_ALPHA * (h - baro_ema.value); }
+                h = baro_ema.value;
+
+                if (!baro_ref.set && eskf_is_calibrated(&eskf)) {
+                    baro_ref.height_m = h;
+                    baro_ref.set = true;
+                }
+                if (!baro_ref.set) continue;
+                baro_total++;
+                baro1_buf[n_baro1].timestamp_us = baro_sample.t_us;
+                baro1_buf[n_baro1].data[0] = h - baro_ref.height_m;
+                baro1_buf[n_baro1].data[1] = 0.0f;
+                baro1_buf[n_baro1].data[2] = 0.0f;
+                n_baro1++;
+            }
+        }
+
+        ms5607_sample_t baro2_sample;
+        while (ms5607_sample_dequeue(&ms5607_sample_ring, &baro2_sample)) {
+            log_service_log_baro2_sample(baro2_sample.t_us,
+                baro2_sample.temp_centi, baro2_sample.pressure_centi, baro2_sample.seq);
+            if (n_baro2 < FUSION_VECTOR_SAMPLE_SIZE) {
+                float h = pressure_to_height(baro2_sample.pressure_centi);
+
+                /* EMA filter — same as baro1 (shared filter state) */
+                if (!baro_ema.init) { baro_ema.value = h; baro_ema.init = true; }
+                else { baro_ema.value += BARO_EMA_ALPHA * (h - baro_ema.value); }
+                h = baro_ema.value;
+
+                if (!baro_ref.set && eskf_is_calibrated(&eskf)) {
+                    baro_ref.height_m = h;
+                    baro_ref.set = true;
+                }
+                if (!baro_ref.set) continue;
+                baro_total++;
+                baro2_buf[n_baro2].timestamp_us = baro2_sample.t_us;
+                baro2_buf[n_baro2].data[0] = h - baro_ref.height_m;
+                baro2_buf[n_baro2].data[1] = 0.0f;
+                baro2_buf[n_baro2].data[2] = 0.0f;
+                n_baro2++;
+            }
+        }
+
+        if (ISR_flags & GNSS_GPS_FIX_READY_FLAG) {
+            gnss_gps_fix_t gps_fix;
+            while (gnss_gps_dequeue(&gps_fix)) {
+                if (gps_fix.fix_quality == 0) continue;
+
+                /* Capture first valid fix as local origin */
+                if (!gps_ref.set) {
+                    gps_ref.lat_rad = gps_fix.latitude * DEG2RAD;
+                    gps_ref.lon_rad = gps_fix.longitude * DEG2RAD;
+                    gps_ref.alt_m   = gps_fix.altitude_msl;
+                    gps_ref.set     = true;
+                }
+
+                if (n_gps < 4) {
+                    gps_buf[n_gps].timestamp_us = gps_fix.time_of_week_ms * 1000ULL;
+                    gps_to_local(&gps_fix, gps_buf[n_gps].data);
+                    n_gps++;
                 }
             }
+        }
 
-            for (uint8_t i = 0; i < num_gyro_samples; i++) {
-                const uint32_t gyro_t = s_gyro_samples[i].t_us;
-                uint8_t best_idx = 0;
-                uint32_t best_dt = UINT32_MAX;
+        /* ---- Process when we have IMU data ---- */
+        uint8_t n_imu = (n_accel < n_gyro) ? n_accel : n_gyro;
+        if (n_imu > 0) {
+            /* Build channel array */
+            eskf_sensor_channel_t channels[5];
+            size_t n_channels = 0;
 
-                for (uint8_t j = 0; j < num_accel_samples; j++) {
-                    const uint32_t accel_t = (uint32_t)s_accel_samples[j].t_us;
-                    const int32_t diff = (int32_t)(gyro_t - accel_t);
-                    const uint32_t abs_diff = (uint32_t)(diff < 0 ? -diff : diff);
-                    if (abs_diff < best_dt) {
-                        best_dt = abs_diff;
-                        best_idx = j;
-                    }
+            channels[n_channels++] = (eskf_sensor_channel_t){
+                ESKF_SENSOR_GYRO, 0, gyro_buf, n_gyro };
+            channels[n_channels++] = (eskf_sensor_channel_t){
+                ESKF_SENSOR_ACCEL, 0, accel_buf, n_accel };
+            if (n_baro1 > 0)
+                channels[n_channels++] = (eskf_sensor_channel_t){
+                    ESKF_SENSOR_BARO, 0, baro1_buf, n_baro1 };
+            if (n_baro2 > 0)
+                channels[n_channels++] = (eskf_sensor_channel_t){
+                    ESKF_SENSOR_BARO, 1, baro2_buf, n_baro2 };
+            if (n_gps > 0)
+                channels[n_channels++] = (eskf_sensor_channel_t){
+                    ESKF_SENSOR_GPS, 0, gps_buf, n_gps };
+
+            eskf_input_t input = { channels, n_channels };
+            eskf_process(&eskf, &input);
+
+#ifdef DEBUG
+            if (!calibration_logged && eskf_is_calibrated(&eskf)) {
+                calibration_logged = true;
+                DLOG_PRINT("[SE] Calibration complete\r\n");
+            }
+#endif
+
+            /* ---- Publish state ---- */
+            float q[4], pos[3], vel[3];
+            eskf_get_state(&eskf, q, pos, vel);
+
+            /* Bias-corrected body rates for controls feedback */
+            state_t data = {
+                .pos = {pos[0], pos[1], pos[2]},
+                .vel = {vel[0], vel[1], vel[2]},
+                .omega_b = {
+                    gyro_buf[n_gyro - 1].data[0] - eskf.orientation.b_gyro[0][0],
+                    gyro_buf[n_gyro - 1].data[1] - eskf.orientation.b_gyro[0][1],
+                    gyro_buf[n_gyro - 1].data[2] - eskf.orientation.b_gyro[0][2]
+                },
+                .q_bn = {.w = q[0], .x = q[1], .y = q[2], .z = q[3]},
+                .u_s = gyro_buf[n_gyro - 1].timestamp_us
+            };
+
+            state_exchange_publish_state(&data);
+
+            flight_state_t flight_state;
+            state_exchange_get_flight_state(&flight_state);
+            log_service_log_state(&data, flight_state);
+
+#ifdef DEBUG
+            /* One DLOG_PRINT per cycle to avoid stream buffer partial writes.
+             * Rotate through phases using a counter (not modular tick arithmetic). */
+            if (ticks % 250 == 0) {
+                switch (debug_phase) {
+                case 0: {
+                    float euler[3];
+                    quat_to_euler(q, euler);
+                    float qw = q[0], qz = q[3];
+                    float ct = 2.0f*(qw*qw + qz*qz) - 1.0f;
+                    if (ct > 1.0f) ct = 1.0f;
+                    if (ct < -1.0f) ct = -1.0f;
+                    DLOG_PRINT("ATT t%d r%d p%d y%d\r\n",
+                        (int)(acosf(ct) * (180.0f/(float)M_PI)),
+                        (int)euler[0], (int)euler[1], (int)euler[2]);
+                    break;
                 }
-
-                se_run_imu_step(&imu_ctx, &s_gyro_samples[i], &s_accel_samples[best_idx],
-                                have_pos_meters_this_cycle, pos_meters,
-                                have_baro_this_cycle, baro_alt);
+                case 1:
+                    DLOG_PRINT("POS %d %d %d cm\r\n",
+                        (int)(pos[0]*100), (int)(pos[1]*100),
+                        (int)(pos[2]*100));
+                    break;
+                case 2:
+                    DLOG_PRINT("VEL %d %d %d cm/s\r\n",
+                        (int)(vel[0]*100), (int)(vel[1]*100),
+                        (int)(vel[2]*100));
+                    break;
+                case 3: {
+                    ms5611_poller_t *bp = sensors_get_baro_poller();
+                    DLOG_PRINT("BARO %dcm t%d s%d d%d nxt%u\r\n",
+                        baro_ref.set ? (int)((baro_ema.value - baro_ref.height_m) * 100) : 0,
+                        (int)baro_total, (int)bp->state,
+                        (int)bp->idle_delta,
+                        (unsigned)bp->t_next_action_us);
+                    break;
+                }
+                case 4:
+                    DLOG_PRINT("BA %d/%d/%d mg\r\n",
+                        (int)(eskf.orientation.b_accel[0][0]*1000),
+                        (int)(eskf.orientation.b_accel[0][1]*1000),
+                        (int)(eskf.orientation.b_accel[0][2]*1000));
+                    break;
+                }
+                debug_phase = (debug_phase + 1) % 5;
             }
+#endif
+            ticks++;
 
-            num_accel_samples = 0;
-            num_gyro_samples = 0;
-            num_baro1_samples = 0;
-            num_baro2_samples = 0;
-            have_pos_meters_this_cycle = false;
+            /* Reset counters */
+            n_gyro = 0;
+            n_accel = 0;
+            n_baro1 = 0;
+            n_baro2 = 0;
+            n_gps = 0;
         }
 
-        ms5611_poller_tick(baro_poller);
-        ms5607_poller_tick(baro2_poller);
-    }
-}
-
-/* ========================================================================== */
-/* Sensor dequeuing                                                           */
-/* ========================================================================== */
-
-static void se_drain_sensor_queues(uint8_t *num_accel, uint8_t *num_gyro,
-                                   uint8_t *num_baro1, uint8_t *num_baro2)
-{
-    bmi088_accel_sample_t accel_sample;
-    while (bmi088_acc_sample_q_pop(&bmi088_acc_sample_ring, &accel_sample)) {
-        log_service_log_accel_sample((uint32_t)accel_sample.t_us,
-                                     accel_sample.ax, accel_sample.ay, accel_sample.az);
-        if (*num_accel < FUSION_VECTOR_SAMPLE_SIZE) {
-            s_accel_samples[(*num_accel)++] = accel_sample;
-        }
-    }
-
-    bmi088_gyro_sample_t gyro_sample;
-    while (bmi088_gyro_sample_q_pop(&bmi088_gyro_sample_ring, &gyro_sample)) {
-        log_service_log_gyro_sample(gyro_sample.t_us,
-                                    gyro_sample.gx, gyro_sample.gy, gyro_sample.gz);
-        if (*num_gyro < FUSION_VECTOR_SAMPLE_SIZE) {
-            s_gyro_samples[(*num_gyro)++] = gyro_sample;
-        }
-    }
-
-    ms5611_sample_t baro_sample;
-    while (ms5611_sample_q_pop(&ms5611_sample_ring, &baro_sample)) {
-        log_service_log_baro_sample(baro_sample.t_us, baro_sample.temp_centi,
-                                    baro_sample.pressure_centi, baro_sample.seq);
-        if (*num_baro1 < FUSION_VECTOR_SAMPLE_SIZE) {
-            s_baro1_heights[(*num_baro1)++] = pressure_to_height(baro_sample.pressure_centi);
-        }
-    }
-
-    ms5607_sample_t baro2_sample;
-    while (ms5607_sample_q_pop(&ms5607_sample_ring, &baro2_sample)) {
-        log_service_log_baro2_sample(baro2_sample.t_us, baro2_sample.temp_centi,
-                                     baro2_sample.pressure_centi, baro2_sample.seq);
-        if (*num_baro2 < FUSION_VECTOR_SAMPLE_SIZE) {
-            s_baro2_heights[(*num_baro2)++] = pressure_to_height(baro2_sample.pressure_centi);
-        }
-    }
-}
-
-/* ========================================================================== */
-/* GPS processing                                                             */
-/* ========================================================================== */
-
-static void se_process_gps(uint32_t isr_flags,
-                           float gps_reference[3], bool *have_ref,
-                           float pos_meters[3], bool *have_pos)
-{
-    if (!(isr_flags & GNSS_GPS_FIX_READY_FLAG))
-        return;
-
-    gnss_gps_fix_t gps_fix;
-    while (gnss_gps_fix_q_pop(&gnss_radio_ctx.gps_queue, &gps_fix)) {
-        if (!*have_ref) {
-            /* Sanity check: reject fixes outside North America */
-            if (!(gps_fix.latitude > 30 && gps_fix.latitude < 60) ||
-                !(gps_fix.longitude > -150 && gps_fix.longitude < -60)) {
-                continue;
-            }
-            gps_reference[0] = gps_fix.latitude;
-            gps_reference[1] = gps_fix.longitude;
-            gps_reference[2] = (float)gps_fix.altitude_msl;
-            *have_ref = true;
-            continue;
-        }
-
-        longlat_to_meters(gps_reference, gps_fix.longitude,
-                          gps_fix.latitude, gps_fix.altitude_msl, pos_meters);
-        *have_pos = true;
     }
 }

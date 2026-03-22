@@ -152,6 +152,13 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
     $<$<BOOL:${ULYSSES_ENABLE_DEBUG_LOGGING}>:ULYSSES_ENABLE_DEBUG_LOGGING>
 )
 
+# Only 1 IMU on this board — reduces ESKF_ERR_DIM from 15 to 9, saving ~2.3KB stack
+# Cap timeline events to 64 (~1.5KB .bss) — sufficient for 1ms task period
+# ESKF_MAX_IMUS must be PUBLIC so the flight controller sees the same struct layout as the library.
+# ESKF_MAX_TIMELINE_EVENTS can stay PRIVATE (only used in ekf.c internal static buffer).
+target_compile_definitions(state_estimation PUBLIC ESKF_MAX_IMUS=1)
+target_compile_definitions(state_estimation PRIVATE ESKF_MAX_TIMELINE_EVENTS=64)
+
 # Enable -ffast-math for EKF math sources (FMA contraction, relaxed NaN handling)
 target_compile_options(state_estimation PRIVATE -ffast-math)
 

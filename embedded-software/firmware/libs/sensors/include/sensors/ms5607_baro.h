@@ -20,7 +20,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include <collections/spsc_ring.h>
+#include "sensors/spsc_queue.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -203,7 +203,66 @@ typedef struct {
     uint32_t seq;             ///< monotonically increasing sequence
 } ms5607_sample_t;
 
-SPSC_RING_DECLARE(ms5607_sample_q, ms5607_sample_t, MS5607_SAMPLE_RING_SIZE)
+/**
+ * @brief SPSC ring buffer for barometer samples.
+ *
+ * Thread Safety:
+ * - Single Producer (ISR/DMA callback) writes samples via ms5607_sample_queue()
+ * - Single Consumer (state estimation task) reads via ms5607_sample_dequeue()
+ * - Memory barriers ensure proper ordering between producer and consumer.
+ */
+typedef struct {
+    ms5607_sample_t samples[MS5607_SAMPLE_RING_SIZE];
+    volatile uint8_t head;  /**< Written by producer only */
+    volatile uint8_t tail;  /**< Written by consumer only */
+} ms5607_sample_queue_t;
+
+/**
+ * @brief Check if sample queue is empty.
+ */
+static inline bool ms5607_sample_queue_empty(ms5607_sample_queue_t *q) {
+    return q->head == q->tail;
+}
+
+/**
+ * @brief Check if sample queue is full.
+ */
+static inline bool ms5607_sample_queue_full(ms5607_sample_queue_t *q) {
+    return ((q->head + 1U) % MS5607_SAMPLE_RING_SIZE) == q->tail;
+}
+
+/**
+ * @brief Enqueue a new barometer sample (producer side - ISR/callback context).
+ * @param q Pointer to the sample queue.
+ * @param sample Pointer to sample to enqueue.
+ * @return True if successful, false if queue full.
+ * @note Memory barrier ensures sample data is visible before head update.
+ */
+static inline bool ms5607_sample_queue(ms5607_sample_queue_t *q,
+                                       const ms5607_sample_t *sample) {
+    if (ms5607_sample_queue_full(q)) return false;
+    q->samples[q->head] = *sample;
+    SENSORS_MEMORY_BARRIER();  /* Ensure sample data written before head update is visible */
+    q->head = (uint8_t)((q->head + 1U) % MS5607_SAMPLE_RING_SIZE);
+    return true;
+}
+
+/**
+ * @brief Dequeue the next barometer sample (consumer side - task context).
+ * @param q Pointer to the sample queue.
+ * @param sample Pointer to receive dequeued sample.
+ * @return True if successful, false if queue empty.
+ * @note Memory barriers ensure proper ordering with producer.
+ */
+static inline bool ms5607_sample_dequeue(ms5607_sample_queue_t *q,
+                                         ms5607_sample_t *sample) {
+    if (ms5607_sample_queue_empty(q)) return false;
+    SENSORS_MEMORY_BARRIER();  /* Ensure we see sample data written before head was updated */
+    *sample = q->samples[q->tail];
+    SENSORS_MEMORY_BARRIER();  /* Ensure sample read completes before tail update */
+    q->tail = (uint8_t)((q->tail + 1U) % MS5607_SAMPLE_RING_SIZE);
+    return true;
+}
 
 /* -------------------------------------------------------------------------- */
 /* Interface constraints                                                      */
