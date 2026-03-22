@@ -1,7 +1,11 @@
 #include "unity.h"
 
-void setUp(void) {}
-void tearDown(void) {}
+void setUp(void)
+{
+}
+void tearDown(void)
+{
+}
 
 /* test_pid.c */
 void test_pid_init_zeros_state(void);
@@ -16,6 +20,13 @@ void test_pid_zero_error(void);
 /* test_flight_controller.c */
 void test_flight_controller_at_rest(void);
 void test_flight_controller_attitude_error(void);
+
+/* test_pwm.c */
+void test_pwm_zeroes(void);
+void test_pwm_midpoint(void);
+void test_pwm_max_thrust(void);
+void test_pwm_max_torque_upper(void);
+void test_pwm_max_torque_lower(void);
 
 int main(void)
 {
@@ -34,6 +45,13 @@ int main(void)
     /* Flight Controller */
     RUN_TEST(test_flight_controller_at_rest);
     RUN_TEST(test_flight_controller_attitude_error);
+
+    /* PWM */
+    RUN_TEST(test_pwm_zeroes);
+    RUN_TEST(test_pwm_midpoint);
+    RUN_TEST(test_pwm_max_thrust);
+    RUN_TEST(test_pwm_max_torque_upper);
+    RUN_TEST(test_pwm_max_torque_lower);
 
     return UNITY_END();
 }
