@@ -1,0 +1,763 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<SimscapeMultibodyImportXML version="2.0" xmlns="urn:mathworks:SimscapeMultibody:import" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<Created by="" on="02/22/26||15:52:44" using="Simscape Multibody Link Version 7.4" from="SolidWorks 33.5.0"/>
+<ModelUnits mass="kilogram" length="meter"/>
+<DataUnits mass="kilogram" length="meter"/>
+<RootAssembly name="Simulation FULL Assembly" uid="Simulation FULL Assembly" version="127">
+<AssemblyFile name="Simulation FULL Assembly.SLDASM" type="SolidWorks Assembly"/>
+<InstanceTree>
+<Instance name="STEP Top Assembly.STEP-1" uid="STEP Top Assembly.STEP-1" grounded="true" entityUid="STEP Top Assembly.STEP" rigid="true">
+<Transform>
+<Rotation>1 0 0 0 1 0 0 0 1</Rotation>
+<Translation>-0.0085201958728548244 -0.096333285147912118 0.07228933678706545</Translation>
+</Transform>
+<Instance name="Upper Structure Assembly_1.STEP-3" uid="Upper Structure Assembly_1.STEP-3" grounded="true" entityUid="Upper Structure Assembly_1.STEP" rigid="true">
+<Transform>
+<Rotation>-1 7.0000000000000001e-15 0 -7.0000000000000001e-15 -1 0 0 0 1</Rotation>
+<Translation>0.17264446079021001 0.39458478789002199 0.40259371652725001</Translation>
+</Transform>
+<Instance name="Legs_Upper Structure Assembly_1.STEP-14" uid="Legs_Upper Structure Assembly_1.STEP-14" grounded="true" entityUid="Legs_Upper Structure Assembly_1.STEP" rigid="true">
+<Transform>
+<Rotation>0 2.0000000000000002e-15 1 0 1 -2.0000000000000002e-15 -1 0 0</Rotation>
+<Translation>-0.017365573426551012 -1.9984014443252818e-15 0.10849928295593303</Translation>
+</Transform>
+<Instance name="Led Rod_1.STEP-12" uid="Led Rod_1.STEP-12" grounded="true" entityUid="Led Rod_1.STEP*:*Default">
+<Transform>
+<Rotation>0.80261893644008142 0.00013658171349835633 -0.59649209903671641 -0.42186112337041071 0.70710678118655024 -0.56747968473651211 0.42170610080534471 0.70710676799577565 0.56759491118060657</Rotation>
+<Translation>0.043280400800409957 -0.100837411916117 0.109682173287935</Translation>
+</Transform>
+</Instance>
+<Instance name="boots_1.STEP-11" uid="boots_1.STEP-11" grounded="true" entityUid="boots_1.STEP*:*Default">
+<Transform>
+<Rotation>0.00019315571160100008 0 0.99999998134543544 0 -1 0 0.99999998134543544 0 -0.00019315571160100008</Rotation>
+<Translation>0.043349612578578056 0.257483745630122 0.46800332414984902</Translation>
+</Transform>
+</Instance>
+</Instance>
+<Instance name="Legs_Upper Structure Assembly_1.STEP-13" uid="Legs_Upper Structure Assembly_1.STEP-13" grounded="true" entityUid="Legs_Upper Structure Assembly_1.STEP" rigid="true">
+<Transform>
+<Rotation>1 0 0 0 1 0 0 0 1</Rotation>
+<Translation>0.0084105347618390058 -1.9984014443252818e-15 -0.0038219296427889904</Translation>
+</Transform>
+<Instance name="Led Rod_1.STEP-12" uid="Led Rod_1.STEP-12" grounded="true" entityUid="Led Rod_1.STEP*:*Default">
+<Transform>
+<Rotation>0.80261893644008142 0.00013658171349835633 -0.59649209903671641 -0.42186112337041071 0.70710678118655024 -0.56747968473651211 0.42170610080534471 0.70710676799577565 0.56759491118060657</Rotation>
+<Translation>0.043280400800409999 -0.100837411916117 0.109682173287935</Translation>
+</Transform>
+</Instance>
+<Instance name="boots_1.STEP-11" uid="boots_1.STEP-11" grounded="true" entityUid="boots_1.STEP*:*Default">
+<Transform>
+<Rotation>0.00019315571160100008 0 0.99999998134543544 0 -1 0 0.99999998134543544 0 -0.00019315571160100008</Rotation>
+<Translation>0.043349612578577987 0.25748374563012194 0.46800332414984896</Translation>
+</Transform>
+</Instance>
+</Instance>
+<Instance name="Strut_1.STEP-28" uid="Strut_1.STEP-28" grounded="true" entityUid="Strut_1.STEP*:*Default">
+<Transform>
+<Rotation>-0.4835725476997661 -0.25900561436468594 -0.83610626288691847 0.86564571669456924 3.7837615436854488e-15 -0.50065706143861144 0.12967298978392902 -0.96587581589331217 0.22420710067463395</Rotation>
+<Translation>0.067411546368927003 -0.021569644963153001 0.0040659082947570035</Translation>
+</Transform>
+</Instance>
+<Instance name="Legs_Upper Structure Assembly_1.STEP-15" uid="Legs_Upper Structure Assembly_1.STEP-15" grounded="true" entityUid="Legs_Upper Structure Assembly_1.STEP" rigid="true">
+<Transform>
+<Rotation>-1 0 1.1e-14 0 1 5.9999999999999997e-15 -1.1e-14 5.9999999999999997e-15 -1</Rotation>
+<Translation>0.094955639172168996 -1.9984014443252818e-15 0.13427539114432396</Translation>
+</Transform>
+<Instance name="Led Rod_1.STEP-12" uid="Led Rod_1.STEP-12" grounded="true" entityUid="Led Rod_1.STEP*:*Default">
+<Transform>
+<Rotation>0.80261893644008142 0.00013658171349835633 -0.59649209903671641 -0.42186112337041071 0.70710678118655024 -0.56747968473651211 0.42170610080534471 0.70710676799577565 0.56759491118060657</Rotation>
+<Translation>0.043280400800409999 -0.10083741191611706 0.109682173287935</Translation>
+</Transform>
+</Instance>
+<Instance name="boots_1.STEP-11" uid="boots_1.STEP-11" grounded="true" entityUid="boots_1.STEP*:*Default">
+<Transform>
+<Rotation>0.00019315571160100008 0 0.99999998134543544 0 -1 0 0.99999998134543544 0 -0.00019315571160100008</Rotation>
+<Translation>0.043349612578578015 0.257483745630122 0.46800332414984902</Translation>
+</Transform>
+</Instance>
+</Instance>
+<Instance name="Upper Structure_1.STEP-3" uid="Upper Structure_1.STEP-3" grounded="true" entityUid="Upper Structure_1.STEP*:*Default">
+<Transform>
+<Rotation>0.70724334970927638 0 0.70697018628228037 0 -1 0 0.70697018628228037 0 -0.70724334970927638</Rotation>
+<Translation>0.051683086967004993 -0.011569644963153047 0.065226730750767015</Translation>
+</Transform>
+</Instance>
+<Instance name="Strut attachement_1.STEP-14" uid="Strut attachement_1.STEP-14" grounded="true" entityUid="Strut attachement_1.STEP*:*Default">
+<Transform>
+<Rotation>-0.00019315571160600009 1.9999999253601231e-15 -0.99999998134543544 6.000000000000002e-15 -1 -2.0011588969605069e-15 -0.99999998134543544 -6.0003864233433932e-15 0.00019315571160600009</Rotation>
+<Translation>0.17158436533564397 -0.021569644963152002 0.065203571133589988</Translation>
+</Transform>
+</Instance>
+<Instance name="Strut_1.STEP-34" uid="Strut_1.STEP-34" grounded="true" entityUid="Strut_1.STEP*:*Default">
+<Transform>
+<Rotation>0.16859823680639691 -0.96587581589330995 0.19661775814561369 0.75912546771580358 6.6839505351859645e-15 -0.65094433269309793 0.62873138844107068 0.25900561436469466 0.73322093049539339</Rotation>
+<Translation>-0.0094777354890050181 -0.021569644963152002 0.049498271348844991</Translation>
+</Transform>
+</Instance>
+<Instance name="Strut_1.STEP-27" uid="Strut_1.STEP-27" grounded="true" entityUid="Strut_1.STEP*:*Default">
+<Transform>
+<Rotation>-0.34352899367792999 0.25863246618404495 -0.90282726915960354 0.93462721173234997 2.1037644649906466e-15 -0.35562898516489477 -0.091977201479724005 -0.96597580064697197 -0.24172494073305592</Rotation>
+<Translation>0.035931001614787988 -0.021569644963152002 0.0040719889418939781</Translation>
+</Transform>
+</Instance>
+<Instance name="Strut attachement_1.STEP-15" uid="Strut attachement_1.STEP-15" grounded="true" entityUid="Strut attachement_1.STEP*:*Default">
+<Transform>
+<Rotation>0.99999998134543544 4.0007726974502691e-15 -0.00019315571160600009 4.0000000000000019e-15 -1 -4.0007725482281664e-15 -0.00019315571160600009 3.9999998507490719e-15 -0.99999998134543544</Rotation>
+<Translation>0.051706246584182006 -0.021569644963152002 0.18512800911940597</Translation>
+</Transform>
+</Instance>
+<Instance name="Strut attachement_1.STEP-13" uid="Strut attachement_1.STEP-13" grounded="true" entityUid="Strut attachement_1.STEP*:*Default">
+<Transform>
+<Rotation>-0.99999998134543544 -7.0017385319538881e-15 0.00019315571159600009 7.0000000000000033e-15 -1 -9.0013519220900908e-15 0.00019315571159600009 -8.999999664192617e-15 0.99999998134543544</Rotation>
+<Translation>0.051659927349828008 -0.021569644963152002 -0.054674547617870994</Translation>
+</Transform>
+</Instance>
+<Instance name="Strut attachement_1.STEP-16" uid="Strut attachement_1.STEP-16" grounded="true" entityUid="Strut attachement_1.STEP*:*Default">
+<Transform>
+<Rotation>0.00019315571160600009 -1.0999999589585169e-14 0.99999998134543544 4.0000000000000019e-15 -1 -1.1000772417646213e-14 0.99999998134543544 4.0021247874062888e-15 -0.00019315571160600009</Rotation>
+<Translation>-0.068218191401635014 -0.021569644963152057 0.065249890367944041</Translation>
+</Transform>
+</Instance>
+<Instance name="Strut_1.STEP-31" uid="Strut_1.STEP-31" grounded="true" entityUid="Strut_1.STEP*:*Default">
+<Transform>
+<Rotation>0.95213316158837036 -0.25863246618403446 0.16294689330974796 0.16868630994752989 3.9204062442718088e-15 -0.98566978691460638 0.25492620783281583 0.96597580064697486 0.043627756353217813</Rotation>
+<Translation>0.067435172319222997 -0.021569644963153001 0.12638147255964005</Translation>
+</Transform>
+</Instance>
+<Instance name="Legs_Upper Structure Assembly_1.STEP-16" uid="Legs_Upper Structure Assembly_1.STEP-16" grounded="true" entityUid="Legs_Upper Structure Assembly_1.STEP" rigid="true">
+<Transform>
+<Rotation>0 8.0000000000000006e-15 -1 0 1 8.0000000000000006e-15 1 0 0</Rotation>
+<Translation>0.120731747360561 -3.0531133177191805e-15 0.021954178545601</Translation>
+</Transform>
+<Instance name="Led Rod_1.STEP-12" uid="Led Rod_1.STEP-12" grounded="true" entityUid="Led Rod_1.STEP*:*Default">
+<Transform>
+<Rotation>0.80261893644008142 0.00013658171349835633 -0.59649209903671641 -0.42186112337041071 0.70710678118655024 -0.56747968473651211 0.42170610080534471 0.70710676799577565 0.56759491118060657</Rotation>
+<Translation>0.043280400800409957 -0.100837411916117 0.10968217328793503</Translation>
+</Transform>
+</Instance>
+<Instance name="boots_1.STEP-11" uid="boots_1.STEP-11" grounded="true" entityUid="boots_1.STEP*:*Default">
+<Transform>
+<Rotation>0.00019315571160100008 0 0.99999998134543544 0 -1 0 0.99999998134543544 0 -0.00019315571160100008</Rotation>
+<Translation>0.043349612578578056 0.257483745630122 0.46800332414984896</Translation>
+</Transform>
+</Instance>
+</Instance>
+<Instance name="Strut_1.STEP-29" uid="Strut_1.STEP-29" grounded="true" entityUid="Strut_1.STEP*:*Default">
+<Transform>
+<Rotation>-0.092134943745651982 0.96587581589330984 -0.24206416590114824 0.93459041996019376 0 -0.35572566244035392 -0.34358681444376493 -0.25900561436469494 -0.90269828440512323</Rotation>
+<Translation>0.112843909423015 -0.021569644963153056 0.080955190152689038</Translation>
+</Transform>
+</Instance>
+<Instance name="Strut_1.STEP-30" uid="Strut_1.STEP-30" grounded="true" entityUid="Strut_1.STEP*:*Default">
+<Transform>
+<Rotation>0.017350067319597994 0.96597580064697497 0.2580498551219142 0.99774733980340569 0 -0.067083872243836093 -0.064801397201238967 0.25863246618403402 -0.96379978540998423</Rotation>
+<Translation>0.112837828775878 -0.021569644963153056 0.049474645398548955</Translation>
+</Transform>
+</Instance>
+<Instance name="Strut_1.STEP-32" uid="Strut_1.STEP-32" grounded="true" entityUid="Strut_1.STEP*:*Default">
+<Transform>
+<Rotation>0.96523117258439095 0.2590056143646941 0.035282788990228763 0.036529322310027999 3.0040555694702544e-15 -0.99933258158211258 -0.25883274924733102 0.96587581589330995 -0.0094612995672318286</Rotation>
+<Translation>0.035954627565082969 -0.021569644963153001 0.12638755320677697</Translation>
+</Transform>
+</Instance>
+<Instance name="Strut_1.STEP-33" uid="Strut_1.STEP-33" grounded="true" entityUid="Strut_1.STEP*:*Default">
+<Transform>
+<Rotation>-0.186359899513835 -0.96597580064697541 -0.17933415853547907 0.69339383868329496 7.0384910902419739e-15 -0.72055880015169138 0.69604236388975504 -0.25863246618403307 0.66980166848577427</Rotation>
+<Translation>-0.0094716548418680158 -0.021569644963152002 0.080978816102984963</Translation>
+</Transform>
+</Instance>
+<Instance name="Led Rod_1.STEP-12" uid="Led Rod_1.STEP-12" grounded="true" entityUid="Led Rod_1.STEP*:*Default">
+<Transform>
+<Rotation>-0.52206478726840599 0 0.85290583178589796 0 1 0 -0.85290583178589796 0 -0.52206478726840599</Rotation>
+<Translation>0.051691759905811999 -0.51156964496315305 0.11012801051849896</Translation>
+</Transform>
+</Instance>
+<Instance name="Led Rod_1.STEP-11" uid="Led Rod_1.STEP-11" grounded="true" entityUid="Led Rod_1.STEP*:*Default">
+<Transform>
+<Rotation>-0.351976091793688 0 0.936008990771799 0 1 0 -0.936008990771799 0 -0.351976091793688</Rotation>
+<Translation>0.096584366734736998 -0.51156964496315305 0.065218057811959995</Translation>
+</Transform>
+</Instance>
+<Instance name="Led Rod_1.STEP-13" uid="Led Rod_1.STEP-13" grounded="true" entityUid="Led Rod_1.STEP*:*Default">
+<Transform>
+<Rotation>-0.69365339979783713 0 0.72030893438086807 0 1 0 -0.72030893438086807 0 -0.69365339979783713</Rotation>
+<Translation>0.0067818071992729878 -0.51156964496315305 0.065235403689574034</Translation>
+</Transform>
+</Instance>
+<Instance name="Led Rod_1.STEP-14" uid="Led Rod_1.STEP-14" grounded="true" entityUid="Led Rod_1.STEP*:*Default">
+<Transform>
+<Rotation>-0.84318626789803064 0 0.53762153754122477 0 1 0 -0.53762153754122477 0 -0.84318626789803064</Rotation>
+<Translation>0.051674414028198001 -0.51156964496315305 0.020325450983035009</Translation>
+</Transform>
+</Instance>
+</Instance>
+<Instance name="ES Controller Bay_1.STEP-3" uid="ES Controller Bay_1.STEP-3" grounded="true" entityUid="ES Controller Bay_1.STEP*:*Default">
+<Transform>
+<Rotation>0.99999998134543544 -8.9998070121830806e-15 -0.00019315571160300008 9.0000000000000042e-15 1 9.9826157994100847e-16 0.00019315571160300008 -9.9999996272330018e-16 0.99999998134543544</Rotation>
+<Translation>0.120961373823204 0.50615443285317396 0.46782044727801703</Translation>
+</Transform>
+</Instance>
+<Instance name="Clamp_1.STEP-28" uid="Clamp_1.STEP-28" grounded="true" entityUid="Clamp_1.STEP*:*Default">
+<Transform>
+<Rotation>-0.00082009300114800003 -7.0000000000000001e-15 -0.99999966372367799 0 1 -7.0000000000000001e-15 0.99999966372367799 0 -0.00082009300114800003</Rotation>
+<Translation>0.16586265359093599 0.51615443285317497 0.46782912021682405</Translation>
+</Transform>
+</Instance>
+<Instance name="Full Assembly_1.STEP-3" uid="Full Assembly_1.STEP-3" grounded="true" entityUid="Full Assembly_1.STEP" rigid="true">
+<Transform>
+<Rotation>0.70724334970927638 7.0348646585903995e-15 -0.70697018628228037 5.0000000000000024e-15 -1 -4.9487913039759626e-15 -0.70697018628228037 0 -0.70724334970927638</Rotation>
+<Translation>0.13657654814290801 0.41837824590311001 0.54015640035998214</Translation>
+</Transform>
+<Instance name="Lower Gear OnShape_1.STEP-3" uid="Lower Gear OnShape_1.STEP-3" grounded="true" entityUid="Lower Gear OnShape_1.STEP*:*Default">
+<Transform>
+<Rotation>0.98802240186199697 0 0.154310509748527 0.154310509748527 0 -0.98802240186199697 0 1 0</Rotation>
+<Translation>0.040095634033106065 0.030223813049931991 0.028448584459733972</Translation>
+</Transform>
+</Instance>
+<Instance name="Lower Assembly_1.STEP-3" uid="Lower Assembly_1.STEP-3" grounded="true" entityUid="Lower Assembly_1.STEP" rigid="true">
+<Transform>
+<Rotation>1 0 0 0 1 0 0 0 1</Rotation>
+<Translation>-0.026487940017934974 0.061142577880967997 0.040903747573504956</Translation>
+</Transform>
+<Instance name="DS3218 Digital Servo_1.STEP-3" uid="DS3218 Digital Servo_1.STEP-3" grounded="true" entityUid="DS3218 Digital Servo_1.STEP*:*Default">
+<Transform>
+<Rotation>1 0 0 0 1 0 0 0 1</Rotation>
+<Translation>0.076833574051037024 -0.040918764831033017 0.022694836886227032</Translation>
+</Transform>
+</Instance>
+<Instance name="Main Frame_1.STEP-3" uid="Main Frame_1.STEP-3" grounded="true" entityUid="Main Frame_1.STEP*:*Default">
+<Transform>
+<Rotation>1 0 0 0 1 0 0 0 1</Rotation>
+<Translation>0.066583574051036987 -0.048918764831033024 0.02129483688622702</Translation>
+</Transform>
+</Instance>
+<Instance name="6659K673_Oil-Embedded Flanged Sleeve Bearing_1.STEP-5" uid="6659K673_Oil-Embedded Flanged Sleeve Bearing_1.STEP-5" grounded="true" entityUid="6659K673_Oil-Embedded Flanged Sleeve Bearing_1.STEP*:*Default">
+<Transform>
+<Rotation>1 0 0 0 0 -1 0 1 0</Rotation>
+<Translation>0.066583574051036987 0.0080812351689669715 -0.024705163113772965</Translation>
+</Transform>
+</Instance>
+<Instance name="6659K673_Oil-Embedded Flanged Sleeve Bearing_1.STEP-6" uid="6659K673_Oil-Embedded Flanged Sleeve Bearing_1.STEP-6" grounded="true" entityUid="6659K673_Oil-Embedded Flanged Sleeve Bearing_1.STEP*:*Default">
+<Transform>
+<Rotation>-0.923728021347068 0 0.38304900806323799 -0.38304900806323799 0 -0.923728021347068 0 -1 0</Rotation>
+<Translation>0.066583574051037042 0.008081235168967027 0.067294836886227061</Translation>
+</Transform>
+</Instance>
+</Instance>
+<Instance name="92981A750_Alloy Steel Shoulder Screws_92981A750_1.STEP-5" uid="92981A750_Alloy Steel Shoulder Screws_92981A750_1.STEP-5" grounded="true" entityUid="92981A750_Alloy Steel Shoulder Screws_92981A750_1.STEP*:*Default">
+<Transform>
+<Rotation>0.80994617361079935 -0.58650421639850525 1.4432899320127035e-15 -0.58650421639850525 -0.80994617361079935 2.2344195721229452e-16 9.4368957093138306e-16 -9.9920072216264089e-16 -0.99999999999999989</Rotation>
+<Translation>0.040095634033103067 0.069223813049935023 0.020562584459732025</Translation>
+</Transform>
+</Instance>
+<Instance name="92981A750_Alloy Steel Shoulder Screws_92981A750_1.STEP-6" uid="92981A750_Alloy Steel Shoulder Screws_92981A750_1.STEP-6" grounded="true" entityUid="92981A750_Alloy Steel Shoulder Screws_92981A750_1.STEP*:*Default">
+<Transform>
+<Rotation>0.99849210151056778 0.054895566496848971 0 -0.054895566496848971 0.99849210151056778 0 0 0 1</Rotation>
+<Translation>0.040095634033102068 0.069223813049935023 0.10383458445973204</Translation>
+</Transform>
+</Instance>
+</Instance>
+<Instance name="Clamp_1.STEP-29" uid="Clamp_1.STEP-29" grounded="true" entityUid="Clamp_1.STEP*:*Default">
+<Transform>
+<Rotation>1 0 0 0 1 0 0 0 1</Rotation>
+<Translation>0.12095270088440099 0.55615443285317401 0.51272172704574914</Translation>
+</Transform>
+</Instance>
+<Instance name="Clamp_1.STEP-27" uid="Clamp_1.STEP-27" grounded="true" entityUid="Clamp_1.STEP*:*Default">
+<Transform>
+<Rotation>-0.00088849834276399952 -6.9999944739948646e-15 0.99999960528526954 0 1 6.9999972369968869e-15 -0.99999960528526954 0 -0.00088849834276399952</Rotation>
+<Translation>0.076060094055472996 0.51615443285317397 0.46781177433921001</Translation>
+</Transform>
+</Instance>
+<Instance name="Clamp_1.STEP-30" uid="Clamp_1.STEP-30" grounded="true" entityUid="Clamp_1.STEP*:*Default">
+<Transform>
+<Rotation>0.98208185031913642 -7.1231796271501414e-15 0.18845487330854888 6.9999999999999962e-15 1 1.3191841131598424e-15 -0.18845487330854888 0 0.98208185031913642</Rotation>
+<Translation>0.076060094055471997 0.55615443285317401 0.46781177433921001</Translation>
+</Transform>
+</Instance>
+<Instance name="battery_1.STEP-3" uid="battery_1.STEP-3" grounded="true" entityUid="battery_1.STEP*:*Default">
+<Transform>
+<Rotation>-0.00019315571160300008 -8.9999996642142365e-15 -0.99999998134543544 1.0000000000000005e-15 1 -9.0001929878205219e-15 0.99999998134543544 -1.0017384200265626e-15 -0.00019315571160300008</Rotation>
+<Translation>0.120961419983223 0.51615443285317497 0.46758146900681302</Translation>
+</Transform>
+</Instance>
+<Instance name="Clamp_1.STEP-32" uid="Clamp_1.STEP-32" grounded="true" entityUid="Clamp_1.STEP*:*Default">
+<Transform>
+<Rotation>1 0 0 0 1 0 0 0 1</Rotation>
+<Translation>0.16586265359093999 0.76599443285317315 0.46782912021682405</Translation>
+</Transform>
+</Instance>
+<Instance name="Avionics Bay_1.STEP-3" uid="Avionics Bay_1.STEP-3" grounded="true" entityUid="Avionics Bay_1.STEP*:*Default">
+<Transform>
+<Rotation>0.70697018628228003 -7.0000000000000001e-15 -0.70724334970927705 5e-15 1 -5e-15 0.70724334970927705 0 0.70697018628228003</Rotation>
+<Translation>0.131499368024729 0.56415443285317501 0.45693303811841307</Translation>
+</Transform>
+</Instance>
+<Instance name="Clamp_1.STEP-33" uid="Clamp_1.STEP-33" grounded="true" entityUid="Clamp_1.STEP*:*Default">
+<Transform>
+<Rotation>0.98208185031913642 -7.1231796271501414e-15 0.18845487330854888 6.9999999999999962e-15 1 1.3191841131598424e-15 -0.18845487330854888 0 0.98208185031913642</Rotation>
+<Translation>0.120952700884396 0.6641544328531741 0.51272172704574803</Translation>
+</Transform>
+</Instance>
+<Instance name="Clamp_1.STEP-31" uid="Clamp_1.STEP-31" grounded="true" entityUid="Clamp_1.STEP*:*Default">
+<Transform>
+<Rotation>0.91098561501623976 -6.656650154731821e-15 0.4124381277640119 5.9999999999999981e-15 1 2.8870668943480833e-15 -0.4124381277640119 -1.5544764375664324e-16 0.91098561501623976</Rotation>
+<Translation>0.16586265359093599 0.55615443285317501 0.46782912021682405</Translation>
+</Transform>
+</Instance>
+</Instance>
+<Instance name="Mid Assembly 2.0.STEP-1" uid="Mid Assembly 2.0.STEP-1" entityUid="Mid Assembly 2.0.STEP" rigid="true">
+<Transform>
+<Rotation>0.70697018628228048 0.35700508281777005 0.61052479601591514 4.29170587956662e-15 -0.86324572195253968 0.50478393747289396 0.70724334970927627 -0.35686719430751224 -0.61028898885617022</Rotation>
+<Translation>0.077735023832903025 0.25814173631275755 0.56678134914646217</Translation>
+</Transform>
+<Instance name="DS3218 Digital Servo_2.STEP-2" uid="DS3218 Digital Servo_2.STEP-2" grounded="true" entityUid="DS3218 Digital Servo_2.STEP*:*Default">
+<Transform>
+<Rotation>-1 0 0 0 -1 0 0 0 1</Rotation>
+<Translation>-0.0045770707885899875 0.036501455377038972 0.04081623748083496</Translation>
+</Transform>
+</Instance>
+<Instance name="Servo 2 Connector.STEP-1" uid="Servo 2 Connector.STEP-1" grounded="true" entityUid="Servo 2 Connector.STEP*:*Default">
+<Transform>
+<Rotation>1 0 0 0 1 0 0 0 1</Rotation>
+<Translation>-0.0045770707885899875 0.0065014553770390004 0.034716887480834957</Translation>
+</Transform>
+</Instance>
+</Instance>
+<Instance name="STEP Proppulsion Assembly.STEP-1" uid="STEP Proppulsion Assembly.STEP-1" entityUid="STEP Proppulsion Assembly.STEP" rigid="true">
+<Transform>
+<Rotation>0.61052479601591492 -0.28284059278875201 0.7397706891467335 0.50478393747289474 0.85872054917208818 -0.088273409920247237 -0.61028898885616967 0.42731746687971311 0.66704357622303756</Rotation>
+<Translation>0.089159979689123064 0.21050380962502338 0.52100049279749061</Translation>
+</Transform>
+<Instance name="Motor Stand.STEP-1" uid="Motor Stand.STEP-1" grounded="true" entityUid="Motor Stand.STEP*:*Default">
+<Transform>
+<Rotation>1 0 0 0 1 0 0 0 1</Rotation>
+<Translation>0.023086097838741021 0.0082140551261269956 0.026233982336986983</Translation>
+</Transform>
+</Instance>
+<Instance name="CRM2413.STEP-1" uid="CRM2413.STEP-1" grounded="true" entityUid="CRM2413.STEP*:*Default">
+<Transform>
+<Rotation>0 0.99999999999999989 0 0 0 -0.99999999999999989 -1 0 0</Rotation>
+<Translation>0.025646098290692004 -0.048785944873872999 0.026733982788938015</Translation>
+</Transform>
+</Instance>
+</Instance>
+</InstanceTree>
+<Constraints>
+<Concentric name="Concentric1">
+<ConstraintGeometry geomType="circle">
+<InstancePath>
+<Uid>STEP Top Assembly.STEP-1</Uid>
+<Uid>Full Assembly_1.STEP-3</Uid>
+<Uid>Lower Assembly_1.STEP-3</Uid>
+<Uid>6659K673_Oil-Embedded Flanged Sleeve Bearing_1.STEP-6</Uid>
+</InstancePath>
+<Position>0 0.0058750000000000191 0</Position>
+<Axis>0 -1 0</Axis>
+</ConstraintGeometry>
+<ConstraintGeometry geomType="cylinder">
+<InstancePath>
+<Uid>Mid Assembly 2.0.STEP-1</Uid>
+<Uid>Servo 2 Connector.STEP-1</Uid>
+</InstancePath>
+<Position>-0.011057611844574877 0.020000000000000018 6.3695000000030255e-05</Position>
+<Axis>-1 0 0</Axis>
+</ConstraintGeometry>
+</Concentric>
+<Distance name="Distance1">
+<ConstraintGeometry geomType="plane">
+<InstancePath>
+<Uid>Mid Assembly 2.0.STEP-1</Uid>
+<Uid>Servo 2 Connector.STEP-1</Uid>
+</InstancePath>
+<Position>-0.028749999999999998 0.029999999999999971 0.0079280400000000251</Position>
+<Axis>-1 0 0</Axis>
+</ConstraintGeometry>
+<ConstraintGeometry geomType="plane">
+<InstancePath>
+<Uid>STEP Top Assembly.STEP-1</Uid>
+<Uid>Full Assembly_1.STEP-3</Uid>
+<Uid>Lower Assembly_1.STEP-3</Uid>
+<Uid>Main Frame_1.STEP-3</Uid>
+</InstancePath>
+<Position>0 0.069999999999999979 0.03999999999999998</Position>
+<Axis>1.6653345369377348e-16 0 -1</Axis>
+</ConstraintGeometry>
+</Distance>
+<Concentric name="Concentric2">
+<ConstraintGeometry geomType="cylinder">
+<InstancePath>
+<Uid>Mid Assembly 2.0.STEP-1</Uid>
+<Uid>Servo 2 Connector.STEP-1</Uid>
+</InstancePath>
+<Position>0.010249999999999981 0.020000000000000018 0.010807611844574905</Position>
+<Axis>0 0 1</Axis>
+</ConstraintGeometry>
+<ConstraintGeometry geomType="cylinder">
+<InstancePath>
+<Uid>STEP Proppulsion Assembly.STEP-1</Uid>
+<Uid>Motor Stand.STEP-1</Uid>
+</InstancePath>
+<Position>0.050487856810984777 0.02970557869096524 0</Position>
+<Axis>-1 0 0</Axis>
+</ConstraintGeometry>
+</Concentric>
+<Distance name="Distance2">
+<ConstraintGeometry geomType="plane">
+<InstancePath>
+<Uid>STEP Proppulsion Assembly.STEP-1</Uid>
+<Uid>Motor Stand.STEP-1</Uid>
+</InstancePath>
+<Position>0.028062878474779174 0.030000000000000027 0</Position>
+<Axis>-1 0 2.7755575615628914e-16</Axis>
+</ConstraintGeometry>
+<ConstraintGeometry geomType="plane">
+<InstancePath>
+<Uid>Mid Assembly 2.0.STEP-1</Uid>
+<Uid>Servo 2 Connector.STEP-1</Uid>
+</InstancePath>
+<Position>0 0 0.026000000000000023</Position>
+<Axis>0 0 1</Axis>
+</ConstraintGeometry>
+</Distance>
+</Constraints>
+</RootAssembly>
+<Assemblies>
+<Assembly name="STEP Top Assembly.STEP" uid="STEP Top Assembly.STEP" version="103">
+<ModelUnits mass="kilogram" length="meter"/>
+<AssemblyFile name="STEP Top Assembly.STEP.SLDASM" type="SolidWorks Assembly"/>
+</Assembly>
+<Assembly name="Upper Structure Assembly_1.STEP" uid="Upper Structure Assembly_1.STEP" version="102">
+<ModelUnits mass="kilogram" length="meter"/>
+<AssemblyFile name="Upper Structure Assembly_1.STEP.SLDASM" type="SolidWorks Assembly"/>
+</Assembly>
+<Assembly name="Legs_Upper Structure Assembly_1.STEP" uid="Legs_Upper Structure Assembly_1.STEP" version="102">
+<ModelUnits mass="kilogram" length="meter"/>
+<AssemblyFile name="Legs_Upper Structure Assembly_1.STEP.SLDASM" type="SolidWorks Assembly"/>
+</Assembly>
+<Assembly name="Full Assembly_1.STEP" uid="Full Assembly_1.STEP" version="102">
+<ModelUnits mass="kilogram" length="meter"/>
+<AssemblyFile name="Full Assembly_1.STEP.SLDASM" type="SolidWorks Assembly"/>
+</Assembly>
+<Assembly name="Lower Assembly_1.STEP" uid="Lower Assembly_1.STEP" version="102">
+<ModelUnits mass="kilogram" length="meter"/>
+<AssemblyFile name="Lower Assembly_1.STEP.SLDASM" type="SolidWorks Assembly"/>
+</Assembly>
+<Assembly name="Mid Assembly 2.0.STEP" uid="Mid Assembly 2.0.STEP" version="103">
+<ModelUnits mass="kilogram" length="meter"/>
+<AssemblyFile name="Mid Assembly 2.0.STEP.SLDASM" type="SolidWorks Assembly"/>
+</Assembly>
+<Assembly name="STEP Proppulsion Assembly.STEP" uid="STEP Proppulsion Assembly.STEP" version="103">
+<ModelUnits mass="kilogram" length="meter"/>
+<AssemblyFile name="STEP Proppulsion Assembly.STEP.SLDASM" type="SolidWorks Assembly"/>
+</Assembly>
+</Assemblies>
+<Parts>
+<Part name="6659K673_Oil-Embedded Flanged Sleeve Bearing_1.STEP" uid="6659K673_Oil-Embedded Flanged Sleeve Bearing_1.STEP*:*Default" version="102">
+<ModelUnits mass="kilogram" length="meter"/>
+<PartFile name="6659K673_Oil-Embedded Flanged Sleeve Bearing_1.STEP.SLDPRT" type="SolidWorks Part"/>
+<MassProperties>
+<Mass>0.00045322704260067988</Mass>
+<CenterOfMass>0 0.0023377213848814146 0</CenterOfMass>
+<Inertia>6.72031466131517e-09 1.0722695479282863e-08 6.7203146613151684e-09 0 0 0</Inertia>
+</MassProperties>
+<GeometryFile name="6659K673_Oil-Embedded Flanged Sleeve Bearing_1.STEP_Default_sldprt.STEP" type="STEP"/>
+<VisualProperties>
+<Ambient r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Diffuse r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Specular r="0.396078431372549" g="0.40980392156862744" b="0.46666666666666667" a="1"/>
+<Emissive r="0" g="0" b="0" a="1"/>
+<Shininess>0.3125</Shininess>
+</VisualProperties>
+</Part>
+<Part name="92981A750_Alloy Steel Shoulder Screws_92981A750_1.STEP" uid="92981A750_Alloy Steel Shoulder Screws_92981A750_1.STEP*:*Default" version="102">
+<ModelUnits mass="kilogram" length="meter"/>
+<PartFile name="92981A750_Alloy Steel Shoulder Screws_92981A750_1.STEP.SLDPRT" type="SolidWorks Part"/>
+<MassProperties>
+<Mass>0.00062696118287784773</Mass>
+<CenterOfMass>3.0355833049941215e-08 -4.7135722078543823e-07 0.0034158886889350698</CenterOfMass>
+<Inertia>1.8136257539108906e-08 1.8136483071445998e-08 5.7035089270491021e-09 -2.4661809081893498e-12 -1.7311850274213069e-12 -6.5815226916668453e-13</Inertia>
+</MassProperties>
+<GeometryFile name="92981A750_Alloy Steel Shoulder Screws_92981A750_1.STEP_Default_sldprt.STEP" type="STEP"/>
+<VisualProperties>
+<Ambient r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Diffuse r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Specular r="0.396078431372549" g="0.40980392156862744" b="0.46666666666666667" a="1"/>
+<Emissive r="0" g="0" b="0" a="1"/>
+<Shininess>0.3125</Shininess>
+</VisualProperties>
+</Part>
+<Part name="Avionics Bay_1.STEP" uid="Avionics Bay_1.STEP*:*Default" version="102">
+<ModelUnits mass="kilogram" length="meter"/>
+<PartFile name="Avionics Bay_1.STEP.SLDPRT" type="SolidWorks Part"/>
+<MassProperties>
+<Mass>0.13243723918567521</Mass>
+<CenterOfMass>0.0047517637075507524 0.073795336599067299 0.021312865453572753</CenterOfMass>
+<Inertia>0.0004354822159712165 0.00011845127139887197 0.00047215296552452534 -1.1630394914528284e-06 1.0048561424147334e-05 -2.9949905277557338e-05</Inertia>
+</MassProperties>
+<GeometryFile name="Avionics Bay_1.STEP_Default_sldprt.STEP" type="STEP"/>
+<VisualProperties>
+<Ambient r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Diffuse r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Specular r="0.396078431372549" g="0.40980392156862744" b="0.46666666666666667" a="1"/>
+<Emissive r="0" g="0" b="0" a="1"/>
+<Shininess>0.3125</Shininess>
+</VisualProperties>
+</Part>
+<Part name="CRM2413.STEP" uid="CRM2413.STEP*:*Default" version="102">
+<ModelUnits mass="kilogram" length="meter"/>
+<PartFile name="CRM2413.STEP.SLDPRT" type="SolidWorks Part"/>
+<MassProperties>
+<Mass>0.03813400922376798</Mass>
+<CenterOfMass>0 4.9324650428502447e-15 -0.026425878510292777</CenterOfMass>
+<Inertia>1.188351934156826e-05 1.1883519341572141e-05 5.3488676783267603e-06 0 0 0</Inertia>
+</MassProperties>
+<GeometryFile name="CRM2413.STEP_Default_sldprt.STEP" type="STEP"/>
+<VisualProperties>
+<Ambient r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Diffuse r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Specular r="0.396078431372549" g="0.40980392156862744" b="0.46666666666666667" a="1"/>
+<Emissive r="0" g="0" b="0" a="1"/>
+<Shininess>0.3125</Shininess>
+</VisualProperties>
+</Part>
+<Part name="Clamp_1.STEP" uid="Clamp_1.STEP*:*Default" version="102">
+<ModelUnits mass="kilogram" length="meter"/>
+<PartFile name="Clamp_1.STEP.SLDPRT" type="SolidWorks Part"/>
+<MassProperties>
+<Mass>0.00041677680049472616</Mass>
+<CenterOfMass>-4.2898861460567958e-11 0.0040000000000000001 -0.0032554797317328067</CenterOfMass>
+<Inertia>9.277378682356652e-09 9.6889284616770087e-09 5.5851937532538553e-09 0 0 0</Inertia>
+</MassProperties>
+<GeometryFile name="Clamp_1.STEP_Default_sldprt.STEP" type="STEP"/>
+<VisualProperties>
+<Ambient r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Diffuse r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Specular r="0.396078431372549" g="0.40980392156862744" b="0.46666666666666667" a="1"/>
+<Emissive r="0" g="0" b="0" a="1"/>
+<Shininess>0.3125</Shininess>
+</VisualProperties>
+</Part>
+<Part name="DS3218 Digital Servo_1.STEP" uid="DS3218 Digital Servo_1.STEP*:*Default" version="102">
+<ModelUnits mass="kilogram" length="meter"/>
+<PartFile name="DS3218 Digital Servo_1.STEP.SLDPRT" type="SolidWorks Part"/>
+<MassProperties>
+<Mass>0.033269426767269718</Mass>
+<CenterOfMass>-0.0002368834148019172 0.010038873140143021 -0.0064227339446277561</CenterOfMass>
+<Inertia>5.6270173005383633e-06 9.3100212602208709e-06 5.8386511268526781e-06 -7.9230184500282016e-10 -9.2019186372870347e-09 -5.0774133597201321e-10</Inertia>
+</MassProperties>
+<GeometryFile name="DS3218 Digital Servo_1.STEP_Default_sldprt.STEP" type="STEP"/>
+<VisualProperties>
+<Ambient r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Diffuse r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Specular r="0.396078431372549" g="0.40980392156862744" b="0.46666666666666667" a="1"/>
+<Emissive r="0" g="0" b="0" a="1"/>
+<Shininess>0.3125</Shininess>
+</VisualProperties>
+</Part>
+<Part name="DS3218 Digital Servo_2.STEP" uid="DS3218 Digital Servo_2.STEP*:*Default" version="102">
+<ModelUnits mass="kilogram" length="meter"/>
+<PartFile name="DS3218 Digital Servo_2.STEP.SLDPRT" type="SolidWorks Part"/>
+<MassProperties>
+<Mass>0.03326942676726969</Mass>
+<CenterOfMass>-0.00023688341480223823 0.010038873140142773 -0.0064227339446277475</CenterOfMass>
+<Inertia>5.6270173005383921e-06 9.3100212602210284e-06 5.8386511268528678e-06 -7.923018451590418e-10 -9.2019186374757344e-09 -5.0774133603711129e-10</Inertia>
+</MassProperties>
+<GeometryFile name="DS3218 Digital Servo_2.STEP_Default_sldprt.STEP" type="STEP"/>
+<VisualProperties>
+<Ambient r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Diffuse r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Specular r="0.396078431372549" g="0.40980392156862744" b="0.46666666666666667" a="1"/>
+<Emissive r="0" g="0" b="0" a="1"/>
+<Shininess>0.3125</Shininess>
+</VisualProperties>
+</Part>
+<Part name="ES Controller Bay_1.STEP" uid="ES Controller Bay_1.STEP*:*Default" version="102">
+<ModelUnits mass="kilogram" length="meter"/>
+<PartFile name="ES Controller Bay_1.STEP.SLDPRT" type="SolidWorks Part"/>
+<MassProperties>
+<Mass>0.059898412827588537</Mass>
+<CenterOfMass>0 0.0049999999999999984 0</CenterOfMass>
+<Inertia>5.2547363201936968e-05 0.00010381625064821388 5.2267194326736722e-05 0 0 0</Inertia>
+</MassProperties>
+<GeometryFile name="ES Controller Bay_1.STEP_Default_sldprt.STEP" type="STEP"/>
+<VisualProperties>
+<Ambient r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Diffuse r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Specular r="0.396078431372549" g="0.40980392156862744" b="0.46666666666666667" a="1"/>
+<Emissive r="0" g="0" b="0" a="1"/>
+<Shininess>0.3125</Shininess>
+</VisualProperties>
+</Part>
+<Part name="Led Rod_1.STEP" uid="Led Rod_1.STEP*:*Default" version="102">
+<ModelUnits mass="kilogram" length="meter"/>
+<PartFile name="Led Rod_1.STEP.SLDPRT" type="SolidWorks Part"/>
+<MassProperties>
+<Mass>0.0098174770424681052</Mass>
+<CenterOfMass>0 0.25 0</CenterOfMass>
+<Inertia>0.00020454611152596438 3.0679615757712834e-08 0.00020454611152596438 0 0 0</Inertia>
+</MassProperties>
+<GeometryFile name="Led Rod_1.STEP_Default_sldprt.STEP" type="STEP"/>
+<VisualProperties>
+<Ambient r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Diffuse r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Specular r="0.396078431372549" g="0.40980392156862744" b="0.46666666666666667" a="1"/>
+<Emissive r="0" g="0" b="0" a="1"/>
+<Shininess>0.3125</Shininess>
+</VisualProperties>
+</Part>
+<Part name="Lower Gear OnShape_1.STEP" uid="Lower Gear OnShape_1.STEP*:*Default" version="102">
+<ModelUnits mass="kilogram" length="meter"/>
+<PartFile name="Lower Gear OnShape_1.STEP.SLDPRT" type="SolidWorks Part"/>
+<MassProperties>
+<Mass>0.006981416354846141</Mass>
+<CenterOfMass>0.00071723836805488619 -0.0005606161718490002 -0.0059069945782760395</CenterOfMass>
+<Inertia>4.0485234052225044e-07 1.1565001813449478e-06 8.8532316031633839e-07 1.9438314551443478e-08 -5.9215966093995506e-08 -2.3605557982835678e-09</Inertia>
+</MassProperties>
+<GeometryFile name="Lower Gear OnShape_1.STEP_Default_sldprt.STEP" type="STEP"/>
+<VisualProperties>
+<Ambient r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Diffuse r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Specular r="0.396078431372549" g="0.40980392156862744" b="0.46666666666666667" a="1"/>
+<Emissive r="0" g="0" b="0" a="1"/>
+<Shininess>0.3125</Shininess>
+</VisualProperties>
+</Part>
+<Part name="Main Frame_1.STEP" uid="Main Frame_1.STEP*:*Default" version="102">
+<ModelUnits mass="kilogram" length="meter"/>
+<PartFile name="Main Frame_1.STEP.SLDPRT" type="SolidWorks Part"/>
+<MassProperties>
+<Mass>0.12707831045360959</Mass>
+<CenterOfMass>0.0005124721543733916 0.015037916156299172 0.0013337934323618494</CenterOfMass>
+<Inertia>0.0001805550942514373 0.0002432845571763168 0.0001207348954323088 1.834382343319547e-06 9.1229247120103855e-07 9.1275628984110013e-08</Inertia>
+</MassProperties>
+<GeometryFile name="Main Frame_1.STEP_Default_sldprt.STEP" type="STEP"/>
+<VisualProperties>
+<Ambient r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Diffuse r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Specular r="0.396078431372549" g="0.40980392156862744" b="0.46666666666666667" a="1"/>
+<Emissive r="0" g="0" b="0" a="1"/>
+<Shininess>0.3125</Shininess>
+</VisualProperties>
+</Part>
+<Part name="Motor Stand.STEP" uid="Motor Stand.STEP*:*Default" version="102">
+<ModelUnits mass="kilogram" length="meter"/>
+<PartFile name="Motor Stand.STEP.SLDPRT" type="SolidWorks Part"/>
+<MassProperties>
+<Mass>0.033701250030935714</Mass>
+<CenterOfMass>-0.00079505828572058908 0.011021354413561781 0.00027197056390383759</CenterOfMass>
+<Inertia>8.9204696062885456e-06 1.9911010246946222e-05 1.9511795291062752e-05 6.4634867614020209e-08 -3.6063766664409993e-08 1.5111453924887299e-06</Inertia>
+</MassProperties>
+<GeometryFile name="Motor Stand.STEP_Default_sldprt.STEP" type="STEP"/>
+<VisualProperties>
+<Ambient r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Diffuse r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Specular r="0.396078431372549" g="0.40980392156862744" b="0.46666666666666667" a="1"/>
+<Emissive r="0" g="0" b="0" a="1"/>
+<Shininess>0.3125</Shininess>
+</VisualProperties>
+</Part>
+<Part name="Servo 2 Connector.STEP" uid="Servo 2 Connector.STEP*:*Default" version="102">
+<ModelUnits mass="kilogram" length="meter"/>
+<PartFile name="Servo 2 Connector.STEP.SLDPRT" type="SolidWorks Part"/>
+<MassProperties>
+<Mass>0.036246445752008992</Mass>
+<CenterOfMass>0.012165282964812124 0.0098771228708251745 0.0019903424484584275</CenterOfMass>
+<Inertia>6.5564629035264636e-06 2.3378356769917769e-05 2.080788379648148e-05 -2.4673304673880736e-07 1.3574777728855529e-07 -1.7241940783882245e-06</Inertia>
+</MassProperties>
+<GeometryFile name="Servo 2 Connector.STEP_Default_sldprt.STEP" type="STEP"/>
+<VisualProperties>
+<Ambient r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Diffuse r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Specular r="0.396078431372549" g="0.40980392156862744" b="0.46666666666666667" a="1"/>
+<Emissive r="0" g="0" b="0" a="1"/>
+<Shininess>0.3125</Shininess>
+</VisualProperties>
+</Part>
+<Part name="Strut attachement_1.STEP" uid="Strut attachement_1.STEP*:*Default" version="102">
+<ModelUnits mass="kilogram" length="meter"/>
+<PartFile name="Strut attachement_1.STEP.SLDPRT" type="SolidWorks Part"/>
+<MassProperties>
+<Mass>0.0032463239888087551</Mass>
+<CenterOfMass>5.4300157373192025e-05 0.0018097434513080629 0.0075288587455912886</CenterOfMass>
+<Inertia>2.6041295871753153e-07 2.1159904600664722e-07 1.4244370154844312e-07 -3.333465510411312e-08 1.9085765066040609e-10 3.6399768903507906e-10</Inertia>
+</MassProperties>
+<GeometryFile name="Strut attachement_1.STEP_Default_sldprt.STEP" type="STEP"/>
+<VisualProperties>
+<Ambient r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Diffuse r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Specular r="0.396078431372549" g="0.40980392156862744" b="0.46666666666666667" a="1"/>
+<Emissive r="0" g="0" b="0" a="1"/>
+<Shininess>0.3125</Shininess>
+</VisualProperties>
+</Part>
+<Part name="Strut_1.STEP" uid="Strut_1.STEP*:*Default" version="102">
+<ModelUnits mass="kilogram" length="meter"/>
+<PartFile name="Strut_1.STEP.SLDPRT" type="SolidWorks Part"/>
+<MassProperties>
+<Mass>0.00098174770424681065</Mass>
+<CenterOfMass>0 0.025000000000000001 0</CenterOfMass>
+<Inertia>2.0606475250597115e-07 3.0679615757712842e-09 2.0606475250597115e-07 0 0 0</Inertia>
+</MassProperties>
+<GeometryFile name="Strut_1.STEP_Default_sldprt.STEP" type="STEP"/>
+<VisualProperties>
+<Ambient r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Diffuse r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Specular r="0.396078431372549" g="0.40980392156862744" b="0.46666666666666667" a="1"/>
+<Emissive r="0" g="0" b="0" a="1"/>
+<Shininess>0.3125</Shininess>
+</VisualProperties>
+</Part>
+<Part name="Upper Structure_1.STEP" uid="Upper Structure_1.STEP*:*Default" version="102">
+<ModelUnits mass="kilogram" length="meter"/>
+<PartFile name="Upper Structure_1.STEP.SLDPRT" type="SolidWorks Part"/>
+<MassProperties>
+<Mass>0.18242476789729745</Mass>
+<CenterOfMass>8.0605355782931808e-07 0.043254287353128619 -3.1496738709914918e-05</CenterOfMass>
+<Inertia>0.00042830578931944729 0.00046193049057195013 0.00042826448839334143 -2.357970656803848e-07 1.0848009980118754e-10 -3.1419523224351174e-09</Inertia>
+</MassProperties>
+<GeometryFile name="Upper Structure_1.STEP_Default_sldprt.STEP" type="STEP"/>
+<VisualProperties>
+<Ambient r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Diffuse r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Specular r="0.396078431372549" g="0.40980392156862744" b="0.46666666666666667" a="1"/>
+<Emissive r="0" g="0" b="0" a="1"/>
+<Shininess>0.3125</Shininess>
+</VisualProperties>
+</Part>
+<Part name="battery_1.STEP" uid="battery_1.STEP*:*Default" version="102">
+<ModelUnits mass="kilogram" length="meter"/>
+<PartFile name="battery_1.STEP.SLDPRT" type="SolidWorks Part"/>
+<MassProperties>
+<Mass>0.070000000000000007</Mass>
+<CenterOfMass>0 0.012500000000000001 0</CenterOfMass>
+<Inertia>1.0791666666666669e-05 4.4479166666666666e-05 4.0979166666666669e-05 0 0 0</Inertia>
+</MassProperties>
+<GeometryFile name="battery_1.STEP_Default_sldprt.STEP" type="STEP"/>
+<VisualProperties>
+<Ambient r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Diffuse r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Specular r="0.396078431372549" g="0.40980392156862744" b="0.46666666666666667" a="1"/>
+<Emissive r="0" g="0" b="0" a="1"/>
+<Shininess>0.3125</Shininess>
+</VisualProperties>
+</Part>
+<Part name="boots_1.STEP" uid="boots_1.STEP*:*Default" version="102">
+<ModelUnits mass="kilogram" length="meter"/>
+<PartFile name="boots_1.STEP.SLDPRT" type="SolidWorks Part"/>
+<MassProperties>
+<Mass>0.0016242744701743164</Mass>
+<CenterOfMass>-0.003832861606535664 0.0047194200043539566 3.0640021561961569e-07</CenterOfMass>
+<Inertia>3.2492255282960252e-08 7.9857220666686559e-08 7.835296804002231e-08 -2.2321064561103737e-12 2.1768340630750804e-12 1.9073260345217663e-08</Inertia>
+</MassProperties>
+<GeometryFile name="boots_1.STEP_Default_sldprt.STEP" type="STEP"/>
+<VisualProperties>
+<Ambient r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Diffuse r="0.792156862745098" g="0.81960784313725488" b="0.93333333333333335" a="1"/>
+<Specular r="0.396078431372549" g="0.40980392156862744" b="0.46666666666666667" a="1"/>
+<Emissive r="0" g="0" b="0" a="1"/>
+<Shininess>0.3125</Shininess>
+</VisualProperties>
+</Part>
+</Parts>
+</SimscapeMultibodyImportXML>
