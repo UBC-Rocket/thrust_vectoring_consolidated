@@ -131,3 +131,46 @@ void matrix33_vec3_mul(const float M[3][3], const float v[3], float out[3])
     out[1] = M[1][0] * v[0] + M[1][1] * v[1] + M[1][2] * v[2];
     out[2] = M[2][0] * v[0] + M[2][1] * v[1] + M[2][2] * v[2];
 }
+
+void quaternion_from_rotation_vector(const float rv[3], quaternion_t *out)
+{
+    if (!rv || !out) return;
+    float angle_sq = rv[0] * rv[0] + rv[1] * rv[1] + rv[2] * rv[2];
+
+    if (angle_sq < 1e-10f) {
+        /* Small-angle approximation: q ≈ [1, rv/2] */
+        out->w = 1.0f;
+        out->x = 0.5f * rv[0];
+        out->y = 0.5f * rv[1];
+        out->z = 0.5f * rv[2];
+    } else {
+        float angle = sqrtf(angle_sq);
+        float ha = 0.5f * angle;
+        float sha = sinf(ha) / angle;
+        out->w = cosf(ha);
+        out->x = sha * rv[0];
+        out->y = sha * rv[1];
+        out->z = sha * rv[2];
+    }
+}
+
+void skew_symmetric_3x3(const float v[3], float out[3][3])
+{
+    if (!v || !out) return;
+    out[0][0] =  0.0f;  out[0][1] = -v[2];  out[0][2] =  v[1];
+    out[1][0] =  v[2];  out[1][1] =  0.0f;  out[1][2] = -v[0];
+    out[2][0] = -v[1];  out[2][1] =  v[0];  out[2][2] =  0.0f;
+}
+
+float vec3_normalize(float v[3])
+{
+    if (!v) return 0.0f;
+    float mag = sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+    if (mag > 1e-10f) {
+        float inv = 1.0f / mag;
+        v[0] *= inv;
+        v[1] *= inv;
+        v[2] *= inv;
+    }
+    return mag;
+}

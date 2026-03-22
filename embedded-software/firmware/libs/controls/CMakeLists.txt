@@ -5,6 +5,7 @@ project(controls LANGUAGES C)
 add_library(controls STATIC
     src/pid.c
     src/flight_controller.c
+    src/pwm.c
 )
 
 target_include_directories(controls

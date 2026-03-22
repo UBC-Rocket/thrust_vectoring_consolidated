@@ -169,8 +169,8 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   /* --- TIM4 interrupt channels ------------------------------------ */
-  HAL_TIM_OC_Start_IT(&htim4, TIM_CHANNEL_2);   /* 800Hz -> controls notify */
-  HAL_TIM_OC_Start_IT(&htim4, TIM_CHANNEL_4);   /* 800Hz -> servo/ESC apply */
+  HAL_TIM_OC_Start_IT(&htim4, TIM_CHANNEL_2);   /* 800 Hz -> controls notify */
+  HAL_TIM_OC_Start_IT(&htim4, TIM_CHANNEL_4);   /* 800 Hz -> ESC/servo/baro */
 
   /* --- Servo pair: TIM1 CH2 (servo1), TIM3 CH3 (servo2) - 200Hz -- */
   {
@@ -868,7 +868,7 @@ static void MX_TIM4_Init(void)
   htim4.Instance = TIM4;
   htim4.Init.Prescaler = 249;
   htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim4.Init.Period = 4999;
+  htim4.Init.Period = 1249;
   htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
@@ -1256,6 +1256,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   if (htim->Instance == TIM6)
   {
     HAL_IncTick();
+    timestamp_update();
   }
   /* USER CODE BEGIN Callback 1 */
 

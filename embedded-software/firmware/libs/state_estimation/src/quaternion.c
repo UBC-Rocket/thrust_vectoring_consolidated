@@ -1,141 +1,170 @@
+/**
+ * @file    quaternion.c
+ * @brief   ESKF orientation: nominal propagation, error-state Jacobians,
+ *          accelerometer and magnetometer observation models.
+ */
+#include "state_estimation/quaternion.h"
 #include "state_estimation/state.h"
-#include "state_estimation/ekf.h"
+#include "state_estimation/matrix.h"
 #include <math.h>
 #include <string.h>
-#include "state_estimation/matrix.h"
 
-void state_transition_orientation(
-    quaternion_state *state,
-    float time_step,
-    float g[3], // gyro data
-    float out_q[4]
-)
+/* ========================================================================
+ * Nominal State Propagation
+ * ====================================================================== */
+
+void eskf_propagate_nominal(orientation_eskf_state_t *state,
+                            const float gyro_corr[3], float dt)
 {
-    float P[4][1];
-    for (int i = 0; i < 4; i++) P[i][0] = state->vals[i];
+    float rv[3] = { gyro_corr[0] * dt,
+                    gyro_corr[1] * dt,
+                    gyro_corr[2] * dt };
 
-    /*
-    | 0   -gx   -gy  -gz  |
-    | gx   0     gz  -gy  |
-    | gy  -gz    0    gx  |
-    | gz   gy   -gx   0   |
-    */
+    quaternion_t dq;
+    quaternion_from_rotation_vector(rv, &dq);
 
-    float B[4][4] = {{0, -g[0], -g[1], -g[2]},
-                    {g[0], 0, g[2], -g[1]},
-                    {g[1], -g[2], 0, g[0]},
-                    {g[2], g[1], -g[0], 0}};
+    quaternion_t q_old;
+    q_old.w = state->q_nom[0];
+    q_old.x = state->q_nom[1];
+    q_old.y = state->q_nom[2];
+    q_old.z = state->q_nom[3];
 
-    float C[4][1];
+    quaternion_t q_new;
+    quaternion_multiply(&q_old, &dq, &q_new);
 
-    mat_mul((const float *)B, (const float *)P, (float *)C, 4, 4, 1);
+    state->q_nom[0] = q_new.w;
+    state->q_nom[1] = q_new.x;
+    state->q_nom[2] = q_new.y;
+    state->q_nom[3] = q_new.z;
 
-    for (int i = 0; i < 4; i++) C[i][0] = C[i][0] * (time_step * 0.5f);
+    normalize(state->q_nom);
+}
 
-    for (int i = 0; i < 4; i++) {
-        out_q[i] = state->vals[i] + C[i][0];
+/* ========================================================================
+ * Error-State Transition Matrix
+ * ====================================================================== */
+
+void eskf_get_F(const float gyro_corr[3], float dt,
+                float F_d[ESKF_ERR_DIM][ESKF_ERR_DIM], uint8_t imu_idx)
+{
+    memset(F_d, 0, sizeof(float) * ESKF_ERR_DIM * ESKF_ERR_DIM);
+
+    /* Identity */
+    for (int i = 0; i < ESKF_ERR_DIM; i++) F_d[i][i] = 1.0f;
+
+    /* -[ω]ₓ * dt  (top-left 3x3) */
+    float wdt[3] = { gyro_corr[0] * dt,
+                     gyro_corr[1] * dt,
+                     gyro_corr[2] * dt };
+
+    F_d[0][1] +=  wdt[2];   /* +wz*dt */
+    F_d[0][2] += -wdt[1];   /* -wy*dt */
+    F_d[1][0] += -wdt[2];   /* -wz*dt */
+    F_d[1][2] +=  wdt[0];   /* +wx*dt */
+    F_d[2][0] +=  wdt[1];   /* +wy*dt */
+    F_d[2][1] += -wdt[0];   /* -wx*dt */
+
+    /* -I₃ * dt at this IMU's gyro bias columns */
+    int bg_col = 3 + 6 * imu_idx;
+    F_d[0][bg_col + 0] = -dt;
+    F_d[1][bg_col + 1] = -dt;
+    F_d[2][bg_col + 2] = -dt;
+}
+
+/* ========================================================================
+ * Observation Models
+ * ====================================================================== */
+
+static void rotate_nav_to_body(const float q[4], const float v_nav[3],
+                               float v_body[3])
+{
+    quaternion_t qt;
+    qt.w = q[0]; qt.x = q[1]; qt.y = q[2]; qt.z = q[3];
+
+    rotation_matrix_t R;
+    quaternion_to_rotation_matrix(&qt, &R);
+
+    for (int i = 0; i < 3; i++) {
+        v_body[i] = R.R[0][i] * v_nav[0]
+                  + R.R[1][i] * v_nav[1]
+                  + R.R[2][i] * v_nav[2];
     }
-
-    normalize(out_q);
 }
 
-void get_state_jacobian_orientation(
-    float g[3],
-    float dT,
-    float j[4][4]
-)
+void eskf_predict_accel(const float q_nom[4], const float expected_g[3],
+                        float accel_pred[3])
 {
-    /*
-    |  1    -gxdt   -gydt   -gzdt |
-    | gxdt    1      gzdt   -gydt |
-    | gydt  -gzdt     1      gxdt |
-    | gzdt   gydt   -gxdt     1   |
-    */
-    float xdt = 0.5f * g[0] * dT;
-    float ydt = 0.5f * g[1] * dT;
-    float zdt = 0.5f * g[2] * dT;
-
-    memcpy(j,
-        (float [4][4]){
-            {1,   -xdt, -ydt, -zdt},
-            {xdt,  1,    zdt, -ydt},
-            {ydt, -zdt,  1,    xdt},
-            {zdt,  ydt, -xdt,  1  }
-        },
-        sizeof(float[4][4]));
-
-    // j[0][0]=1;   j[0][1]=-xdt; j[0][2]=-ydt; j[0][3]=-zdt;
-    // j[1][0]=xdt; j[1][1]=1;    j[1][2]=zdt;  j[1][3]=-ydt;
-    // j[2][0]=ydt; j[2][1]=-zdt; j[2][2]=1;    j[2][3]=xdt;
-    // j[3][0]=zdt; j[3][1]=ydt;  j[3][2]=-xdt; j[3][3]=1;
-
+    rotate_nav_to_body(q_nom, expected_g, accel_pred);
 }
 
-void predict_accel_from_quat(const float q[4], float accel_pred[3], float expected_g[3])
+void eskf_predict_mag(const float q_nom[4], const float mag_ref[3],
+                      float mag_pred[3])
 {
-    rotation_matrix_t r;
-    quaternion_t quat;
-    quat.w = q[0]; quat.x = q[1]; quat.y = q[2]; quat.z = q[3];
-
-    quaternion_to_rotation_matrix(&quat, &r);
-
-    for (int i = 0; i < 3; i++) accel_pred[i] = 0;
-
-    for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++) accel_pred[i] += r.R[j][i] * expected_g[j];
+    rotate_nav_to_body(q_nom, mag_ref, mag_pred);
 }
 
-void get_h_jacobian_quaternion(float q[4], float eg[3], float H[3][4]) {
-    float w = q[0];
-    float x = q[1];
-    float y = q[2];
-    float z = q[3];
-    
-    float gx = eg[0];
-    float gy = eg[1];
-    float gz = eg[2];
+/* ========================================================================
+ * Measurement Jacobians
+ * ====================================================================== */
 
-    // Derivatives of R^T * g
-    // Where R^T is the rotation from World to Body
-    
-    // Row 0 (Gradient of a_x)
-    H[0][0] = -2.0f * y;
-    H[0][1] =  2.0f * z;
-    H[0][2] = -2.0f * w;
-    H[0][3] =  2.0f * x;
+void eskf_get_H_accel(const float q_nom[4], const float expected_g[3],
+                      float H[3][ESKF_ERR_DIM], uint8_t imu_idx)
+{
+    memset(H, 0, sizeof(float) * 3 * ESKF_ERR_DIM);
 
-    // Row 1 (ay)
-    H[1][0] =  2.0f * x;
-    H[1][1] =  2.0f * w;
-    H[1][2] =  2.0f * z;
-    H[1][3] =  2.0f * y;
+    /* Predicted accel in body frame */
+    float a_pred[3];
+    eskf_predict_accel(q_nom, expected_g, a_pred);
 
-    // Row 2 (az)
-    H[2][0] =  2.0f * w;
-    H[2][1] = -2.0f * x;
-    H[2][2] = -2.0f * y;
-    H[2][3] =  2.0f * z;
+    /* Cols 0..2: [a_pred]ₓ */
+    H[0][0] =  0.0f;       H[0][1] = -a_pred[2]; H[0][2] =  a_pred[1];
+    H[1][0] =  a_pred[2];  H[1][1] =  0.0f;      H[1][2] = -a_pred[0];
+    H[2][0] = -a_pred[1];  H[2][1] =  a_pred[0]; H[2][2] =  0.0f;
 
-    // for(int i=0; i<3; i++) {
-    //     for(int j=0; j<4; j++) {
-    //         H[i][j] = -H[i][j];
-    //     }
-    // }
+    /* Accel bias columns left as zero.
+     * The normalized observation model h = normalize(R^T * g + b_a) has
+     * ∂h/∂b_a = (I - a_hat * a_hat^T) / |a|, which zeroes out the component
+     * along gravity.  Using the full -R^T here would cause divergence.
+     * Accel bias is estimated during calibration, not via measurement update.
+     */
+    (void)imu_idx;
 }
 
-void quat_to_euler(float q[4], float e[3]) {
+void eskf_get_H_mag(const float q_nom[4], const float mag_ref[3],
+                    float H[3][ESKF_ERR_DIM])
+{
+    memset(H, 0, sizeof(float) * 3 * ESKF_ERR_DIM);
+
+    float m_pred[3];
+    eskf_predict_mag(q_nom, mag_ref, m_pred);
+
+    /* Cols 0..2: [m_pred]ₓ */
+    H[0][0] =  0.0f;       H[0][1] = -m_pred[2]; H[0][2] =  m_pred[1];
+    H[1][0] =  m_pred[2];  H[1][1] =  0.0f;      H[1][2] = -m_pred[0];
+    H[2][0] = -m_pred[1];  H[2][1] =  m_pred[0]; H[2][2] =  0.0f;
+
+    /* All bias cols zero — mag doesn't depend on IMU biases */
+}
+
+/* ========================================================================
+ * Utilities
+ * ====================================================================== */
+
+void quat_to_euler(const float q[4], float euler[3])
+{
     float w = q[0], x = q[1], y = q[2], z = q[3];
 
-    float sinr = 2.0f * (w*x + y*z);
-    float cosr = 1.0f - 2.0f * (x*x + y*y);
-    e[0] = atan2f(sinr, cosr) * 180.0f / (float)M_PI;
+    float sinr = 2.0f * (w * x + y * z);
+    float cosr = 1.0f - 2.0f * (x * x + y * y);
+    euler[0] = atan2f(sinr, cosr) * 180.0f / (float)M_PI;
 
-    float sinp = 2.0f * (w*y - z*x);
+    float sinp = 2.0f * (w * y - z * x);
     if (fabsf(sinp) >= 1.0f)
-        e[1] = copysignf((float)M_PI / 2.0f, sinp) * 180.0f / (float)M_PI;
+        euler[1] = copysignf((float)M_PI / 2.0f, sinp) * 180.0f / (float)M_PI;
     else
-        e[1] = asinf(sinp) * 180.0f / (float)M_PI;
+        euler[1] = asinf(sinp) * 180.0f / (float)M_PI;
 
-    float siny = 2.0f * (w*z + x*y);
-    float cosy = 1.0f - 2.0f * (y*y + z*z);
-    e[2] = atan2f(siny, cosy) * 180.0f / (float)M_PI;
+    float siny = 2.0f * (w * z + x * y);
+    float cosy = 1.0f - 2.0f * (y * y + z * z);
+    euler[2] = atan2f(siny, cosy) * 180.0f / (float)M_PI;
 }

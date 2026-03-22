@@ -5,398 +5,398 @@ import QtQuick.Layouts
 import "../Items"
 
 BasePanel {
-    id: pidPanel
+    id: panel
 
-    signal commandTriggered(int which, var code)
-
-    // Emits whenever the user saves new gains in the editor.
-    signal pidGainsUpdated(string mode, double pGain, double iGain, double dGain)
-
-    property int displayPrecision: 2
-    property var editBuffer: []
-    property var pidValues: []
-
-    // TODO: check if channel 1 is valid for PID Value sending
+    // TODO: check if channel 1 is valid for command sending.
     property int which: 1
 
-    // Local store of PID gains for each mode.
-    ListModel {
-        id: pidModel
-        ListElement { mode: "Hover"; pGain: 1.0; iGain: 2.2; dGain: 3.33 }
-        ListElement { mode: "Up";    pGain: 2.0; iGain: 0.0; dGain: 0.0  }
-        ListElement { mode: "Down";  pGain: 1.5; iGain: 1.0; dGain: 2.0  }
-    }
+    // SetPidGains
+    property bool hasAttitudeKp: true
+    property bool hasAttitudeKd: true
+    property double attKpX: 0.0
+    property double attKpY: 0.0
+    property double attKpZ: 0.0
+    property double attKdX: 0.0
+    property double attKdY: 0.0
+    property double attKdZ: 0.0
+    property double zKp: 0.0
+    property double zKi: 0.0
+    property double zKd: 0.0
+    property double zIntegralLimit: 0.0
 
-    function modeColor(name) {
-        if (name === "Hover") return "#60A5FA"
-        if (name === "Up")    return "#34D399"
-        if (name === "Down")  return "#FBBF24"
-        return Theme.accent
-    }
+    // SetReference
+    property double zRef: 0.0
+    property double vzRef: 0.0
+    property bool hasQRef: true
+    property double qRefW: 1.0
+    property double qRefX: 0.0
+    property double qRefY: 0.0
+    property double qRefZ: 0.0
 
-    function formatGain(value) {
-        return Number(value).toFixed(displayPrecision)
-    }
+    // SetConfig
+    property double mass: 0.0
+    property double tMin: 0.0
+    property double tMax: 0.0
+    property double thetaMin: 0.0
+    property double thetaMax: 0.0
 
     function sanitizedNumber(value, fallback) {
         const parsed = Number(value)
         return isNaN(parsed) ? fallback : parsed
     }
 
-    function syncEditBuffer() {
-        const buffer = []
-        for (let idx = 0; idx < pidModel.count; ++idx) {
-            const row = pidModel.get(idx)
-            buffer.push({
-                mode: row.mode,
-                pGain: row.pGain,
-                iGain: row.iGain,
-                dGain: row.dGain
-            })
-        }
-        editBuffer = buffer
-    }
+    component NumberField: ColumnLayout {
+        property string label: ""
+        property alias text: input.text
+        Layout.fillWidth: true
+        spacing: 4
 
-    function applyEdits() {
-
-        for (let idx = 0; idx < editBuffer.length; ++idx) {
-            const current = pidModel.get(idx)
-            const updated = editBuffer[idx] || {}
-
-            const pVal = sanitizedNumber(updated.pGain, current.pGain)
-            const iVal = sanitizedNumber(updated.iGain, current.iGain)
-            const dVal = sanitizedNumber(updated.dGain, current.dGain)
-
-            pidValues[idx * 3] = pVal
-            pidValues[idx * 3 + 1] = iVal
-            pidValues[idx * 3 + 2] = dVal
-
-            pidModel.setProperty(idx, "pGain", pVal)
-            pidModel.setProperty(idx, "iGain", iVal)
-            pidModel.setProperty(idx, "dGain", dVal)
-
-            pidPanel.pidGainsUpdated(current.mode, pVal, iVal, dVal)
+        Text {
+            text: parent.label
+            color: Theme.textTertiary
+            font.family: Theme.fontFamily
+            font.pixelSize: 12
         }
 
-        pidPanel.commandTriggered(which, pidValues);
-
-        editorPopup.close()
-
+        Basic.TextField {
+            id: input
+            Layout.fillWidth: true
+            color: Theme.textPrimary
+            font.family: Theme.monoFamily
+            font.pixelSize: Theme.fontBody
+            inputMethodHints: Qt.ImhFormattedNumbersOnly
+            validator: DoubleValidator { decimals: 6 }
+            background: Rectangle {
+                radius: Theme.radiusCard
+                color: Theme.background
+                border.width: Theme.strokeControl
+                border.color: Theme.border
+            }
+        }
     }
 
     BaseHeader {
         id: header
-        headerText: "PID Controller"
+        headerText: "Controller Commands"
     }
 
-    Basic.Button {
-        id: editButton
-        text: "Edit PID Values"
+    Text {
         anchors.top: parent.top
         anchors.right: parent.right
         anchors.margins: 12
-        padding: 10
+        text: "TX channel: " + which
+        color: Theme.textTertiary
         font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontBody
-        hoverEnabled: true
+        font.pixelSize: 12
+    }
+
+    TabBar {
+        id: tabs
+        anchors.top: header.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.margins: 12
+        spacing: 8
+
         background: Rectangle {
             radius: Theme.radiusControl
-            color: editButton.down    ? Theme.btnPrimaryPress
-                 : editButton.hovered ? Theme.btnPrimaryHover
-                 :                      Theme.btnPrimaryBg
-            border.width: Theme.strokeControl
-            border.color: Theme.btnPrimaryBorder
-        }
-        contentItem: Text {
-            anchors.centerIn: parent
-            text: editButton.text
-            color: Theme.btnPrimaryText
-            font: editButton.font
-        }
-        onClicked: {
-            syncEditBuffer()
-            editorPopup.open()
-        }
-    }
-
-    ColumnLayout {
-        anchors {
-            top: header.bottom
-            left: parent.left
-            right: parent.right
-            bottom: parent.bottom
-            topMargin: 12
-            leftMargin: 12
-            rightMargin: 12
-            bottomMargin: 12
-        }
-        spacing: 10
-
-
-        // PID rows
-        Repeater {
-            model: pidModel
-            delegate: Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 72
-                radius: Theme.radiusCard
-                color: Theme.surfaceInset
-                border.width: Theme.strokeControl
-                border.color: Theme.border
-
-                property color accent: modeColor(mode)
-
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.margins: 10
-                    spacing: 10
-
-                    Rectangle {
-                        width: 6
-                        radius: 3
-                        color: accent
-                        Layout.fillHeight: true
-                    }
-
-                    Column {
-                        Layout.preferredWidth: 90
-                        spacing: 2
-
-                        Text {
-                            text: mode
-                            color: Theme.textPrimary
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontH2
-                            font.bold: true
-                        }
-
-                        Text {
-                            text: "Flight Mode"
-                            color: Theme.textTertiary
-                            font.family: Theme.fontFamily
-                            font.pixelSize: 12
-                        }
-                    }
-
-                    // Gain chips
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 8
-
-                        Rectangle {
-                            Layout.fillWidth: true
-                            radius: Theme.radiusCard
-                            color: Theme.background
-                            border.width: Theme.strokeControl
-                            border.color: Theme.border
-
-                            Column {
-                                anchors.centerIn: parent
-                                spacing: 2
-                                Text { text: "P"; color: Theme.textTertiary; font.family: Theme.fontFamily; font.pixelSize: 12; font.bold: true; horizontalAlignment: Text.AlignHCenter }
-                                Text { text: formatGain(pGain); color: Theme.textPrimary; font.family: Theme.monoFamily; font.pixelSize: Theme.fontH2; font.bold: true; horizontalAlignment: Text.AlignHCenter }
-                            }
-                        }
-
-                        Rectangle {
-                            Layout.fillWidth: true
-                            radius: Theme.radiusCard
-                            color: Theme.background
-                            border.width: Theme.strokeControl
-                            border.color: Theme.border
-
-                            Column {
-                                anchors.centerIn: parent
-                                spacing: 2
-                                Text { text: "I"; color: Theme.textTertiary; font.family: Theme.fontFamily; font.pixelSize: 12; font.bold: true; horizontalAlignment: Text.AlignHCenter }
-                                Text { text: formatGain(iGain); color: Theme.textPrimary; font.family: Theme.monoFamily; font.pixelSize: Theme.fontH2; font.bold: true; horizontalAlignment: Text.AlignHCenter }
-                            }
-                        }
-
-                        Rectangle {
-                            Layout.fillWidth: true
-                            radius: Theme.radiusCard
-                            color: Theme.background
-                            border.width: Theme.strokeControl
-                            border.color: Theme.border
-
-                            Column {
-                                anchors.centerIn: parent
-                                spacing: 2
-                                Text { text: "D"; color: Theme.textTertiary; font.family: Theme.fontFamily; font.pixelSize: 12; font.bold: true; horizontalAlignment: Text.AlignHCenter }
-                                Text { text: formatGain(dGain); color: Theme.textPrimary; font.family: Theme.monoFamily; font.pixelSize: Theme.fontH2; font.bold: true; horizontalAlignment: Text.AlignHCenter }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    Popup {
-        id: editorPopup
-        modal: true
-        focus: true
-        closePolicy: Popup.CloseOnEscape
-        anchors.centerIn: Overlay.overlay
-        width: 640
-        padding: 0
-
-        background: Rectangle {
             color: Theme.surfaceInset
-            radius: 12
             border.width: Theme.strokeControl
             border.color: Theme.border
         }
 
-        ColumnLayout {
-            anchors.fill: parent
-            anchors.margins: 18
-            spacing: 12
+        TabButton {
+            id: pidTab
+            text: "PID"
+            width: (tabs.width - (tabs.spacing * 2)) / 3
+            hoverEnabled: true
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontBody
+            background: Rectangle {
+                radius: Theme.radiusControl
+                color: pidTab.checked ? Theme.btnPrimaryBg
+                     : pidTab.down ? Theme.btnSecondaryPress
+                     : pidTab.hovered ? Theme.btnSecondaryHover
+                     : Theme.btnSecondaryBg
+                border.width: Theme.strokeControl
+                border.color: pidTab.checked ? Theme.btnPrimaryBorder : Theme.btnSecondaryBorder
+            }
+            contentItem: Text {
+                anchors.centerIn: parent
+                text: pidTab.text
+                color: pidTab.checked ? Theme.btnPrimaryText : Theme.btnSecondaryText
+                font: pidTab.font
+            }
+        }
+        TabButton {
+            id: referenceTab
+            text: "Reference"
+            width: (tabs.width - (tabs.spacing * 2)) / 3
+            hoverEnabled: true
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontBody
+            background: Rectangle {
+                radius: Theme.radiusControl
+                color: referenceTab.checked ? Theme.btnPrimaryBg
+                     : referenceTab.down ? Theme.btnSecondaryPress
+                     : referenceTab.hovered ? Theme.btnSecondaryHover
+                     : Theme.btnSecondaryBg
+                border.width: Theme.strokeControl
+                border.color: referenceTab.checked ? Theme.btnPrimaryBorder : Theme.btnSecondaryBorder
+            }
+            contentItem: Text {
+                anchors.centerIn: parent
+                text: referenceTab.text
+                color: referenceTab.checked ? Theme.btnPrimaryText : Theme.btnSecondaryText
+                font: referenceTab.font
+            }
+        }
+        TabButton {
+            id: configTab
+            text: "Config"
+            width: (tabs.width - (tabs.spacing * 2)) / 3
+            hoverEnabled: true
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontBody
+            background: Rectangle {
+                radius: Theme.radiusControl
+                color: configTab.checked ? Theme.btnPrimaryBg
+                     : configTab.down ? Theme.btnSecondaryPress
+                     : configTab.hovered ? Theme.btnSecondaryHover
+                     : Theme.btnSecondaryBg
+                border.width: Theme.strokeControl
+                border.color: configTab.checked ? Theme.btnPrimaryBorder : Theme.btnSecondaryBorder
+            }
+            contentItem: Text {
+                anchors.centerIn: parent
+                text: configTab.text
+                color: configTab.checked ? Theme.btnPrimaryText : Theme.btnSecondaryText
+                font: configTab.font
+            }
+        }
+    }
+
+    StackLayout {
+        anchors.top: tabs.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.margins: 12
+        currentIndex: tabs.currentIndex
+
+        // PID tab (tvr_SetPidGains)
+        ScrollView {
+            id: pidScroll
+            clip: true
+            contentWidth: availableWidth
 
             ColumnLayout {
-                spacing: 4
-                Layout.fillWidth: true
-                Text { text: "Edit PID Values"; color: Theme.textPrimary; font.family: Theme.fontFamily; font.pixelSize: 20; font.bold: true }
-            }
+                width: pidScroll.availableWidth
+                spacing: 12
 
-            Repeater {
-                model: editBuffer
-                delegate: ColumnLayout {
-                    required property var modelData
-                    required property int index
-                    spacing: 6
+                CheckBox {
+                    text: "Proportional"
+                    checked: hasAttitudeKp
+                    onToggled: hasAttitudeKp = checked
+                }
+
+                RowLayout {
                     Layout.fillWidth: true
-
-                    Text {
-                        text: modelData.mode
-                        color: modeColor(modelData.mode)
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontH2
-                        font.bold: true
-                    }
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 8
-
-                        Basic.TextField {
-                            Layout.preferredWidth: (editorPopup.width - 60) / 3
-                            Layout.maximumWidth: Layout.preferredWidth
-                            text: modelData.pGain
-                            placeholderText: "P"
-                            color: Theme.textPrimary
-                            font.family: Theme.monoFamily
-                            font.pixelSize: Theme.fontBody
-                            inputMethodHints: Qt.ImhFormattedNumbersOnly
-                            validator: DoubleValidator { decimals: 4 }
-                            background: Rectangle {
-                                radius: Theme.radiusCard
-                                color: Theme.background
-                                border.width: Theme.strokeControl
-                                border.color: Theme.border
-                            }
-                            onTextChanged: editBuffer[index].pGain = text
-                        }
-
-                        Basic.TextField {
-                            Layout.preferredWidth: (editorPopup.width - 60) / 3
-                            Layout.maximumWidth: Layout.preferredWidth
-                            text: modelData.iGain
-                            placeholderText: "I"
-                            color: Theme.textPrimary
-                            font.family: Theme.monoFamily
-                            font.pixelSize: Theme.fontBody
-                            inputMethodHints: Qt.ImhFormattedNumbersOnly
-                            validator: DoubleValidator { decimals: 4 }
-                            background: Rectangle {
-                                radius: Theme.radiusCard
-                                color: Theme.background
-                                border.width: Theme.strokeControl
-                                border.color: Theme.border
-                            }
-                            onTextChanged: editBuffer[index].iGain = text
-                        }
-
-                        Basic.TextField {
-                            Layout.preferredWidth: (editorPopup.width - 60) / 3
-                            Layout.maximumWidth: Layout.preferredWidth
-                            text: modelData.dGain
-                            placeholderText: "D"
-                            color: Theme.textPrimary
-                            font.family: Theme.monoFamily
-                            font.pixelSize: Theme.fontBody
-                            inputMethodHints: Qt.ImhFormattedNumbersOnly
-                            validator: DoubleValidator { decimals: 4 }
-                            background: Rectangle {
-                                radius: Theme.radiusCard
-                                color: Theme.background
-                                border.width: Theme.strokeControl
-                                border.color: Theme.border
-                            }
-                            onTextChanged: editBuffer[index].dGain = text
-                        }
-                    }
+                    spacing: 8
+                    NumberField { label: "x"; text: String(attKpX); onTextChanged: attKpX = panel.sanitizedNumber(text, attKpX) }
+                    NumberField { label: "y"; text: String(attKpY); onTextChanged: attKpY = panel.sanitizedNumber(text, attKpY) }
+                    NumberField { label: "z"; text: String(attKpZ); onTextChanged: attKpZ = panel.sanitizedNumber(text, attKpZ) }
                 }
-            }
 
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 10
+                CheckBox {
+                    text: "Derivative"
+                    checked: hasAttitudeKd
+                    onToggled: hasAttitudeKd = checked
+                }
 
-                Item { Layout.fillWidth: true }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    NumberField { label: "x"; text: String(attKdX); onTextChanged: attKdX = panel.sanitizedNumber(text, attKdX) }
+                    NumberField { label: "y"; text: String(attKdY); onTextChanged: attKdY = panel.sanitizedNumber(text, attKdY) }
+                    NumberField { label: "z"; text: String(attKdZ); onTextChanged: attKdZ = panel.sanitizedNumber(text, attKdZ) }
+                }
+
+                Text {
+                    text: "z"
+                    color: Theme.textTertiary
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 12
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    NumberField { label: "proportional"; text: String(zKp); onTextChanged: zKp = panel.sanitizedNumber(text, zKp) }
+                    NumberField { label: "integral"; text: String(zKi); onTextChanged: zKi = panel.sanitizedNumber(text, zKi) }
+                    NumberField { label: "derivative"; text: String(zKd); onTextChanged: zKd = panel.sanitizedNumber(text, zKd) }
+                }
+
+                NumberField {
+                    label: "integral limit"
+                    text: String(zIntegralLimit)
+                    onTextChanged: zIntegralLimit = panel.sanitizedNumber(text, zIntegralLimit)
+                }
 
                 Basic.Button {
-                    id: cancelButton
-                    text: "Cancel"
+                    id: sendPidButton
+                    text: "Send PID"
+                    Layout.alignment: Qt.AlignRight
                     padding: 10
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontBody
                     background: Rectangle {
                         radius: Theme.radiusControl
-                        color: Theme.btnSecondaryBg
-                        border.width: Theme.strokeControl
-                        border.color: Theme.btnSecondaryBorder
-                    }
-                    contentItem: Text {
-                        anchors.centerIn: parent
-                        text: cancelButton.text
-                        color: Theme.btnSecondaryText
-                        font: cancelButton.font
-                    }
-                    onClicked: editorPopup.close()
-                }
-
-                Basic.Button {
-                    id: saveButton
-                    text: "Save Changes"
-                    padding: 10
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontBody
-                    background: Rectangle {
-                        radius: Theme.radiusControl
-                        color: saveButton.down    ? Theme.btnPrimaryPress
-                             : saveButton.hovered ? Theme.btnPrimaryHover
-                             :                      Theme.btnPrimaryBg
+                        color: sendPidButton.down ? Theme.btnPrimaryPress
+                             : sendPidButton.hovered ? Theme.btnPrimaryHover
+                             : Theme.btnPrimaryBg
                         border.width: Theme.strokeControl
                         border.color: Theme.btnPrimaryBorder
                     }
                     contentItem: Text {
                         anchors.centerIn: parent
-                        text: saveButton.text
+                        text: sendPidButton.text
                         color: Theme.btnPrimaryText
-                        font: saveButton.font
+                        font: sendPidButton.font
                     }
-                    onClicked: applyEdits()
+                    onClicked: {
+                        const values = [
+                            hasAttitudeKp,
+                            attKpX, attKpY, attKpZ,
+                            hasAttitudeKd,
+                            attKdX, attKdY, attKdZ,
+                            zKp, zKi, zKd, zIntegralLimit
+                        ]
+                        commandsender.sendPIDValues(which, values)
+                    }
                 }
             }
         }
-    }
-    // --- Signal wiring: when a card is clicked, forward the code to the C++ CommandSender object ---
-    Connections {
-        target: pidPanel
-        function onCommandTriggered(txWhich, code) {
-            commandsender.sendPIDValues(txWhich, code) // Delegate to Q_INVOKABLE; panel stays transport-agnostic.
+
+        // Reference tab (tvr_SetReference)
+        ScrollView {
+            id: referenceScroll
+            clip: true
+            contentWidth: availableWidth
+
+            ColumnLayout {
+                width: referenceScroll.availableWidth
+                spacing: 12
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    NumberField { label: "z ref"; text: String(zRef); onTextChanged: zRef = panel.sanitizedNumber(text, zRef) }
+                    NumberField { label: "vz ref"; text: String(vzRef); onTextChanged: vzRef = panel.sanitizedNumber(text, vzRef) }
+                }
+
+                CheckBox {
+                    text: "has_q_ref"
+                    checked: hasQRef
+                    onToggled: hasQRef = checked
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    NumberField { label: "q ref w"; text: String(qRefW); onTextChanged: qRefW = panel.sanitizedNumber(text, qRefW) }
+                    NumberField { label: "q ref x"; text: String(qRefX); onTextChanged: qRefX = panel.sanitizedNumber(text, qRefX) }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    NumberField { label: "q ref y"; text: String(qRefY); onTextChanged: qRefY = panel.sanitizedNumber(text, qRefY) }
+                    NumberField { label: "q ref z"; text: String(qRefZ); onTextChanged: qRefZ = panel.sanitizedNumber(text, qRefZ) }
+                }
+
+                Basic.Button {
+                    id: sendReferenceButton
+                    text: "Send Reference"
+                    Layout.alignment: Qt.AlignRight
+                    padding: 10
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontBody
+                    background: Rectangle {
+                        radius: Theme.radiusControl
+                        color: sendReferenceButton.down ? Theme.btnPrimaryPress
+                             : sendReferenceButton.hovered ? Theme.btnPrimaryHover
+                             : Theme.btnPrimaryBg
+                        border.width: Theme.strokeControl
+                        border.color: Theme.btnPrimaryBorder
+                    }
+                    contentItem: Text {
+                        anchors.centerIn: parent
+                        text: sendReferenceButton.text
+                        color: Theme.btnPrimaryText
+                        font: sendReferenceButton.font
+                    }
+                    onClicked: {
+                        const values = [zRef, vzRef, hasQRef, qRefW, qRefX, qRefY, qRefZ]
+                        commandsender.sendReferenceValues(which, values)
+                    }
+                }
+            }
+        }
+
+        // Config tab (tvr_SetConfig)
+        ScrollView {
+            id: configScroll
+            clip: true
+            contentWidth: availableWidth
+
+            ColumnLayout {
+                width: configScroll.availableWidth
+                spacing: 12
+
+                NumberField { label: "mass"; text: String(mass); onTextChanged: mass = panel.sanitizedNumber(text, mass) }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    NumberField { label: "T_min"; text: String(tMin); onTextChanged: tMin = panel.sanitizedNumber(text, tMin) }
+                    NumberField { label: "T_max"; text: String(tMax); onTextChanged: tMax = panel.sanitizedNumber(text, tMax) }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    NumberField { label: "theta_min"; text: String(thetaMin); onTextChanged: thetaMin = panel.sanitizedNumber(text, thetaMin) }
+                    NumberField { label: "theta_max"; text: String(thetaMax); onTextChanged: thetaMax = panel.sanitizedNumber(text, thetaMax) }
+                }
+
+                Basic.Button {
+                    id: sendConfigButton
+                    text: "Send Config"
+                    Layout.alignment: Qt.AlignRight
+                    padding: 10
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontBody
+                    background: Rectangle {
+                        radius: Theme.radiusControl
+                        color: sendConfigButton.down ? Theme.btnPrimaryPress
+                             : sendConfigButton.hovered ? Theme.btnPrimaryHover
+                             : Theme.btnPrimaryBg
+                        border.width: Theme.strokeControl
+                        border.color: Theme.btnPrimaryBorder
+                    }
+                    contentItem: Text {
+                        anchors.centerIn: parent
+                        text: sendConfigButton.text
+                        color: Theme.btnPrimaryText
+                        font: sendConfigButton.font
+                    }
+                    onClicked: {
+                        const values = [mass, tMin, tMax, thetaMin, thetaMax]
+                        commandsender.sendConfigValues(which, values)
+                    }
+                }
+            }
         }
     }
 }

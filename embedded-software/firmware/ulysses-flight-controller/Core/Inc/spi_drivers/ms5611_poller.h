@@ -71,6 +71,10 @@ typedef struct {
     uint8_t rx_buf[4];          /**< Scratch buffer for SPI reads */
     bool fresh;                 /**< True when new P/T data is available */
     uint32_t seq;               /**< Monotonically increasing sample sequence */
+    volatile bool spi_done;     /**< Set by DMA callback when read completes */
+    volatile uint32_t tick_count; /**< Incremented every poller_tick call (diagnostic) */
+    volatile uint32_t submit_fail; /**< Convert-D1 submit failures (diagnostic) */
+    volatile int32_t idle_delta;  /**< (now - t_next_action_us) when in IDLE (diagnostic) */
 } ms5611_poller_t;
 
 /* -------------------------------------------------------------------------- */

@@ -12,6 +12,7 @@ add_executable(test_controls
     test_pid.c
     test_flight_controller.c
     test_main.c
+    test_pwm.c
 )
 
 target_link_libraries(test_controls PRIVATE controls state_estimation unity m)

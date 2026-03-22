@@ -81,6 +81,9 @@ typedef struct {
 
     /** Monotonically increasing sample sequence */
     uint32_t seq;
+
+    /** Set by DMA callback when read completes */
+    volatile bool spi_done;
 } ms5607_poller_t;
 
 /* -------------------------------------------------------------------------- */

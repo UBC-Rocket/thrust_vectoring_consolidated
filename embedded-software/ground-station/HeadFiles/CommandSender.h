@@ -40,8 +40,18 @@ public:
     /// Return true if periodic sending is active on the given channel.
     Q_INVOKABLE bool isPeriodicRunning(int which) const;
 
-    // Send PID values as an array out via the given channel on the bridge.
+    // Send PID values.
+    // Legacy 10-element format: [attKpX, attKpY, attKpZ, attKdX, attKdY, attKdZ, zKp, zKi, zKd, zIntegralLimit].
+    // Preferred 12-element format: [has_attitude_kp, kp.x, kp.y, kp.z, has_attitude_kd, kd.x, kd.y, kd.z, z_kp, z_ki, z_kd, z_integral_limit].
     Q_INVOKABLE bool sendPIDValues(int which, const QVariantList& PIDValues);
+
+    // Send reference values.
+    // Legacy 6-element format: [z_ref, vz_ref, q_ref.w, q_ref.x, q_ref.y, q_ref.z].
+    // Preferred 7-element format: [z_ref, vz_ref, has_q_ref, q_ref.w, q_ref.x, q_ref.y, q_ref.z].
+    Q_INVOKABLE bool sendReferenceValues(int which, const QVariantList& referenceValues);
+
+    // Send config values as: [mass, T_min, T_max, theta_min, theta_max].
+    Q_INVOKABLE bool sendConfigValues(int which, const QVariantList& configValues);
 
 signals:
     // -----------------------
