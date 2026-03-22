@@ -21,7 +21,7 @@ jobs:
         uses: jurplel/install-qt-action@v4
         with:
           version: '6.7.*'
-          modules: 'qtserialport qtquick3d'
+          modules: 'qtserialport qtquick3d qtshadertools'
 
       - name: Configure CMake
         working-directory: embedded-software/ground-station

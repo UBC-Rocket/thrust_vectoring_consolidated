@@ -94,11 +94,20 @@ set(FW_LIBS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../libs)
 add_subdirectory(${TVR_LIBS_DIR}/rocket-protocol ${CMAKE_BINARY_DIR}/rocket-protocol)
 add_subdirectory(${FW_LIBS_DIR}/state_estimation ${CMAKE_BINARY_DIR}/state_estimation)
 add_subdirectory(${FW_LIBS_DIR}/controls ${CMAKE_BINARY_DIR}/controls)
+add_subdirectory(${FW_LIBS_DIR}/collections ${CMAKE_BINARY_DIR}/collections)
+add_subdirectory(${FW_LIBS_DIR}/gnss-protocol ${CMAKE_BINARY_DIR}/gnss-protocol)
+add_subdirectory(${FW_LIBS_DIR}/timestamp ${CMAKE_BINARY_DIR}/timestamp)
 add_subdirectory(${FW_LIBS_DIR}/sensors ${CMAKE_BINARY_DIR}/sensors)
 add_subdirectory(${FW_LIBS_DIR}/log_records ${CMAKE_BINARY_DIR}/log_records)
 
-# Enable ARM hardware memory barrier for sensor ring buffers (static inline in headers)
-target_compile_definitions(sensors INTERFACE SENSORS_USE_ARM_BARRIER)
+# Enable ARM hardware memory barrier for SPSC ring buffers.
+# Applied to the FC executable so inline ring buffer functions in headers use __DMB().
+# The sensors library itself compiles with compiler barriers only (sufficient for its .c files).
+target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE SPSC_RING_USE_ARM_BARRIER)
+
+# Timestamp library needs CMSIS headers for DWT register access
+target_link_libraries(timestamp PUBLIC stm32cubemx)
+target_compile_definitions(timestamp PRIVATE STM32H5)
 
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
@@ -111,7 +120,6 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     ${RTOS_TASKS_SRC}
     ${SPI_DRIVER_SRC}
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/sensors_init.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/timestamp.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/state_exchange.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/utils/gnss_utils.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/interrupts.c
@@ -165,6 +173,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     controls
     sensors
     log_records
+    timestamp
 
     # Add user defined libraries
     printf::printf

@@ -27,7 +27,6 @@ void test_inverse_singular_returns_zero(void);
 void test_transpose3x3(void);
 void test_mat_transpose_3x4(void);
 void test_matrix33_vec3_mul(void);
-void test_mat_mul_identity(void);
 
 /* test_ekf.c */
 void test_eskf_init_gives_identity_quaternion(void);
@@ -70,7 +69,6 @@ int main(void)
     RUN_TEST(test_transpose3x3);
     RUN_TEST(test_mat_transpose_3x4);
     RUN_TEST(test_matrix33_vec3_mul);
-    RUN_TEST(test_mat_mul_identity);
 
     /* eskf */
     RUN_TEST(test_eskf_init_gives_identity_quaternion);

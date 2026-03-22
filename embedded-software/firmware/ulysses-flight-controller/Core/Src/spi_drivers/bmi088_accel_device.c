@@ -171,7 +171,7 @@ static void bmi088_accel_done(spi_job_t *job,
     bmi088_accel_sample_t sample;
     if (bmi088_accel_parse_data_xyz(&rx_buf[2], &sample, &accel)) {
         sample.t_us = job->t_sample;
-        bmi088_acc_sample_queue(&bmi088_acc_sample_ring,  &sample);
+        bmi088_acc_sample_q_push(&bmi088_acc_sample_ring,  &sample);
     }
 }
 

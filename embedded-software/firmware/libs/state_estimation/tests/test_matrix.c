@@ -79,16 +79,3 @@ void test_matrix33_vec3_mul(void)
     TEST_ASSERT_FLOAT_WITHIN(TOL, 4.0f, out[1]);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 9.0f, out[2]);
 }
-
-/* ---------- mat_mul ---------- */
-
-void test_mat_mul_identity(void)
-{
-    float I[3][3] = {{1,0,0},{0,1,0},{0,0,1}};
-    float A[3][3] = {{1,2,3},{4,5,6},{7,8,9}};
-    float C[3][3];
-    mat_mul((const float *)I, (const float *)A, (float *)C, 3, 3, 3);
-    for (int i = 0; i < 3; i++)
-        for (int j = 0; j < 3; j++)
-            TEST_ASSERT_FLOAT_WITHIN(TOL, A[i][j], C[i][j]);
-}

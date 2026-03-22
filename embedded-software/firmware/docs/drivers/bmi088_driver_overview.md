@@ -33,7 +33,7 @@ Each SPI transaction toggles the accelerometer’s chip-select (`BMI_ACC_CS`) ma
 
 ### Sample parsing and buffering
 
-`bmi088_accel_done` receives the RX buffer (starting at byte 2 because the first two bytes are command/dummy). It uses `bmi088_accel_parse_data_xyz` to translate raw 16-bit counts into m/s² values by applying the scale factor saved during initialization. The callback then sets `sample.t_us = job->t_sample` and pushes the struct into `bmi088_acc_sample_ring`, a lock-free ring buffer defined in `Core/Inc/spi_drivers/BMI088_accel.h`.
+`bmi088_accel_done` receives the RX buffer (starting at byte 2 because the first two bytes are command/dummy). It uses `bmi088_accel_parse_data_xyz` to translate raw 16-bit counts into m/s² values by applying the scale factor saved during initialization. The callback then sets `sample.t_us = job->t_sample` and pushes the struct into the accelerometer sample ring via `bmi088_acc_sample_q_push`, using the generic SPSC ring buffer defined in `libs/sensors/include/sensors/bmi088_accel.h` (backed by `SPSC_RING_DECLARE` from `libs/collections/include/collections/spsc_ring.h`).
 
 The ring buffer feeds `state_estimation_task_start`, which drains up to 32 samples per loop iteration for fusion.
 
@@ -60,7 +60,7 @@ Each step mirrors the accelerometer flow so both sensors are ready before data c
 
 ### Parsing and buffering
 
-`bmi088_gyro_done` calls `bmi088_gyro_parse_data_xyz` (or FIFO parser) to convert raw counts into rad/s values using the range-dependent LSB scale. Parsed samples are pushed into `bmi088_gyro_sample_ring` for later use. The state-estimation task consumes these alongside the accelerometer and barometer samples to build the fused attitude solution.
+`bmi088_gyro_done` calls `bmi088_gyro_parse_data_xyz` (or FIFO parser) to convert raw counts into rad/s values using the range-dependent LSB scale. Parsed samples are pushed into the gyro sample ring via `bmi088_gyro_sample_q_push` for later use. The state-estimation task consumes these alongside the accelerometer and barometer samples to build the fused attitude solution.
 
 ## Failure handling and readiness flags
 

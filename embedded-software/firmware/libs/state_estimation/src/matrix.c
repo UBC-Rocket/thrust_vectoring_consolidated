@@ -1,18 +1,6 @@
-#include "state_estimation/matrix.h"
+#include "state_estimation/ekf.h"
 #include <math.h>
 
-void mat_mul(const float *A, const float *B, float *C, int r1, int c1, int c2)
-{
-    for (int i = 0; i < r1; ++i) {
-        for (int j = 0; j < c2; ++j) {
-            float sum = 0.0f;
-            for (int k = 0; k < c1; ++k) {
-                sum += A[i * c1 + k] * B[k * c2 + j];
-            }
-            C[i * c2 + j] = sum;
-        }
-    }
-}
 
 void mat_transpose(const float *A, float *AT, int rows, int cols)
 {
@@ -36,7 +24,7 @@ int inverse(float a[3][3], float inv[3][3])
     float c02 = a[1][0]*a[2][1] - a[1][1]*a[2][0];
 
     float det = a[0][0]*c00 + a[0][1]*c01 + a[0][2]*c02;
-    if (fabsf(det) < 1e-10f) return 0;
+    if (fabsf(det) < 1e-16f) return 0;
 
     float inv_det = 1.0f / det;
 

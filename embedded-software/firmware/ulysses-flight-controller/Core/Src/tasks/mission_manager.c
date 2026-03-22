@@ -19,6 +19,7 @@
 #include "status.pb.h"
 #include "common.pb.h"
 #include "rp/codec.h"
+#include "controls/flight_controller.h"
 
 static flight_state_t last_logged_flight_state = IDLE;
 static bool flight_header_logged = false;
@@ -65,13 +66,13 @@ void mission_manager_task_start(void *argument) {
 
         /* ── Radio RX: decode FlightCommand ── */
         if (flags & GNSS_RADIO_MSG_READY_FLAG) {
-            uint8_t spi_msg[GNSS_RADIO_MESSAGE_MAX_LEN];
+            gnss_radio_msg_t spi_msg;
 
-            while (gnss_radio_dequeue(spi_msg)) {
+            while (gnss_radio_msg_q_pop(&gnss_radio_ctx.radio_queue, &spi_msg)) {
                 tvr_FlightCommand decoded = tvr_FlightCommand_init_zero;
 
                 rp_packet_decode_result_t dec = rp_packet_decode(
-                    spi_msg,
+                    spi_msg.data,
                     GNSS_RADIO_MESSAGE_MAX_LEN,
                     tvr_FlightCommand_fields,
                     &decoded
@@ -96,19 +97,92 @@ void mission_manager_task_start(void *argument) {
                             break;
 
                         case tvr_FlightCommand_set_pid_gains_tag:
+                        {
                             cmd_rx_count++;
-                            /* TODO: apply PID gains to controller */
+                            bool armed = false;
+                            state_exchange_get_armed(&armed);
+                            if (armed) {
+                                const tvr_SetPidGains *g = &decoded.payload.set_pid_gains;
+                                flight_controller_config_t cfg = {0};
+                                state_exchange_get_config(&cfg);
+
+                                if (g->has_attitude_kp) {
+                                    cfg.attitude.Kp[0][0] = g->attitude_kp.x;
+                                    cfg.attitude.Kp[1][1] = g->attitude_kp.y;
+                                    cfg.attitude.Kp[2][2] = g->attitude_kp.z;
+                                }
+                                if (g->has_attitude_kd) {
+                                    cfg.attitude.Kd[0][0] = g->attitude_kd.x;
+                                    cfg.attitude.Kd[1][1] = g->attitude_kd.y;
+                                    cfg.attitude.Kd[2][2] = g->attitude_kd.z;
+                                }
+                                if (g->z_kp != 0.0f)             { cfg.thrust.kp = g->z_kp; }
+                                if (g->z_ki != 0.0f)             { cfg.thrust.ki = g->z_ki; }
+                                if (g->z_kd != 0.0f)             { cfg.thrust.kd = g->z_kd; }
+                                if (g->z_integral_limit != 0.0f) { cfg.thrust.integral_limit = g->z_integral_limit; }
+
+                                state_exchange_publish_config(&cfg);
+                                DLOG_PRINT("[MM] SetPidGains applied\r\n");
+                            } else {
+                                DLOG_PRINT("[MM] SetPidGains rejected: not armed\r\n");
+                            }
                             break;
+                        }
 
                         case tvr_FlightCommand_set_reference_tag:
+                        {
                             cmd_rx_count++;
-                            /* TODO: apply reference setpoints */
+                            bool armed = false;
+                            state_exchange_get_armed(&armed);
+                            if (armed) {
+                                const tvr_SetReference *r = &decoded.payload.set_reference;
+                                flight_controller_ref_t ref = {0};
+                                state_exchange_get_ref(&ref);
+
+                                ref.z_ref  = r->z_ref;
+                                ref.vz_ref = r->vz_ref;
+                                if (r->has_q_ref) {
+                                    ref.q_ref.w = r->q_ref.w;
+                                    ref.q_ref.x = r->q_ref.x;
+                                    ref.q_ref.y = r->q_ref.y;
+                                    ref.q_ref.z = r->q_ref.z;
+                                }
+
+                                state_exchange_publish_ref(&ref);
+                                DLOG_PRINT("[MM] SetReference applied z=%.3f vz=%.3f\r\n",
+                                           (double)ref.z_ref, (double)ref.vz_ref);
+                            } else {
+                                DLOG_PRINT("[MM] SetReference rejected: not armed\r\n");
+                            }
                             break;
+                        }
 
                         case tvr_FlightCommand_set_config_tag:
+                        {
                             cmd_rx_count++;
-                            /* TODO: apply vehicle config */
+                            bool armed = false;
+                            state_exchange_get_armed(&armed);
+                            if (armed) {
+                                const tvr_SetConfig *sc = &decoded.payload.set_config;
+                                flight_controller_config_t cfg = {0};
+                                state_exchange_get_config(&cfg);
+
+                                if (sc->mass      != 0.0f) { cfg.thrust.m          = sc->mass; }
+                                if (sc->T_min     != 0.0f) { cfg.thrust.T_min      = sc->T_min; }
+                                if (sc->T_max     != 0.0f) { cfg.thrust.T_max      = sc->T_max; }
+                                if (sc->theta_min != 0.0f) { cfg.gimbal.theta_min  = sc->theta_min; }
+                                if (sc->theta_max != 0.0f) { cfg.gimbal.theta_max  = sc->theta_max; }
+
+                                state_exchange_publish_config(&cfg);
+                                DLOG_PRINT("[MM] SetConfig applied m=%.3f T=[%.1f,%.1f]\r\n",
+                                           (double)cfg.thrust.m,
+                                           (double)cfg.thrust.T_min,
+                                           (double)cfg.thrust.T_max);
+                            } else {
+                                DLOG_PRINT("[MM] SetConfig rejected: not armed\r\n");
+                            }
                             break;
+                        }
 
                         default:
                             break;
@@ -133,20 +207,24 @@ void mission_manager_task_start(void *argument) {
         /* ── Periodic downlink ── */
         TickType_t now = xTaskGetTickCount();
 
-        /* 10 Hz telemetry */
+        /* 1 Hz system status */
+        static TickType_t last_status_tick = 0;
         static TickType_t last_telem_tick = 0;
-        if ((now - last_telem_tick) >= pdMS_TO_TICKS(TELEMETRY_INTERVAL_MS)) {
+        bool status_sent = false;
+        if ((now - last_status_tick) >= pdMS_TO_TICKS(STATUS_INTERVAL_MS)) {
+            last_status_tick = now;
+            last_telem_tick = now;  /* Ensure spacing between status and telemetry */
+            send_status(flight_state);
+            status_sent = true;
+        }
+
+        /* 10 Hz telemetry — skip on cycles where status is sent */
+        if (!status_sent &&
+            (now - last_telem_tick) >= pdMS_TO_TICKS(TELEMETRY_INTERVAL_MS)) {
             last_telem_tick = now;
             control_output_t ctrl = {0};
             state_exchange_get_control_output(&ctrl);
             send_telemetry(&current_state, &ctrl, flight_state);
-        }
-
-        /* 1 Hz system status */
-        static TickType_t last_status_tick = 0;
-        if ((now - last_status_tick) >= pdMS_TO_TICKS(STATUS_INTERVAL_MS)) {
-            last_status_tick = now;
-            send_status(flight_state);
         }
 
         /* ── Periodic GNSS stats (debug) ── */
@@ -300,7 +378,7 @@ static void send_status(flight_state_t flight_state) {
     s->gyro_ok        = sensors->gyro_ok;
     s->baro1_ok       = sensors->baro_ok;
     s->baro2_ok       = sensors->baro2_ok;
-    s->gps_connected  = !gnss_gps_queue_empty();
+    s->gps_connected  = !gnss_gps_fix_q_empty(&gnss_radio_ctx.gps_queue);
     s->radio_tx_count = radio_tx_count;
     s->radio_rx_count = radio_rx_count;
     s->cmd_rx_count   = cmd_rx_count;
