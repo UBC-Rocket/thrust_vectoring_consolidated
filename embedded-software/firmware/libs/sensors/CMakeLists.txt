@@ -13,10 +13,7 @@ target_include_directories(sensors
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(sensors
-    PUBLIC collections gnss-protocol
-    PRIVATE m
-)
+target_link_libraries(sensors PRIVATE m)
 
 set_target_properties(sensors PROPERTIES
     C_STANDARD 11

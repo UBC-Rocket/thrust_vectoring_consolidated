@@ -226,9 +226,7 @@ static void body_gps_update(eskf_t *eskf, const float gps_pos[3],
             S[i][j] = body->covar[i][j] + R[i][j];
 
     float S_inv[3][3];
-    if (!inverse(S, S_inv)) {
-        return;
-    }
+    if (!inverse(S, S_inv)) return;
 
     float K[6][3];
     for (int i = 0; i < 6; i++)

@@ -5,7 +5,7 @@
 #ifndef QUATERNION_H
 #define QUATERNION_H
 
-#include <state_estimation/ekf.h>
+#include "state_estimation/ekf.h"
 
 /**
  * @brief Propagate nominal quaternion: q_nom = q_nom ⊗ q(ω_corr * dt).

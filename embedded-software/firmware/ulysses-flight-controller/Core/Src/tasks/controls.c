@@ -59,8 +59,8 @@ static void init_default_config(flight_controller_config_t *cfg)
     cfg->allocation.t_hat[2] = -1.0f;
     /* Gimbal */
     cfg->gimbal.L = 0.2f;
-    cfg->gimbal.theta_min = -1.0f;
-    cfg->gimbal.theta_max = 1.0f;
+    cfg->gimbal.theta_min = -0.05f;
+    cfg->gimbal.theta_max = 0.05f;
     /* Thrust */
     cfg->thrust.m = 1.0f;
     cfg->thrust.g = 9.8067f;
@@ -240,18 +240,11 @@ void controls_task_start(void *argument)
     uint8_t config_done = 0;
     uint32_t last_state_seq = 0;
     uint32_t stale_tick_count = 0;
-    uint32_t last_config_seq = 0;
-    uint32_t last_ref_seq = 0;
     bool esc_running = false;
     uint32_t esc_arm_tick = 0;
 
     init_default_config(&config);
     init_default_ref(&ref);
-
-    /* Seed state_exchange so mission_manager can do read-modify-write before
-     * any rearm completes. */
-    state_exchange_publish_config(&config);
-    state_exchange_publish_ref(&ref);
 
     /* Run cinematic startup test before entering the control loop. */
     run_startup_actuator_test();
@@ -260,29 +253,23 @@ void controls_task_start(void *argument)
         /* Block until TIM4 CH2 output-compare ISR fires (see timing.c) */
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
-        /* Re-arm request: safe actuators and arm immediately (no startup test). */
+        /* Re-arm request: safe actuators, redo startup test, then arm. */
         bool rearm = false;
         state_exchange_get_rearm_request(&rearm);
         if (rearm) {
             state_exchange_publish_rearm_request(false);
-            DLOG_PRINT("[CTRL] Rearm: safing actuators\r\n");
+            DLOG_PRINT("[CTRL] Rearm: starting startup sequence\r\n");
 
             servo_pair_enable(false);
-            set_servo_pair_degrees(0.0f, 0.0f);
             ESC_set_pair_thrust(0.0f, 0.0f);
             ESC_pair_disarm();
             esc_running = false;
             esc_arm_tick = 0;
 
+            run_startup_actuator_test();
+
             flight_controller_init(&config);
             config_done = 1;
-
-            /* Re-seed shared config/ref so mission_manager read-modify-write
-             * always starts from the current live values. */
-            state_exchange_publish_config(&config);
-            state_exchange_publish_ref(&ref);
-            last_config_seq = 0;
-            last_ref_seq = 0;
 
             state_exchange_publish_armed(true);
             DLOG_PRINT("[CTRL] Rearm complete, armed\r\n");
@@ -294,16 +281,6 @@ void controls_task_start(void *argument)
 
         bool armed = false;
         state_exchange_get_armed(&armed);
-
-        /* Pick up any config/ref updates published by mission_manager. */
-        uint32_t new_cfg_seq = state_exchange_get_config(&config);
-        if (new_cfg_seq != last_config_seq) {
-            last_config_seq = new_cfg_seq;
-        }
-        uint32_t new_ref_seq = state_exchange_get_ref(&ref);
-        if (new_ref_seq != last_ref_seq) {
-            last_ref_seq = new_ref_seq;
-        }
 
         if (!config_done) {
             flight_controller_init(&config);
@@ -329,16 +306,14 @@ void controls_task_start(void *argument)
 
         /* Drive actuators only when armed. */
         if (armed) {
-            if (flight_state == RISE) {
-                /* Gimbal: enable and apply flight controller output. */
-                servo_pair_enable(true);
-                set_servo_pair_degrees(
-                    control_output.theta_x_cmd * RAD_TO_DEG,
-                    control_output.theta_y_cmd * RAD_TO_DEG
-                );
+            /* Gimbal locked out post-startup: hold centre and keep disabled. */
+            set_servo_pair_degrees(0.0f, 0.0f);
+            servo_pair_enable(false);
 
-                /* ESC: arm once on RISE entry, hold min throttle for the same
-                 * 7 s init window the startup sequence uses, then run at 10%. */
+            /* ESC: arm once on RISE entry, hold min throttle for the same
+             * 7 s init window the startup sequence uses, then run at 10%.
+             * Disarm once on exit. */
+            if (flight_state == RISE) {
                 if (!esc_running) {
                     ESC_pair_arm();
                     esc_arm_tick = HAL_GetTick();
@@ -348,10 +323,6 @@ void controls_task_start(void *argument)
                     ESC_set_pair_thrust(0.10f, 0.10f);
                 }
             } else {
-                /* Not in RISE: hold servos at centre and disable. */
-                set_servo_pair_degrees(0.0f, 0.0f);
-                servo_pair_enable(false);
-
                 if (esc_running) {
                     ESC_set_pair_thrust(0.0f, 0.0f);
                     ESC_pair_disarm();
