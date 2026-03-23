@@ -6,9 +6,9 @@ from __future__ import annotations
 
 import struct
 
-LOG_SCHEMA_VERSION = 2
+LOG_SCHEMA_VERSION = 3
 
-TYPE_FORMATS = {'uint8_t': 'B', 'int8_t': 'b', 'uint16_t': 'H', 'int16_t': 'h', 'uint32_t': 'I', 'int32_t': 'i', 'uint64_t': 'Q', 'int64_t': 'q', 'float': 'f'}
+TYPE_FORMATS = {'uint8_t': 'B', 'int8_t': 'b', 'uint16_t': 'H', 'int16_t': 'h', 'uint32_t': 'I', 'int32_t': 'i', 'uint64_t': 'Q', 'int64_t': 'q', 'float': 'f', 'double': 'd'}
 
 RECORDS = {
 
@@ -72,12 +72,15 @@ RECORDS = {
             ("float", "vel_n_mps"),
             ("float", "vel_e_mps"),
             ("float", "vel_d_mps"),
+            ("float", "omega_bx_rad_s"),
+            ("float", "omega_by_rad_s"),
+            ("float", "omega_bz_rad_s"),
             ("uint8_t", "flight_state"),
             ("uint8_t", "estop_active"),
             ("uint16_t", "reserved"),
         ],
-        "format": "<IffffffffBBH",
-        "struct": struct.Struct("<IffffffffBBH"),
+        "format": "<IfffffffffffBBH",
+        "struct": struct.Struct("<IfffffffffffBBH"),
     },
     "event": {
         "id": 5,
@@ -101,6 +104,57 @@ RECORDS = {
         ],
         "format": "<IiiI",
         "struct": struct.Struct("<IiiI"),
+    },
+    "calibration": {
+        "id": 9,
+        "enum": "LOG_RECORD_TYPE_calibration",
+        "fields": [
+            ("uint32_t", "timestamp_us"),
+            ("float",    "accel_bias_x"),
+            ("float",    "accel_bias_y"),
+            ("float",    "accel_bias_z"),
+            ("float",    "gyro_bias_x"),
+            ("float",    "gyro_bias_y"),
+            ("float",    "gyro_bias_z"),
+            ("uint16_t", "calibration_samples"),
+        ],
+        "format": "<IffffffH",
+        "struct": struct.Struct("<IffffffH"),
+    },
+    "control_output": {
+        "id": 8,
+        "enum": "LOG_RECORD_TYPE_control_output",
+        "fields": [
+            ("uint32_t", "timestamp_us"),
+            ("float",    "T_cmd"),
+            ("float",    "theta_x_cmd"),
+            ("float",    "theta_y_cmd"),
+            ("float",    "tau_gim_x"),
+            ("float",    "tau_gim_y"),
+            ("float",    "tau_gim_z"),
+            ("float",    "tau_thrust"),
+        ],
+        "format": "<Ifffffff",
+        "struct": struct.Struct("<Ifffffff"),
+    },
+    "gps_fix": {
+        "id": 7,
+        "enum": "LOG_RECORD_TYPE_gps_fix",
+        "fields": [
+            ("uint32_t", "timestamp_us"),
+            ("double",   "latitude"),
+            ("double",   "longitude"),
+            ("float",    "altitude_msl"),
+            ("float",    "ground_speed"),
+            ("float",    "course"),
+            ("float",    "hdop"),
+            ("uint32_t", "time_of_week_ms"),
+            ("uint8_t",  "fix_quality"),
+            ("uint8_t",  "num_satellites"),
+            ("uint16_t", "reserved"),
+        ],
+        "format": "<IddffffIBBH",
+        "struct": struct.Struct("<IddffffIBBH"),
     },
 }
 

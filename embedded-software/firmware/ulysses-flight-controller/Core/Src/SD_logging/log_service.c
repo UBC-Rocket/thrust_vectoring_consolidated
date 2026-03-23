@@ -41,18 +41,21 @@ void log_service_log_state(const state_t *state, flight_state_t flight_state)
     }
 
     log_record_state_snapshot_t snapshot = {
-        .timestamp_us = state->u_s,
-        .q_w = state->q_bn.w,
-        .q_x = state->q_bn.x,
-        .q_y = state->q_bn.y,
-        .q_z = state->q_bn.z,
-        .altitude_m = state->pos[2],
-        .vel_n_mps = state->vel[0],
-        .vel_e_mps = state->vel[1],
-        .vel_d_mps = state->vel[2],
-        .flight_state = (uint8_t)flight_state,
-        .estop_active = (uint8_t)(flight_state == E_STOP),
-        .reserved = 0U
+        .timestamp_us    = state->u_s,
+        .q_w             = state->q_bn.w,
+        .q_x             = state->q_bn.x,
+        .q_y             = state->q_bn.y,
+        .q_z             = state->q_bn.z,
+        .altitude_m      = state->pos[2],
+        .vel_n_mps       = state->vel[0],
+        .vel_e_mps       = state->vel[1],
+        .vel_d_mps       = state->vel[2],
+        .omega_bx_rad_s  = state->omega_b[0],
+        .omega_by_rad_s  = state->omega_b[1],
+        .omega_bz_rad_s  = state->omega_b[2],
+        .flight_state    = (uint8_t)flight_state,
+        .estop_active    = (uint8_t)(flight_state == E_STOP),
+        .reserved        = 0U
     };
 
     log_writer_append_record(LOG_RECORD_TYPE_state_snapshot,
@@ -155,6 +158,98 @@ void log_service_log_baro2_sample(uint32_t timestamp_us,
     };
 
     log_writer_append_record(LOG_RECORD_TYPE_baro2_sample,
+                             &record,
+                             sizeof(record));
+}
+
+void log_service_log_calibration(uint32_t timestamp_us,
+                                 float accel_bias_x,
+                                 float accel_bias_y,
+                                 float accel_bias_z,
+                                 float gyro_bias_x,
+                                 float gyro_bias_y,
+                                 float gyro_bias_z,
+                                 uint16_t calibration_samples)
+{
+    if (!log_service_ready()) {
+        return;
+    }
+
+    log_record_calibration_t record = {
+        .timestamp_us        = timestamp_us,
+        .accel_bias_x        = accel_bias_x,
+        .accel_bias_y        = accel_bias_y,
+        .accel_bias_z        = accel_bias_z,
+        .gyro_bias_x         = gyro_bias_x,
+        .gyro_bias_y         = gyro_bias_y,
+        .gyro_bias_z         = gyro_bias_z,
+        .calibration_samples = calibration_samples
+    };
+
+    log_writer_append_record(LOG_RECORD_TYPE_calibration,
+                             &record,
+                             sizeof(record));
+}
+
+void log_service_log_control_output(uint32_t timestamp_us,
+                                    float T_cmd,
+                                    float theta_x_cmd,
+                                    float theta_y_cmd,
+                                    float tau_gim_x,
+                                    float tau_gim_y,
+                                    float tau_gim_z,
+                                    float tau_thrust)
+{
+    if (!log_service_ready()) {
+        return;
+    }
+
+    log_record_control_output_t record = {
+        .timestamp_us = timestamp_us,
+        .T_cmd        = T_cmd,
+        .theta_x_cmd  = theta_x_cmd,
+        .theta_y_cmd  = theta_y_cmd,
+        .tau_gim_x    = tau_gim_x,
+        .tau_gim_y    = tau_gim_y,
+        .tau_gim_z    = tau_gim_z,
+        .tau_thrust   = tau_thrust
+    };
+
+    log_writer_append_record(LOG_RECORD_TYPE_control_output,
+                             &record,
+                             sizeof(record));
+}
+
+void log_service_log_gps_fix(uint32_t timestamp_us,
+                              double latitude,
+                              double longitude,
+                              float altitude_msl,
+                              float ground_speed,
+                              float course,
+                              float hdop,
+                              uint32_t time_of_week_ms,
+                              uint8_t fix_quality,
+                              uint8_t num_satellites)
+{
+    if (!log_service_ready()) {
+        return;
+    }
+
+    log_record_gps_fix_t record = {
+        .timestamp_us    = timestamp_us,
+        .latitude        = latitude,
+        .longitude       = longitude,
+        .altitude_msl    = altitude_msl,
+        .ground_speed    = ground_speed,
+        .course          = course,
+        .hdop            = hdop,
+        .time_of_week_ms = time_of_week_ms,
+        .fix_quality     = fix_quality,
+        .num_satellites  = num_satellites,
+        .reserved        = 0U
+    };
+
+    log_writer_append_record(LOG_RECORD_TYPE_gps_fix,
                              &record,
                              sizeof(record));
 }

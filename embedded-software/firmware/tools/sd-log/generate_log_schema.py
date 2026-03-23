@@ -25,6 +25,7 @@ TYPE_FORMATS = {
     "uint64_t": "Q",
     "int64_t": "q",
     "float": "f",
+    "double": "d",
 }
 
 
