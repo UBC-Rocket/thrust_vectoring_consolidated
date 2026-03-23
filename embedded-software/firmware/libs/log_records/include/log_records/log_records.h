@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#define LOG_SCHEMA_VERSION 2U
+#define LOG_SCHEMA_VERSION 3U
 #define LOG_RECORD_MAGIC 0xA5U
 
 typedef enum {
@@ -57,6 +57,9 @@ typedef struct __attribute__((packed)) {
     FIELD(float, vel_n_mps) \
     FIELD(float, vel_e_mps) \
     FIELD(float, vel_d_mps) \
+    FIELD(float, omega_bx_rad_s) \
+    FIELD(float, omega_by_rad_s) \
+    FIELD(float, omega_bz_rad_s) \
     FIELD(uint8_t, flight_state) \
     FIELD(uint8_t, estop_active) \
     FIELD(uint16_t, reserved)
@@ -66,6 +69,49 @@ typedef struct __attribute__((packed)) {
     FIELD(uint16_t, event_code) \
     FIELD(uint16_t, data_u16)
 
+/* Calibration: IMU biases accumulated over STARTUP_CALIBRATION_SAMPLES and logged
+ * exactly once on the first EKF step after calibration completes.
+ * accel_bias units: [g] (normalized, same frame as EXPECTED_GRAVITY = {0,0,1}).
+ * gyro_bias units:  [rad/s]. Total payload: 30 bytes. */
+#define LOG_RECORD_FIELDS_CALIBRATION(FIELD) \
+    FIELD(uint32_t, timestamp_us) \
+    FIELD(float,    accel_bias_x) \
+    FIELD(float,    accel_bias_y) \
+    FIELD(float,    accel_bias_z) \
+    FIELD(float,    gyro_bias_x) \
+    FIELD(float,    gyro_bias_y) \
+    FIELD(float,    gyro_bias_z) \
+    FIELD(uint16_t, calibration_samples)
+
+/* Control output: all fields from control_output_t at 100 Hz (every 8th 800-Hz cycle).
+ * Includes intermediate torque commands so post-flight analysis can separate attitude
+ * controller faults from allocator/gimbal faults. Total payload: 32 bytes. */
+#define LOG_RECORD_FIELDS_CONTROL_OUTPUT(FIELD) \
+    FIELD(uint32_t, timestamp_us) \
+    FIELD(float,    T_cmd) \
+    FIELD(float,    theta_x_cmd) \
+    FIELD(float,    theta_y_cmd) \
+    FIELD(float,    tau_gim_x) \
+    FIELD(float,    tau_gim_y) \
+    FIELD(float,    tau_gim_z) \
+    FIELD(float,    tau_thrust)
+
+/* GPS fix: all fields from gps_fix_t relevant for post-flight analysis.
+ * lat/lon kept as double to preserve full GPS precision (float gives ~2m error).
+ * Total payload: 44 bytes. */
+#define LOG_RECORD_FIELDS_GPS_FIX(FIELD) \
+    FIELD(uint32_t, timestamp_us) \
+    FIELD(double,   latitude) \
+    FIELD(double,   longitude) \
+    FIELD(float,    altitude_msl) \
+    FIELD(float,    ground_speed) \
+    FIELD(float,    course) \
+    FIELD(float,    hdop) \
+    FIELD(uint32_t, time_of_week_ms) \
+    FIELD(uint8_t,  fix_quality) \
+    FIELD(uint8_t,  num_satellites) \
+    FIELD(uint16_t, reserved)
+
 #define LOG_RECORD_LIST(APP) \
     APP(0x10, flight_header, LOG_RECORD_FIELDS_FLIGHT_HEADER) \
     APP(0x01, accel_sample, LOG_RECORD_FIELDS_ACCEL_SAMPLE) \
@@ -73,7 +119,10 @@ typedef struct __attribute__((packed)) {
     APP(0x03, baro_sample, LOG_RECORD_FIELDS_BARO_SAMPLE) \
     APP(0x04, state_snapshot, LOG_RECORD_FIELDS_STATE_SNAPSHOT) \
     APP(0x05, event, LOG_RECORD_FIELDS_EVENT) \
-    APP(0x06, baro2_sample, LOG_RECORD_FIELDS_BARO2_SAMPLE)
+    APP(0x06, baro2_sample, LOG_RECORD_FIELDS_BARO2_SAMPLE) \
+    APP(0x07, gps_fix, LOG_RECORD_FIELDS_GPS_FIX) \
+    APP(0x08, control_output, LOG_RECORD_FIELDS_CONTROL_OUTPUT) \
+    APP(0x09, calibration, LOG_RECORD_FIELDS_CALIBRATION)
 
 #define DECLARE_ENUM(id, name, fields) LOG_RECORD_TYPE_##name = id,
 typedef enum {
