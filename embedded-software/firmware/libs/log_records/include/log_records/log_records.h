@@ -69,6 +69,7 @@ typedef struct __attribute__((packed)) {
     FIELD(uint16_t, event_code) \
     FIELD(uint16_t, data_u16)
 
+
 /* Calibration: IMU biases accumulated over STARTUP_CALIBRATION_SAMPLES and logged
  * exactly once on the first EKF step after calibration completes.
  * accel_bias units: [g] (normalized, same frame as EXPECTED_GRAVITY = {0,0,1}).
@@ -112,6 +113,17 @@ typedef struct __attribute__((packed)) {
     FIELD(uint8_t,  num_satellites) \
     FIELD(uint16_t, reserved)
 
+#define LOG_RECORD_FIELDS_TRACE_BATCH(FIELD) \
+    FIELD(uint32_t, base_timestamp_us) \
+    FIELD(uint8_t, event_count) \
+    FIELD(uint8_t, reserved1) \
+    FIELD(uint16_t, reserved2)
+
+#define LOG_RECORD_FIELDS_TRACE_OVERFLOW(FIELD) \
+    FIELD(uint32_t, timestamp_us) \
+    FIELD(uint32_t, dropped_count)
+
+
 #define LOG_RECORD_LIST(APP) \
     APP(0x10, flight_header, LOG_RECORD_FIELDS_FLIGHT_HEADER) \
     APP(0x01, accel_sample, LOG_RECORD_FIELDS_ACCEL_SAMPLE) \
@@ -122,7 +134,10 @@ typedef struct __attribute__((packed)) {
     APP(0x06, baro2_sample, LOG_RECORD_FIELDS_BARO2_SAMPLE) \
     APP(0x07, gps_fix, LOG_RECORD_FIELDS_GPS_FIX) \
     APP(0x08, control_output, LOG_RECORD_FIELDS_CONTROL_OUTPUT) \
-    APP(0x09, calibration, LOG_RECORD_FIELDS_CALIBRATION)
+    APP(0x09, calibration, LOG_RECORD_FIELDS_CALIBRATION) \
+    APP(0x20, trace_batch, LOG_RECORD_FIELDS_TRACE_BATCH) \
+    APP(0x21, trace_overflow, LOG_RECORD_FIELDS_TRACE_OVERFLOW)
+
 
 #define DECLARE_ENUM(id, name, fields) LOG_RECORD_TYPE_##name = id,
 typedef enum {

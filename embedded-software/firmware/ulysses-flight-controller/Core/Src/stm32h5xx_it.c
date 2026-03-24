@@ -22,6 +22,7 @@
 #include "stm32h5xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "crash/crash_dump.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -110,13 +111,15 @@ void NMI_Handler(void)
 void HardFault_Handler(void)
 {
   /* USER CODE BEGIN HardFault_IRQn 0 */
-  g_hardfault_cfsr = SCB->CFSR;
-  g_hardfault_hfsr = SCB->HFSR;
-  g_hardfault_bfar = SCB->BFAR;
-  g_hardfault_shcsr = SCB->SHCSR;
-  __asm volatile ("mov %0, lr" : "=r" (g_hardfault_lr));
-  g_hardfault_sp = __get_MSP();
-  __BKPT(0);
+  __asm volatile (
+      "tst lr, #4        \n"
+      "ite eq             \n"
+      "mrseq r0, msp     \n"
+      "mrsne r0, psp     \n"
+      "mov r1, lr        \n"
+      "mov r2, #0        \n" /* CRASH_FAULT_HARD */
+      "b crash_dump_handler \n"
+  );
   /* USER CODE END HardFault_IRQn 0 */
   while (1)
   {
@@ -131,7 +134,15 @@ void HardFault_Handler(void)
 void MemManage_Handler(void)
 {
   /* USER CODE BEGIN MemoryManagement_IRQn 0 */
-
+  __asm volatile (
+      "tst lr, #4        \n"
+      "ite eq             \n"
+      "mrseq r0, msp     \n"
+      "mrsne r0, psp     \n"
+      "mov r1, lr        \n"
+      "mov r2, #1        \n" /* CRASH_FAULT_MEMMANAGE */
+      "b crash_dump_handler \n"
+  );
   /* USER CODE END MemoryManagement_IRQn 0 */
   while (1)
   {
@@ -146,7 +157,15 @@ void MemManage_Handler(void)
 void BusFault_Handler(void)
 {
   /* USER CODE BEGIN BusFault_IRQn 0 */
-
+  __asm volatile (
+      "tst lr, #4        \n"
+      "ite eq             \n"
+      "mrseq r0, msp     \n"
+      "mrsne r0, psp     \n"
+      "mov r1, lr        \n"
+      "mov r2, #2        \n" /* CRASH_FAULT_BUS */
+      "b crash_dump_handler \n"
+  );
   /* USER CODE END BusFault_IRQn 0 */
   while (1)
   {
@@ -161,7 +180,15 @@ void BusFault_Handler(void)
 void UsageFault_Handler(void)
 {
   /* USER CODE BEGIN UsageFault_IRQn 0 */
-
+  __asm volatile (
+      "tst lr, #4        \n"
+      "ite eq             \n"
+      "mrseq r0, msp     \n"
+      "mrsne r0, psp     \n"
+      "mov r1, lr        \n"
+      "mov r2, #3        \n" /* CRASH_FAULT_USAGE */
+      "b crash_dump_handler \n"
+  );
   /* USER CODE END UsageFault_IRQn 0 */
   while (1)
   {
