@@ -54,14 +54,15 @@ const osThreadAttr_t DebugLoggingTask_attributes = {
 };
 #endif // ULYSSES_ENABLE_DEBUG_LOGGING
 
-osThreadId_t SdLogTaskHandle;
-const osThreadAttr_t SdLogTask_attributes = {
-  .name = "SdLog",
+#ifdef DEBUG
+osThreadId_t TraceFlushTaskHandle;
+const osThreadAttr_t TraceFlushTask_attributes = {
+  .name = "TraceFlush",
   .priority = (osPriority_t) osPriorityLow,
   .stack_size = 512 * 4,
 };
-extern void sd_log_task_start(void *argument);
-extern bool g_sd_card_initialized;
+extern void trace_flush_task_start(void *argument);
+#endif // DEBUG
 
 /* USER CODE END Variables */
 /* Definitions for MissionManager */
@@ -83,7 +84,7 @@ osThreadId_t StateEstimationHandle;
 const osThreadAttr_t StateEstimation_attributes = {
   .name = "StateEstimation",
   .priority = (osPriority_t) osPriorityAboveNormal,
-  .stack_size = 2048 * 4
+  .stack_size = 512 * 4
 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -136,10 +137,10 @@ void MX_FREERTOS_Init(void) {
   crash_dump_register_task((TaskHandle_t)DebugLoggingTaskHandle);
 #endif // ULYSSES_ENABLE_DEBUG_LOGGING
 
-  if (g_sd_card_initialized) {
-    SdLogTaskHandle = osThreadNew(sd_log_task_start, NULL, &SdLogTask_attributes);
-    crash_dump_register_task((TaskHandle_t)SdLogTaskHandle);
-  }
+#ifdef DEBUG
+  TraceFlushTaskHandle = osThreadNew(trace_flush_task_start, NULL, &TraceFlushTask_attributes);
+  crash_dump_register_task((TaskHandle_t)TraceFlushTaskHandle);
+#endif // DEBUG
 
   /* USER CODE END RTOS_THREADS */
 

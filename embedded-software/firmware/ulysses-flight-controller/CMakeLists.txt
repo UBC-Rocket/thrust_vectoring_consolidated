@@ -94,20 +94,11 @@ set(FW_LIBS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../libs)
 add_subdirectory(${TVR_LIBS_DIR}/rocket-protocol ${CMAKE_BINARY_DIR}/rocket-protocol)
 add_subdirectory(${FW_LIBS_DIR}/state_estimation ${CMAKE_BINARY_DIR}/state_estimation)
 add_subdirectory(${FW_LIBS_DIR}/controls ${CMAKE_BINARY_DIR}/controls)
-add_subdirectory(${FW_LIBS_DIR}/collections ${CMAKE_BINARY_DIR}/collections)
-add_subdirectory(${FW_LIBS_DIR}/gnss-protocol ${CMAKE_BINARY_DIR}/gnss-protocol)
-add_subdirectory(${FW_LIBS_DIR}/timestamp ${CMAKE_BINARY_DIR}/timestamp)
 add_subdirectory(${FW_LIBS_DIR}/sensors ${CMAKE_BINARY_DIR}/sensors)
 add_subdirectory(${FW_LIBS_DIR}/log_records ${CMAKE_BINARY_DIR}/log_records)
 
-# Enable ARM hardware memory barrier for SPSC ring buffers.
-# Applied to the FC executable so inline ring buffer functions in headers use __DMB().
-# The sensors library itself compiles with compiler barriers only (sufficient for its .c files).
-target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE SPSC_RING_USE_ARM_BARRIER)
-
-# Timestamp library needs CMSIS headers for DWT register access
-target_link_libraries(timestamp PUBLIC stm32cubemx)
-target_compile_definitions(timestamp PRIVATE STM32H5)
+# Enable ARM hardware memory barrier for sensor ring buffers (static inline in headers)
+target_compile_definitions(sensors INTERFACE SENSORS_USE_ARM_BARRIER)
 
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
@@ -120,6 +111,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     ${RTOS_TASKS_SRC}
     ${SPI_DRIVER_SRC}
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/sensors_init.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/timestamp.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/state_exchange.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/utils/gnss_utils.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/interrupts.c
@@ -129,7 +121,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/crash/crash_dump.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/trace/trace_ringbuf.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/trace/trace_hooks.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/tasks/sd_log_task.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/trace/trace_flush_task.c
     ${DEBUG_MODULE_SRC}
     ${ALGO_SRC}
 
@@ -156,13 +148,6 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
     $<$<BOOL:${ULYSSES_ENABLE_DEBUG_LOGGING}>:ULYSSES_ENABLE_DEBUG_LOGGING>
 )
 
-# Only 1 IMU on this board — reduces ESKF_ERR_DIM from 15 to 9, saving ~2.3KB stack
-# Cap timeline events to 64 (~1.5KB .bss) — sufficient for 1ms task period
-# ESKF_MAX_IMUS must be PUBLIC so the flight controller sees the same struct layout as the library.
-# ESKF_MAX_TIMELINE_EVENTS can stay PRIVATE (only used in ekf.c internal static buffer).
-target_compile_definitions(state_estimation PUBLIC ESKF_MAX_IMUS=1)
-target_compile_definitions(state_estimation PRIVATE ESKF_MAX_TIMELINE_EVENTS=64)
-
 # Enable -ffast-math for EKF math sources (FMA contraction, relaxed NaN handling)
 target_compile_options(state_estimation PRIVATE -ffast-math)
 
@@ -177,7 +162,6 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     controls
     sensors
     log_records
-    timestamp
 
     # Add user defined libraries
     printf::printf
