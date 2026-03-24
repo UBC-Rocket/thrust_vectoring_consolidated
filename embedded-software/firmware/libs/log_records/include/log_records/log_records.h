@@ -66,6 +66,16 @@ typedef struct __attribute__((packed)) {
     FIELD(uint16_t, event_code) \
     FIELD(uint16_t, data_u16)
 
+#define LOG_RECORD_FIELDS_TRACE_BATCH(FIELD) \
+    FIELD(uint32_t, base_timestamp_us) \
+    FIELD(uint8_t, event_count) \
+    FIELD(uint8_t, reserved1) \
+    FIELD(uint16_t, reserved2)
+
+#define LOG_RECORD_FIELDS_TRACE_OVERFLOW(FIELD) \
+    FIELD(uint32_t, timestamp_us) \
+    FIELD(uint32_t, dropped_count)
+
 #define LOG_RECORD_LIST(APP) \
     APP(0x10, flight_header, LOG_RECORD_FIELDS_FLIGHT_HEADER) \
     APP(0x01, accel_sample, LOG_RECORD_FIELDS_ACCEL_SAMPLE) \
@@ -73,7 +83,9 @@ typedef struct __attribute__((packed)) {
     APP(0x03, baro_sample, LOG_RECORD_FIELDS_BARO_SAMPLE) \
     APP(0x04, state_snapshot, LOG_RECORD_FIELDS_STATE_SNAPSHOT) \
     APP(0x05, event, LOG_RECORD_FIELDS_EVENT) \
-    APP(0x06, baro2_sample, LOG_RECORD_FIELDS_BARO2_SAMPLE)
+    APP(0x06, baro2_sample, LOG_RECORD_FIELDS_BARO2_SAMPLE) \
+    APP(0x20, trace_batch, LOG_RECORD_FIELDS_TRACE_BATCH) \
+    APP(0x21, trace_overflow, LOG_RECORD_FIELDS_TRACE_OVERFLOW)
 
 #define DECLARE_ENUM(id, name, fields) LOG_RECORD_TYPE_##name = id,
 typedef enum {
