@@ -23,6 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "state_exchange.h"
+#include "crash/crash_dump.h"
 
 /* USER CODE END Includes */
 
@@ -52,6 +53,16 @@ const osThreadAttr_t DebugLoggingTask_attributes = {
   .stack_size = 128 * 4,
 };
 #endif // ULYSSES_ENABLE_DEBUG_LOGGING
+
+#ifdef DEBUG
+osThreadId_t TraceFlushTaskHandle;
+const osThreadAttr_t TraceFlushTask_attributes = {
+  .name = "TraceFlush",
+  .priority = (osPriority_t) osPriorityLow,
+  .stack_size = 512 * 4,
+};
+extern void trace_flush_task_start(void *argument);
+#endif // DEBUG
 
 /* USER CODE END Variables */
 /* Definitions for MissionManager */
@@ -109,18 +120,27 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE END RTOS_QUEUES */
   /* creation of MissionManager */
   MissionManagerHandle = osThreadNew(mission_manager_task_start, NULL, &MissionManager_attributes);
+  crash_dump_register_task((TaskHandle_t)MissionManagerHandle);
 
   /* creation of Controls */
   ControlsHandle = osThreadNew(controls_task_start, NULL, &Controls_attributes);
+  crash_dump_register_task((TaskHandle_t)ControlsHandle);
 
   /* creation of StateEstimation */
   StateEstimationHandle = osThreadNew(state_estimation_task_start, NULL, &StateEstimation_attributes);
+  crash_dump_register_task((TaskHandle_t)StateEstimationHandle);
 
   /* USER CODE BEGIN RTOS_THREADS */
 
 #ifdef ULYSSES_ENABLE_DEBUG_LOGGING
   DebugLoggingTaskHandle = osThreadNew(debug_logging_task_start, NULL, &DebugLoggingTask_attributes);
+  crash_dump_register_task((TaskHandle_t)DebugLoggingTaskHandle);
 #endif // ULYSSES_ENABLE_DEBUG_LOGGING
+
+#ifdef DEBUG
+  TraceFlushTaskHandle = osThreadNew(trace_flush_task_start, NULL, &TraceFlushTask_attributes);
+  crash_dump_register_task((TaskHandle_t)TraceFlushTaskHandle);
+#endif // DEBUG
 
   /* USER CODE END RTOS_THREADS */
 
