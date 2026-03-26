@@ -139,6 +139,7 @@ typedef struct __attribute__((packed)) {
     APP(0x21, trace_overflow, LOG_RECORD_FIELDS_TRACE_OVERFLOW)
 
 
+
 #define DECLARE_ENUM(id, name, fields) LOG_RECORD_TYPE_##name = id,
 typedef enum {
     LOG_RECORD_LIST(DECLARE_ENUM)
