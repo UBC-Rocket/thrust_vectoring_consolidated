@@ -207,15 +207,15 @@ static void handle_pid_gains(const tvr_SetPidGains *pid) {
     float attitude_kd_z = 0.0f;
 
     if (pid->has_attitude_kp) {
-        attitude_kp_x = pid->attitude_kp->x;
-        attitude_kp_y = pid->attitude_kp->y;
-        attitude_kp_z = pid->attitude_kp->z;
+        attitude_kp_x = pid->attitude_kp.x;
+        attitude_kp_y = pid->attitude_kp.y;
+        attitude_kp_z = pid->attitude_kp.z;
     }
 
     if (pid->has_attitude_kd) {
-        attitude_kd_x = pid->attitude_kd->x;
-        attitude_kd_y = pid->attitude_kd->y;
-        attitude_kd_z = pid->attitude_kd->z;
+        attitude_kd_x = pid->attitude_kd.x;
+        attitude_kd_y = pid->attitude_kd.y;
+        attitude_kd_z = pid->attitude_kd.z;
     }
 
     log_service_pid_gains(timestamp,
@@ -246,10 +246,10 @@ static void handle_reference(const tvr_SetReference *reference) {
     float q_ref_z = 0.0f;
 
     if (reference->has_q_ref) {
-        q_ref_w = reference->q_ref->w;
-        q_ref_x = reference->q_ref->x;
-        q_ref_y = reference->q_ref->y;
-        q_ref_z = reference->q_ref->z;
+        q_ref_w = reference->q_ref.w;
+        q_ref_x = reference->q_ref.x;
+        q_ref_y = reference->q_ref.y;
+        q_ref_z = reference->q_ref.z;
     }
 
     log_service_reference(timestamp,
