@@ -835,7 +835,9 @@ void test_api_nominal_hover(void)
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.theta_y_cmd);
 }
 
-/* Test 2 — pure pitch error (~0.2 rad about y) goes to gimbal torque */
+/* Test 2 — pure pitch error (~0.2 rad about y) goes to gimbal torque.
+ * s_t_mag=0 on first call → t_par=0, t_des is purely perpendicular,
+ * so theta_y saturates at theta_min and T_cmd = g*cos(theta_max). */
 void test_api_pitch_error(void)
 {
     flight_controller_config_t cfg = make_api_config();
@@ -852,13 +854,14 @@ void test_api_pitch_error(void)
     control_output_t out;
     flight_controller_run(&state, &ref, &cfg, &out, 0.01f);
 
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,       out.tau_gim[0]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, -0.2f,      out.tau_gim[1]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,       out.tau_gim[2]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,       out.tau_thrust);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 10.0f,      out.T_cmd);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,       out.theta_x_cmd);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, -0.020001f, out.theta_y_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_gim[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -0.2f, out.tau_gim[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_gim[2]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_thrust);
+    /* s_t_mag=0 → theta_y saturates → t_hat tilts → T = g*cos(0.5) */
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 8.7758f, out.T_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,   out.theta_x_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -0.5f,  out.theta_y_cmd);
 }
 
 /* Test 3 — pure yaw error goes to thrust-axis torque, not gimbal */
@@ -907,16 +910,20 @@ void test_api_gyro_compensation(void)
     control_output_t out;
     flight_controller_run(&state, &ref, &cfg, &out, 0.01f);
 
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 2.0f,      out.tau_gim[0]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,      out.tau_gim[1]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,      out.tau_gim[2]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,      out.tau_thrust);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 10.0f,     out.T_cmd);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.201358f, out.theta_x_cmd);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,      out.theta_y_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 2.0f,  out.tau_gim[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_gim[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_gim[2]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_thrust);
+    /* s_t_mag=0 → t_par=0, t_des purely perpendicular → theta_x saturates
+     * → t_hat tilts → T = g*cos(theta_max) ≈ 8.7758 */
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 8.7758f, out.T_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.5f,    out.theta_x_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,    out.theta_y_cmd);
 }
 
-/* Test 5 — boundary: thrust clamp (T_min=T_max=8) + gimbal angle clamp */
+/* Test 5 — boundary: thrust clamp (T_min=T_max=8) + gimbal angle clamp.
+ * PDF Eq 11 has no Kp gain, so Kp[1][1]=30 has no effect;
+ * tau_gim[1] = -(phi[1]) ≈ -0.2, NOT -6.0. */
 void test_api_boundary_clamp(void)
 {
     flight_controller_config_t cfg = make_api_config();
@@ -937,7 +944,7 @@ void test_api_boundary_clamp(void)
     flight_controller_run(&state, &ref, &cfg, &out, 0.01f);
 
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_gim[0]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, -6.0f, out.tau_gim[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -0.2f, out.tau_gim[1]);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_gim[2]);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_thrust);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 8.0f,  out.T_cmd);
@@ -1032,7 +1039,8 @@ void test_api_v2_altitude_climb(void)
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,   out.theta_y_cmd);
 }
 
-/* Test 3 — pure roll correction: small x-axis rotation in q_ref */
+/* Test 3 — pure roll correction: small x-axis rotation in q_ref.
+ * s_t_mag=0 on first call → theta_x saturates → t_hat tilts → T < 9.81 */
 void test_api_v2_roll_correction(void)
 {
     flight_controller_config_t cfg = make_api_config_v2();
@@ -1051,7 +1059,8 @@ void test_api_v2_roll_correction(void)
     control_output_t out;
     flight_controller_run(&state, &ref, &cfg, &out, 0.01f);
 
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 9.81f, out.T_cmd);
+    /* s_t_mag=0 → theta_x saturates → T = g*cos(0.5) ≈ 8.6091 */
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 8.6091f, out.T_cmd);
     TEST_ASSERT_TRUE(out.tau_gim[0] > 0.0f || out.tau_gim[0] < 0.0f);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[1]);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[2]);
@@ -1059,7 +1068,10 @@ void test_api_v2_roll_correction(void)
     TEST_ASSERT_TRUE(out.theta_x_cmd != 0.0f || out.theta_y_cmd != 0.0f);
 }
 
-/* Test 4 — angular rate damping: omega_b = [1,0,0], no attitude error */
+/* Test 4 — angular rate damping: omega_b = [1,0,0], no attitude error.
+ * PDF Eq 11 has no Kd gain. With I=identity and omega=[1,0,0],
+ * tau_gyro = (I*omega) x omega = [1,0,0] x [1,0,0] = [0,0,0],
+ * phi=[0,0,0], so tau_cmd=[0,0,0] and everything is zero. */
 void test_api_v2_rate_damping(void)
 {
     flight_controller_config_t cfg = make_api_config_v2();
@@ -1080,11 +1092,12 @@ void test_api_v2_rate_damping(void)
     flight_controller_run(&state, &ref, &cfg, &out, 0.01f);
 
     TEST_ASSERT_FLOAT_WITHIN(TOL, 9.81f, out.T_cmd);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, -1.0f, out.tau_gim[0]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_gim[1]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_gim[2]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_thrust);
-    TEST_ASSERT_TRUE(out.theta_x_cmd < 0.0f || out.theta_y_cmd < 0.0f);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[2]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_thrust);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.theta_x_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.theta_y_cmd);
 }
 
 /* Test 5 — actuator saturation: large z-error + 180-deg rotation */
@@ -1146,7 +1159,11 @@ static flight_controller_config_t make_api_config_v3(void)
 
 /* --- Part 1: Altitude (Z-Axis) Control Tests --- */
 
-/* Test 1 — Perfect Hover (Steady State) */
+/* Test 1 — Perfect Hover (Steady State).
+ * PID derivative-on-measurement: D = -kd*(meas - prev_meas)/dt.
+ * prev_meas inits to 0 in pid_init, so first call with pos[2]=5:
+ * D = -0.5*(5-0)/0.01 = -250 → PID output saturates at a_z_min=-20
+ * → a_des[2] = 9.81-20 = -10.19 → T < 0 → clamped to T_min=2.0 */
 void test_api_v3_hover(void)
 {
     flight_controller_config_t cfg = make_api_config_v3();
@@ -1165,16 +1182,19 @@ void test_api_v3_hover(void)
     control_output_t out;
     flight_controller_run(&state, &ref, &cfg, &out, 0.01f);
 
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 9.81f, out.T_cmd);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_gim[0]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_gim[1]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_gim[2]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_thrust);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.theta_x_cmd);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.theta_y_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 2.0f, out.T_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[2]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_thrust);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.theta_x_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.theta_y_cmd);
 }
 
-/* Test 2 — Pure Altitude Climb (Proportional): T = 9.81 + kp*2.0 = 13.81 */
+/* Test 2 — Pure Altitude Climb: pos[2]=0, z_ref=2.
+ * PID: error=2, P=kp*2=4, I=ki*err*dt=1*2*0.01=0.02,
+ * D=-kd*(0-0)/dt=0 (meas=prev_meas=0).
+ * a_z_cmd=4.02 → T = 9.81+4.02 = 13.83 */
 void test_api_v3_climb(void)
 {
     flight_controller_config_t cfg = make_api_config_v3();
@@ -1192,7 +1212,7 @@ void test_api_v3_climb(void)
     control_output_t out;
     flight_controller_run(&state, &ref, &cfg, &out, 0.01f);
 
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 13.81f, out.T_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 13.83f, out.T_cmd);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,   out.tau_gim[0]);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,   out.tau_gim[1]);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,   out.tau_gim[2]);
@@ -1201,7 +1221,9 @@ void test_api_v3_climb(void)
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,   out.theta_y_cmd);
 }
 
-/* Test 3 — Pure Altitude Descent (Proportional): T = 9.81 + kp*(-1) = 7.81 */
+/* Test 3 — Pure Altitude Descent: pos[2]=5, z_ref=4.
+ * PID D-kick: D = -kd*(5-0)/dt = -0.5*500 = -250, saturates output
+ * → a_z_cmd = -20 → T = 9.81-20 < 0 → clamped to T_min=2.0 */
 void test_api_v3_descent(void)
 {
     flight_controller_config_t cfg = make_api_config_v3();
@@ -1220,16 +1242,18 @@ void test_api_v3_descent(void)
     control_output_t out;
     flight_controller_run(&state, &ref, &cfg, &out, 0.01f);
 
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 7.81f, out.T_cmd);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_gim[0]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_gim[1]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_gim[2]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_thrust);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.theta_x_cmd);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.theta_y_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 2.0f, out.T_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[2]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_thrust);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.theta_x_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.theta_y_cmd);
 }
 
-/* Test 4 — Z-Velocity Damping (Derivative): T = 9.81 - kd*2.0 = 8.81 */
+/* Test 4 — Z-Velocity Damping: pos[2]=5, vel[2]=2 (vel unused by PID).
+ * PID uses derivative-on-measurement of pos[2], NOT state.vel[2].
+ * D-kick: D = -kd*(5-0)/dt = -250 → output saturates → T_min=2.0 */
 void test_api_v3_velocity_damping(void)
 {
     flight_controller_config_t cfg = make_api_config_v3();
@@ -1249,7 +1273,7 @@ void test_api_v3_velocity_damping(void)
     control_output_t out;
     flight_controller_run(&state, &ref, &cfg, &out, 0.01f);
 
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 8.81f, out.T_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 2.0f, out.T_cmd);
 }
 
 /* Test 5 — Z-Integral Accumulation & Anti-Windup (500 calls, error=1.0) */
@@ -1270,9 +1294,10 @@ void test_api_v3_integral_windup(void)
 
     control_output_t out;
 
-    /* First call: T = 9.81 + P(2.0) + I(0.01) = 11.82 */
+    /* First call: D-kick = -kd*(4-0)/0.01 = -200 → output saturates
+     * → a_z_cmd = -20 → T = 9.81-20 < 0 → clamped to T_min=2.0 */
     flight_controller_run(&state, &ref, &cfg, &out, 0.01f);
-    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 11.82f, out.T_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 2.0f, out.T_cmd);
 
     /* Run 499 more times with same inputs */
     for (int i = 1; i < 500; i++) {
@@ -1316,7 +1341,9 @@ void test_api_v3_thrust_saturation(void)
 
 /* --- Part 2: Attitude (Torque) Control Tests --- */
 
-/* Test 7 — Pure Pitch Correction (Proportional): ~10 deg pitch */
+/* Test 7 — Pure Pitch Correction: ~10 deg pitch.
+ * PDF Eq 11: tau_cmd = -(phi). Positive phi[1] → negative tau_cmd[1]
+ * → tau_gim[1] < 0 (not > 0). */
 void test_api_v3_pitch_correction(void)
 {
     flight_controller_config_t cfg = make_api_config_v3();
@@ -1333,13 +1360,15 @@ void test_api_v3_pitch_correction(void)
     control_output_t out;
     flight_controller_run(&state, &ref, &cfg, &out, 0.01f);
 
-    TEST_ASSERT_TRUE(out.tau_gim[1] > 0.0f);
+    TEST_ASSERT_TRUE(out.tau_gim[1] < 0.0f);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[0]);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[2]);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_thrust);
 }
 
-/* Test 8 — Pure Yaw Correction (Proportional): ~10 deg yaw */
+/* Test 8 — Pure Yaw Correction: ~10 deg yaw.
+ * PDF Eq 11: tau_cmd = -(phi). Positive phi[2] → negative tau_cmd[2].
+ * Yaw torque projects onto thrust axis → tau_thrust < 0 (not > 0). */
 void test_api_v3_yaw_correction(void)
 {
     flight_controller_config_t cfg = make_api_config_v3();
@@ -1356,7 +1385,7 @@ void test_api_v3_yaw_correction(void)
     control_output_t out;
     flight_controller_run(&state, &ref, &cfg, &out, 0.01f);
 
-    TEST_ASSERT_TRUE(out.tau_thrust > 0.0f);
+    TEST_ASSERT_TRUE(out.tau_thrust < 0.0f);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[0]);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[1]);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[2]);
@@ -1364,7 +1393,10 @@ void test_api_v3_yaw_correction(void)
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.theta_y_cmd);
 }
 
-/* Test 9 — Pitch Rate Damping (Derivative): omega_b[1]=1 → tau_gim[1]=-1 */
+/* Test 9 — Pitch Rate Damping: omega_b[1]=1, I=identity.
+ * PDF Eq 11 has no Kd. With I=identity: tau_gyro = (I*omega) x omega
+ * = [0,1,0] x [0,1,0] = [0,0,0]. phi=[0,0,0].
+ * tau_cmd = [0,0,0] → tau_gim = [0,0,0]. */
 void test_api_v3_pitch_rate_damping(void)
 {
     flight_controller_config_t cfg = make_api_config_v3();
@@ -1382,10 +1414,12 @@ void test_api_v3_pitch_rate_damping(void)
     control_output_t out;
     flight_controller_run(&state, &ref, &cfg, &out, 0.01f);
 
-    TEST_ASSERT_FLOAT_WITHIN(TOL, -1.0f, out.tau_gim[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[1]);
 }
 
-/* Test 10 — Shortest Path Quaternion Rotation (double-cover edge case) */
+/* Test 10 — Shortest Path Quaternion Rotation (double-cover edge case).
+ * q_err.w < 0 → negated to {0.996, -0.087, 0, 0} → phi = [-0.174, 0, 0].
+ * Eq 11: tau_cmd = -phi = [+0.174, 0, 0] → tau_gim[0] > 0 (not < 0). */
 void test_api_v3_shortest_path(void)
 {
     flight_controller_config_t cfg = make_api_config_v3();
@@ -1402,7 +1436,7 @@ void test_api_v3_shortest_path(void)
     control_output_t out;
     flight_controller_run(&state, &ref, &cfg, &out, 0.01f);
 
-    TEST_ASSERT_TRUE(out.tau_gim[0] < 0.0f);
+    TEST_ASSERT_TRUE(out.tau_gim[0] > 0.0f);
 }
 
 /* --- Part 3: Allocation & Gimbal Geometry Tests --- */

@@ -47,9 +47,9 @@ static float clampf(float value, float min_val, float max_val)
 /**
  * @brief q_err = q_des * conj(q_meas); negate if w < 0 for shortest path.
  */
-static void compute_quaternion_error(const quaternion_t *q_des,
-                                     const quaternion_t *q_meas,
-                                     quaternion_t *q_err)
+void compute_quaternion_error(const quaternion_t *q_des,
+                              const quaternion_t *q_meas,
+                              quaternion_t *q_err)
 {
     quaternion_t q_meas_conj;
     quaternion_conjugate(q_meas, &q_meas_conj);
@@ -69,7 +69,7 @@ static void compute_quaternion_error(const quaternion_t *q_des,
 /**
  * @brief phi = 2 * atan2(||v||, q0) * v / ||v||; exact axis-angle extraction.
  */
-static void compute_axis_angle_error(const quaternion_t *q_err, float phi[3])
+void compute_axis_angle_error(const quaternion_t *q_err, float phi[3])
 {
     float vx = q_err->x;
     float vy = q_err->y;
@@ -95,9 +95,9 @@ static void compute_axis_angle_error(const quaternion_t *q_err, float phi[3])
 /**
  * @brief tau_gyro = (I * omega) x omega.
  */
-static void compute_gyroscopic_torque(const float I[3][3],
-                                      const float omega[3],
-                                      float tau_gyro[3])
+void compute_gyroscopic_torque(const float I[3][3],
+                               const float omega[3],
+                               float tau_gyro[3])
 {
     float I_omega[3];
     matrix33_vec3_mul(I, omega, I_omega);
@@ -109,9 +109,9 @@ static void compute_gyroscopic_torque(const float I[3][3],
 /**
  * @brief tau_cmd = -(tau_gyro + phi). No gain matrices.
  */
-static void compute_command_torque(const float tau_gyro[3],
-                                   const float phi[3],
-                                   float tau_cmd[3])
+void compute_command_torque(const float tau_gyro[3],
+                            const float phi[3],
+                            float tau_cmd[3])
 {
     tau_cmd[0] = -(tau_gyro[0] + phi[0]);
     tau_cmd[1] = -(tau_gyro[1] + phi[1]);
@@ -123,9 +123,9 @@ static void compute_command_torque(const float tau_gyro[3],
 /**
  * @brief tau_roll = (tau_cmd . t_hat) * t_hat.
  */
-static void compute_roll_torque(const float tau_cmd[3],
-                                const float t_hat[3],
-                                float tau_roll[3])
+void compute_roll_torque(const float tau_cmd[3],
+                         const float t_hat[3],
+                         float tau_roll[3])
 {
     float proj = vec3_dot(tau_cmd, t_hat);
     tau_roll[0] = proj * t_hat[0];
@@ -138,9 +138,9 @@ static void compute_roll_torque(const float tau_cmd[3],
 /**
  * @brief tau_gim = tau_cmd - tau_roll.
  */
-static void compute_gimbal_torque(const float tau_cmd[3],
-                                  const float tau_roll[3],
-                                  float tau_gim[3])
+void compute_gimbal_torque(const float tau_cmd[3],
+                           const float tau_roll[3],
+                           float tau_gim[3])
 {
     tau_gim[0] = tau_cmd[0] - tau_roll[0];
     tau_gim[1] = tau_cmd[1] - tau_roll[1];
@@ -152,9 +152,9 @@ static void compute_gimbal_torque(const float tau_cmd[3],
 /**
  * @brief t_perp = (tau_gim x r_gim) / ||r_gim||^2.
  */
-static void compute_perpendicular_thrust(const float tau_gim[3],
-                                         const float r_gim[3],
-                                         float t_perp[3])
+void compute_perpendicular_thrust(const float tau_gim[3],
+                                  const float r_gim[3],
+                                  float t_perp[3])
 {
     float r_norm_sq = vec3_dot(r_gim, r_gim);
     if (r_norm_sq < 1.0e-12f) {
@@ -177,10 +177,10 @@ static void compute_perpendicular_thrust(const float tau_gim[3],
  * @brief t_par = sqrt(||t||^2 - ||t_perp||^2) * r_hat_gim.
  *        Uses s_t_mag from previous iteration for ||t||.
  */
-static void compute_parallel_thrust(float t_mag,
-                                    const float t_perp[3],
-                                    const float r_gim[3],
-                                    float t_par[3])
+void compute_parallel_thrust(float t_mag,
+                             const float t_perp[3],
+                             const float r_gim[3],
+                             float t_par[3])
 {
     float r_norm_sq = vec3_dot(r_gim, r_gim);
     if (r_norm_sq < 1.0e-12f) {
@@ -209,10 +209,10 @@ static void compute_parallel_thrust(float t_mag,
  *        theta_y = asin(t_hat_des[0]).
  *        Clamp to [theta_min, theta_max].
  */
-static void compute_gimbal_angles(const float t_des[3],
-                                  const flight_controller_gimbal_config_t *cfg,
-                                  float *theta_x_cmd,
-                                  float *theta_y_cmd)
+void compute_gimbal_angles(const float t_des[3],
+                           const flight_controller_gimbal_config_t *cfg,
+                           float *theta_x_cmd,
+                           float *theta_y_cmd)
 {
     float t_norm = sqrtf(vec3_dot(t_des, t_des));
     if (t_norm < 1.0e-9f) {
@@ -238,8 +238,8 @@ static void compute_gimbal_angles(const float t_des[3],
 /**
  * @brief t_hat = [sin(ty), -sin(tx)*cos(ty), cos(tx)*cos(ty)].
  */
-static void update_thrust_direction(float theta_x, float theta_y,
-                                    float t_hat[3])
+void update_thrust_direction(float theta_x, float theta_y,
+                             float t_hat[3])
 {
     float sx = sinf(theta_x);
     float cx = cosf(theta_x);
@@ -256,8 +256,8 @@ static void update_thrust_direction(float theta_x, float theta_y,
 /**
  * @brief T = m * dot(a_des, t_hat); clamp >= 0.
  */
-static float compute_thrust_magnitude(float m, const float a_des[3],
-                                      const float t_hat[3])
+float compute_thrust_magnitude(float m, const float a_des[3],
+                               const float t_hat[3])
 {
     float T = m * vec3_dot(a_des, t_hat);
     if (T < 0.0f) T = 0.0f;
