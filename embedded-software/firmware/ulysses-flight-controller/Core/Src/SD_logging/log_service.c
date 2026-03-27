@@ -297,3 +297,100 @@ void log_service_periodic_flush(void)
         s_flush_counter = 0U;
     }
 }
+
+void log_service_pid_gains( uint32_t timestamp_us, 
+                    bool has_attitude_kp,
+                    float attitude_kp_x,
+                    float attitude_kp_y,
+                    float attitude_kp_z,
+                    bool has_attitude_kd,
+                    float attitude_kd_x,
+                    float attitude_kd_y,
+                    float attitude_kd_z,
+                    float z_kp,
+                    float z_ki,
+                    float z_kd,
+                    float z_integral_limit) {
+
+    if (!log_service_ready()) {
+        return;
+    }
+
+    log_record_pid_gains_t pid = {
+        .timestamp_us = timestamp_us,
+        .has_attitude_kp = has_attitude_kp,
+        .attitude_kp_x = attitude_kp_x,
+        .attitude_kp_y = attitude_kp_y,
+        .attitude_kp_z = attitude_kp_z,
+        .has_attitude_kd = has_attitude_kd,
+        .attitude_kd_x = attitude_kd_x,
+        .attitude_kd_y = attitude_kd_y,
+        .attitude_kd_z = attitude_kd_z,
+        .z_kp = z_kp,
+        .z_ki = z_ki,
+        .z_kd = z_kd,
+        .z_integral_limit = z_integral_limit
+    };
+
+    log_writer_append_record(LOG_RECORD_TYPE_pid_gains,
+                                &pid,
+                                sizeof(pid));
+
+}
+
+void log_service_reference( uint32_t timestamp_us,
+                            float z_ref,
+                            float vz_ref,
+                            bool has_q_ref,
+                            float q_ref_w,
+                            float q_ref_x,
+                            float q_ref_y,
+                            float q_ref_z) {
+
+    if (!log_service_ready()) {
+        return;
+    }
+
+    log_record_reference_t reference = {
+        .timestamp_us = timestamp_us,
+        .z_ref = z_ref,
+        .vz_ref = vz_ref,
+        .has_q_ref = has_q_ref,
+        .q_ref_w = q_ref_w,
+        .q_ref_x = q_ref_x,
+        .q_ref_y = q_ref_y,
+        .q_ref_z = q_ref_z
+    };
+
+    log_writer_append_record(
+            LOG_RECORD_TYPE_reference,
+            &reference,
+            sizeof(reference));
+
+}
+
+void log_service_configuration( uint32_t timestamp_us,
+                                float mass,
+                                float T_min,
+                                float T_max,
+                                float theta_min,
+                                float theta_max) {
+
+    if (!log_service_ready()) {
+        return;
+    }
+
+    log_record_configuration_t configuration = {
+        .timestamp_us = timestamp_us,
+        .mass = mass,
+        .T_min = T_min,
+        .T_max = T_max,
+        .theta_min = theta_min,
+        .theta_max = theta_max
+    };
+
+    log_writer_append_record(
+            LOG_RECORD_TYPE_configuration,
+            &configuration,
+            sizeof(configuration));
+}

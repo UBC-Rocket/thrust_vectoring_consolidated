@@ -111,6 +111,43 @@ void log_service_log_gps_fix(uint32_t timestamp_us,
                               uint8_t fix_quality,
                               uint8_t num_satellites);
 
+
+/**
+ * @brief Append a SetPIDGains record to the log.
+ *
+ * Call once per valid PID set command recieved from GNSS board.
+ */
+void log_service_pid_gains( uint32_t timestsamp_us,
+                    bool has_attitude_kp,
+                    float attitude_kp_x,
+                    float attitude_kp_y,
+                    float attitude_kp_z,
+                    bool has_attitude_kd,
+                    float attitude_kd_x,
+                    float attitude_kd_y,
+                    float attitude_kd_z,
+                    float z_kp,
+                    float z_ki,
+                    float z_kd,
+                    float z_integral_limit);
+
+
+void log_service_reference( uint32_t timestamp_us,
+                            float z_ref,
+                            float vz_ref,
+                            bool has_q_ref,
+                            float q_ref_w,
+                            float q_ref_x,
+                            float q_ref_y,
+                            float q_ref_z);
+
+void log_service_configuration( uint32_t timestamp_us,
+                                float mass,
+                                float T_min,
+                                float T_max,
+                                float theta_min,
+                                float theta_max);
+
 /**
  * @brief Periodic flush helper to limit data loss on power failure.
  */

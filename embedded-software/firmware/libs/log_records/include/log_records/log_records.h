@@ -2,6 +2,7 @@
 #define LOG_RECORDS_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #define LOG_SCHEMA_VERSION 4U
 #define LOG_RECORD_MAGIC 0xA5U
@@ -122,6 +123,39 @@ typedef struct __attribute__((packed)) {
     FIELD(uint8_t,  num_satellites) \
     FIELD(uint16_t, reserved)
 
+#define LOG_RECORD_FIELDS_PID_GAINS(FIELD) \
+    FIELD(uint32_t, timestamp_us) \
+    FIELD(bool, has_attitude_kp) \
+    FIELD(float, attitude_kp_x) \
+    FIELD(float, attitude_kp_y) \
+    FIELD(float, attitude_kp_z) \
+    FIELD(bool, has_attitude_kd) \
+    FIELD(float, attitude_kd_x) \
+    FIELD(float, attitude_kd_y) \
+    FIELD(float, attitude_kd_z) \
+    FIELD(float, z_kp) \
+    FIELD(float, z_ki) \
+    FIELD(float, z_kd) \
+    FIELD(float, z_integral_limit)
+
+#define LOG_RECORD_FIELDS_REFERENCE(FIELD) \
+    FIELD(uint32_t, timestamp_us) \
+    FIELD(float, z_ref) \
+    FIELD(float, vz_ref) \
+    FIELD(bool, has_q_ref) \
+    FIELD(float, q_ref_w) \
+    FIELD(float, q_ref_x) \
+    FIELD(float, q_ref_y) \
+    FIELD(float, q_ref_z)
+
+#define LOG_RECORD_FIELDS_CONFIGURATION(FIELD) \
+    FIELD(uint32_t, timestamp_us) \
+    FIELD(float, mass) \
+    FIELD(float, T_min) \
+    FIELD(float, T_max) \
+    FIELD(float, theta_min) \
+    FIELD(float, theta_max)
+
 #define LOG_RECORD_FIELDS_TRACE_BATCH(FIELD) \
     FIELD(uint32_t, base_timestamp_us) \
     FIELD(uint8_t, event_count) \
@@ -144,6 +178,9 @@ typedef struct __attribute__((packed)) {
     APP(0x07, gps_fix, LOG_RECORD_FIELDS_GPS_FIX) \
     APP(0x08, control_output, LOG_RECORD_FIELDS_CONTROL_OUTPUT) \
     APP(0x09, calibration, LOG_RECORD_FIELDS_CALIBRATION) \
+    APP(0x0A, pid_gains, LOG_RECORD_FIELDS_PID_GAINS) \
+    APP(0x0B, reference, LOG_RECORD_FIELDS_REFERENCE) \
+    APP(0x0C, configuration, LOG_RECORD_FIELDS_CONFIGURATION) \
     APP(0x20, trace_batch, LOG_RECORD_FIELDS_TRACE_BATCH) \
     APP(0x21, trace_overflow, LOG_RECORD_FIELDS_TRACE_OVERFLOW)
 
