@@ -47,6 +47,8 @@ void log_service_log_state(const state_t *state, flight_state_t flight_state)
         .q_y             = state->q_bn.y,
         .q_z             = state->q_bn.z,
         .altitude_m      = state->pos[2],
+        .pos_n_m         = state->pos[0],
+        .pos_e_m         = state->pos[1],
         .vel_n_mps       = state->vel[0],
         .vel_e_mps       = state->vel[1],
         .vel_d_mps       = state->vel[2],
@@ -198,21 +200,33 @@ void log_service_log_control_output(uint32_t timestamp_us,
                                     float tau_gim_x,
                                     float tau_gim_y,
                                     float tau_gim_z,
-                                    float tau_thrust)
+                                    float tau_thrust,
+                                    float phi_x,
+                                    float phi_y,
+                                    float phi_z,
+                                    float z_pid_integral,
+                                    float z_ref,
+                                    float vz_ref)
 {
     if (!log_service_ready()) {
         return;
     }
 
     log_record_control_output_t record = {
-        .timestamp_us = timestamp_us,
-        .T_cmd        = T_cmd,
-        .theta_x_cmd  = theta_x_cmd,
-        .theta_y_cmd  = theta_y_cmd,
-        .tau_gim_x    = tau_gim_x,
-        .tau_gim_y    = tau_gim_y,
-        .tau_gim_z    = tau_gim_z,
-        .tau_thrust   = tau_thrust
+        .timestamp_us   = timestamp_us,
+        .T_cmd          = T_cmd,
+        .theta_x_cmd    = theta_x_cmd,
+        .theta_y_cmd    = theta_y_cmd,
+        .tau_gim_x      = tau_gim_x,
+        .tau_gim_y      = tau_gim_y,
+        .tau_gim_z      = tau_gim_z,
+        .tau_thrust     = tau_thrust,
+        .phi_x          = phi_x,
+        .phi_y          = phi_y,
+        .phi_z          = phi_z,
+        .z_pid_integral = z_pid_integral,
+        .z_ref          = z_ref,
+        .vz_ref         = vz_ref
     };
 
     log_writer_append_record(LOG_RECORD_TYPE_control_output,

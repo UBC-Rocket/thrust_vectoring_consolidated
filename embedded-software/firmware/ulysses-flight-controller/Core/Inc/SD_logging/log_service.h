@@ -11,7 +11,7 @@
  */
 #define LOG_EVENT_CODE_ESTOP 0x0001U
 #define LOG_EVENT_CODE_FLIGHT_STATE 0x0002U
-#define LOG_EVENT_CODE_RADIO_RX 0x0003U
+#define LOG_EVENT_CODE_ARM_STATE 0x0004U  /**< data_u16: 1=armed, 0=disarmed */
 
 /**
  * @brief Perform one-time initialisation of the SD log writer if a card is present.
@@ -85,7 +85,13 @@ void log_service_log_control_output(uint32_t timestamp_us,
                                     float tau_gim_x,
                                     float tau_gim_y,
                                     float tau_gim_z,
-                                    float tau_thrust);
+                                    float tau_thrust,
+                                    float phi_x,
+                                    float phi_y,
+                                    float phi_z,
+                                    float z_pid_integral,
+                                    float z_ref,
+                                    float vz_ref);
 
 /**
  * @brief Append a GPS fix record to the log.

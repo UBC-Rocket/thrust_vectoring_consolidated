@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import struct
 
-LOG_SCHEMA_VERSION = 3
+LOG_SCHEMA_VERSION = 4
 
 TYPE_FORMATS = {'uint8_t': 'B', 'int8_t': 'b', 'uint16_t': 'H', 'int16_t': 'h', 'uint32_t': 'I', 'int32_t': 'i', 'uint64_t': 'Q', 'int64_t': 'q', 'float': 'f', 'double': 'd'}
 
@@ -69,6 +69,8 @@ RECORDS = {
             ("float", "q_y"),
             ("float", "q_z"),
             ("float", "altitude_m"),
+            ("float", "pos_n_m"),
+            ("float", "pos_e_m"),
             ("float", "vel_n_mps"),
             ("float", "vel_e_mps"),
             ("float", "vel_d_mps"),
@@ -79,8 +81,8 @@ RECORDS = {
             ("uint8_t", "estop_active"),
             ("uint16_t", "reserved"),
         ],
-        "format": "<IfffffffffffBBH",
-        "struct": struct.Struct("<IfffffffffffBBH"),
+        "format": "<IfffffffffffffBBH",
+        "struct": struct.Struct("<IfffffffffffffBBH"),
     },
     "event": {
         "id": 5,
@@ -133,9 +135,15 @@ RECORDS = {
             ("float",    "tau_gim_y"),
             ("float",    "tau_gim_z"),
             ("float",    "tau_thrust"),
+            ("float",    "phi_x"),
+            ("float",    "phi_y"),
+            ("float",    "phi_z"),
+            ("float",    "z_pid_integral"),
+            ("float",    "z_ref"),
+            ("float",    "vz_ref"),
         ],
-        "format": "<Ifffffff",
-        "struct": struct.Struct("<Ifffffff"),
+        "format": "<Ifffffffffffff",
+        "struct": struct.Struct("<Ifffffffffffff"),
     },
     "gps_fix": {
         "id": 7,

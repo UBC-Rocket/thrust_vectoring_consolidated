@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#define LOG_SCHEMA_VERSION 3U
+#define LOG_SCHEMA_VERSION 4U
 #define LOG_RECORD_MAGIC 0xA5U
 
 typedef enum {
@@ -54,6 +54,8 @@ typedef struct __attribute__((packed)) {
     FIELD(float, q_y) \
     FIELD(float, q_z) \
     FIELD(float, altitude_m) \
+    FIELD(float, pos_n_m) \
+    FIELD(float, pos_e_m) \
     FIELD(float, vel_n_mps) \
     FIELD(float, vel_e_mps) \
     FIELD(float, vel_d_mps) \
@@ -85,8 +87,9 @@ typedef struct __attribute__((packed)) {
     FIELD(uint16_t, calibration_samples)
 
 /* Control output: all fields from control_output_t at 100 Hz (every 8th 800-Hz cycle).
- * Includes intermediate torque commands so post-flight analysis can separate attitude
- * controller faults from allocator/gimbal faults. Total payload: 32 bytes. */
+ * Includes intermediate torque commands, attitude error vector, z-PID integral, and
+ * reference setpoints so post-flight analysis can separate tracking error from
+ * disturbance and controller faults from allocator/gimbal faults. Total payload: 56 bytes. */
 #define LOG_RECORD_FIELDS_CONTROL_OUTPUT(FIELD) \
     FIELD(uint32_t, timestamp_us) \
     FIELD(float,    T_cmd) \
@@ -95,7 +98,13 @@ typedef struct __attribute__((packed)) {
     FIELD(float,    tau_gim_x) \
     FIELD(float,    tau_gim_y) \
     FIELD(float,    tau_gim_z) \
-    FIELD(float,    tau_thrust)
+    FIELD(float,    tau_thrust) \
+    FIELD(float,    phi_x) \
+    FIELD(float,    phi_y) \
+    FIELD(float,    phi_z) \
+    FIELD(float,    z_pid_integral) \
+    FIELD(float,    z_ref) \
+    FIELD(float,    vz_ref)
 
 /* GPS fix: all fields from gps_fix_t relevant for post-flight analysis.
  * lat/lon kept as double to preserve full GPS precision (float gives ~2m error).

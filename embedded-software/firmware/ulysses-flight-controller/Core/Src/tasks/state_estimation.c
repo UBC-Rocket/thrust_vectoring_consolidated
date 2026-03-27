@@ -24,6 +24,7 @@
 #include "mission_manager/mission_manager.h"
 #include "SD_logging/log_service.h"
 #include "spi_drivers/gnss_radio_master.h"
+#include "timestamp.h"
 
 #define GRAV 9.807f
 #define FUSION_VECTOR_SAMPLE_SIZE 16
@@ -247,6 +248,19 @@ void state_estimation_task_start(void *argument)
             while (gnss_gps_dequeue(&gps_fix)) {
                 if (gps_fix.fix_quality == 0) continue;
 
+                log_service_log_gps_fix(
+                    timestamp_us(),
+                    gps_fix.latitude,
+                    gps_fix.longitude,
+                    gps_fix.altitude_msl,
+                    gps_fix.ground_speed,
+                    gps_fix.course,
+                    gps_fix.hdop,
+                    gps_fix.time_of_week_ms,
+                    gps_fix.fix_quality,
+                    gps_fix.num_satellites
+                );
+
                 /* Capture first valid fix as local origin */
                 if (!gps_ref.set) {
                     gps_ref.lat_rad = gps_fix.latitude * DEG2RAD;
@@ -287,12 +301,22 @@ void state_estimation_task_start(void *argument)
             eskf_input_t input = { channels, n_channels };
             eskf_process(&eskf, &input);
 
-#ifdef DEBUG
             if (!calibration_logged && eskf_is_calibrated(&eskf)) {
                 calibration_logged = true;
+                log_service_log_calibration(
+                    (uint32_t)gyro_buf[n_gyro - 1].timestamp_us,
+                    eskf.orientation.b_accel[0][0],
+                    eskf.orientation.b_accel[0][1],
+                    eskf.orientation.b_accel[0][2],
+                    eskf.orientation.b_gyro[0][0],
+                    eskf.orientation.b_gyro[0][1],
+                    eskf.orientation.b_gyro[0][2],
+                    (uint16_t)CALIBRATION_SAMPLES
+                );
+#ifdef DEBUG
                 DLOG_PRINT("[SE] Calibration complete\r\n");
-            }
 #endif
+            }
 
             /* ---- Publish state ---- */
             float q[4], pos[3], vel[3];

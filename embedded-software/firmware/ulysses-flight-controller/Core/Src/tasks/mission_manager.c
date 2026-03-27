@@ -113,19 +113,6 @@ void mission_manager_task_start(void *argument) {
                         default:
                             break;
                     }
-
-                    log_service_log_event(
-                        LOG_EVENT_CODE_RADIO_RX,
-                        (uint16_t)decoded.which_payload,
-                        current_state.u_s
-                    );
-
-                } else if (dec.status == RP_CODEC_CHECKSUM_MISMATCH) {
-                    log_service_log_event(
-                        LOG_EVENT_CODE_RADIO_RX,
-                        0xFFFF,
-                        current_state.u_s
-                    );
                 }
             }
         }

@@ -244,6 +244,7 @@ void controls_task_start(void *argument)
     uint32_t stale_tick_count = 0;
     bool esc_running = false;
     uint32_t esc_arm_tick = 0;
+    bool last_armed = false;
 
     init_default_config(&config);
     init_default_ref(&ref);
@@ -284,6 +285,13 @@ void controls_task_start(void *argument)
         bool armed = false;
         state_exchange_get_armed(&armed);
 
+        if (armed != last_armed) {
+            log_service_log_event(LOG_EVENT_CODE_ARM_STATE,
+                                  (uint16_t)(armed ? 1U : 0U),
+                                  timestamp_us());
+            last_armed = armed;
+        }
+
         if (!config_done) {
             flight_controller_init(&config);
             config_done = 1;
@@ -318,7 +326,13 @@ void controls_task_start(void *argument)
                 control_output.tau_gim[0],
                 control_output.tau_gim[1],
                 control_output.tau_gim[2],
-                control_output.tau_thrust
+                control_output.tau_thrust,
+                control_output.phi_x,
+                control_output.phi_y,
+                control_output.phi_z,
+                control_output.z_pid_integral,
+                ref.z_ref,
+                ref.vz_ref
             );
         }
 

@@ -63,13 +63,17 @@ typedef struct {
     float vz_ref;       /**< Desired z velocity [m/s] */
 } flight_controller_ref_t;
 
-/** Controller output for downstream ESC/gimbal actuators. */
+/** Controller output for downstream ESC/gimbal actuators and logging. */
 typedef struct {
-    float tau_gim[3];    /**< Torque for gimbal [N·m] */
-    float tau_thrust;    /**< Differential torque from props [N·m] */
-    float T_cmd;         /**< Thrust magnitude [N] */
-    float theta_x_cmd;   /**< Gimbal angle x [rad] */
-    float theta_y_cmd;   /**< Gimbal angle y [rad] */
+    float tau_gim[3];      /**< Torque for gimbal [N·m] */
+    float tau_thrust;      /**< Differential torque from props [N·m] */
+    float T_cmd;           /**< Thrust magnitude [N] */
+    float theta_x_cmd;     /**< Gimbal angle x [rad] */
+    float theta_y_cmd;     /**< Gimbal angle y [rad] */
+    float phi_x;           /**< Attitude error vector x = 2*dq.x [rad] */
+    float phi_y;           /**< Attitude error vector y = 2*dq.y [rad] */
+    float phi_z;           /**< Attitude error vector z = 2*dq.z [rad] */
+    float z_pid_integral;  /**< Z-axis PID integral accumulator [m] */
 } control_output_t;
 
 /**
