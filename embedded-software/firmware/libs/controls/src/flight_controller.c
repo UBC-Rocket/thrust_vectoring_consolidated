@@ -33,12 +33,15 @@ static uint8_t z_pid_initialized = 0;
 static float s_t_hat[3]; /**< Thrust direction (Eq 8) */
 static float s_t_mag;    /**< Thrust magnitude (Eq 9) */
 
+
 /* ── Utility ───────────────────────────────────────────────────────────── */
 
-static float clampf(float value, float min_val, float max_val)
+float clampf(float value, float min_val, float max_val)
 {
-    if (value > max_val) return max_val;
-    if (value < min_val) return min_val;
+    if (value > max_val)
+        return max_val;
+    if (value < min_val)
+        return min_val;
     return value;
 }
 
@@ -54,9 +57,10 @@ void compute_quaternion_error(const quaternion_t *q_des,
     quaternion_t q_meas_conj;
     quaternion_conjugate(q_meas, &q_meas_conj);
     quaternion_multiply(q_des, &q_meas_conj, q_err);
-    
+
     // flip is w < 0 to ensure shortest rotation
-    if (q_err->w < 0.0f) {
+    if (q_err->w < 0.0f)
+    {
         q_err->w = -q_err->w;
         q_err->x = -q_err->x;
         q_err->y = -q_err->y;
@@ -76,7 +80,8 @@ void compute_axis_angle_error(const quaternion_t *q_err, float phi[3])
     float vz = q_err->z;
     float v_norm = sqrtf(vx * vx + vy * vy + vz * vz);
 
-    if (v_norm < 1.0e-9f) {
+    if (v_norm < 1.0e-9f)
+    {
         phi[0] = 0.0f;
         phi[1] = 0.0f;
         phi[2] = 0.0f;
@@ -157,7 +162,8 @@ void compute_perpendicular_thrust(const float tau_gim[3],
                                   float t_perp[3])
 {
     float r_norm_sq = vec3_dot(r_gim, r_gim);
-    if (r_norm_sq < 1.0e-12f) {
+    if (r_norm_sq < 1.0e-12f)
+    {
         t_perp[0] = 0.0f;
         t_perp[1] = 0.0f;
         t_perp[2] = 0.0f;
@@ -183,7 +189,8 @@ void compute_parallel_thrust(float t_mag,
                              float t_par[3])
 {
     float r_norm_sq = vec3_dot(r_gim, r_gim);
-    if (r_norm_sq < 1.0e-12f) {
+    if (r_norm_sq < 1.0e-12f)
+    {
         t_par[0] = 0.0f;
         t_par[1] = 0.0f;
         t_par[2] = 0.0f;
@@ -192,7 +199,8 @@ void compute_parallel_thrust(float t_mag,
 
     float t_perp_sq = vec3_dot(t_perp, t_perp);
     float diff = t_mag * t_mag - t_perp_sq;
-    if (diff < 0.0f) diff = 0.0f;
+    if (diff < 0.0f)
+        diff = 0.0f;
 
     float par_mag = sqrtf(diff);
     float inv_r = 1.0f / sqrtf(r_norm_sq);
@@ -215,7 +223,8 @@ void compute_gimbal_angles(const float t_des[3],
                            float *theta_y_cmd)
 {
     float t_norm = sqrtf(vec3_dot(t_des, t_des));
-    if (t_norm < 1.0e-9f) {
+    if (t_norm < 1.0e-9f)
+    {
         *theta_x_cmd = 0.0f;
         *theta_y_cmd = 0.0f;
         return;
@@ -260,7 +269,8 @@ float compute_thrust_magnitude(float m, const float a_des[3],
                                const float t_hat[3])
 {
     float T = m * vec3_dot(a_des, t_hat);
-    if (T < 0.0f) T = 0.0f;
+    if (T < 0.0f)
+        T = 0.0f;
     return T;
 }
 
@@ -268,7 +278,8 @@ float compute_thrust_magnitude(float m, const float a_des[3],
 
 void flight_controller_init(const flight_controller_config_t *config)
 {
-    if (!config) return;
+    if (!config)
+        return;
 
     const flight_controller_thrust_config_t *t = &config->thrust;
     pid_init(&z_pid,
@@ -289,9 +300,11 @@ void flight_controller_run(const state_t *state,
                            control_output_t *out,
                            float dt_s)
 {
-    if (!state || !ref || !config || !out) return;
+    if (!state || !ref || !config || !out)
+        return;
 
-    if (!z_pid_initialized) {
+    if (!z_pid_initialized)
+    {
         flight_controller_init(config);
     }
 
@@ -346,9 +359,12 @@ void flight_controller_run(const state_t *state,
 
     /* Z-PID: compute a_z_cmd */
     float a_z_cmd;
-    if (dt_s < MIN_DT_S) {
+    if (dt_s < MIN_DT_S)
+    {
         a_z_cmd = 0.0f;
-    } else {
+    }
+    else
+    {
         a_z_cmd = pid_compute(&z_pid, ref->z_ref, state->pos[2], dt_s);
     }
     a_z_cmd = clampf(a_z_cmd, tcfg->a_z_min, tcfg->a_z_max);
