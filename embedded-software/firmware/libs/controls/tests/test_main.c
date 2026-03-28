@@ -112,6 +112,13 @@ void test_api_v3_shortest_path(void);
 void test_api_v3_gimbal_mapping(void);
 void test_api_v3_gimbal_saturation(void);
 
+/* public APIs — set 4 (nonlinear dynamics & api robustness) */
+void test_api_v3_transient_d_kick_recovery(void);
+void test_api_v3_gyroscopic_cross_coupling(void);
+void test_api_v3_actuator_saturation_reprojection(void);
+void test_api_v3_cold_start_gimbal_saturation(void);
+void test_api_v3_double_cover_inversion(void);
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -240,6 +247,13 @@ int main(void)
     /* public APIs — set 3 (allocation/gimbal) */
     RUN_TEST(test_api_v3_gimbal_mapping);
     RUN_TEST(test_api_v3_gimbal_saturation);
+
+    /* public APIs — set 4 (nonlinear dynamics & api robustness) */
+    RUN_TEST(test_api_v3_transient_d_kick_recovery);
+    RUN_TEST(test_api_v3_gyroscopic_cross_coupling);
+    RUN_TEST(test_api_v3_actuator_saturation_reprojection);
+    RUN_TEST(test_api_v3_cold_start_gimbal_saturation);
+    RUN_TEST(test_api_v3_double_cover_inversion);
 
     return UNITY_END();
 }
