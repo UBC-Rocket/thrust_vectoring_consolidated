@@ -9,10 +9,12 @@
 
 extern SD_HandleTypeDef hsd1;
 
-#define LOG_SD_BLOCK_SIZE   512U
-#define LOG_BUFFER_COUNT    2U
-#define LOG_ERASE_BLOCK_COUNT 8192U
-#define LOG_ERASE_TIMEOUT_MS 5000U
+#define LOG_SD_BLOCK_SIZE          512U
+#define LOG_BUFFER_COUNT           2U
+#define LOG_ERASE_BLOCK_COUNT      131072U   /* 64 MB — ~12 min at ~184 blocks/s */
+#define LOG_ERASE_TIMEOUT_MS       15000U    /* Allow up to 15s for large erase  */
+#define LOG_ERASE_AHEAD_THRESHOLD  4096U     /* Trigger erase when within this many blocks */
+#define LOG_ERASE_AHEAD_SIZE       32768U    /* Erase 16 MB at a time */
 
 typedef struct {
     uint8_t data[LOG_SD_BLOCK_SIZE];
@@ -26,6 +28,7 @@ typedef struct {
     uint8_t active_idx;
     uint8_t flushing_idx;
     uint32_t block_address;
+    uint32_t erased_up_to_block;
     bool dma_in_progress;
     SemaphoreHandle_t dma_done_sem;
     StaticSemaphore_t dma_done_sem_buf;
@@ -44,6 +47,7 @@ static void wait_for_dma_completion(void);
 static bool flush_active_buffer(void);
 static bool ensure_preflight_erase(void);
 static bool wait_for_card_ready(uint32_t timeout_ms);
+static void erase_ahead_if_needed(void);
 
 bool log_writer_init(void)
 {
@@ -73,6 +77,7 @@ bool log_writer_init(void)
     g_log_ctx.active_idx = 0U;
     g_log_ctx.flushing_idx = UINT8_MAX;
     g_log_ctx.block_address = 0U;
+    g_log_ctx.erased_up_to_block = LOG_ERASE_BLOCK_COUNT;
     g_log_ctx.ready = true;
     return true;
 }
@@ -224,6 +229,7 @@ static bool flush_active_buffer(void)
 static bool start_dma_flush(uint8_t buffer_index)
 {
     wait_for_dma_completion();
+    erase_ahead_if_needed();
 
     if (!wait_for_card_ready(LOG_ERASE_TIMEOUT_MS)) {
         g_log_ctx.error = true;
@@ -293,6 +299,20 @@ static bool ensure_preflight_erase(void)
 
     s_preflight_erased = true;
     return true;
+}
+
+static void erase_ahead_if_needed(void)
+{
+    if (g_log_ctx.block_address + LOG_ERASE_AHEAD_THRESHOLD
+            >= g_log_ctx.erased_up_to_block) {
+        uint32_t erase_start = g_log_ctx.erased_up_to_block;
+        uint32_t erase_end   = erase_start + LOG_ERASE_AHEAD_SIZE - 1U;
+        if (HAL_SD_Erase(&hsd1, erase_start, erase_end) == HAL_OK) {
+            if (wait_for_card_ready(LOG_ERASE_TIMEOUT_MS)) {
+                g_log_ctx.erased_up_to_block = erase_end + 1U;
+            }
+        }
+    }
 }
 
 static bool wait_for_card_ready(uint32_t timeout_ms)

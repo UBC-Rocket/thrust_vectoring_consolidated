@@ -164,6 +164,23 @@ header file. */
 /* Section where parameter definitions can be added (for instance, to override default ones in FreeRTOS.h) */
 #define configUSE_TICKLESS_IDLE                  0
 #define configEXPECTED_IDLE_TIME_BEFORE_SLEEP    2
+
+#ifdef DEBUG
+/* FreeRTOS trace hooks — log task switches to a lock-free ring buffer
+ * that is drained to SD card by the trace flush task. */
+#include "trace/trace_hooks.h"
+#define traceTASK_SWITCHED_IN()    trace_hook_task_switched_in()
+#define traceTASK_SWITCHED_OUT()   trace_hook_task_switched_out()
+#define traceTASK_CREATE(pxNewTCB) trace_hook_task_create(pxNewTCB)
+
+/* Runtime stats using the DWT cycle counter (already initialised).
+ * Include the device header so DWT is visible from tasks.c. */
+#include CMSIS_device_header
+#define configGENERATE_RUN_TIME_STATS            1
+#define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS() /* DWT already running */
+#define portGET_RUN_TIME_COUNTER_VALUE()         (DWT->CYCCNT)
+#endif /* DEBUG */
+
 /* USER CODE END Defines */
 
 #endif /* __FREERTOS_CONFIG_H */
