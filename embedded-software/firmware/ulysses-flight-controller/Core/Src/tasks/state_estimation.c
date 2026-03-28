@@ -329,9 +329,9 @@ void state_estimation_task_start(void *argument)
                     float ct = 2.0f*(qw*qw + qz*qz) - 1.0f;
                     if (ct > 1.0f) ct = 1.0f;
                     if (ct < -1.0f) ct = -1.0f;
-                    DLOG_PRINT("ATT t%d r%d p%d y%d\r\n",
+                    DLOG_PRINT("ATT t%d r%f p%f y%f\r\n",
                         (int)(acosf(ct) * (180.0f/(float)M_PI)),
-                        (int)euler[0], (int)euler[1], (int)euler[2]);
+                        euler[0], euler[1], euler[2]);
                     break;
                 }
                 case 1:
@@ -360,7 +360,7 @@ void state_estimation_task_start(void *argument)
                         (int)(eskf.orientation.b_accel[0][2]*1000));
                     break;
                 }
-                debug_phase = (debug_phase + 1) % 5;
+                debug_phase = 0;
             }
 #endif
             ticks++;

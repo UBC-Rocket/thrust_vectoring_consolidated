@@ -19,6 +19,41 @@
  * Helpers
  * ====================================================================== */
 
+static void quat_mult(const float a[4], const float b[4], float out[4])
+{
+    quaternion_t qa = { a[0], a[1], a[2], a[3] };
+    quaternion_t qb = { b[0], b[1], b[2], b[3] };
+    quaternion_t qo;
+    quaternion_multiply(&qa, &qb, &qo);
+    out[0] = qo.w;
+    out[1] = qo.x;
+    out[2] = qo.y;
+    out[3] = qo.z;
+}
+
+static void ekf_preserve_predicted_yaw(const float q_pred[4], float q_corr[4])
+{
+    float norm_corr = sqrtf(q_corr[0] * q_corr[0] + q_corr[3] * q_corr[3]);
+    float twist_corr_inv[4] = { 1.0f, 0, 0, 0 };
+    if (norm_corr > 1e-6f) {
+        twist_corr_inv[0] = q_corr[0] / norm_corr;
+        twist_corr_inv[3] = -q_corr[3] / norm_corr;
+    }
+
+    float swing_corr[4];
+    quat_mult(q_corr, twist_corr_inv, swing_corr);
+
+    float norm_pred = sqrtf(q_pred[0] * q_pred[0] + q_pred[3] * q_pred[3]);
+    float twist_pred[4] = { 1.0f, 0, 0, 0 };
+    if (norm_pred > 1e-6f) {
+        twist_pred[0] = q_pred[0] / norm_pred;
+        twist_pred[3] = q_pred[3] / norm_pred;
+    }
+
+    quat_mult(swing_corr, twist_pred, q_corr);
+    normalize(q_corr);
+}
+
 static const eskf_sensor_noise_config_t *find_sensor_config(
     const eskf_t *eskf, eskf_sensor_type_t type, uint8_t id)
 {
@@ -90,7 +125,7 @@ static void orientation_predict(eskf_t *eskf, const float gyro_raw[3],
 {
     orientation_eskf_state_t *ori = &eskf->orientation;
 
-    /* Correct gyro with this IMU's bias estimate */
+    /* Correct gyro with this IMU's biasprocess_accel estimate */
     float gyro_corr[3] = { gyro_raw[0] - ori->b_gyro[imu_idx][0],
                            gyro_raw[1] - ori->b_gyro[imu_idx][1],
                            gyro_raw[2] - ori->b_gyro[imu_idx][2] };
@@ -307,8 +342,9 @@ static void body_baro_update(eskf_t *eskf, float baro_height, float R_baro)
             Kv[i] = body->covar[i][5] * S_vel_inv;
 
         float vel_innov = 0.0f - body->velocity[2];
-        for (int i = 0; i < 3; i++)
-            body->position[i] += Kv[i] * vel_innov;
+
+        body->position[2] += Kv[2] * vel_innov;
+        
         for (int i = 0; i < 3; i++)
             body->velocity[i] += Kv[i + 3] * vel_innov;
 
@@ -371,6 +407,7 @@ static void process_accel(eskf_t *eskf, const float accel_raw[3],
                           const float R[3][3], float dt, uint8_t imu_idx)
 {
     orientation_eskf_state_t *ori = &eskf->orientation;
+    float q_pred[4] = { ori->q_nom[0], ori->q_nom[1], ori->q_nom[2], ori->q_nom[3] };
 
     /* Correct accel with this IMU's bias */
     float a_corr[3] = { accel_raw[0] - ori->b_accel[imu_idx][0],
@@ -397,6 +434,7 @@ static void process_accel(eskf_t *eskf, const float accel_raw[3],
 
     /* Measurement update */
     orientation_measurement_update(eskf, innov, H, R);
+    ekf_preserve_predicted_yaw(q_pred, ori->q_nom);
 
     /* Body predict: transform accel to nav frame */
     if (dt > 0.0f) {
