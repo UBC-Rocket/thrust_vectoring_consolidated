@@ -38,38 +38,37 @@ typedef struct {
     float data[3];
 } timeline_event_t;
 
-static void eskf_preserve_predicted_yaw(const float q_pred[4], float q_corr[4])
+static float yaw_from_quat(const float q[4])
 {
-    float norm_corr = sqrtf(q_corr[0] * q_corr[0] + q_corr[3] * q_corr[3]);
-    quaternion_t twist_corr_inv = { 1.0f, 0.0f, 0.0f, 0.0f };
-    
-    if (norm_corr > 1e-6f) {
-        twist_corr_inv.w = q_corr[0] / norm_corr;
-        twist_corr_inv.z = -q_corr[3] / norm_corr;
-    }
+    const float siny = 2.0f * (q[0] * q[3] + q[1] * q[2]);
+    const float cosy = 1.0f - 2.0f * (q[2] * q[2] + q[3] * q[3]);
+    return atan2f(siny, cosy);
+}
 
-    quaternion_t q_c = { q_corr[0], q_corr[1], q_corr[2], q_corr[3] };
-    quaternion_t swing_corr;
-    /* Multiply on the left to extract global swing */
-    quaternion_multiply(&twist_corr_inv, &q_c, &swing_corr);
+static void set_quat_yaw(float q[4], float yaw_rad)
+{
+    const float sinr = 2.0f * (q[0] * q[1] + q[2] * q[3]);
+    const float cosr = 1.0f - 2.0f * (q[1] * q[1] + q[2] * q[2]);
+    const float roll = atan2f(sinr, cosr);
 
-    float norm_pred = sqrtf(q_pred[0] * q_pred[0] + q_pred[3] * q_pred[3]);
-    quaternion_t twist_pred = { 1.0f, 0.0f, 0.0f, 0.0f };
-    
-    if (norm_pred > 1e-6f) {
-        twist_pred.w = q_pred[0] / norm_pred;
-        twist_pred.z = q_pred[3] / norm_pred;
-    }
+    float sinp = 2.0f * (q[0] * q[2] - q[3] * q[1]);
+    if (sinp > 1.0f) sinp = 1.0f;
+    if (sinp < -1.0f) sinp = -1.0f;
+    const float pitch = asinf(sinp);
 
-    quaternion_t q_new;
-    /* Multiply on the left to apply predicted global yaw */
-    quaternion_multiply(&twist_pred, &swing_corr, &q_new);
+    const float hr = 0.5f * roll;
+    const float hp = 0.5f * pitch;
+    const float hy = 0.5f * yaw_rad;
 
-    q_corr[0] = q_new.w;
-    q_corr[1] = q_new.x;
-    q_corr[2] = q_new.y;
-    q_corr[3] = q_new.z;
-    normalize(q_corr);
+    const float cr = cosf(hr), sr = sinf(hr);
+    const float cp = cosf(hp), sp = sinf(hp);
+    const float cy = cosf(hy), sy = sinf(hy);
+
+    q[0] = cr * cp * cy + sr * sp * sy;
+    q[1] = sr * cp * cy - cr * sp * sy;
+    q[2] = cr * sp * cy + sr * cp * sy;
+    q[3] = cr * cp * sy - sr * sp * cy;
+    normalize(q);
 }
 
 /* ========================================================================
@@ -82,6 +81,7 @@ void eskf_init(eskf_t *eskf, const eskf_config_t *config)
 
     /* Orientation: identity quaternion, zero biases */
     eskf->orientation.q_nom[0] = 1.0f;
+    eskf->orientation.yaw_nom = 0.0f;
     eskf->orientation.num_imus = config->num_imus;
 
     /* Initial covariance */
@@ -131,6 +131,7 @@ static void orientation_predict(eskf_t *eskf, const float gyro_raw[3],
 
     /* Propagate nominal quaternion */
     eskf_propagate_nominal(ori, gyro_corr, dt);
+    ori->yaw_nom = yaw_from_quat(ori->q_nom);
 
     /* Error-state covariance prediction: P = F_d * P * F_d^T + Q */
     float F_d[ESKF_ERR_DIM][ESKF_ERR_DIM];
@@ -193,21 +194,6 @@ static void orientation_measurement_update(eskf_t *eskf,
         dx[i] = K[i][0] * innovation[0]
               + K[i][1] * innovation[1]
               + K[i][2] * innovation[2];
-    }
-
-    float g_body[3];
-    eskf_predict_accel(ori->q_nom, eskf->expected_g, g_body);
-    float g_mag = sqrtf(g_body[0]*g_body[0] + g_body[1]*g_body[1] + g_body[2]*g_body[2]);
-    
-    if (g_mag > 1e-6f) {
-        float u_g[3] = { g_body[0]/g_mag, g_body[1]/g_mag, g_body[2]/g_mag };
-        // Component of rotation error along the gravity vector (yaw error)
-        float yaw_component = dx[0]*u_g[0] + dx[1]*u_g[1] + dx[2]*u_g[2];
-        
-        // Remove it from the error state
-        dx[0] -= yaw_component * u_g[0];
-        dx[1] -= yaw_component * u_g[1];
-        dx[2] -= yaw_component * u_g[2];
     }
 
     /* Inject: quaternion ← q_nom ⊗ exp(δθ/2) */
@@ -421,7 +407,8 @@ static void process_accel(eskf_t *eskf, const float accel_raw[3],
                           const float R[3][3], float dt, uint8_t imu_idx)
 {
     orientation_eskf_state_t *ori = &eskf->orientation;
-    float q_pred[4] = { ori->q_nom[0], ori->q_nom[1], ori->q_nom[2], ori->q_nom[3] };
+    float b_gyro_prev[ESKF_MAX_IMUS][3];
+    float b_accel_prev[ESKF_MAX_IMUS][3];
 
     /* Correct accel with this IMU's bias */
     float a_corr[3] = { accel_raw[0] - ori->b_accel[imu_idx][0],
@@ -446,11 +433,16 @@ static void process_accel(eskf_t *eskf, const float accel_raw[3],
     float H[3][ESKF_ERR_DIM];
     eskf_get_H_accel(ori->q_nom, eskf->expected_g, H, imu_idx);
 
-    /* Measurement update */
+    /* Measurement update.
+     * Hard guard: accel must not inject into bias states (especially yaw via b_gz). */
+    memcpy(b_gyro_prev, ori->b_gyro, sizeof(b_gyro_prev));
+    memcpy(b_accel_prev, ori->b_accel, sizeof(b_accel_prev));
     orientation_measurement_update(eskf, innov, H, R);
-    
-    /* Preserve predicted yaw */
-    eskf_preserve_predicted_yaw(q_pred, ori->q_nom);
+    memcpy(ori->b_gyro, b_gyro_prev, sizeof(b_gyro_prev));
+    memcpy(ori->b_accel, b_accel_prev, sizeof(b_accel_prev));
+
+    /* Restore yaw from separately tracked yaw state. */
+    set_quat_yaw(ori->q_nom, ori->yaw_nom);
 
     /* Body predict: transform accel to nav frame */
     if (dt > 0.0f) {
@@ -573,6 +565,7 @@ void eskf_process(eskf_t *eskf, const eskf_input_t *input)
                                   eskf->mag_ref, H);
 
                     orientation_measurement_update(eskf, innov, H, cfg->noise);
+                    eskf->orientation.yaw_nom = yaw_from_quat(eskf->orientation.q_nom);
                 }
             }
             break;
