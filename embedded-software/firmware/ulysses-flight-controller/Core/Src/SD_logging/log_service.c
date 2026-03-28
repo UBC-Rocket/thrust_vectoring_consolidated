@@ -394,3 +394,94 @@ void log_service_configuration( uint32_t timestamp_us,
             &configuration,
             sizeof(configuration));
 }
+
+void log_service_radio_telemetry(uint32_t timestamp_us,
+                                 uint32_t timestamp_ms,
+                                 float position_x,
+                                 float position_y,
+                                 float position_z,
+                                 float velocity_x,
+                                 float velocity_y,
+                                 float velocity_z,
+                                 float attitude_w,
+                                 float attitude_x,
+                                 float attitude_y,
+                                 float attitude_z,
+                                 float angular_rate_x,
+                                 float angular_rate_y,
+                                 float angular_rate_z,
+                                 float thrust_cmd,
+                                 float gimbal_x,
+                                 float gimbal_y,
+                                 uint8_t flight_state)
+{
+    if (!log_service_ready()) {
+        return;
+    }
+
+    log_record_radio_telemetry_t telemetry = {
+        .timestamp_us   = timestamp_us,
+        .timestamp_ms   = timestamp_ms,
+        .position_x     = position_x,
+        .position_y     = position_y,
+        .position_z     = position_z,
+        .velocity_x     = velocity_x,
+        .velocity_y     = velocity_y,
+        .velocity_z     = velocity_z,
+        .attitude_w     = attitude_w,
+        .attitude_x     = attitude_x,
+        .attitude_y     = attitude_y,
+        .attitude_z     = attitude_z,
+        .angular_rate_x = angular_rate_x,
+        .angular_rate_y = angular_rate_y,
+        .angular_rate_z = angular_rate_z,
+        .thrust_cmd     = thrust_cmd,
+        .gimbal_x       = gimbal_x,
+        .gimbal_y       = gimbal_y,
+        .flight_state   = flight_state,
+        .reserved1      = 0U,
+        .reserved2      = 0U
+    };
+
+    log_writer_append_record(LOG_RECORD_TYPE_radio_telemetry,
+                             &telemetry,
+                             sizeof(telemetry));
+}
+
+void log_service_radio_status(uint32_t timestamp_us,
+                              uint32_t timestamp_ms,
+                              uint32_t uptime_ms,
+                              uint32_t radio_tx_count,
+                              uint32_t radio_rx_count,
+                              uint32_t cmd_rx_count,
+                              uint8_t flight_state,
+                              bool accel_ok,
+                              bool gyro_ok,
+                              bool baro1_ok,
+                              bool baro2_ok,
+                              bool gps_connected)
+{
+    if (!log_service_ready()) {
+        return;
+    }
+
+    log_record_radio_status_t status = {
+        .timestamp_us   = timestamp_us,
+        .timestamp_ms   = timestamp_ms,
+        .uptime_ms      = uptime_ms,
+        .radio_tx_count = radio_tx_count,
+        .radio_rx_count = radio_rx_count,
+        .cmd_rx_count   = cmd_rx_count,
+        .flight_state   = flight_state,
+        .accel_ok       = accel_ok,
+        .gyro_ok        = gyro_ok,
+        .baro1_ok       = baro1_ok,
+        .baro2_ok       = baro2_ok,
+        .gps_connected  = gps_connected,
+        .reserved       = 0U
+    };
+
+    log_writer_append_record(LOG_RECORD_TYPE_radio_status,
+                             &status,
+                             sizeof(status));
+}

@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define LOG_SCHEMA_VERSION 4U
+#define LOG_SCHEMA_VERSION 5U
 #define LOG_RECORD_MAGIC 0xA5U
 
 typedef enum {
@@ -156,6 +156,44 @@ typedef struct __attribute__((packed)) {
     FIELD(float, theta_min) \
     FIELD(float, theta_max)
 
+#define LOG_RECORD_FIELDS_RADIO_TELEMETRY(FIELD) \
+    FIELD(uint32_t, timestamp_us) \
+    FIELD(uint32_t, timestamp_ms) \
+    FIELD(float, position_x) \
+    FIELD(float, position_y) \
+    FIELD(float, position_z) \
+    FIELD(float, velocity_x) \
+    FIELD(float, velocity_y) \
+    FIELD(float, velocity_z) \
+    FIELD(float, attitude_w) \
+    FIELD(float, attitude_x) \
+    FIELD(float, attitude_y) \
+    FIELD(float, attitude_z) \
+    FIELD(float, angular_rate_x) \
+    FIELD(float, angular_rate_y) \
+    FIELD(float, angular_rate_z) \
+    FIELD(float, thrust_cmd) \
+    FIELD(float, gimbal_x) \
+    FIELD(float, gimbal_y) \
+    FIELD(uint8_t, flight_state) \
+    FIELD(uint8_t, reserved1) \
+    FIELD(uint16_t, reserved2)
+
+#define LOG_RECORD_FIELDS_RADIO_STATUS(FIELD) \
+    FIELD(uint32_t, timestamp_us) \
+    FIELD(uint32_t, timestamp_ms) \
+    FIELD(uint32_t, uptime_ms) \
+    FIELD(uint32_t, radio_tx_count) \
+    FIELD(uint32_t, radio_rx_count) \
+    FIELD(uint32_t, cmd_rx_count) \
+    FIELD(uint8_t, flight_state) \
+    FIELD(bool, accel_ok) \
+    FIELD(bool, gyro_ok) \
+    FIELD(bool, baro1_ok) \
+    FIELD(bool, baro2_ok) \
+    FIELD(bool, gps_connected) \
+    FIELD(uint16_t, reserved)
+
 #define LOG_RECORD_FIELDS_TRACE_BATCH(FIELD) \
     FIELD(uint32_t, base_timestamp_us) \
     FIELD(uint8_t, event_count) \
@@ -181,6 +219,8 @@ typedef struct __attribute__((packed)) {
     APP(0x0A, pid_gains, LOG_RECORD_FIELDS_PID_GAINS) \
     APP(0x0B, reference, LOG_RECORD_FIELDS_REFERENCE) \
     APP(0x0C, configuration, LOG_RECORD_FIELDS_CONFIGURATION) \
+    APP(0x0D, radio_telemetry, LOG_RECORD_FIELDS_RADIO_TELEMETRY) \
+    APP(0x0E, radio_status, LOG_RECORD_FIELDS_RADIO_STATUS) \
     APP(0x20, trace_batch, LOG_RECORD_FIELDS_TRACE_BATCH) \
     APP(0x21, trace_overflow, LOG_RECORD_FIELDS_TRACE_OVERFLOW)
 

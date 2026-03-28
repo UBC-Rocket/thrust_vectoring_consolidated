@@ -148,6 +148,39 @@ void log_service_configuration( uint32_t timestamp_us,
                                 float theta_min,
                                 float theta_max);
 
+void log_service_radio_telemetry(uint32_t timestamp_us,
+                                 uint32_t timestamp_ms,
+                                 float position_x,
+                                 float position_y,
+                                 float position_z,
+                                 float velocity_x,
+                                 float velocity_y,
+                                 float velocity_z,
+                                 float attitude_w,
+                                 float attitude_x,
+                                 float attitude_y,
+                                 float attitude_z,
+                                 float angular_rate_x,
+                                 float angular_rate_y,
+                                 float angular_rate_z,
+                                 float thrust_cmd,
+                                 float gimbal_x,
+                                 float gimbal_y,
+                                 uint8_t flight_state);
+
+void log_service_radio_status(uint32_t timestamp_us,
+                              uint32_t timestamp_ms,
+                              uint32_t uptime_ms,
+                              uint32_t radio_tx_count,
+                              uint32_t radio_rx_count,
+                              uint32_t cmd_rx_count,
+                              uint8_t flight_state,
+                              bool accel_ok,
+                              bool gyro_ok,
+                              bool baro1_ok,
+                              bool baro2_ok,
+                              bool gps_connected);
+
 /**
  * @brief Periodic flush helper to limit data loss on power failure.
  */

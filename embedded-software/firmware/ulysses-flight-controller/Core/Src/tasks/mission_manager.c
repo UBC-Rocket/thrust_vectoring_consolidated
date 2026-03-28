@@ -357,6 +357,7 @@ static void send_telemetry(const state_t *st, const control_output_t *ctrl,
     telem->thrust_cmd   = ctrl->T_cmd;
     telem->gimbal_x     = ctrl->theta_x_cmd;
     telem->gimbal_y     = ctrl->theta_y_cmd;
+    const uint32_t tx_timestamp_us = telem->timestamp_ms * 1000U;
 
     uint8_t pkt[RP_PACKET_MAX_SIZE];
     rp_packet_encode_result_t enc = rp_packet_encode(
@@ -364,6 +365,27 @@ static void send_telemetry(const state_t *st, const control_output_t *ctrl,
 
     if (enc.status == RP_CODEC_OK) {
         if (gnss_radio_send(pkt, (uint16_t)enc.written)) {
+            log_service_radio_telemetry(
+                tx_timestamp_us,
+                telem->timestamp_ms,
+                telem->position.x,
+                telem->position.y,
+                telem->position.z,
+                telem->velocity.x,
+                telem->velocity.y,
+                telem->velocity.z,
+                telem->attitude.w,
+                telem->attitude.x,
+                telem->attitude.y,
+                telem->attitude.z,
+                telem->angular_rate.x,
+                telem->angular_rate.y,
+                telem->angular_rate.z,
+                telem->thrust_cmd,
+                telem->gimbal_x,
+                telem->gimbal_y,
+                (uint8_t)telem->flight_state
+            );
             radio_tx_count++;
         }
     }
@@ -387,6 +409,7 @@ static void send_status(flight_state_t flight_state) {
     s->radio_tx_count = radio_tx_count;
     s->radio_rx_count = radio_rx_count;
     s->cmd_rx_count   = cmd_rx_count;
+    const uint32_t tx_timestamp_us = s->timestamp_ms * 1000U;
 
     uint8_t pkt[RP_PACKET_MAX_SIZE];
     rp_packet_encode_result_t enc = rp_packet_encode(
@@ -394,6 +417,20 @@ static void send_status(flight_state_t flight_state) {
 
     if (enc.status == RP_CODEC_OK) {
         if (gnss_radio_send(pkt, (uint16_t)enc.written)) {
+            log_service_radio_status(
+                tx_timestamp_us,
+                s->timestamp_ms,
+                s->uptime_ms,
+                s->radio_tx_count,
+                s->radio_rx_count,
+                s->cmd_rx_count,
+                (uint8_t)s->flight_state,
+                s->accel_ok,
+                s->gyro_ok,
+                s->baro1_ok,
+                s->baro2_ok,
+                s->gps_connected
+            );
             radio_tx_count++;
         }
     }

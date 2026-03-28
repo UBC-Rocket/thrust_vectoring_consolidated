@@ -16,6 +16,7 @@ HEADER_PATH = ROOT / "libs" / "log_records" / "include" / "log_records" / "log_r
 OUTPUT_PATH = Path(__file__).resolve().parent / "log_schema.py"
 
 TYPE_FORMATS = {
+    "bool": "B",
     "uint8_t": "B",
     "int8_t": "b",
     "uint16_t": "H",
@@ -80,7 +81,7 @@ def generate_python(records, schema_version):
     header = dedent(
         """\
         \"\"\"Auto-generated from libs/log_records/include/log_records/log_records.h
-        Do not edit manually. Run tools/logging/generate_log_schema.py instead.
+        Do not edit manually. Run tools/sd-log/generate_log_schema.py instead.
         \"\"\"
 
         from __future__ import annotations
