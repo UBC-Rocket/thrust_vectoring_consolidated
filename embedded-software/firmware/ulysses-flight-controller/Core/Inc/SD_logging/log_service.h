@@ -117,7 +117,7 @@ void log_service_log_gps_fix(uint32_t timestamp_us,
  *
  * Call once per valid PID set command recieved from GNSS board.
  */
-void log_service_pid_gains( uint32_t timestsamp_us,
+void log_service_pid_gains( uint32_t timestamp_us,
                     bool has_attitude_kp,
                     float attitude_kp_x,
                     float attitude_kp_y,

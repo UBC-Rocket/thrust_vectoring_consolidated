@@ -115,6 +115,8 @@ void mission_manager_task_start(void *argument) {
                         case tvr_FlightCommand_set_config_tag:
                             cmd_rx_count++;
                             /* TODO: apply vehicle config */
+                            handle_configuration(
+                                &decoded.payload.set_config);
                             break;
 
                         default:
