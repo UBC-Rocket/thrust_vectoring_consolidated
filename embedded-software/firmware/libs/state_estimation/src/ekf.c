@@ -19,41 +19,6 @@
  * Helpers
  * ====================================================================== */
 
-static void quat_mult(const float a[4], const float b[4], float out[4])
-{
-    quaternion_t qa = { a[0], a[1], a[2], a[3] };
-    quaternion_t qb = { b[0], b[1], b[2], b[3] };
-    quaternion_t qo;
-    quaternion_multiply(&qa, &qb, &qo);
-    out[0] = qo.w;
-    out[1] = qo.x;
-    out[2] = qo.y;
-    out[3] = qo.z;
-}
-
-static void ekf_preserve_predicted_yaw(const float q_pred[4], float q_corr[4])
-{
-    float norm_corr = sqrtf(q_corr[0] * q_corr[0] + q_corr[3] * q_corr[3]);
-    float twist_corr_inv[4] = { 1.0f, 0, 0, 0 };
-    if (norm_corr > 1e-6f) {
-        twist_corr_inv[0] = q_corr[0] / norm_corr;
-        twist_corr_inv[3] = -q_corr[3] / norm_corr;
-    }
-
-    float swing_corr[4];
-    quat_mult(q_corr, twist_corr_inv, swing_corr);
-
-    float norm_pred = sqrtf(q_pred[0] * q_pred[0] + q_pred[3] * q_pred[3]);
-    float twist_pred[4] = { 1.0f, 0, 0, 0 };
-    if (norm_pred > 1e-6f) {
-        twist_pred[0] = q_pred[0] / norm_pred;
-        twist_pred[3] = q_pred[3] / norm_pred;
-    }
-
-    quat_mult(swing_corr, twist_pred, q_corr);
-    normalize(q_corr);
-}
-
 static const eskf_sensor_noise_config_t *find_sensor_config(
     const eskf_t *eskf, eskf_sensor_type_t type, uint8_t id)
 {
@@ -72,6 +37,40 @@ typedef struct {
     uint8_t id;
     float data[3];
 } timeline_event_t;
+
+static void eskf_preserve_predicted_yaw(const float q_pred[4], float q_corr[4])
+{
+    float norm_corr = sqrtf(q_corr[0] * q_corr[0] + q_corr[3] * q_corr[3]);
+    quaternion_t twist_corr_inv = { 1.0f, 0.0f, 0.0f, 0.0f };
+    
+    if (norm_corr > 1e-6f) {
+        twist_corr_inv.w = q_corr[0] / norm_corr;
+        twist_corr_inv.z = -q_corr[3] / norm_corr;
+    }
+
+    quaternion_t q_c = { q_corr[0], q_corr[1], q_corr[2], q_corr[3] };
+    quaternion_t swing_corr;
+    /* Multiply on the left to extract global swing */
+    quaternion_multiply(&twist_corr_inv, &q_c, &swing_corr);
+
+    float norm_pred = sqrtf(q_pred[0] * q_pred[0] + q_pred[3] * q_pred[3]);
+    quaternion_t twist_pred = { 1.0f, 0.0f, 0.0f, 0.0f };
+    
+    if (norm_pred > 1e-6f) {
+        twist_pred.w = q_pred[0] / norm_pred;
+        twist_pred.z = q_pred[3] / norm_pred;
+    }
+
+    quaternion_t q_new;
+    /* Multiply on the left to apply predicted global yaw */
+    quaternion_multiply(&twist_pred, &swing_corr, &q_new);
+
+    q_corr[0] = q_new.w;
+    q_corr[1] = q_new.x;
+    q_corr[2] = q_new.y;
+    q_corr[3] = q_new.z;
+    normalize(q_corr);
+}
 
 /* ========================================================================
  * Initialization
@@ -194,6 +193,21 @@ static void orientation_measurement_update(eskf_t *eskf,
         dx[i] = K[i][0] * innovation[0]
               + K[i][1] * innovation[1]
               + K[i][2] * innovation[2];
+    }
+
+    float g_body[3];
+    eskf_predict_accel(ori->q_nom, eskf->expected_g, g_body);
+    float g_mag = sqrtf(g_body[0]*g_body[0] + g_body[1]*g_body[1] + g_body[2]*g_body[2]);
+    
+    if (g_mag > 1e-6f) {
+        float u_g[3] = { g_body[0]/g_mag, g_body[1]/g_mag, g_body[2]/g_mag };
+        // Component of rotation error along the gravity vector (yaw error)
+        float yaw_component = dx[0]*u_g[0] + dx[1]*u_g[1] + dx[2]*u_g[2];
+        
+        // Remove it from the error state
+        dx[0] -= yaw_component * u_g[0];
+        dx[1] -= yaw_component * u_g[1];
+        dx[2] -= yaw_component * u_g[2];
     }
 
     /* Inject: quaternion ← q_nom ⊗ exp(δθ/2) */
@@ -434,7 +448,9 @@ static void process_accel(eskf_t *eskf, const float accel_raw[3],
 
     /* Measurement update */
     orientation_measurement_update(eskf, innov, H, R);
-    ekf_preserve_predicted_yaw(q_pred, ori->q_nom);
+    
+    /* Preserve predicted yaw */
+    eskf_preserve_predicted_yaw(q_pred, ori->q_nom);
 
     /* Body predict: transform accel to nav frame */
     if (dt > 0.0f) {

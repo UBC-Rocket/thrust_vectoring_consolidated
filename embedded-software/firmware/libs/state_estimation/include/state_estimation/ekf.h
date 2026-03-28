@@ -147,6 +147,7 @@ typedef struct {
 
     uint64_t last_gyro_ts;     /**< Persists between eskf_process calls */
     uint64_t last_accel_ts;    /**< Persists between eskf_process calls */
+    float last_gyro_norm[ESKF_MAX_IMUS]; /**< Latest gyro norm [rad/s] per IMU */
 } eskf_t;
 
 /* ========================================================================
