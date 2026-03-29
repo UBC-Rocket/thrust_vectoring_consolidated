@@ -1,5 +1,0 @@
-/workspace/embedded-software/ground-station/build-linux/AppDir/usr/bin/ulysses_ground_control
-/workspace/embedded-software/ground-station/build-linux/AppDir/usr/share/ulysses-ground-control/README.md
-/workspace/embedded-software/ground-station/build-linux/AppDir/usr/share/ulysses-ground-control/LICENSE
-/workspace/embedded-software/ground-station/build-linux/AppDir/usr/share/applications/ulysses-ground-control.desktop
-/workspace/embedded-software/ground-station/build-linux/AppDir/usr/share/icons/hicolor/scalable/apps/ulysses-ground-control.svg

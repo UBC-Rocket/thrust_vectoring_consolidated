@@ -41,7 +41,7 @@ RUN set -eux; \
     file /tmp/appimagetool.AppImage | grep -q 'ELF 64-bit'; \
     chmod +x /tmp/appimagetool.AppImage; \
     install -m 0755 /tmp/appimagetool.AppImage /usr/local/bin/appimagetool.AppImage; \
-    printf '%s\n' '#!/bin/sh' 'exec env ARCH=x86_64 /usr/local/bin/appimagetool.AppImage --appimage-extract-and-run "$@"' > /usr/local/bin/appimagetool; \
+    printf '%s\n' '#!/bin/sh' 'exec env ARCH=x86_64 /usr/local/bin/appimagetool.AppImage "$@"' > /usr/local/bin/appimagetool; \
     chmod +x /usr/local/bin/appimagetool; \
     rm -f /tmp/appimagetool.AppImage
 

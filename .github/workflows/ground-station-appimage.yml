@@ -9,22 +9,42 @@ on:
 
 jobs:
   build-appimage:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Qt6
-        uses: jurplel/install-qt-action@v4
-        with:
-          version: '6.7.*'
-          modules: 'qtserialport qtquickcontrols2 qtquick3d qtshadertools'
-
-      - name: Install AppImage tooling
+      - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y file libfuse2 patchelf
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            curl \
+            file \
+            git \
+            jq \
+            libgl1-mesa-dev \
+            libfuse2 \
+            libvulkan-dev \
+            libxkbcommon-dev \
+            ninja-build \
+            patchelf \
+            qt6-base-dev \
+            qt6-base-dev-tools \
+            qt6-declarative-dev \
+            qt6-declarative-dev-tools \
+            qt6-quick3d-dev \
+            qt6-quick3d-dev-tools \
+            qt6-serialport-dev \
+            qt6-shadertools-dev \
+            qt6-tools-dev \
+            qt6-tools-dev-tools \
+            qml6-module-qtquick \
+            qml6-module-qtquick-controls \
+            qml6-module-quick3d \
+            qml6-module-quick3d-helpers
 
           curl -fsSL -o /tmp/linuxdeployqt.AppImage \
             https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage
