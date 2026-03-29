@@ -15,28 +15,28 @@ void test_pwm_zeroes(void)
 
 void test_pwm_midpoint(void)
 {
-    pwm_setpoint_t setpoint = pwm_setpoint_from_forces(500, 0);
+    pwm_setpoint_t setpoint = pwm_setpoint_from_forces(4.903325, 0);
     TEST_ASSERT_UINT16_WITHIN(TOL, 1532, setpoint.lower_motor_us);
     TEST_ASSERT_UINT16_WITHIN(TOL, 1559, setpoint.upper_motor_us);
 }
 
 void test_pwm_max_thrust(void)
 {
-    pwm_setpoint_t setpoint = pwm_setpoint_from_forces(1594.56, 0);
+    pwm_setpoint_t setpoint = pwm_setpoint_from_forces(15.637291824, 0);
     TEST_ASSERT_UINT16_WITHIN(TOL, 1950, setpoint.lower_motor_us);
     TEST_ASSERT_UINT16_WITHIN(TOL, 1999, setpoint.upper_motor_us);
 }
 
 void test_pwm_max_torque_upper(void)
 {
-    pwm_setpoint_t setpoint = pwm_setpoint_from_forces(782.16, 0.1952);
+    pwm_setpoint_t setpoint = pwm_setpoint_from_forces(7.670369364, 0.1952);
     TEST_ASSERT_UINT16_WITHIN(TOL, 1999, setpoint.lower_motor_us);
     TEST_ASSERT_UINT16_WITHIN(TOL, 1000, setpoint.upper_motor_us);
 }
 
 void test_pwm_max_torque_lower(void)
 {
-    pwm_setpoint_t setpoint = pwm_setpoint_from_forces(887.44, -0.1765);
+    pwm_setpoint_t setpoint = pwm_setpoint_from_forces(8.702813476, -0.1765);
     TEST_ASSERT_UINT16_WITHIN(TOL, 1000, setpoint.lower_motor_us);
     TEST_ASSERT_UINT16_WITHIN(TOL, 1999, setpoint.upper_motor_us);
 }
