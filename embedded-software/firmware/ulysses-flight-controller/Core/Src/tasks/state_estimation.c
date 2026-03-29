@@ -29,6 +29,9 @@
 #define FUSION_VECTOR_SAMPLE_SIZE 16
 #define CALIBRATION_SAMPLES 3200  /* ~4s at 800 Hz — sensor warm-up */
 
+#define ZERO_POS true
+#define ZERO_VEL true
+
 /* ESKF tuning — continuous-time spectral densities (Q_c).
  * Library applies Q_d = Q_c * dt internally.
  * Values validated by 31 passing trajectory tests. */
@@ -298,6 +301,18 @@ void state_estimation_task_start(void *argument)
             float q[4], pos[3], vel[3];
             eskf_get_state(&eskf, q, pos, vel);
 
+            if (ZERO_POS) {
+                pos[0] = 0;
+                pos[1] = 0;
+                pos [2] = 0;
+            }
+
+            if (ZERO_VEL) {
+                vel[0] = 0;
+                vel[1] = 0;
+                vel[2] = 0;
+            }
+
             /* Bias-corrected body rates for controls feedback */
             state_t data = {
                 .pos = {pos[0], pos[1], pos[2]},
@@ -360,7 +375,7 @@ void state_estimation_task_start(void *argument)
                         (int)(eskf.orientation.b_accel[0][2]*1000));
                     break;
                 }
-                debug_phase = 0;
+                debug_phase = (debug_phase + 1) % 5;
             }
 #endif
             ticks++;
