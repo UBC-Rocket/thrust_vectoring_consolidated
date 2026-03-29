@@ -13,7 +13,6 @@
 typedef struct {
     pwm_output_t pwm;
 
-    float desired_thrust;
     uint16_t desired_pulse_us;
     volatile uint32_t desired_pulse_ticks;
 
@@ -25,6 +24,8 @@ typedef struct {
 typedef struct {
     esc_t esc1;
     esc_t esc2;
+    float thrust;
+    float torque;
 } esc_pair_t;
 
 void esc_init(esc_t *esc, const pwm_output_t *pwm);

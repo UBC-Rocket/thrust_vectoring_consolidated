@@ -1,22 +1,20 @@
 #include "motor_drivers/esc_driver.h"
-
+#include "controls/pwm.h"
 #include <stddef.h>
 
 static float clamp_f32(float x, float lo, float hi);
-static uint16_t thrust_to_us(float thrust);
 
 static esc_pair_t g_esc_pair;
 static volatile bool g_esc_pair_ready = false;
 
 /* ---- Init / arm / disarm ----------------------------------------------- */
 
-void esc_init(esc_t *esc, const pwm_output_t *pwm) {
+static void esc_init(esc_t *esc, const pwm_output_t *pwm) {
     if (esc == NULL || pwm == NULL || pwm->htim == NULL) {
         return;
     }
 
     esc->pwm = *pwm;
-    esc->desired_thrust = 0.0f;
     esc->desired_pulse_us = ESC_PWM_MIN_US;
     esc->desired_pulse_ticks = pwm_clamp_ticks(&esc->pwm, pwm_us_to_ticks(&esc->pwm, ESC_PWM_MIN_US));
     esc->update_divider_counter = 0U;
@@ -25,6 +23,13 @@ void esc_init(esc_t *esc, const pwm_output_t *pwm) {
 
     /* Set compare to min but do NOT start PWM — wait for arm. */
     pwm_set_compare(&esc->pwm, esc->desired_pulse_ticks);
+}
+
+void esc_pair_init(const pwm_output_t *pwm1, const pwm_output_t *pwm2) {
+    esc_init(&g_esc_pair.esc1, pwm1);
+    esc_init(&g_esc_pair.esc2, pwm2);
+    g_esc_pair.thrust = 0.0f;
+    g_esc_pair.torque = 0.0f;
 }
 
 void esc_arm(esc_t *esc) {
@@ -49,12 +54,11 @@ void esc_disarm(esc_t *esc) {
 
 /* ---- Task-level API ---------------------------------------------------- */
 
-void esc_set_thrust(esc_t *esc, float thrust) {
+void esc_set_thrust_torque(esc_t *esc, float thrust) {
     if (esc == NULL || !esc->initialized || !esc->armed) {
         return;
     }
 
-    float clamped = clamp_f32(thrust, 0.0f, 1.0f);
     uint16_t pulse_us = thrust_to_us(clamped);
     uint32_t pulse_ticks = pwm_clamp_ticks(&esc->pwm, pwm_us_to_ticks(&esc->pwm, pulse_us));
 
@@ -80,12 +84,6 @@ void esc_apply(esc_t *esc) {
 }
 
 /* ---- Pair wrappers ----------------------------------------------------- */
-
-void esc_pair_init(const pwm_output_t *pwm1, const pwm_output_t *pwm2) {
-    esc_init(&g_esc_pair.esc1, pwm1);
-    esc_init(&g_esc_pair.esc2, pwm2);
-    g_esc_pair_ready = true;
-}
 
 void esc_pair_arm(void) {
     if (!g_esc_pair_ready) {
@@ -125,10 +123,4 @@ static float clamp_f32(float x, float lo, float hi) {
     if (x < lo) return lo;
     if (x > hi) return hi;
     return x;
-}
-
-static uint16_t thrust_to_us(float thrust) {
-    float clamped = clamp_f32(thrust, 0.0f, 1.0f);
-    float us = (float)ESC_PWM_MIN_US + clamped * (float)(ESC_PWM_MAX_US - ESC_PWM_MIN_US);
-    return (uint16_t)(us + 0.5f);
 }
