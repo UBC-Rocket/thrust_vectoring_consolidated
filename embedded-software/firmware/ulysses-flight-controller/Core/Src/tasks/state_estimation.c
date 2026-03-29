@@ -24,6 +24,7 @@
 #include "mission_manager/mission_manager.h"
 #include "SD_logging/log_service.h"
 #include "spi_drivers/gnss_radio_master.h"
+#include "timestamp.h"
 
 #define GRAV 9.807f
 #define FUSION_VECTOR_SAMPLE_SIZE 16
@@ -163,8 +164,12 @@ void state_estimation_task_start(void *argument)
 
         bmi088_accel_sample_t accel_sample;
         while (bmi088_acc_sample_dequeue(&bmi088_acc_sample_ring, &accel_sample)) {
-            log_service_log_accel_sample((uint32_t)accel_sample.t_us,
-                accel_sample.ax, accel_sample.ay, accel_sample.az);
+            log_service_log_accel_sample(&(log_record_accel_sample_t){
+                .timestamp_us = (uint32_t)accel_sample.t_us,
+                .ax_mps2 = accel_sample.ax,
+                .ay_mps2 = accel_sample.ay,
+                .az_mps2 = accel_sample.az,
+            });
             if (n_accel < FUSION_VECTOR_SAMPLE_SIZE) {
                 accel_buf[n_accel].timestamp_us = accel_sample.t_us;
                 /* BMI088 Z-axis points down on PCB; negate Z to match Z-up body frame */
@@ -177,8 +182,12 @@ void state_estimation_task_start(void *argument)
 
         bmi088_gyro_sample_t gyro_sample;
         while (bmi088_gyro_sample_dequeue(&bmi088_gyro_sample_ring, &gyro_sample)) {
-            log_service_log_gyro_sample(gyro_sample.t_us,
-                gyro_sample.gx, gyro_sample.gy, gyro_sample.gz);
+            log_service_log_gyro_sample(&(log_record_gyro_sample_t){
+                .timestamp_us = gyro_sample.t_us,
+                .gx_rad_s = gyro_sample.gx,
+                .gy_rad_s = gyro_sample.gy,
+                .gz_rad_s = gyro_sample.gz,
+            });
             if (n_gyro < FUSION_VECTOR_SAMPLE_SIZE) {
                 gyro_buf[n_gyro].timestamp_us = gyro_sample.t_us;
                 /* BMI088 Z-axis points down on PCB; negate Z to match Z-up */
@@ -191,8 +200,12 @@ void state_estimation_task_start(void *argument)
 
         ms5611_sample_t baro_sample;
         while (ms5611_sample_dequeue(&ms5611_sample_ring, &baro_sample)) {
-            log_service_log_baro_sample(baro_sample.t_us,
-                baro_sample.temp_centi, baro_sample.pressure_centi, baro_sample.seq);
+            log_service_log_baro_sample(&(log_record_baro_sample_t){
+                .timestamp_us = baro_sample.t_us,
+                .temp_centi = baro_sample.temp_centi,
+                .pressure_centi = baro_sample.pressure_centi,
+                .seq = baro_sample.seq,
+            });
             if (n_baro1 < FUSION_VECTOR_SAMPLE_SIZE) {
                 last_baro_p = baro_sample.pressure_centi;
                 float h = pressure_to_height(baro_sample.pressure_centi);
@@ -218,8 +231,12 @@ void state_estimation_task_start(void *argument)
 
         ms5607_sample_t baro2_sample;
         while (ms5607_sample_dequeue(&ms5607_sample_ring, &baro2_sample)) {
-            log_service_log_baro2_sample(baro2_sample.t_us,
-                baro2_sample.temp_centi, baro2_sample.pressure_centi, baro2_sample.seq);
+            log_service_log_baro2_sample(&(log_record_baro2_sample_t){
+                .timestamp_us = baro2_sample.t_us,
+                .temp_centi = baro2_sample.temp_centi,
+                .pressure_centi = baro2_sample.pressure_centi,
+                .seq = baro2_sample.seq,
+            });
             if (n_baro2 < FUSION_VECTOR_SAMPLE_SIZE) {
                 float h = pressure_to_height(baro2_sample.pressure_centi);
 
@@ -246,6 +263,19 @@ void state_estimation_task_start(void *argument)
             gnss_gps_fix_t gps_fix;
             while (gnss_gps_dequeue(&gps_fix)) {
                 if (gps_fix.fix_quality == 0) continue;
+
+                log_service_log_gps_fix(&(log_record_gps_fix_t){
+                    .timestamp_us = timestamp_us(),
+                    .latitude = gps_fix.latitude,
+                    .longitude = gps_fix.longitude,
+                    .altitude_msl = gps_fix.altitude_msl,
+                    .ground_speed = gps_fix.ground_speed,
+                    .course = gps_fix.course,
+                    .hdop = gps_fix.hdop,
+                    .time_of_week_ms = gps_fix.time_of_week_ms,
+                    .fix_quality = gps_fix.fix_quality,
+                    .num_satellites = gps_fix.num_satellites,
+                });
 
                 /* Capture first valid fix as local origin */
                 if (!gps_ref.set) {
@@ -287,12 +317,22 @@ void state_estimation_task_start(void *argument)
             eskf_input_t input = { channels, n_channels };
             eskf_process(&eskf, &input);
 
-#ifdef DEBUG
             if (!calibration_logged && eskf_is_calibrated(&eskf)) {
                 calibration_logged = true;
+                log_service_log_calibration(&(log_record_calibration_t){
+                    .timestamp_us = (uint32_t)gyro_buf[n_gyro - 1].timestamp_us,
+                    .accel_bias_x = eskf.orientation.b_accel[0][0],
+                    .accel_bias_y = eskf.orientation.b_accel[0][1],
+                    .accel_bias_z = eskf.orientation.b_accel[0][2],
+                    .gyro_bias_x = eskf.orientation.b_gyro[0][0],
+                    .gyro_bias_y = eskf.orientation.b_gyro[0][1],
+                    .gyro_bias_z = eskf.orientation.b_gyro[0][2],
+                    .calibration_samples = (uint16_t)CALIBRATION_SAMPLES,
+                });
+#ifdef DEBUG
                 DLOG_PRINT("[SE] Calibration complete\r\n");
-            }
 #endif
+            }
 
             /* ---- Publish state ---- */
             float q[4], pos[3], vel[3];

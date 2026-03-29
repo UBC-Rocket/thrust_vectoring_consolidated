@@ -23,6 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "state_exchange.h"
+#include "crash/crash_dump.h"
 
 /* USER CODE END Includes */
 
@@ -52,6 +53,15 @@ const osThreadAttr_t DebugLoggingTask_attributes = {
   .stack_size = 128 * 4,
 };
 #endif // ULYSSES_ENABLE_DEBUG_LOGGING
+
+osThreadId_t SdLogTaskHandle;
+const osThreadAttr_t SdLogTask_attributes = {
+  .name = "SdLog",
+  .priority = (osPriority_t) osPriorityLow,
+  .stack_size = 512 * 4,
+};
+extern void sd_log_task_start(void *argument);
+extern bool g_sd_card_initialized;
 
 /* USER CODE END Variables */
 /* Definitions for MissionManager */
@@ -109,18 +119,27 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE END RTOS_QUEUES */
   /* creation of MissionManager */
   MissionManagerHandle = osThreadNew(mission_manager_task_start, NULL, &MissionManager_attributes);
+  crash_dump_register_task((TaskHandle_t)MissionManagerHandle);
 
   /* creation of Controls */
   ControlsHandle = osThreadNew(controls_task_start, NULL, &Controls_attributes);
+  crash_dump_register_task((TaskHandle_t)ControlsHandle);
 
   /* creation of StateEstimation */
   StateEstimationHandle = osThreadNew(state_estimation_task_start, NULL, &StateEstimation_attributes);
+  crash_dump_register_task((TaskHandle_t)StateEstimationHandle);
 
   /* USER CODE BEGIN RTOS_THREADS */
 
 #ifdef ULYSSES_ENABLE_DEBUG_LOGGING
   DebugLoggingTaskHandle = osThreadNew(debug_logging_task_start, NULL, &DebugLoggingTask_attributes);
+  crash_dump_register_task((TaskHandle_t)DebugLoggingTaskHandle);
 #endif // ULYSSES_ENABLE_DEBUG_LOGGING
+
+  if (g_sd_card_initialized) {
+    SdLogTaskHandle = osThreadNew(sd_log_task_start, NULL, &SdLogTask_attributes);
+    crash_dump_register_task((TaskHandle_t)SdLogTaskHandle);
+  }
 
   /* USER CODE END RTOS_THREADS */
 

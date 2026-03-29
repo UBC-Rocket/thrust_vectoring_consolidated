@@ -21,6 +21,8 @@
 #include "motor_drivers/servo_driver.h"
 #include "motor_drivers/esc_driver.h"
 #include "debug/log.h"
+#include "SD_logging/log_service.h"
+#include "timestamp.h"
 
 #define RAD_TO_DEG (180.0f / 3.14159265f)
 
@@ -242,6 +244,7 @@ void controls_task_start(void *argument)
     uint32_t stale_tick_count = 0;
     bool esc_running = false;
     uint32_t esc_arm_tick = 0;
+    bool last_armed = false;
 
     init_default_config(&config);
     init_default_ref(&ref);
@@ -282,6 +285,15 @@ void controls_task_start(void *argument)
         bool armed = false;
         state_exchange_get_armed(&armed);
 
+        if (armed != last_armed) {
+            log_service_log_event(&(log_record_event_t){
+                .timestamp_us = timestamp_us(),
+                .event_code = LOG_EVENT_CODE_ARM_STATE,
+                .data_u16 = (uint16_t)(armed ? 1U : 0U),
+            });
+            last_armed = armed;
+        }
+
         if (!config_done) {
             flight_controller_init(&config);
             config_done = 1;
@@ -303,6 +315,28 @@ void controls_task_start(void *argument)
             flight_controller_run(&current_state, &ref, &config, &control_output, CONTROLS_DT_S);
         }
         state_exchange_publish_control_output(&control_output);
+
+        /* Log control output at 100 Hz (every 8th 800-Hz cycle). */
+        static uint8_t ctrl_log_div = 0;
+        if (++ctrl_log_div >= 8U) {
+            ctrl_log_div = 0;
+            log_service_log_control_output(&(log_record_control_output_t){
+                .timestamp_us = timestamp_us(),
+                .T_cmd = control_output.T_cmd,
+                .theta_x_cmd = control_output.theta_x_cmd,
+                .theta_y_cmd = control_output.theta_y_cmd,
+                .tau_gim_x = control_output.tau_gim[0],
+                .tau_gim_y = control_output.tau_gim[1],
+                .tau_gim_z = control_output.tau_gim[2],
+                .tau_thrust = control_output.tau_thrust,
+                .phi_x = control_output.phi_x,
+                .phi_y = control_output.phi_y,
+                .phi_z = control_output.phi_z,
+                .z_pid_integral = control_output.z_pid_integral,
+                .z_ref = ref.z_ref,
+                .vz_ref = ref.vz_ref,
+            });
+        }
 
         /* Drive actuators only when armed. */
         if (armed) {

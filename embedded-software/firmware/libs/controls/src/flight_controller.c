@@ -321,6 +321,9 @@ void flight_controller_run(const state_t *state,
     /* Eq 2: Axis-angle error */
     float phi[3];
     compute_axis_angle_error(&q_err, phi);
+    out->phi_x = phi[0];
+    out->phi_y = phi[1];
+    out->phi_z = phi[2];
 
     /* Eq 10: Gyroscopic torque */
     float tau_gyro[3];
@@ -377,6 +380,7 @@ void flight_controller_run(const state_t *state,
     T = clampf(T, tcfg->T_min, tcfg->T_max);
     out->T_cmd = T;
     s_t_mag = T;
+    out->z_pid_integral = pid_get_integral(&z_pid);
 
     /* Roll torque scalar: projection of tau_cmd onto thrust direction */
     out->tau_thrust = vec3_dot(tau_cmd, s_t_hat);

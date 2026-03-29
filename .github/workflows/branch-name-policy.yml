@@ -1,0 +1,71 @@
+name: Branch Name Policy
+
+on:
+  create:
+
+jobs:
+  check-branch-name:
+    if: github.event.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Validate branch name
+        env:
+          BRANCH: ${{ github.event.ref }}
+        run: |
+          echo "New branch: $BRANCH"
+
+          # Allow main
+          if [ "$BRANCH" = "main" ]; then
+            echo "✓ Main branch"
+            exit 0
+          fi
+
+          # Allow stage branches (*/stage and */*/stage)
+          if echo "$BRANCH" | grep -qE '^[^/]+/stage$'; then
+            echo "✓ Team stage branch"
+            exit 0
+          fi
+          if echo "$BRANCH" | grep -qE '^[^/]+/[^/]+/stage$'; then
+            echo "✓ Sub-project stage branch"
+            exit 0
+          fi
+
+          # ── Validate work branches ──
+          TEAMS="embedded-software|controls|electrical-hardware|mechanical-hardware"
+          TYPES="feat|bug|refactor|test"
+
+          # team/type/description
+          if echo "$BRANCH" | grep -qE "^($TEAMS)/($TYPES)/[a-z0-9][a-z0-9-]*$"; then
+            echo "✓ Valid team work branch"
+            exit 0
+          fi
+
+          # team/sub-project/type/description
+          if echo "$BRANCH" | grep -qE "^($TEAMS)/[a-z0-9][a-z0-9-]+/($TYPES)/[a-z0-9][a-z0-9-]*$"; then
+            echo "✓ Valid sub-project work branch"
+            exit 0
+          fi
+
+          # ── Rejected ──
+          echo "✗ Branch name '$BRANCH' does not follow the naming convention."
+          echo ""
+          echo "Valid patterns:"
+          echo "  <team>/<type>/<description>"
+          echo "  <team>/<sub-project>/<type>/<description>"
+          echo ""
+          echo "Teams: embedded-software, controls, electrical-hardware, mechanical-hardware"
+          echo "Types: feat, bug, refactor, test"
+          echo "Description: lowercase alphanumeric with hyphens (e.g. add-imu-calibration)"
+          exit 1
+
+      - name: Delete non-conforming branch
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.event.ref }}
+        run: |
+          echo "Deleting non-conforming branch '$BRANCH'..."
+          gh api -X DELETE "repos/${{ github.repository }}/git/refs/heads/${BRANCH}"
+          echo "Branch deleted. Please rename your branch to follow the naming convention."
