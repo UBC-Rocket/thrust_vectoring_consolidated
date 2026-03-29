@@ -19,8 +19,8 @@
  * The matrix below is `A_inv` in the equation `x = (A_inv)b`.
  */
 static const float inverse_mtx[2][2] = {
-    {565.861815543094, 2845722.037662509},
-    {625.8535393360058, -2508149.344152053},
+    {57871.61952430651, 2859225.723821483},
+    {63669.6665675616, -2520051.1606805213},
 };
 
 static inline float clampf(float value, float minimum, float maximum)
@@ -32,8 +32,8 @@ static inline float clampf(float value, float minimum, float maximum)
  * Computes the PWM setpoint necessary to generate the thrust and torque
  * setpoints desired.
  *
- * @param thrust Thrust setpoint
- * @param torque Torque setpoint
+ * @param thrust Thrust setpoint in newtons
+ * @param torque Torque setpoint in newton-meter
  * @return pwm_setpoint_t
  */
 pwm_setpoint_t pwm_setpoint_from_forces(float thrust, float torque)
