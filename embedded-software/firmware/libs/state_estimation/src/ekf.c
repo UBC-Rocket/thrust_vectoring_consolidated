@@ -15,7 +15,9 @@
 #include <math.h>
 #include <string.h>
 
-#define FIXED_YAW 0.0f
+// change to whatever you want the EKF yaw to output
+// RADIANS
+#define FIXED_YAW 1.5f
 
 /* ========================================================================
  * Helpers
