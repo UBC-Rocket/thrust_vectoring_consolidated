@@ -22,20 +22,17 @@ typedef struct {
 } esc_t;
 
 typedef struct {
-    esc_t esc1;
-    esc_t esc2;
+    bool initialized;
+
+    esc_t esc_upper;
+    esc_t esc_lower;
+
     float thrust;
     float torque;
 } esc_pair_t;
 
-void esc_init(esc_t *esc, const pwm_output_t *pwm);
-void esc_arm(esc_t *esc);
-void esc_disarm(esc_t *esc);
-void esc_set_thrust(esc_t *esc, float thrust);
-void esc_apply(esc_t *esc);
-
-void esc_pair_init(const pwm_output_t *pwm1, const pwm_output_t *pwm2);
+void esc_pair_init(const pwm_output_t *pwm_upper, const pwm_output_t *pwm_lower);
 void esc_pair_arm(void);
 void esc_pair_disarm(void);
-void esc_set_pair_thrust(float thrust1, float thrust2);
-void esc_apply_pair(void);
+void esc_pair_set_force(float thrust, float torque);
+void esc_pair_apply(void);

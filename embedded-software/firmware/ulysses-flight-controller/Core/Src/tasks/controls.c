@@ -157,9 +157,9 @@ static void ramp_motor(int motor_index)
     for (int i = 0; i <= ESC_RAMP_STEPS; i++) {
         float t = ESC_TEST_THRUST * (float)i / (float)ESC_RAMP_STEPS;
         if (motor_index == 0)
-            esc_set_pair_thrust(t, 0.0f);
+            esc_pair_set_force(t, 0.0f);
         else
-            esc_set_pair_thrust(0.0f, t);
+            esc_pair_set_force(0.0f, t);
         osDelay(ESC_RAMP_STEP_MS);
     }
 
@@ -170,9 +170,9 @@ static void ramp_motor(int motor_index)
     for (int i = ESC_RAMP_STEPS; i >= 0; i--) {
         float t = ESC_TEST_THRUST * (float)i / (float)ESC_RAMP_STEPS;
         if (motor_index == 0)
-            esc_set_pair_thrust(t, 0.0f);
+            esc_pair_set_force(t, 0.0f);
         else
-            esc_set_pair_thrust(0.0f, t);
+            esc_pair_set_force(0.0f, t);
         osDelay(ESC_RAMP_STEP_MS);
     }
 }
@@ -217,7 +217,7 @@ static void run_startup_actuator_test(void)
     ramp_motor(1);
 
     /* Shut down */
-    esc_set_pair_thrust(0.0f, 0.0f);
+    esc_pair_set_force(0.0f, 0.0f);
     osDelay(50);
     esc_pair_disarm();
 
@@ -264,7 +264,7 @@ void controls_task_start(void *argument)
             DLOG_PRINT("[CTRL] Rearm: starting startup sequence\r\n");
 
             servo_pair_enable(false);
-            esc_set_pair_thrust(0.0f, 0.0f);
+            esc_pair_set_force(0.0f, 0.0f);
             esc_pair_disarm();
             esc_running = false;
             esc_arm_tick = 0;
@@ -354,11 +354,11 @@ void controls_task_start(void *argument)
                     esc_running = true;
                 }
                 if ((HAL_GetTick() - esc_arm_tick) >= 7000UL) {
-                    esc_set_pair_thrust(0.10f, 0.10f);
+                    esc_pair_set_force(0.10f, 0.10f);
                 }
             } else {
                 if (esc_running) {
-                    esc_set_pair_thrust(0.0f, 0.0f);
+                    esc_pair_set_force(0.0f, 0.0f);
                     esc_pair_disarm();
                     esc_running = false;
                 }
@@ -367,7 +367,7 @@ void controls_task_start(void *argument)
             set_servo_pair_degrees(0.0f, 0.0f);
             servo_pair_enable(false);
             if (esc_running) {
-                esc_set_pair_thrust(0.0f, 0.0f);
+                esc_pair_set_force(0.0f, 0.0f);
                 esc_pair_disarm();
                 esc_running = false;
             }

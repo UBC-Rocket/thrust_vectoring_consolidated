@@ -11,21 +11,21 @@
 static uint8_t esc_div = 0;
 static uint8_t servo_div = 0;
 
-void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
+void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)
+{
     if (htim->Instance == TIM4) {
         if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2) {
             /* 800 Hz — notify controls task */
             BaseType_t woken = pdFALSE;
             vTaskNotifyGiveFromISR((TaskHandle_t)ControlsHandle, &woken);
             portYIELD_FROM_ISR(woken);
-        }
-        else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_4) {
+        } else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_4) {
             /* 800 Hz base — ESC 400 Hz, servo 200 Hz, baro pollers 800 Hz */
 
             /* ESC: 800 Hz / 2 = 400 Hz */
             if (++esc_div >= 2) {
                 esc_div = 0;
-                esc_apply_pair();
+                esc_pair_apply();
             }
 
             /* Servo: 800 Hz / 4 = 200 Hz */
