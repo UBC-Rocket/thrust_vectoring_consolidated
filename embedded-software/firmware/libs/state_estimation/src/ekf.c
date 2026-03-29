@@ -15,6 +15,8 @@
 #include <math.h>
 #include <string.h>
 
+#define FIXED_YAW 0.0f
+
 /* ========================================================================
  * Helpers
  * ====================================================================== */
@@ -584,6 +586,7 @@ void eskf_get_state(const eskf_t *eskf, float quat[4], float pos[3],
                     float vel[3])
 {
     memcpy(quat, eskf->orientation.q_nom, sizeof(float) * 4);
+    set_quat_yaw(quat, FIXED_YAW);
     memcpy(pos, eskf->body.position, sizeof(float) * 3);
     memcpy(vel, eskf->body.velocity, sizeof(float) * 3);
 }
