@@ -30,16 +30,16 @@
 #define STALE_STATE_THRESHOLD_TICKS 100  /**< If state_seq unchanged for this many ticks, treat as stale and output safe (zero). */
 
 /* ── Startup test parameters ────────────────────────────────────────────── */
-#define SWEEP_RANGE_DEG   90.0f   /**< Servo sweep half-range (degrees). */
-#define SWEEP_STEP_DEG    1.0f    /**< Degrees per step. */
-#define SWEEP_STEP_MS     5       /**< Milliseconds between steps. */
-#define CIRCLE_RADIUS_DEG 72.0f   /**< Servo circle sweep radius (degrees). */
-#define CIRCLE_STEPS      72      /**< Steps per full revolution (5 deg each). */
-#define CIRCLE_STEP_MS    18      /**< Milliseconds between circle steps. */
-#define ESC_TEST_THRUST   0.10f   /**< Motor test thrust (10%). */
-#define ESC_RAMP_STEPS    50      /**< Steps to ramp up/down. */
-#define ESC_RAMP_STEP_MS  10      /**< Milliseconds per ramp step. */
-#define ESC_HOLD_MS       500     /**< Hold at peak thrust (ms). */
+#define SWEEP_RANGE_DEG   90.0f         /**< Servo sweep half-range (degrees). */
+#define SWEEP_STEP_DEG    1.0f          /**< Degrees per step. */
+#define SWEEP_STEP_MS     5             /**< Milliseconds between steps. */
+#define CIRCLE_RADIUS_DEG 72.0f         /**< Servo circle sweep radius (degrees). */
+#define CIRCLE_STEPS      72            /**< Steps per full revolution (5 deg each). */
+#define CIRCLE_STEP_MS    18            /**< Milliseconds between circle steps. */
+#define ESC_TEST_THRUST   (0.1f * 1200) /**< Motor test thrust (10%). */
+#define ESC_RAMP_STEPS    50            /**< Steps to ramp up/down. */
+#define ESC_RAMP_STEP_MS  10            /**< Milliseconds per ramp step. */
+#define ESC_HOLD_MS       500           /**< Hold at peak thrust (ms). */
 
 /** Fill config with default gains and limits (tune in use). */
 static void init_default_config(flight_controller_config_t *cfg)
@@ -156,10 +156,9 @@ static void ramp_motor(int motor_index)
     /* Ramp up */
     for (int i = 0; i <= ESC_RAMP_STEPS; i++) {
         float t = ESC_TEST_THRUST * (float)i / (float)ESC_RAMP_STEPS;
-        if (motor_index == 0)
-            esc_pair_set_force(t, 0.0f);
-        else
-            esc_pair_set_force(0.0f, t);
+
+        esc_pair_set_force(t, 0.0f);
+
         osDelay(ESC_RAMP_STEP_MS);
     }
 
@@ -169,10 +168,9 @@ static void ramp_motor(int motor_index)
     /* Ramp down */
     for (int i = ESC_RAMP_STEPS; i >= 0; i--) {
         float t = ESC_TEST_THRUST * (float)i / (float)ESC_RAMP_STEPS;
-        if (motor_index == 0)
-            esc_pair_set_force(t, 0.0f);
-        else
-            esc_pair_set_force(0.0f, t);
+
+        esc_pair_set_force(t, 0.0f);
+
         osDelay(ESC_RAMP_STEP_MS);
     }
 }
@@ -212,9 +210,6 @@ static void run_startup_actuator_test(void)
 
     DLOG_PRINT("[CTRL] Motor 1 ramp\r\n");
     ramp_motor(0);
-
-    DLOG_PRINT("[CTRL] Motor 2 ramp\r\n");
-    ramp_motor(1);
 
     /* Shut down */
     esc_pair_set_force(0.0f, 0.0f);
@@ -291,6 +286,11 @@ void controls_task_start(void *argument)
                 .event_code = LOG_EVENT_CODE_ARM_STATE,
                 .data_u16 = (uint16_t)(armed ? 1U : 0U),
             });
+
+            servo_pair_enable(armed);
+            esc_pair_set_armed(armed);
+            esc_running = armed;
+
             last_armed = armed;
         }
 
@@ -306,7 +306,8 @@ void controls_task_start(void *argument)
             last_state_seq = state_seq;
             stale_tick_count = 0;
         }
-        //bool state_stale = (stale_tick_count >= STALE_STATE_THRESHOLD_TICKS);
+
+        // bool state_stale = (stale_tick_count >= STALE_STATE_THRESHOLD_TICKS);
 
         /* Do not run controller unless armed with valid state. */
         if (!armed || state_seq == 0 ){//|| state_stale) {
@@ -338,39 +339,44 @@ void controls_task_start(void *argument)
             });
         }
 
-        /* Drive actuators only when armed. */
         if (armed) {
-            /* Gimbal locked out post-startup: hold centre and keep disabled. */
-            set_servo_pair_degrees(0.0f, 0.0f);
-            servo_pair_enable(false);
-
-            /* ESC: arm once on RISE entry, hold min throttle for the same
-             * 7 s init window the startup sequence uses, then run at 10%.
-             * Disarm once on exit. */
-            if (flight_state == RISE) {
-                if (!esc_running) {
-                    esc_pair_arm();
-                    esc_arm_tick = HAL_GetTick();
-                    esc_running = true;
-                }
-                if ((HAL_GetTick() - esc_arm_tick) >= 7000UL) {
-                    esc_pair_set_force(0.10f, 0.10f);
-                }
-            } else {
-                if (esc_running) {
-                    esc_pair_set_force(0.0f, 0.0f);
-                    esc_pair_disarm();
-                    esc_running = false;
-                }
-            }
-        } else {
-            set_servo_pair_degrees(0.0f, 0.0f);
-            servo_pair_enable(false);
-            if (esc_running) {
-                esc_pair_set_force(0.0f, 0.0f);
-                esc_pair_disarm();
-                esc_running = false;
-            }
+            set_servo_pair_degrees(control_output.theta_x_cmd, control_output.theta_y_cmd);
+            esc_pair_set_force(control_output.T_cmd, control_output.tau_thrust);
         }
+
+        // /* Drive actuators only when armed. */
+        // if (armed) {
+        //     /* Gimbal locked out post-startup: hold centre and keep disabled. */
+        //     set_servo_pair_degrees(0.0f, 0.0f);
+        //     servo_pair_enable(false);
+
+        //     /* ESC: arm once on RISE entry, hold min throttle for the same
+        //      * 7 s init window the startup sequence uses, then run at 10%.
+        //      * Disarm once on exit. */
+        //     if (flight_state == RISE) {
+        //         if (!esc_running) {
+        //             esc_pair_arm();
+        //             esc_arm_tick = HAL_GetTick();
+        //             esc_running = true;
+        //         }
+        //         if ((HAL_GetTick() - esc_arm_tick) >= 7000UL) {
+        //             esc_pair_set_force(0.10f, 0.10f);
+        //         }
+        //     } else {
+        //         if (esc_running) {
+        //             esc_pair_set_force(0.0f, 0.0f);
+        //             esc_pair_disarm();
+        //             esc_running = false;
+        //         }
+        //     }
+        // } else {
+        //     set_servo_pair_degrees(0.0f, 0.0f);
+        //     servo_pair_enable(false);
+        //     if (esc_running) {
+        //         esc_pair_set_force(0.0f, 0.0f);
+        //         esc_pair_disarm();
+        //         esc_running = false;
+        //     }
+        // }
     }
 }
