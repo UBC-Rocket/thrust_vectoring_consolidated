@@ -54,9 +54,9 @@ def extract_field_macro(text: str, macro_name: str) -> str:
 
 def parse_records(text: str):
     body = extract_macro_block(text, "LOG_RECORD_LIST")
-    entries = re.findall(r"APP\(([^,]+),\s*([^,]+),\s*([^)]+)\)", body)
+    entries = re.findall(r"APP\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^)]+)\)", body)
     records = []
-    for raw_id, raw_name, raw_fields in entries:
+    for raw_id, raw_name, raw_fields, _enable in entries:
         record_id = int(raw_id.strip(), 0)
         name = raw_name.strip()
         fields_macro = raw_fields.strip()

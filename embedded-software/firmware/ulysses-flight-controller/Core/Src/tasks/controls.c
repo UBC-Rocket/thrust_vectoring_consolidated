@@ -286,9 +286,11 @@ void controls_task_start(void *argument)
         state_exchange_get_armed(&armed);
 
         if (armed != last_armed) {
-            log_service_log_event(LOG_EVENT_CODE_ARM_STATE,
-                                  (uint16_t)(armed ? 1U : 0U),
-                                  timestamp_us());
+            log_service_log_event(&(log_record_event_t){
+                .timestamp_us = timestamp_us(),
+                .event_code = LOG_EVENT_CODE_ARM_STATE,
+                .data_u16 = (uint16_t)(armed ? 1U : 0U),
+            });
             last_armed = armed;
         }
 
@@ -318,22 +320,22 @@ void controls_task_start(void *argument)
         static uint8_t ctrl_log_div = 0;
         if (++ctrl_log_div >= 8U) {
             ctrl_log_div = 0;
-            log_service_log_control_output(
-                timestamp_us(),
-                control_output.T_cmd,
-                control_output.theta_x_cmd,
-                control_output.theta_y_cmd,
-                control_output.tau_gim[0],
-                control_output.tau_gim[1],
-                control_output.tau_gim[2],
-                control_output.tau_thrust,
-                control_output.phi_x,
-                control_output.phi_y,
-                control_output.phi_z,
-                control_output.z_pid_integral,
-                ref.z_ref,
-                ref.vz_ref
-            );
+            log_service_log_control_output(&(log_record_control_output_t){
+                .timestamp_us = timestamp_us(),
+                .T_cmd = control_output.T_cmd,
+                .theta_x_cmd = control_output.theta_x_cmd,
+                .theta_y_cmd = control_output.theta_y_cmd,
+                .tau_gim_x = control_output.tau_gim[0],
+                .tau_gim_y = control_output.tau_gim[1],
+                .tau_gim_z = control_output.tau_gim[2],
+                .tau_thrust = control_output.tau_thrust,
+                .phi_x = control_output.phi_x,
+                .phi_y = control_output.phi_y,
+                .phi_z = control_output.phi_z,
+                .z_pid_integral = control_output.z_pid_integral,
+                .z_ref = ref.z_ref,
+                .vz_ref = ref.vz_ref,
+            });
         }
 
         /* Drive actuators only when armed. */

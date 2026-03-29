@@ -10,6 +10,8 @@
 extern SD_HandleTypeDef hsd1;
 
 #define LOG_SD_BLOCK_SIZE          512U
+#define LOG_BUFFER_BLOCKS          8U        /* Sectors per buffer (8 × 512 = 4 KB) */
+#define LOG_BUFFER_SIZE            (LOG_SD_BLOCK_SIZE * LOG_BUFFER_BLOCKS)
 #define LOG_BUFFER_COUNT           2U
 #define LOG_ERASE_BLOCK_COUNT      131072U   /* 64 MB — ~12 min at ~184 blocks/s */
 #define LOG_ERASE_TIMEOUT_MS       15000U    /* Allow up to 15s for large erase  */
@@ -17,7 +19,7 @@ extern SD_HandleTypeDef hsd1;
 #define LOG_ERASE_AHEAD_SIZE       32768U    /* Erase 16 MB at a time */
 
 typedef struct {
-    uint8_t data[LOG_SD_BLOCK_SIZE];
+    uint8_t data[LOG_BUFFER_SIZE];
     size_t used;
 } log_buffer_t;
 
@@ -41,8 +43,8 @@ static bool s_preflight_erased = false;
 
 static log_buffer_t *get_active_buffer(void);
 static uint8_t next_buffer_index(uint8_t idx);
-static void pad_buffer_to_block(log_buffer_t *buf);
-static bool start_dma_flush(uint8_t buffer_index);
+static uint32_t pad_buffer_to_sector_boundary(log_buffer_t *buf);
+static bool start_dma_flush(uint8_t buffer_index, uint32_t num_blocks);
 static void wait_for_dma_completion(void);
 static bool flush_active_buffer(void);
 static bool ensure_preflight_erase(void);
@@ -110,14 +112,14 @@ bool log_writer_append_record(log_record_type_t type,
     }
 
     size_t total_size = sizeof(log_record_frame_t) + payload_size;
-    if (total_size > LOG_SD_BLOCK_SIZE) {
-        /* Record too large for current block size. */
+    if (total_size > LOG_BUFFER_SIZE) {
+        /* Record too large for buffer. */
         xSemaphoreGive(g_log_ctx.buffer_mutex);
         return false;
     }
 
     log_buffer_t *buf = get_active_buffer();
-    if (buf->used + total_size > LOG_SD_BLOCK_SIZE) {
+    if (buf->used + total_size > LOG_BUFFER_SIZE) {
         if (!flush_active_buffer()) {
             xSemaphoreGive(g_log_ctx.buffer_mutex);
             return false;
@@ -147,7 +149,7 @@ bool log_writer_append_record(log_record_type_t type,
         buf->used += payload_size;
     }
 
-    if (buf->used == LOG_SD_BLOCK_SIZE) {
+    if (buf->used == LOG_BUFFER_SIZE) {
         bool ok = flush_active_buffer();
         xSemaphoreGive(g_log_ctx.buffer_mutex);
         return ok;
@@ -195,12 +197,22 @@ static uint8_t next_buffer_index(uint8_t idx)
     return (uint8_t)((idx + 1U) % LOG_BUFFER_COUNT);
 }
 
-static void pad_buffer_to_block(log_buffer_t *buf)
+/**
+ * @brief Pad buffer to the next 512-byte sector boundary.
+ * @return Number of complete sectors to write.
+ */
+static uint32_t pad_buffer_to_sector_boundary(log_buffer_t *buf)
 {
-    if (buf->used < LOG_SD_BLOCK_SIZE) {
-        memset(&buf->data[buf->used], 0xFF, LOG_SD_BLOCK_SIZE - buf->used);
-        buf->used = LOG_SD_BLOCK_SIZE;
+    if (buf->used == 0U) {
+        return 0U;
     }
+    uint32_t padded = ((buf->used + LOG_SD_BLOCK_SIZE - 1U) / LOG_SD_BLOCK_SIZE)
+                      * LOG_SD_BLOCK_SIZE;
+    if (padded > buf->used) {
+        memset(&buf->data[buf->used], 0xFF, padded - buf->used);
+    }
+    buf->used = padded;
+    return padded / LOG_SD_BLOCK_SIZE;
 }
 
 static bool flush_active_buffer(void)
@@ -210,7 +222,11 @@ static bool flush_active_buffer(void)
         return true;
     }
 
-    pad_buffer_to_block(buf);
+    uint32_t num_blocks = pad_buffer_to_sector_boundary(buf);
+    if (num_blocks == 0U) {
+        return true;
+    }
+
     uint8_t flush_idx = g_log_ctx.active_idx;
     uint8_t next_idx = next_buffer_index(flush_idx);
 
@@ -223,10 +239,10 @@ static bool flush_active_buffer(void)
     g_log_ctx.active_idx = next_idx;
     g_log_ctx.buffers[next_idx].used = 0U;
 
-    return start_dma_flush(flush_idx);
+    return start_dma_flush(flush_idx, num_blocks);
 }
 
-static bool start_dma_flush(uint8_t buffer_index)
+static bool start_dma_flush(uint8_t buffer_index, uint32_t num_blocks)
 {
     wait_for_dma_completion();
     erase_ahead_if_needed();
@@ -241,7 +257,7 @@ static bool start_dma_flush(uint8_t buffer_index)
         &hsd1,
         g_log_ctx.buffers[buffer_index].data,
         g_log_ctx.block_address,
-        1U);
+        num_blocks);
 
     if (status != HAL_OK) {
         g_log_ctx.error = true;
@@ -249,7 +265,7 @@ static bool start_dma_flush(uint8_t buffer_index)
         return false;
     }
 
-    g_log_ctx.block_address += 1U;
+    g_log_ctx.block_address += num_blocks;
     g_log_ctx.dma_in_progress = true;
     g_log_ctx.flushing_idx = buffer_index;
     /* Reset semaphore so wait blocks until ISR releases it. */

@@ -7,6 +7,14 @@
 #define LOG_SCHEMA_VERSION 5U
 #define LOG_RECORD_MAGIC 0xA5U
 
+/* ── Enable modes for per-record compile-time gating ── */
+#define LOG_ENABLE_ALWAYS     1
+#ifdef DEBUG
+  #define LOG_ENABLE_DBG_ONLY 1
+#else
+  #define LOG_ENABLE_DBG_ONLY 0
+#endif
+
 typedef enum {
     LOG_FRAME_FLAG_NONE = 0x00,
 } log_frame_flags_t;
@@ -71,7 +79,6 @@ typedef struct __attribute__((packed)) {
     FIELD(uint32_t, timestamp_us) \
     FIELD(uint16_t, event_code) \
     FIELD(uint16_t, data_u16)
-
 
 /* Calibration: IMU biases accumulated over STARTUP_CALIBRATION_SAMPLES and logged
  * exactly once on the first EKF step after calibration completes.
@@ -205,45 +212,53 @@ typedef struct __attribute__((packed)) {
     FIELD(uint32_t, dropped_count)
 
 
+/* ── Master record table ──
+ * APP(id, name, fields_macro, enable_mode)
+ *
+ * enable_mode: LOG_ENABLE_ALWAYS  — always compiled in
+ *              LOG_ENABLE_DBG_ONLY — compiled to no-op in release builds
+ */
 #define LOG_RECORD_LIST(APP) \
-    APP(0x10, flight_header, LOG_RECORD_FIELDS_FLIGHT_HEADER) \
-    APP(0x01, accel_sample, LOG_RECORD_FIELDS_ACCEL_SAMPLE) \
-    APP(0x02, gyro_sample, LOG_RECORD_FIELDS_GYRO_SAMPLE) \
-    APP(0x03, baro_sample, LOG_RECORD_FIELDS_BARO_SAMPLE) \
-    APP(0x04, state_snapshot, LOG_RECORD_FIELDS_STATE_SNAPSHOT) \
-    APP(0x05, event, LOG_RECORD_FIELDS_EVENT) \
-    APP(0x06, baro2_sample, LOG_RECORD_FIELDS_BARO2_SAMPLE) \
-    APP(0x07, gps_fix, LOG_RECORD_FIELDS_GPS_FIX) \
-    APP(0x08, control_output, LOG_RECORD_FIELDS_CONTROL_OUTPUT) \
-    APP(0x09, calibration, LOG_RECORD_FIELDS_CALIBRATION) \
-    APP(0x0A, pid_gains, LOG_RECORD_FIELDS_PID_GAINS) \
-    APP(0x0B, reference, LOG_RECORD_FIELDS_REFERENCE) \
-    APP(0x0C, configuration, LOG_RECORD_FIELDS_CONFIGURATION) \
-    APP(0x0D, radio_telemetry, LOG_RECORD_FIELDS_RADIO_TELEMETRY) \
-    APP(0x0E, radio_status, LOG_RECORD_FIELDS_RADIO_STATUS) \
-    APP(0x20, trace_batch, LOG_RECORD_FIELDS_TRACE_BATCH) \
-    APP(0x21, trace_overflow, LOG_RECORD_FIELDS_TRACE_OVERFLOW)
+    APP(0x10, flight_header,    LOG_RECORD_FIELDS_FLIGHT_HEADER,    LOG_ENABLE_ALWAYS)   \
+    APP(0x01, accel_sample,     LOG_RECORD_FIELDS_ACCEL_SAMPLE,     LOG_ENABLE_ALWAYS)   \
+    APP(0x02, gyro_sample,      LOG_RECORD_FIELDS_GYRO_SAMPLE,      LOG_ENABLE_ALWAYS)   \
+    APP(0x03, baro_sample,      LOG_RECORD_FIELDS_BARO_SAMPLE,      LOG_ENABLE_ALWAYS)   \
+    APP(0x04, state_snapshot,   LOG_RECORD_FIELDS_STATE_SNAPSHOT,    LOG_ENABLE_ALWAYS)   \
+    APP(0x05, event,            LOG_RECORD_FIELDS_EVENT,             LOG_ENABLE_ALWAYS)   \
+    APP(0x06, baro2_sample,     LOG_RECORD_FIELDS_BARO2_SAMPLE,     LOG_ENABLE_ALWAYS)   \
+    APP(0x07, gps_fix,          LOG_RECORD_FIELDS_GPS_FIX,           LOG_ENABLE_ALWAYS)   \
+    APP(0x08, control_output,   LOG_RECORD_FIELDS_CONTROL_OUTPUT,    LOG_ENABLE_DBG_ONLY) \
+    APP(0x09, calibration,      LOG_RECORD_FIELDS_CALIBRATION,       LOG_ENABLE_DBG_ONLY) \
+    APP(0x0A, pid_gains,        LOG_RECORD_FIELDS_PID_GAINS,         LOG_ENABLE_ALWAYS)   \
+    APP(0x0B, reference,        LOG_RECORD_FIELDS_REFERENCE,         LOG_ENABLE_ALWAYS)   \
+    APP(0x0C, configuration,    LOG_RECORD_FIELDS_CONFIGURATION,     LOG_ENABLE_ALWAYS)   \
+    APP(0x0D, radio_telemetry,  LOG_RECORD_FIELDS_RADIO_TELEMETRY,   LOG_ENABLE_ALWAYS)   \
+    APP(0x0E, radio_status,     LOG_RECORD_FIELDS_RADIO_STATUS,      LOG_ENABLE_ALWAYS)   \
+    APP(0x20, trace_batch,      LOG_RECORD_FIELDS_TRACE_BATCH,       LOG_ENABLE_DBG_ONLY) \
+    APP(0x21, trace_overflow,   LOG_RECORD_FIELDS_TRACE_OVERFLOW,    LOG_ENABLE_DBG_ONLY)
 
 
-
-#define DECLARE_ENUM(id, name, fields) LOG_RECORD_TYPE_##name = id,
+/* ── Auto-generated enum ── */
+#define DECLARE_ENUM_(id, name, fields, enable) LOG_RECORD_TYPE_##name = id,
 typedef enum {
-    LOG_RECORD_LIST(DECLARE_ENUM)
+    LOG_RECORD_LIST(DECLARE_ENUM_)
 } log_record_type_t;
-#undef DECLARE_ENUM
+#undef DECLARE_ENUM_
 
-#define DECLARE_FIELD(type, name) type name;
-#define DECLARE_STRUCT(id, name, fields) \
+/* ── Auto-generated packed structs ── */
+#define DECLARE_FIELD_(type, name) type name;
+#define DECLARE_STRUCT_(id, name, fields, enable) \
     typedef struct __attribute__((packed)) { \
-        fields(DECLARE_FIELD) \
+        fields(DECLARE_FIELD_) \
     } log_record_##name##_t;
-LOG_RECORD_LIST(DECLARE_STRUCT)
-#undef DECLARE_STRUCT
-#undef DECLARE_FIELD
+LOG_RECORD_LIST(DECLARE_STRUCT_)
+#undef DECLARE_STRUCT_
+#undef DECLARE_FIELD_
 
-#define DECLARE_SIZE(id, name, fields) \
+/* ── Auto-generated size constants ── */
+#define DECLARE_SIZE_(id, name, fields, enable) \
     enum { LOG_RECORD_##name##_SIZE = sizeof(log_record_##name##_t) };
-LOG_RECORD_LIST(DECLARE_SIZE)
-#undef DECLARE_SIZE
+LOG_RECORD_LIST(DECLARE_SIZE_)
+#undef DECLARE_SIZE_
 
 #endif /* LOG_RECORDS_H */
