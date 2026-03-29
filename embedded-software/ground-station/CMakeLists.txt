@@ -5,6 +5,8 @@ project(ulysses_ground_control
     LANGUAGES CXX C
 )
 
+include(GNUInstallDirs)
+
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
@@ -120,5 +122,47 @@ target_link_libraries(ulysses_ground_control
         rocket-protocol
 )
 
+# ----------------------------------------------------------------------
+# Install / package metadata
+# ----------------------------------------------------------------------
+install(TARGETS ulysses_ground_control
+    BUNDLE DESTINATION .
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
+install(FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/README.md"
+    "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE"
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/ulysses-ground-control
+)
+
+if(UNIX AND NOT APPLE)
+    install(FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/distribution/Linux/ulysses-ground-control.desktop"
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
+    )
+
+    install(FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/distribution/Linux/ulysses-ground-control.svg"
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps
+    )
+endif()
+
 qt_import_qml_plugins(ulysses_ground_control)
 qt_finalize_executable(ulysses_ground_control)
+
+set(CPACK_PACKAGE_NAME "ulysses-ground-control")
+set(CPACK_PACKAGE_VENDOR "UBC Rocket")
+set(CPACK_PACKAGE_CONTACT "UBC Rocket")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
+    "Ground control station for UBC Rocket telemetry, command, and visualization"
+)
+set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
+set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${PROJECT_VERSION}-${CMAKE_SYSTEM_NAME}")
+
+if(UNIX AND NOT APPLE)
+    set(CPACK_GENERATOR "TGZ")
+endif()
+
+include(CPack)

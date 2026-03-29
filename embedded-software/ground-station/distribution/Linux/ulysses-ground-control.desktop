@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Ulysses Ground Control Station
+Comment=Telemetry and command station for UBC Rocket
+Exec=ulysses_ground_control
+Terminal=false
+Categories=Science;Engineering;Development;
+StartupNotify=true
+Icon=ulysses-ground-control
