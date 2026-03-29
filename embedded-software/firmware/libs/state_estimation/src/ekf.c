@@ -17,7 +17,7 @@
 
 // change to whatever you want the EKF yaw to output
 // RADIANS
-#define FIXED_YAW 1.5f
+#define FIXED_YAW 0f
 
 /* ========================================================================
  * Helpers
