@@ -7,6 +7,7 @@ DESKTOP_FILE="ulysses-ground-control.desktop"
 APPDIR="${APPDIR:-${BUILD_DIR}/AppDir}"
 BUILD_JOBS="${BUILD_JOBS:-1}"
 QMAKE_BIN="${QMAKE_BIN:-$(command -v qmake6 || command -v qmake)}"
+APPIMAGE_PATH="${APPIMAGE_PATH:-${BUILD_DIR}/ulysses-ground-control-x86_64.AppImage}"
 QT_PREFIX_PATH="${CMAKE_PREFIX_PATH:-}"
 
 if [[ "$(uname -s)" != "Linux" ]]; then
@@ -50,8 +51,12 @@ pushd "${BUILD_DIR}" >/dev/null
 echo "Running linuxdeployqt..."
 APPIMAGETOOL_APP_NAME="${APPIMAGETOOL_APP_NAME:-ulysses-ground-control}" \
 ARCH="${ARCH:-x86_64}" \
-linuxdeployqt "${APPDIR}/usr/share/applications/${DESKTOP_FILE}" -appimage -bundle-non-qt-libs -qmake="${QMAKE_BIN}"
+linuxdeployqt "${APPDIR}/usr/share/applications/${DESKTOP_FILE}" -bundle-non-qt-libs -qmake="${QMAKE_BIN}"
 echo "linuxdeployqt finished."
+
+echo "Running appimagetool..."
+ARCH="${ARCH:-x86_64}" appimagetool "${APPDIR}" "${APPIMAGE_PATH}"
+echo "appimagetool finished."
 popd >/dev/null
 
 echo "AppImage packaging complete."

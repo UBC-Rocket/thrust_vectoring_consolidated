@@ -42,9 +42,7 @@ jobs:
             qt6-tools-dev \
             qt6-tools-dev-tools \
             qml6-module-qtquick \
-            qml6-module-qtquick-controls \
-            qml6-module-quick3d \
-            qml6-module-quick3d-helpers
+            qml6-module-qtquick-controls
 
           curl -fsSL -o /tmp/linuxdeployqt.AppImage \
             https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage
