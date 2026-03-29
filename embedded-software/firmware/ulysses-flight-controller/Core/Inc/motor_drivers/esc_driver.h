@@ -32,6 +32,7 @@ typedef struct {
 } esc_pair_t;
 
 void esc_pair_init(const pwm_output_t *pwm_upper, const pwm_output_t *pwm_lower);
+void esc_pair_set_armed(bool armed);
 void esc_pair_arm(void);
 void esc_pair_disarm(void);
 void esc_pair_set_force(float thrust, float torque);

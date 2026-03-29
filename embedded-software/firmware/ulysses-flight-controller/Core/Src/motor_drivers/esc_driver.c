@@ -107,6 +107,15 @@ void esc_pair_init(const pwm_output_t *pwm_upper, const pwm_output_t *pwm_lower)
     g_esc_pair.initialized = true;
 }
 
+void esc_pair_set_armed(bool armed)
+{
+    if (armed) {
+        esc_pair_arm();
+    } else {
+        esc_pair_disarm();
+    }
+}
+
 void esc_pair_arm(void)
 {
     if (!g_esc_pair.initialized) {
