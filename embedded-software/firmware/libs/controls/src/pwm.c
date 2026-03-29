@@ -18,14 +18,14 @@
  *
  * The matrix below is `A_inv` in the equation `x = (A_inv)b`.
  */
-static const double inverse_mtx[2][2] = {
+static const float inverse_mtx[2][2] = {
     {565.861815543094, 2845722.037662509},
     {625.8535393360058, -2508149.344152053},
 };
 
-static inline double clamp(double value, double minimum, double maximum)
+static inline float clampf(float value, float minimum, float maximum)
 {
-    return fmin(fmax(value, minimum), maximum);
+    return fminf(fmaxf(value, minimum), maximum);
 }
 
 /**
@@ -36,17 +36,17 @@ static inline double clamp(double value, double minimum, double maximum)
  * @param torque Torque setpoint
  * @return pwm_setpoint_t
  */
-pwm_setpoint_t pwm_setpoint_from_forces(double thrust, double torque)
+pwm_setpoint_t pwm_setpoint_from_forces(float thrust, float torque)
 {
-    double lower_normalized = (inverse_mtx[0][0] * thrust) + (inverse_mtx[0][1] * torque);
-    double upper_normalized = (inverse_mtx[1][0] * thrust) + (inverse_mtx[1][1] * torque);
+    float lower_normalized = (inverse_mtx[0][0] * thrust) + (inverse_mtx[0][1] * torque);
+    float upper_normalized = (inverse_mtx[1][0] * thrust) + (inverse_mtx[1][1] * torque);
 
-    double lower_period = sqrt(lower_normalized) + PWM_MIN_PERIOD_US;
-    double upper_period = sqrt(upper_normalized) + PWM_MIN_PERIOD_US;
+    float lower_period = sqrtf(lower_normalized) + PWM_MIN_PERIOD_US;
+    float upper_period = sqrtf(upper_normalized) + PWM_MIN_PERIOD_US;
 
     pwm_setpoint_t setpoint = {
-        .lower_motor_us = clamp(round(lower_period), PWM_MIN_PERIOD_US, PWM_MAX_PERIOD_US),
-        .upper_motor_us = clamp(round(upper_period), PWM_MIN_PERIOD_US, PWM_MAX_PERIOD_US),
+        .lower_motor_us = clampf(roundf(lower_period), PWM_MIN_PERIOD_US, PWM_MAX_PERIOD_US),
+        .upper_motor_us = clampf(roundf(upper_period), PWM_MIN_PERIOD_US, PWM_MAX_PERIOD_US),
     };
 
     return setpoint;
