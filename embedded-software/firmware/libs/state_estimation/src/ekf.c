@@ -15,6 +15,10 @@
 #include <math.h>
 #include <string.h>
 
+// change to whatever you want the EKF yaw to output
+// RADIANS
+#define FIXED_YAW 0.0f
+
 /* ========================================================================
  * Helpers
  * ====================================================================== */
@@ -38,6 +42,51 @@ typedef struct {
     float data[3];
 } timeline_event_t;
 
+static float yaw_from_quat(const float q[4])
+{
+    const float siny = 2.0f * (q[0] * q[3] + q[1] * q[2]);
+    const float cosy = 1.0f - 2.0f * (q[2] * q[2] + q[3] * q[3]);
+    return atan2f(siny, cosy);
+}
+
+static void set_quat_yaw(float q[4], float yaw_rad)
+{
+    /* Apply only nav-Z twist delta.
+     * For this attitude convention, that is equivalent to replacing yaw twist
+     * while preserving the current swing (tilt), without Euler reconstruction. */
+    normalize(q);
+
+    float yaw_delta = yaw_rad - yaw_from_quat(q);
+    const float pi = 3.14159265358979323846f;
+    const float two_pi = 2.0f * pi;
+    while (yaw_delta > pi) yaw_delta -= two_pi;
+    while (yaw_delta < -pi) yaw_delta += two_pi;
+
+    const float half_delta = 0.5f * yaw_delta;
+    quaternion_t q_delta = {
+        .w = cosf(half_delta),
+        .x = 0.0f,
+        .y = 0.0f,
+        .z = sinf(half_delta)
+    };
+
+    quaternion_t q_in = {
+        .w = q[0],
+        .x = q[1],
+        .y = q[2],
+        .z = q[3]
+    };
+
+    quaternion_t q_out;
+    quaternion_multiply(&q_delta, &q_in, &q_out);
+
+    q[0] = q_out.w;
+    q[1] = q_out.x;
+    q[2] = q_out.y;
+    q[3] = q_out.z;
+    normalize(q);
+}
+
 /* ========================================================================
  * Initialization
  * ====================================================================== */
@@ -48,6 +97,7 @@ void eskf_init(eskf_t *eskf, const eskf_config_t *config)
 
     /* Orientation: identity quaternion, zero biases */
     eskf->orientation.q_nom[0] = 1.0f;
+    eskf->orientation.yaw_nom = 0.0f;
     eskf->orientation.num_imus = config->num_imus;
 
     /* Initial covariance */
@@ -90,13 +140,14 @@ static void orientation_predict(eskf_t *eskf, const float gyro_raw[3],
 {
     orientation_eskf_state_t *ori = &eskf->orientation;
 
-    /* Correct gyro with this IMU's bias estimate */
+    /* Correct gyro with this IMU's biasprocess_accel estimate */
     float gyro_corr[3] = { gyro_raw[0] - ori->b_gyro[imu_idx][0],
                            gyro_raw[1] - ori->b_gyro[imu_idx][1],
                            gyro_raw[2] - ori->b_gyro[imu_idx][2] };
 
     /* Propagate nominal quaternion */
     eskf_propagate_nominal(ori, gyro_corr, dt);
+    ori->yaw_nom = yaw_from_quat(ori->q_nom);
 
     /* Error-state covariance prediction: P = F_d * P * F_d^T + Q */
     float F_d[ESKF_ERR_DIM][ESKF_ERR_DIM];
@@ -307,8 +358,9 @@ static void body_baro_update(eskf_t *eskf, float baro_height, float R_baro)
             Kv[i] = body->covar[i][5] * S_vel_inv;
 
         float vel_innov = 0.0f - body->velocity[2];
-        for (int i = 0; i < 3; i++)
-            body->position[i] += Kv[i] * vel_innov;
+
+        body->position[2] += Kv[2] * vel_innov;
+        
         for (int i = 0; i < 3; i++)
             body->velocity[i] += Kv[i + 3] * vel_innov;
 
@@ -371,6 +423,8 @@ static void process_accel(eskf_t *eskf, const float accel_raw[3],
                           const float R[3][3], float dt, uint8_t imu_idx)
 {
     orientation_eskf_state_t *ori = &eskf->orientation;
+    float b_gyro_prev[ESKF_MAX_IMUS][3];
+    float b_accel_prev[ESKF_MAX_IMUS][3];
 
     /* Correct accel with this IMU's bias */
     float a_corr[3] = { accel_raw[0] - ori->b_accel[imu_idx][0],
@@ -395,8 +449,16 @@ static void process_accel(eskf_t *eskf, const float accel_raw[3],
     float H[3][ESKF_ERR_DIM];
     eskf_get_H_accel(ori->q_nom, eskf->expected_g, H, imu_idx);
 
-    /* Measurement update */
+    /* Measurement update.
+     * Hard guard: accel must not inject into bias states (especially yaw via b_gz). */
+    memcpy(b_gyro_prev, ori->b_gyro, sizeof(b_gyro_prev));
+    memcpy(b_accel_prev, ori->b_accel, sizeof(b_accel_prev));
     orientation_measurement_update(eskf, innov, H, R);
+    memcpy(ori->b_gyro, b_gyro_prev, sizeof(b_gyro_prev));
+    memcpy(ori->b_accel, b_accel_prev, sizeof(b_accel_prev));
+
+    /* Restore yaw from separately tracked yaw state. */
+    set_quat_yaw(ori->q_nom, ori->yaw_nom);
 
     /* Body predict: transform accel to nav frame */
     if (dt > 0.0f) {
@@ -519,6 +581,7 @@ void eskf_process(eskf_t *eskf, const eskf_input_t *input)
                                   eskf->mag_ref, H);
 
                     orientation_measurement_update(eskf, innov, H, cfg->noise);
+                    eskf->orientation.yaw_nom = yaw_from_quat(eskf->orientation.q_nom);
                 }
             }
             break;
@@ -537,6 +600,7 @@ void eskf_get_state(const eskf_t *eskf, float quat[4], float pos[3],
                     float vel[3])
 {
     memcpy(quat, eskf->orientation.q_nom, sizeof(float) * 4);
+    set_quat_yaw(quat, FIXED_YAW);
     memcpy(pos, eskf->body.position, sizeof(float) * 3);
     memcpy(vel, eskf->body.velocity, sizeof(float) * 3);
 }
