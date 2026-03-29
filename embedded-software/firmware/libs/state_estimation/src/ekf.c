@@ -51,27 +51,39 @@ static float yaw_from_quat(const float q[4])
 
 static void set_quat_yaw(float q[4], float yaw_rad)
 {
-    const float sinr = 2.0f * (q[0] * q[1] + q[2] * q[3]);
-    const float cosr = 1.0f - 2.0f * (q[1] * q[1] + q[2] * q[2]);
-    const float roll = atan2f(sinr, cosr);
+    /* Apply only nav-Z twist delta.
+     * For this attitude convention, that is equivalent to replacing yaw twist
+     * while preserving the current swing (tilt), without Euler reconstruction. */
+    normalize(q);
 
-    float sinp = 2.0f * (q[0] * q[2] - q[3] * q[1]);
-    if (sinp > 1.0f) sinp = 1.0f;
-    if (sinp < -1.0f) sinp = -1.0f;
-    const float pitch = asinf(sinp);
+    float yaw_delta = yaw_rad - yaw_from_quat(q);
+    const float pi = 3.14159265358979323846f;
+    const float two_pi = 2.0f * pi;
+    while (yaw_delta > pi) yaw_delta -= two_pi;
+    while (yaw_delta < -pi) yaw_delta += two_pi;
 
-    const float hr = 0.5f * roll;
-    const float hp = 0.5f * pitch;
-    const float hy = 0.5f * yaw_rad;
+    const float half_delta = 0.5f * yaw_delta;
+    quaternion_t q_delta = {
+        .w = cosf(half_delta),
+        .x = 0.0f,
+        .y = 0.0f,
+        .z = sinf(half_delta)
+    };
 
-    const float cr = cosf(hr), sr = sinf(hr);
-    const float cp = cosf(hp), sp = sinf(hp);
-    const float cy = cosf(hy), sy = sinf(hy);
+    quaternion_t q_in = {
+        .w = q[0],
+        .x = q[1],
+        .y = q[2],
+        .z = q[3]
+    };
 
-    q[0] = cr * cp * cy + sr * sp * sy;
-    q[1] = sr * cp * cy - cr * sp * sy;
-    q[2] = cr * sp * cy + sr * cp * sy;
-    q[3] = cr * cp * sy - sr * sp * cy;
+    quaternion_t q_out;
+    quaternion_multiply(&q_delta, &q_in, &q_out);
+
+    q[0] = q_out.w;
+    q[1] = q_out.x;
+    q[2] = q_out.y;
+    q[3] = q_out.z;
     normalize(q);
 }
 
