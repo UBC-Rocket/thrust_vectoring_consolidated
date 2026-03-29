@@ -27,14 +27,14 @@ typedef struct {
     esc_t esc2;
 } esc_pair_t;
 
-void ESC_init(esc_t *esc, const pwm_output_t *pwm);
-void ESC_arm(esc_t *esc);
-void ESC_disarm(esc_t *esc);
-void ESC_set_thrust(esc_t *esc, float thrust);
-void ESC_apply(esc_t *esc);
+void esc_init(esc_t *esc, const pwm_output_t *pwm);
+void esc_arm(esc_t *esc);
+void esc_disarm(esc_t *esc);
+void esc_set_thrust(esc_t *esc, float thrust);
+void esc_apply(esc_t *esc);
 
-void ESC_pair_init(const pwm_output_t *pwm1, const pwm_output_t *pwm2);
-void ESC_pair_arm(void);
-void ESC_pair_disarm(void);
-void ESC_set_pair_thrust(float thrust1, float thrust2);
-void ESC_apply_pair(void);
+void esc_pair_init(const pwm_output_t *pwm1, const pwm_output_t *pwm2);
+void esc_pair_arm(void);
+void esc_pair_disarm(void);
+void esc_set_pair_thrust(float thrust1, float thrust2);
+void esc_apply_pair(void);

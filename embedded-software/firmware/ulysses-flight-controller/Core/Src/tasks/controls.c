@@ -157,9 +157,9 @@ static void ramp_motor(int motor_index)
     for (int i = 0; i <= ESC_RAMP_STEPS; i++) {
         float t = ESC_TEST_THRUST * (float)i / (float)ESC_RAMP_STEPS;
         if (motor_index == 0)
-            ESC_set_pair_thrust(t, 0.0f);
+            esc_set_pair_thrust(t, 0.0f);
         else
-            ESC_set_pair_thrust(0.0f, t);
+            esc_set_pair_thrust(0.0f, t);
         osDelay(ESC_RAMP_STEP_MS);
     }
 
@@ -170,9 +170,9 @@ static void ramp_motor(int motor_index)
     for (int i = ESC_RAMP_STEPS; i >= 0; i--) {
         float t = ESC_TEST_THRUST * (float)i / (float)ESC_RAMP_STEPS;
         if (motor_index == 0)
-            ESC_set_pair_thrust(t, 0.0f);
+            esc_set_pair_thrust(t, 0.0f);
         else
-            ESC_set_pair_thrust(0.0f, t);
+            esc_set_pair_thrust(0.0f, t);
         osDelay(ESC_RAMP_STEP_MS);
     }
 }
@@ -207,7 +207,7 @@ static void run_startup_actuator_test(void)
     servo_pair_enable(false);
 
     /* ── Motor test ── */
-    ESC_pair_arm();
+    esc_pair_arm();
     osDelay(7000);
 
     DLOG_PRINT("[CTRL] Motor 1 ramp\r\n");
@@ -217,9 +217,9 @@ static void run_startup_actuator_test(void)
     ramp_motor(1);
 
     /* Shut down */
-    ESC_set_pair_thrust(0.0f, 0.0f);
+    esc_set_pair_thrust(0.0f, 0.0f);
     osDelay(50);
-    ESC_pair_disarm();
+    esc_pair_disarm();
 
     DLOG_PRINT("[CTRL] Startup actuator test complete\r\n");
     state_exchange_publish_startup_test_complete(true);
@@ -264,8 +264,8 @@ void controls_task_start(void *argument)
             DLOG_PRINT("[CTRL] Rearm: starting startup sequence\r\n");
 
             servo_pair_enable(false);
-            ESC_set_pair_thrust(0.0f, 0.0f);
-            ESC_pair_disarm();
+            esc_set_pair_thrust(0.0f, 0.0f);
+            esc_pair_disarm();
             esc_running = false;
             esc_arm_tick = 0;
 
@@ -349,17 +349,17 @@ void controls_task_start(void *argument)
              * Disarm once on exit. */
             if (flight_state == RISE) {
                 if (!esc_running) {
-                    ESC_pair_arm();
+                    esc_pair_arm();
                     esc_arm_tick = HAL_GetTick();
                     esc_running = true;
                 }
                 if ((HAL_GetTick() - esc_arm_tick) >= 7000UL) {
-                    ESC_set_pair_thrust(0.10f, 0.10f);
+                    esc_set_pair_thrust(0.10f, 0.10f);
                 }
             } else {
                 if (esc_running) {
-                    ESC_set_pair_thrust(0.0f, 0.0f);
-                    ESC_pair_disarm();
+                    esc_set_pair_thrust(0.0f, 0.0f);
+                    esc_pair_disarm();
                     esc_running = false;
                 }
             }
@@ -367,8 +367,8 @@ void controls_task_start(void *argument)
             set_servo_pair_degrees(0.0f, 0.0f);
             servo_pair_enable(false);
             if (esc_running) {
-                ESC_set_pair_thrust(0.0f, 0.0f);
-                ESC_pair_disarm();
+                esc_set_pair_thrust(0.0f, 0.0f);
+                esc_pair_disarm();
                 esc_running = false;
             }
         }

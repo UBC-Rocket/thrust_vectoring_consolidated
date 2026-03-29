@@ -204,7 +204,7 @@ int main(void)
       .timer_hz    = 1000000U,
       .period_ticks = 2500U,
     };
-    ESC_pair_init(&pwm1, &pwm2);
+    esc_pair_init(&pwm1, &pwm2);
   }
 
 #ifdef ULYSSES_ENABLE_DEBUG_LOGGING

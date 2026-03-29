@@ -10,7 +10,7 @@ static volatile bool g_esc_pair_ready = false;
 
 /* ---- Init / arm / disarm ----------------------------------------------- */
 
-void ESC_init(esc_t *esc, const pwm_output_t *pwm) {
+void esc_init(esc_t *esc, const pwm_output_t *pwm) {
     if (esc == NULL || pwm == NULL || pwm->htim == NULL) {
         return;
     }
@@ -27,7 +27,7 @@ void ESC_init(esc_t *esc, const pwm_output_t *pwm) {
     pwm_set_compare(&esc->pwm, esc->desired_pulse_ticks);
 }
 
-void ESC_arm(esc_t *esc) {
+void esc_arm(esc_t *esc) {
     if (esc == NULL || !esc->initialized) {
         return;
     }
@@ -35,7 +35,7 @@ void ESC_arm(esc_t *esc) {
     esc->armed = true;
 }
 
-void ESC_disarm(esc_t *esc) {
+void esc_disarm(esc_t *esc) {
     if (esc == NULL || !esc->initialized) {
         return;
     }
@@ -49,7 +49,7 @@ void ESC_disarm(esc_t *esc) {
 
 /* ---- Task-level API ---------------------------------------------------- */
 
-void ESC_set_thrust(esc_t *esc, float thrust) {
+void esc_set_thrust(esc_t *esc, float thrust) {
     if (esc == NULL || !esc->initialized || !esc->armed) {
         return;
     }
@@ -65,7 +65,7 @@ void ESC_set_thrust(esc_t *esc, float thrust) {
 
 /* ---- ISR-level API ----------------------------------------------------- */
 
-void ESC_apply(esc_t *esc) {
+void esc_apply(esc_t *esc) {
     if (esc == NULL || !esc->initialized || !esc->armed) {
         return;
     }
@@ -81,42 +81,42 @@ void ESC_apply(esc_t *esc) {
 
 /* ---- Pair wrappers ----------------------------------------------------- */
 
-void ESC_pair_init(const pwm_output_t *pwm1, const pwm_output_t *pwm2) {
-    ESC_init(&g_esc_pair.esc1, pwm1);
-    ESC_init(&g_esc_pair.esc2, pwm2);
+void esc_pair_init(const pwm_output_t *pwm1, const pwm_output_t *pwm2) {
+    esc_init(&g_esc_pair.esc1, pwm1);
+    esc_init(&g_esc_pair.esc2, pwm2);
     g_esc_pair_ready = true;
 }
 
-void ESC_pair_arm(void) {
+void esc_pair_arm(void) {
     if (!g_esc_pair_ready) {
         return;
     }
-    ESC_arm(&g_esc_pair.esc1);
-    ESC_arm(&g_esc_pair.esc2);
+    esc_arm(&g_esc_pair.esc1);
+    esc_arm(&g_esc_pair.esc2);
 }
 
-void ESC_pair_disarm(void) {
+void esc_pair_disarm(void) {
     if (!g_esc_pair_ready) {
         return;
     }
-    ESC_disarm(&g_esc_pair.esc1);
-    ESC_disarm(&g_esc_pair.esc2);
+    esc_disarm(&g_esc_pair.esc1);
+    esc_disarm(&g_esc_pair.esc2);
 }
 
-void ESC_set_pair_thrust(float thrust1, float thrust2) {
+void esc_set_pair_thrust(float thrust1, float thrust2) {
     if (!g_esc_pair_ready) {
         return;
     }
-    ESC_set_thrust(&g_esc_pair.esc1, thrust1);
-    ESC_set_thrust(&g_esc_pair.esc2, thrust2);
+    esc_set_thrust(&g_esc_pair.esc1, thrust1);
+    esc_set_thrust(&g_esc_pair.esc2, thrust2);
 }
 
-void ESC_apply_pair(void) {
+void esc_apply_pair(void) {
     if (!g_esc_pair_ready) {
         return;
     }
-    ESC_apply(&g_esc_pair.esc1);
-    ESC_apply(&g_esc_pair.esc2);
+    esc_apply(&g_esc_pair.esc1);
+    esc_apply(&g_esc_pair.esc2);
 }
 
 /* ---- Static helpers ---------------------------------------------------- */

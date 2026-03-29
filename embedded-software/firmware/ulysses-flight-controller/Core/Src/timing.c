@@ -25,7 +25,7 @@ void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
             /* ESC: 800 Hz / 2 = 400 Hz */
             if (++esc_div >= 2) {
                 esc_div = 0;
-                ESC_apply_pair();
+                esc_apply_pair();
             }
 
             /* Servo: 800 Hz / 4 = 200 Hz */
