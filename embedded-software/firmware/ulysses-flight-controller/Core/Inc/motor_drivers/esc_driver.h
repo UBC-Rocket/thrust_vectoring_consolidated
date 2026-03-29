@@ -2,7 +2,9 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+
 #include "motor_drivers/pwm_output.h"
+#include "controls/pwm.h"
 
 #define ESC_PWM_MIN_US 1000U
 #define ESC_PWM_MAX_US 2000U
@@ -37,3 +39,7 @@ void esc_pair_arm(void);
 void esc_pair_disarm(void);
 void esc_pair_set_force(float thrust, float torque);
 void esc_pair_apply(void);
+
+#if (ESC_PWM_MIN_US != PWM_MIN_PERIOD_US) || (ESC_PWM_MAX_US != PWM_MAX_PERIOD_US)
+#error "Mismatch between ESC and PWM mapping. Ensure a correct mapping is used for the current ESC."
+#endif
