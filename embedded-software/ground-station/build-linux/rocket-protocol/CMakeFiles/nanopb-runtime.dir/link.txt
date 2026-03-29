@@ -1,0 +1,2 @@
+/usr/bin/ar qc libnanopb-runtime.a CMakeFiles/nanopb-runtime.dir/nanopb/pb_encode.c.o CMakeFiles/nanopb-runtime.dir/nanopb/pb_decode.c.o CMakeFiles/nanopb-runtime.dir/nanopb/pb_common.c.o
+/usr/bin/ranlib libnanopb-runtime.a

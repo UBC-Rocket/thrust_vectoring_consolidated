@@ -3,6 +3,7 @@
 #include <QQmlContext>
 #include <QCommandLineParser>
 #include <QTimer>
+#include <QUrl>
 #include "SerialBridge.h"
 #include "SensorDataModel.h"
 #include "CommandSender.h"
@@ -26,18 +27,8 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("alarmreceiver", &alarmreceiver);
     engine.rootContext()->setContextProperty("sensorData", &sensorData);
 
-    // If QML fails to load, quit with error code
-    QObject::connect(
-        &engine,
-        &QQmlApplicationEngine::objectCreationFailed,
-        &app,
-        []() { QCoreApplication::exit(-1); },
-        Qt::QueuedConnection);
-
     // Load the QML entry point from the compiled QML module
-    using namespace Qt::StringLiterals;
-    const QUrl url(u"qrc:/ulysses_ground_control/QMLFiles/Main.qml"_s);
-    engine.load(url);
+    engine.load(QUrl(QStringLiteral("qrc:/ulysses_ground_control/QMLFiles/Main.qml")));
 
     // Safety check: no root objects means load failed
     if (engine.rootObjects().isEmpty())

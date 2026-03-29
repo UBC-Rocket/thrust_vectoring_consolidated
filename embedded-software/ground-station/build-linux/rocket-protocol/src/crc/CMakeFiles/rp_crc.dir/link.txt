@@ -1,0 +1,2 @@
+/usr/bin/ar qc librp_crc.a CMakeFiles/rp_crc.dir/crc16.c.o
+/usr/bin/ranlib librp_crc.a

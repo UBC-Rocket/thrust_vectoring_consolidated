@@ -1,0 +1,4 @@
+/workspace/embedded-software/ground-station/build-linux/ulysses_ground_control_autogen/include/../CCHPTZ5OZL/moc_AlarmReceiver.cpp.json
+/workspace/embedded-software/ground-station/build-linux/ulysses_ground_control_autogen/include/../CCHPTZ5OZL/moc_CommandSender.cpp.json
+/workspace/embedded-software/ground-station/build-linux/ulysses_ground_control_autogen/include/../CCHPTZ5OZL/moc_SensorDataModel.cpp.json
+/workspace/embedded-software/ground-station/build-linux/ulysses_ground_control_autogen/include/../CCHPTZ5OZL/moc_SerialBridge.cpp.json

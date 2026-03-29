@@ -1,0 +1,2 @@
+/usr/bin/ar qc librp_cobs.a CMakeFiles/rp_cobs.dir/cobs.c.o
+/usr/bin/ranlib librp_cobs.a

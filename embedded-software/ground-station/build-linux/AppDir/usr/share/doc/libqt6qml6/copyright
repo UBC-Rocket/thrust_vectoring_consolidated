@@ -1,0 +1,1733 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: qtdeclarative-everywhere-src
+Source: https://download.qt.io/archive/qt/*/submodules/
+Files-Excluded: tests/auto/qml/ecmascripttests/test262/website/scripts/lib/jquery-1.4.2.min.js
+
+Files: *
+Copyright: 2016-2021 The Qt Company Ltd.
+License: LGPL-3 or GPL-2
+
+Files: *.qdoc
+Copyright: 2017 The Qt Company Ltd.
+License: GFDL-NIV-1.3
+
+Files: conanfile.py
+       src/qmlcompiler/*
+       src/qmldebug/qqmlenginedebugclient_p.h
+       src/qmldebug/qqmlenginedebugclient.cpp
+       src/qmldom/qqmldomcomments_p.h
+       src/qmldom/qqmldomcomments.cpp
+       src/qmltyperegistrar/*
+       src/quickcontrolstestutils/controlstestutils.cpp
+       src/quickcontrolstestutils/controlstestutils_p.h
+       src/quicktestutils/qml/platforminputcontext_p.h
+       src/quicktestutils/qml/platformquirks_p.h
+       src/quicktestutils/qml/qmlutils.cpp
+       src/quicktestutils/qml/qmlutils_p.h
+       src/quicktestutils/qml/testhttpserver.cpp
+       src/quicktestutils/qml/testhttpserver_p.h
+       src/quicktestutils/quick/*
+       tests/*
+       tools/*
+Copyright: 2016-2021 The Qt Company Ltd.
+License: GPL-3 with Qt-1.0 exception
+
+Files: examples/*
+       src/qml/doc/snippets/*
+       src/qml/doc/src/includes/qqmlcomponent.qdoc
+       src/qmlmodels/doc/snippets/*
+       src/qmltest/doc/snippets/*
+       src/qmlworkerscript/doc/snippets/*
+       src/quick/doc/snippets/*
+       tests/auto/cmake/test_import_static_shapes_plugin_resources/app.qml
+       tests/auto/cmake/test_import_static_shapes_plugin_resources/tst_main.cpp
+       tests/auto/core/data/tst_standardpaths.qml
+       tests/auto/qml/qmlbasicapp/main.qml
+       tests/auto/qml/qmlbasicapp/TimeExample/timemodel.cpp
+       tests/auto/qml/qmlbasicapp/TimeExample/timemodel.h
+       tests/auto/qml/qqmllanguage/data/*
+       tests/auto/qml/qqmlsqldatabase/data/changeVersion.qml
+       tests/auto/qmltest/animatedimage/tst_animatedimage.qml
+       tests/auto/qmltest/animations/tst_abstractanimationjobcrash.qml
+       tests/auto/qmltest/fontloader/tst_fontloader.qml
+       tests/auto/qmltest/gradient/tst_gradient.qml
+       tests/auto/qmltest/image/tst_image.qml
+       tests/auto/qmltest/layout/*
+       tests/auto/qmltest/listmodel/tst_listmodel.qml
+       tests/auto/qmltest/listview/*
+       tests/auto/qmltest/objectmodel/tst_objectmodel.qml
+       tests/auto/qmltest/positioners/tst_positioners.qml
+       tests/auto/qmltest/qtbug46798/tst_qtbug46798.qml
+       tests/auto/qmltest/rectangle/tst_rectangle.qml
+       tests/auto/qmltest/text/tst_text.qml
+       tests/auto/qmltest/textedit/tst_textedit.qml
+       tests/auto/qmltest/textedit/tst_textedit_editingfinished.qml
+       tests/auto/qmltest/textinput/tst_textinput.qml
+       tests/auto/qmltest/url/tst_url.qml
+       tests/auto/qmltest/window/tst_clickwindow.qml
+       tests/auto/quick/qquickbehaviors/data/qtbug21549-2.qml
+       tests/auto/quick/qquickdroparea/data/*
+       tests/auto/quick/qquickgridview/data/attachedProperties.qml
+       tests/auto/quick/qquickgridview/data/margins2.qml
+       tests/auto/quick/qquickgridview/data/qtbug49218.qml
+       tests/auto/quick/qquicklayouts/data/*
+       tests/auto/quick/qquicklistview/data/addoncompleted.qml
+       tests/auto/quick/qquicklistview/data/attachedProperties.qml
+       tests/auto/quick/qquicklistview/data/flickBothDirections.qml
+       tests/auto/quick/qquicklistview/data/moveObjectModelItemToAnotherObjectModel.qml
+       tests/auto/quick/qquicklistview/data/outsideViewportChangeNotAffectingView.qml
+       tests/auto/quick/qquicklistview/data/qtbug61537_modelChangesAsync.qml
+       tests/auto/quick/qquicklistview/data/resizeAfterComponentComplete.qml
+       tests/auto/quick/qquicklistview/data/reusedelegateitems.qml
+       tests/auto/quick/qquicklistview/data/roundingErrors.qml
+       tests/auto/quick/qquicklistview/data/setpositiononlayout.qml
+       tests/auto/quick/qquicklistview/data/sizeTransitions.qml
+       tests/auto/quick/qquicklistview/data/stickyPositioning-both.qml
+       tests/auto/quick/qquicklistview/data/stickyPositioning-footer.qml
+       tests/auto/quick/qquicklistview/data/stickyPositioning-header.qml
+       tests/auto/quick/qquicklistview2/data/delegateWithMouseArea.qml
+       tests/auto/quick/qquicklistview2/data/urlListModel.qml
+       tests/auto/quick/qquickpalette/data/*
+       tests/auto/quick/qquickpathview/data/*
+       tests/auto/quickcontrols2/*
+       tests/benchmarks/qml/holistic/data/largeTargets/*
+       tests/manual/highdpi/imageprovider.cpp
+       tests/manual/nodetypes_ng/*
+       tests/manual/pointer/content/TouchpointFeedbackSprite.qml
+       tests/manual/shapestest/shapestest.qml
+       tests/manual/syntaxhighlighter/*
+       tests/manual/tableview/imagetiling/imageTiling.qml
+       tests/manual/text/*
+       tests/manual/touch/*
+       tests/manual/quickcontrols2/*
+       tests/testapplications/animatedsprite/*
+       tests/testapplications/listview/*
+       tools/qml/conf/*
+Copyright: 2016-2021 The Qt Company Ltd.
+License: BSD-3-clause
+
+Files: tests/manual/v4/typedarrays.js
+       tests/manual/v4/v8-bench.js
+Copyright: 2012 the V8 project authors
+License: BSD-3-clause
+
+Files: tests/auto/qml/ecmascripttests/test262/*
+Copyright: 2012-2017 Ecma International
+           1998 Robert D. Cameron
+           2009-2011 the Sputnik authors
+           2011-2012 Google Inc.
+           2011-2012 Norbert Lindenberg
+           2011-2018 the V8 project authors
+           2012-2018 Mozilla Corporation
+           2013-2017 Microsoft Corporation
+           2014 Hank Yates
+           2014 Ryan Lewis
+           2014 Sam Mikes
+           2014 Thomas Dahlstrom
+           2014-2015 Cubane Canada, Inc.
+           2014-2018 André Bargull
+           2014-2018 Valerie Young
+           2015 Zirak
+           2015-2017 Caitlin Potter
+           2015-2018 Jordan Harband
+           2015-2018 Leonardo Balter (Leo Balter)
+           2015-2018 Mike Pennisi
+           2015-2018 Rick Waldron
+           2016 Jeff Morrison
+           2016 Tim Disney
+           2016-2017 Aleksey Shvayka
+           2016-2017 Apple Inc.
+           2016-2017 Kevin Gibbons
+           2016-2017 Mathias Bynens
+           2016-2017 Robin Templeton
+           2016-2017 The V8 Project authors
+           2016-2018 Michael Ficarra
+           2017 Caio Lima
+           2017 Claude Pache
+           2017 Corey Frang
+           2017 Daniel Ehrenberg
+           2017 Ivan Vyshnevskyi
+           2017 Josh Wolfe
+           2017 K. Adam White
+           2017 Lucas Azzola
+           2017 Lyza Danger Gardner
+           2017 Michael "Z" Goddard
+           2017 Tooru Fujisawa
+           2017-2018 Igalia, S.L.
+           2018 Amal Hussein
+           2018 Shilpi Jain
+           2018 Viktor Mukhachev
+License: BSD-3-clause-Ecma
+
+Files: tests/auto/qml/parserstress/tests/ecma*
+       tests/auto/qml/parserstress/tests/shell.js
+Copyright: 1998-2003 Netscape Communications Corporation
+License: MPL-1.1 and GPL-2+ and LGPL-2.1
+
+Files: tests/auto/qml/ecmascripttests/test262/website/scripts/lib/jqueryprogressbar.js
+Copyright: 2007 Josh Bush
+License: Expat
+
+Files: tests/manual/v4/crypto.js
+Copyright: 2003-2005 Tom Wu
+License: Expat
+
+Files: tests/auto/qml/qqmllistmodelworkerscript/data/listmodel_async_sort/ListModelSortWorker.mjs
+       tests/auto/qml/qqmllistmodelworkerscript/data/listmodel_async_sort/ListModelSort.mjs
+       tests/auto/qml/qqmllistmodelworkerscript/data/listmodel_async_sort/ListModelSort.qml
+Copyright: 2020 Esri
+License: Apache-2.0
+
+Files: src/quick/doc/snippets/qml/windowconstraints.qml
+       src/quickcontrols2/doc/snippets/*
+Copyright: 2017 The Qt Company Ltd.
+License: GFDL-NIV-1.3
+
+Files: src/quickcontrols2/doc/snippets/qtquickcontrols2-headerview-simple.qml
+       src/quickcontrols2/doc/snippets/qtquickcontrols2-selectionrectangle.qml
+Copyright: 2021 The Qt Company Ltd.
+License: BSD-3-clause
+
+Files: debian/*
+Copyright: 2021 Patrick Franz <deltaone@debian.org>
+License: LGPL-3 or GPL-2
+
+# Auto-generated rules for non-3rdparty code
+# Use debian/scripts/update-copyright in cleaned source tree root to update it.
+## BEGIN AUTO GENERATED BLOCK
+
+## BSD-3-clause
+
+Files: tests/auto/qmltest/fuzzycompare/tst_FuzzyCompare.qml
+Copyright: 2021 Alexander Akulich <akulichalexander@gmail.com>
+License: BSD-3-clause
+
+Files: tests/auto/qml/qqmllanguage/data/singleton/RegisteredCompositeSingletonType.qml
+       tests/auto/qml/qqmllanguage/data/singleton/js/jspragma.js
+       tests/auto/qml/qqmllanguage/data/singletonTest17.qml
+       tests/manual/qmltypememory/TestPlugin/plugin.cpp
+Copyright: 2013 BlackBerry Limited (formerly Research In Motion)
+License: BSD-3-clause
+
+Files: examples/quick/imageresponseprovider/imageresponseprovider-example.qml
+       examples/quick/imageresponseprovider/imageresponseprovider.cpp
+       tests/auto/qml/qqmlecmascript/data/singletonTest.qml
+       tests/auto/qml/qqmlecmascript/data/singletonTest2.qml
+       tests/auto/quick/qquickshadereffect/data/MyIcon.qml
+       tests/auto/quick/qquickshadereffect/data/twoImagesOneShaderEffect.qml
+Copyright: 2013-2016 Canonical, Ltd.
+License: BSD-3-clause
+
+Files: examples/quick/shared/LauncherList.qml
+Copyright: 2017 Crimson AS <info@crimson.no>
+           2017 The Qt Company Ltd.
+License: BSD-3-clause
+
+Files: examples/quick/scenegraph/twotextureproviders/main.cpp
+       examples/quick/scenegraph/twotextureproviders/main.qml
+       examples/quick/scenegraph/twotextureproviders/xorblender.cpp
+       examples/quick/scenegraph/twotextureproviders/xorblender.h
+       src/quick/doc/snippets/qml/layerblending.qml
+Copyright: 2014 Gunnar Sletta <gunnar@sletta.org>
+License: BSD-3-clause
+
+Files: tests/manual/tableview/storagemodel/storagemodel.cpp
+       tests/manual/tableview/storagemodel/storagemodel.h
+Copyright: 2016 Ivan Komissarov <ABBAPOH@gmail.com>
+           2016 The Qt Company Ltd.
+License: BSD-3-clause
+
+Files: src/quick/doc/snippets/qml/itemGrab.qml
+Copyright: 2014 Jolla Ltd, author: <gunnar.sletta@jollamobile.com>
+License: BSD-3-clause
+
+Files: tests/auto/quick/qquicktext/data/lineLayoutImplicitWidth.qml
+Copyright: 2019 Jolla Ltd.
+License: BSD-3-clause
+
+Files: tests/auto/quick/qquickpathview/data/qtbug37815.qml
+       tests/auto/quick/qquickpathview/data/qtbug53464.qml
+Copyright: 2016 Netris
+License: BSD-3-clause
+
+## GFDL-NIV-1.3
+
+Files: src/qmlmodels/doc/src/qtqmlmodel.qdoc
+Copyright: 2016 BlackBerry Limited (formerly Research In Motion)
+License: GFDL-NIV-1.3
+
+Files: examples/quick/imageresponseprovider/doc/src/imageresponseprovider.qdoc
+Copyright: 2015 Canonical, Ltd.
+License: GFDL-NIV-1.3
+
+Files: examples/quick/scenegraph/twotextureproviders/doc/src/twotextureproviders.qdoc
+Copyright: 2014 Gunnar Sletta <gunnar@sletta.org>
+License: GFDL-NIV-1.3
+
+Files: src/qmltest/doc/src/toucheventsequence.qdoc
+Copyright: 2016 Jeremy Katz
+License: GFDL-NIV-1.3
+
+## GPL-3
+
+Files: tests/auto/qml/debugger/qqmldebugtranslationclient/data/MultiTextElement.qml
+       tests/auto/qml/debugger/qqmldebugtranslationclient/data/MultiTextException.qml
+       tests/auto/qml/debugger/qqmldebugtranslationclient/data/MultiTextItem.qml
+       tests/auto/qml/qmlformat/data/Annotations.formatted.qml
+       tests/auto/qml/qmlformat/data/Annotations.qml
+       tests/auto/qml/qqmlparser/data/annotations/View1.qml
+       tests/auto/qml/qqmlparser/data/noannotations/View1.qml
+Copyright: 2016-2021 The Qt Company Ltd.
+License: GPL-3
+
+## GPL-3 with Qt-1.0 exception
+
+Files: tests/auto/qml/qqmlapplicationengine/testapp/main.cpp
+       tests/auto/qml/qqmlapplicationengine/tst_qqmlapplicationengine.cpp
+       tests/auto/qml/qqmlenginecleanup/data/TestType.qml
+       tests/auto/qml/qqmlenginecleanup/data/types.qml
+       tests/auto/qml/qqmlenginecleanup/tst_qqmlenginecleanup.cpp
+       tests/auto/qml/qqmlfileselector/tst_qqmlfileselector.cpp
+       tests/auto/qml/qqmlinstantiator/tst_qqmlinstantiator.cpp
+       tests/auto/qml/qqmlnotifier/tst_qqmlnotifier.cpp
+       tests/auto/qml/qtqmlmodules/tst_qtqmlmodules.cpp
+       tests/benchmarks/qml/qquickwindow/tst_qquickwindow.cpp
+       tests/manual/qmltypememory/TestType.qml
+       tests/manual/qmltypememory/main.cpp
+       tests/manual/qmltypememory/main.qml
+       tests/manual/qmltypememory/testdriver.cpp
+       tests/manual/qmltypememory/testdriver.h
+       tools/qml/conf.h
+Copyright: 2016 BlackBerry Limited (formerly Research In Motion)
+License: GPL-3 with Qt-1.0 exception
+
+Files: tools/qml/main.cpp
+Copyright: 2016 BlackBerry Limited (formerly Research In Motion)
+           2019 The Qt Company Ltd.
+License: GPL-3 with Qt-1.0 exception
+
+Files: tests/auto/qml/qqmltypeloader/SlowImport/plugin.cpp
+       tests/auto/qml/qqmltypeloader/SlowImport/plugin.h
+       tests/auto/qml/qqmltypeloader/SlowImport/slow.cpp
+       tests/auto/qml/qqmltypeloader/SlowImport/slow.h
+       tests/auto/qml/qqmltypeloader/data/GenericView.qml
+       tests/auto/qml/qqmltypeloader/data/NiceView.qml
+       tests/auto/qml/qqmltypeloader/data/test_load_complete.qml
+       tests/auto/qml/qqmltypeloader/tst_qqmltypeloader.cpp
+       tests/auto/qml/qqmlxmlhttprequest/data/send_patch.qml
+       tests/auto/quick/qquickgridview/data/negativeDisplayMargin.qml
+       tests/auto/quick/qquicklistview/data/negativeDisplayMargin.qml
+       tests/auto/quick/qquicklistview/data/proxytest.qml
+       tests/auto/quick/qquicklistview/proxytestinnermodel.cpp
+       tests/auto/quick/qquicklistview/proxytestinnermodel.h
+Copyright: 2016-2017 Canonical, Ltd.
+License: GPL-3 with Qt-1.0 exception
+
+Files: tests/auto/qml/qqmlecmascript/tst_qqmlecmascript.cpp
+       tests/auto/qmltest/selftests/tst_grabImage.qml
+Copyright: 2017 Crimson AS <info@crimson.no>
+           2016-2021 The Qt Company Ltd.
+License: GPL-3 with Qt-1.0 exception
+
+Files: tests/auto/qml/qqmlinstantiator/stringmodel.h
+Copyright: 2016 Dmitrii Kosarev aka Kakadu <kakadu.hafanana@gmail.com>
+License: GPL-3 with Qt-1.0 exception
+
+Files: tests/auto/qmltest-blacklist/animators/tst_targetdestroyed.qml
+       tests/auto/qmltest/shadersource/tst_DynamicallyCreatedSource.qml
+Copyright: 2016 Gunnar Sletta <gunnar@sletta.org>
+License: GPL-3 with Qt-1.0 exception
+
+Files: tests/auto/qmltest/events/tst_touch.qml
+Copyright: 2016 Jeremy Katz
+License: GPL-3 with Qt-1.0 exception
+
+Files: tests/auto/qmltest-blacklist/animators/tst_mixed.qml
+       tests/auto/qmltest-blacklist/animators/tst_multiwindow.qml
+       tests/auto/qmltest-blacklist/item/tst_layerInPositioner.qml
+       tests/auto/qmltest/itemgrabber/tst_itemgrabber.qml
+       tests/auto/qmltest/shadersource/tst_DynamicallyCreated.qml
+       tests/auto/qmltest/shadersource/tst_SourceInOtherWindow.qml
+       tests/auto/qmltest/shadersource/tst_SourceItem.qml
+       tests/auto/qmltest/shadersource/tst_SourcedFromOtherWindow.qml
+       tests/auto/qmltest/stability/tst_unloadrepeater.qml
+       tests/auto/quick/qquickimage/data/hugeImages.qml
+       tests/auto/quick/qquickitem2/data/grabToImage.qml
+       tests/auto/quick/rendernode/data/matrix.qml
+       tests/auto/quick/scenegraph/data/render_ImageFiltering.qml
+       tests/auto/quick/scenegraph/data/render_OpacityThroughBatchRoot.qml
+       tests/auto/quick/scenegraph/data/render_bug37422.qml
+Copyright: 2016 Jolla Ltd, author: <gunnar.sletta@jollamobile.com>
+License: GPL-3 with Qt-1.0 exception
+
+Files: tests/auto/quick/qquickanimations/data/scriptActionCrash.qml
+       tests/auto/quick/qquickgridview/data/displayMargin.qml
+       tests/auto/quick/qquicklistview/data/displayMargin.qml
+Copyright: 2016 Jolla Ltd.
+License: GPL-3 with Qt-1.0 exception
+
+Files: tests/auto/quick/propertyrequirements/tst_propertyrequirements.cpp
+       tests/auto/quick/qquickanimations/data/animatorInvalidTargetCrash.qml
+       tests/benchmarks/qml/qqmlchangeset/tst_qqmlchangeset.cpp
+       tools/qmllint/main.cpp
+Copyright: 2016-2017 Klarälvdalens Datakonsult AB, a KDAB Group company
+License: GPL-3 with Qt-1.0 exception
+
+Files: tests/auto/qml/qmllint/tst_qmllint.cpp
+Copyright: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company
+           2021 The Qt Company Ltd.
+License: GPL-3 with Qt-1.0 exception
+
+Files: tests/auto/quick/qquickanimatedsprite/data/runningChange.qml
+Copyright: 2016 Tasuku Suzuki <stasuku@gmail.com>
+License: GPL-3 with Qt-1.0 exception
+
+Files: tests/auto/qml/qv4identifiertable/tst_qv4identifiertable.cpp
+Copyright: 2019 The Qt Company Ltd.
+           2016 basysKom GmbH.
+License: GPL-3 with Qt-1.0 exception
+
+Files: tests/auto/qml/qqmlvaluetypeproviders/data/changedSignal.qml
+Copyright: 2016 basysKom GmbH, opensource@basyskom.com.
+License: GPL-3 with Qt-1.0 exception
+
+Files: tests/auto/qml/qv4mm/tst_qv4mm.cpp
+Copyright: 2016 basysKom GmbH.
+License: GPL-3 with Qt-1.0 exception
+
+Files: tests/auto/particles/qquickparticlesystem/data/crashaffectors.qml
+Copyright: 2017 reMarkable A/S
+License: GPL-3 with Qt-1.0 exception
+
+## LGPL-3 or GPL-2
+
+Files: src/qml/qml/qqmlvmemetaobject.cpp
+       src/qml/qml/qqmlvmemetaobject_p.h
+       src/quick/util/qquickglobal.cpp
+Copyright: 2016 BasysKom GmbH.
+           2016 The Qt Company Ltd.
+License: LGPL-3 or GPL-2
+
+Files: src/qml/qml/qqmlabstracturlinterceptor.cpp
+       src/qml/qml/qqmlabstracturlinterceptor.h
+       src/qml/qml/qqmlapplicationengine.cpp
+       src/qml/qml/qqmlapplicationengine.h
+       src/qml/qml/qqmlapplicationengine_p.h
+       src/qml/qml/qqmlfileselector.cpp
+       src/qml/qml/qqmlfileselector.h
+       src/qml/qml/qqmlfileselector_p.h
+       src/qmlmodels/qqmlinstantiator.cpp
+       src/qmlmodels/qqmlinstantiator_p.h
+       src/qmlmodels/qqmlinstantiator_p_p.h
+       src/qmlmodels/qqmlmodelsmodule_p.h
+       src/quick/items/qquickflickablebehavior_p.h
+Copyright: 2016 BlackBerry Limited (formerly Research In Motion)
+License: LGPL-3 or GPL-2
+
+Files: src/qml/jsruntime/qv4estable.cpp
+       src/qml/jsruntime/qv4estable_p.h
+       src/qml/jsruntime/qv4mapiterator.cpp
+       src/qml/jsruntime/qv4mapiterator_p.h
+       src/qml/jsruntime/qv4mapobject.cpp
+       src/qml/jsruntime/qv4mapobject_p.h
+       src/qml/jsruntime/qv4setiterator.cpp
+       src/qml/jsruntime/qv4setiterator_p.h
+       src/qml/jsruntime/qv4setobject.cpp
+       src/qml/jsruntime/qv4setobject_p.h
+Copyright: 2018 Crimson AS <info@crimson.no>
+License: LGPL-3 or GPL-2
+
+Files: src/qml/jsruntime/qv4arrayiterator.cpp
+       src/qml/jsruntime/qv4arrayiterator_p.h
+       src/qml/jsruntime/qv4arrayobject.cpp
+       src/qml/jsruntime/qv4objectproto.cpp
+       src/qml/jsruntime/qv4stringiterator.cpp
+       src/qml/qml/qqmlimport.cpp
+       src/qmltest/quicktestresult.cpp
+Copyright: 2017-2018 Crimson AS <info@crimson.no>
+           2016-2018 The Qt Company Ltd.
+License: LGPL-3 or GPL-2
+
+Files: tests/auto/quick/qquickmousearea/data/mask.qml
+Copyright: 2017 Ford Motor Company
+License: LGPL-3 or GPL-2
+
+Files: src/quick/util/qquickanimatorcontroller.cpp
+       src/quick/util/qquickanimatorcontroller_p.h
+       src/quick/util/qquickanimatorjob.cpp
+       src/quick/util/qquickanimatorjob_p.h
+Copyright: 2016 Gunnar Sletta <gunnar@sletta.org>
+           2016 The Qt Company Ltd.
+License: LGPL-3 or GPL-2
+
+Files: src/qml/compiler/qv4compiler.cpp
+Copyright: 2018 Intel Corporation
+           2016 The Qt Company Ltd.
+License: LGPL-3 or GPL-2
+
+Files: src/quick/items/qquickitemgrabresult.cpp
+       src/quick/items/qquickitemgrabresult.h
+Copyright: 2016 Jolla Ltd, author: <gunnar.sletta@jollamobile.com>
+License: LGPL-3 or GPL-2
+
+Files: src/quick/scenegraph/coreapi/qsgbatchrenderer.cpp
+       src/quick/scenegraph/coreapi/qsgbatchrenderer_p.h
+       src/quick/scenegraph/coreapi/qsgrhivisualizer.cpp
+       src/quick/scenegraph/coreapi/qsgrhivisualizer_p.h
+Copyright: 2016 Jolla Ltd, author: <gunnar.sletta@jollamobile.com>
+           2016 Robin Burchell <robin.burchell@viroteck.net>
+           2016-2019 The Qt Company Ltd.
+License: LGPL-3 or GPL-2
+
+Files: src/quick/scenegraph/qsgthreadedrenderloop.cpp
+Copyright: 2016 Jolla Ltd, author: <gunnar.sletta@jollamobile.com>
+           2016 The Qt Company Ltd.
+License: LGPL-3 or GPL-2
+
+Files: src/qml/animations/qcontinuinganimationgroupjob.cpp
+       src/qml/animations/qcontinuinganimationgroupjob_p.h
+Copyright: 2016 Jolla Ltd.
+License: LGPL-3 or GPL-2
+
+Files: src/quick/scenegraph/coreapi/qsgnode_p.h
+Copyright: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company
+License: LGPL-3 or GPL-2
+
+Files: src/qml/qml/qqmlloggingcategory.cpp
+       src/qml/qml/qqmlloggingcategory_p.h
+       tests/auto/qml/qqmlconsole/data/categorized_logging.qml
+Copyright: 2016 Pelagicore AG
+License: LGPL-3 or GPL-2
+
+## LGPL-3 or GPL-2+
+
+Files: src/labs/platform/qquicklabsplatformcolordialog.cpp
+       src/labs/platform/qquicklabsplatformcolordialog_p.h
+       src/labs/platform/qquicklabsplatformdialog.cpp
+       src/labs/platform/qquicklabsplatformdialog_p.h
+       src/labs/platform/qquicklabsplatformfiledialog.cpp
+       src/labs/platform/qquicklabsplatformfiledialog_p.h
+       src/labs/platform/qquicklabsplatformfolderdialog.cpp
+       src/labs/platform/qquicklabsplatformfolderdialog_p.h
+       src/labs/platform/qquicklabsplatformfontdialog.cpp
+       src/labs/platform/qquicklabsplatformfontdialog_p.h
+       src/labs/platform/qquicklabsplatformicon.cpp
+       src/labs/platform/qquicklabsplatformicon_p.h
+       src/labs/platform/qquicklabsplatformiconloader.cpp
+       src/labs/platform/qquicklabsplatformiconloader_p.h
+       src/labs/platform/qquicklabsplatformmenu.cpp
+       src/labs/platform/qquicklabsplatformmenu_p.h
+       src/labs/platform/qquicklabsplatformmenubar.cpp
+       src/labs/platform/qquicklabsplatformmenubar_p.h
+       src/labs/platform/qquicklabsplatformmenuitem.cpp
+       src/labs/platform/qquicklabsplatformmenuitem_p.h
+       src/labs/platform/qquicklabsplatformmenuitemgroup.cpp
+       src/labs/platform/qquicklabsplatformmenuitemgroup_p.h
+       src/labs/platform/qquicklabsplatformmenuseparator.cpp
+       src/labs/platform/qquicklabsplatformmenuseparator_p.h
+       src/labs/platform/qquicklabsplatformmessagedialog.cpp
+       src/labs/platform/qquicklabsplatformmessagedialog_p.h
+       src/labs/platform/qquicklabsplatformsystemtrayicon.cpp
+       src/labs/platform/qquicklabsplatformsystemtrayicon_p.h
+       src/labs/platform/qtlabsplatformplugin.cpp
+       src/labs/platform/widgets/qwidgetplatform_p.h
+       src/labs/platform/widgets/qwidgetplatformcolordialog.cpp
+       src/labs/platform/widgets/qwidgetplatformcolordialog_p.h
+       src/labs/platform/widgets/qwidgetplatformdialog.cpp
+       src/labs/platform/widgets/qwidgetplatformdialog_p.h
+       src/labs/platform/widgets/qwidgetplatformfiledialog.cpp
+       src/labs/platform/widgets/qwidgetplatformfiledialog_p.h
+       src/labs/platform/widgets/qwidgetplatformfontdialog.cpp
+       src/labs/platform/widgets/qwidgetplatformfontdialog_p.h
+       src/labs/platform/widgets/qwidgetplatformmenu.cpp
+       src/labs/platform/widgets/qwidgetplatformmenu_p.h
+       src/labs/platform/widgets/qwidgetplatformmenuitem.cpp
+       src/labs/platform/widgets/qwidgetplatformmenuitem_p.h
+       src/labs/platform/widgets/qwidgetplatformmessagedialog.cpp
+       src/labs/platform/widgets/qwidgetplatformmessagedialog_p.h
+       src/labs/platform/widgets/qwidgetplatformsystemtrayicon.cpp
+       src/labs/platform/widgets/qwidgetplatformsystemtrayicon_p.h
+       src/quick/items/qquickabstractpaletteprovider_p.h
+       src/quick/items/qquickpalette.cpp
+       src/quick/items/qquickpalette_p.h
+       src/quick/items/qquickpalettecolorprovider_p.h
+       src/quick/items/qquickpaletteproviderprivatebase_p.h
+       src/quickcontrols2/basic/AbstractButton.qml
+       src/quickcontrols2/basic/Action.qml
+       src/quickcontrols2/basic/ActionGroup.qml
+       src/quickcontrols2/basic/ApplicationWindow.qml
+       src/quickcontrols2/basic/BusyIndicator.qml
+       src/quickcontrols2/basic/Button.qml
+       src/quickcontrols2/basic/ButtonGroup.qml
+       src/quickcontrols2/basic/CheckBox.qml
+       src/quickcontrols2/basic/CheckDelegate.qml
+       src/quickcontrols2/basic/ComboBox.qml
+       src/quickcontrols2/basic/Container.qml
+       src/quickcontrols2/basic/Control.qml
+       src/quickcontrols2/basic/DelayButton.qml
+       src/quickcontrols2/basic/Dial.qml
+       src/quickcontrols2/basic/Dialog.qml
+       src/quickcontrols2/basic/DialogButtonBox.qml
+       src/quickcontrols2/basic/Drawer.qml
+       src/quickcontrols2/basic/Frame.qml
+       src/quickcontrols2/basic/GroupBox.qml
+       src/quickcontrols2/basic/HorizontalHeaderView.qml
+       src/quickcontrols2/basic/ItemDelegate.qml
+       src/quickcontrols2/basic/Label.qml
+       src/quickcontrols2/basic/Menu.qml
+       src/quickcontrols2/basic/MenuBar.qml
+       src/quickcontrols2/basic/MenuBarItem.qml
+       src/quickcontrols2/basic/MenuItem.qml
+       src/quickcontrols2/basic/MenuSeparator.qml
+       src/quickcontrols2/basic/Page.qml
+       src/quickcontrols2/basic/PageIndicator.qml
+       src/quickcontrols2/basic/Pane.qml
+       src/quickcontrols2/basic/Popup.qml
+       src/quickcontrols2/basic/ProgressBar.qml
+       src/quickcontrols2/basic/RadioButton.qml
+       src/quickcontrols2/basic/RadioDelegate.qml
+       src/quickcontrols2/basic/RangeSlider.qml
+       src/quickcontrols2/basic/RoundButton.qml
+       src/quickcontrols2/basic/ScrollBar.qml
+       src/quickcontrols2/basic/ScrollIndicator.qml
+       src/quickcontrols2/basic/ScrollView.qml
+       src/quickcontrols2/basic/SelectionRectangle.qml
+       src/quickcontrols2/basic/Slider.qml
+       src/quickcontrols2/basic/SpinBox.qml
+       src/quickcontrols2/basic/SplitView.qml
+       src/quickcontrols2/basic/StackView.qml
+       src/quickcontrols2/basic/SwipeDelegate.qml
+       src/quickcontrols2/basic/SwipeView.qml
+       src/quickcontrols2/basic/Switch.qml
+       src/quickcontrols2/basic/SwitchDelegate.qml
+       src/quickcontrols2/basic/TabBar.qml
+       src/quickcontrols2/basic/TabButton.qml
+       src/quickcontrols2/basic/TextArea.qml
+       src/quickcontrols2/basic/TextField.qml
+       src/quickcontrols2/basic/ToolBar.qml
+       src/quickcontrols2/basic/ToolButton.qml
+       src/quickcontrols2/basic/ToolSeparator.qml
+       src/quickcontrols2/basic/ToolTip.qml
+       src/quickcontrols2/basic/Tumbler.qml
+       src/quickcontrols2/basic/VerticalHeaderView.qml
+       src/quickcontrols2/basic/impl/qquickbasicbusyindicator.cpp
+       src/quickcontrols2/basic/impl/qquickbasicbusyindicator_p.h
+       src/quickcontrols2/basic/impl/qquickbasicdial.cpp
+       src/quickcontrols2/basic/impl/qquickbasicdial_p.h
+       src/quickcontrols2/basic/impl/qquickbasicprogressbar.cpp
+       src/quickcontrols2/basic/impl/qquickbasicprogressbar_p.h
+       src/quickcontrols2/basic/qquickbasicstyle.cpp
+       src/quickcontrols2/basic/qquickbasicstyle_p.h
+       src/quickcontrols2/basic/qquickbasictheme.cpp
+       src/quickcontrols2/basic/qquickbasictheme_p.h
+       src/quickcontrols2/basic/qtquickcontrols2basicstyleplugin.cpp
+       src/quickcontrols2/designer/AbstractButtonSection.qml
+       src/quickcontrols2/designer/BusyIndicatorSpecifics.qml
+       src/quickcontrols2/designer/ButtonSection.qml
+       src/quickcontrols2/designer/ButtonSpecifics.qml
+       src/quickcontrols2/designer/CheckBoxSpecifics.qml
+       src/quickcontrols2/designer/CheckDelegateSpecifics.qml
+       src/quickcontrols2/designer/CheckSection.qml
+       src/quickcontrols2/designer/ComboBoxSpecifics.qml
+       src/quickcontrols2/designer/ContainerSection.qml
+       src/quickcontrols2/designer/ControlSection.qml
+       src/quickcontrols2/designer/ControlSpecifics.qml
+       src/quickcontrols2/designer/DelayButtonSpecifics.qml
+       src/quickcontrols2/designer/DialSpecifics.qml
+       src/quickcontrols2/designer/FrameSpecifics.qml
+       src/quickcontrols2/designer/GroupBoxSpecifics.qml
+       src/quickcontrols2/designer/InsetSection.qml
+       src/quickcontrols2/designer/ItemDelegateSection.qml
+       src/quickcontrols2/designer/ItemDelegateSpecifics.qml
+       src/quickcontrols2/designer/LabelSpecifics.qml
+       src/quickcontrols2/designer/PaddingSection.qml
+       src/quickcontrols2/designer/PageIndicatorSpecifics.qml
+       src/quickcontrols2/designer/PageSpecifics.qml
+       src/quickcontrols2/designer/PaneSection.qml
+       src/quickcontrols2/designer/PaneSpecifics.qml
+       src/quickcontrols2/designer/ProgressBarSpecifics.qml
+       src/quickcontrols2/designer/RadioButtonSpecifics.qml
+       src/quickcontrols2/designer/RadioDelegateSpecifics.qml
+       src/quickcontrols2/designer/RangeSliderSpecifics.qml
+       src/quickcontrols2/designer/RoundButtonSpecifics.qml
+       src/quickcontrols2/designer/ScrollViewSpecifics.qml
+       src/quickcontrols2/designer/SliderSpecifics.qml
+       src/quickcontrols2/designer/SpinBoxSpecifics.qml
+       src/quickcontrols2/designer/StackViewSpecifics.qml
+       src/quickcontrols2/designer/SwipeDelegateSpecifics.qml
+       src/quickcontrols2/designer/SwipeViewSpecifics.qml
+       src/quickcontrols2/designer/SwitchDelegateSpecifics.qml
+       src/quickcontrols2/designer/SwitchSpecifics.qml
+       src/quickcontrols2/designer/TabBarSpecifics.qml
+       src/quickcontrols2/designer/TabButtonSpecifics.qml
+       src/quickcontrols2/designer/TextAreaSpecifics.qml
+       src/quickcontrols2/designer/TextFieldSpecifics.qml
+       src/quickcontrols2/designer/ToolBarSpecifics.qml
+       src/quickcontrols2/designer/ToolButtonSpecifics.qml
+       src/quickcontrols2/designer/ToolSeparatorSpecifics.qml
+       src/quickcontrols2/designer/TumblerSpecifics.qml
+       src/quickcontrols2/fusion/ApplicationWindow.qml
+       src/quickcontrols2/fusion/BusyIndicator.qml
+       src/quickcontrols2/fusion/Button.qml
+       src/quickcontrols2/fusion/CheckBox.qml
+       src/quickcontrols2/fusion/CheckDelegate.qml
+       src/quickcontrols2/fusion/ComboBox.qml
+       src/quickcontrols2/fusion/DelayButton.qml
+       src/quickcontrols2/fusion/Dial.qml
+       src/quickcontrols2/fusion/Dialog.qml
+       src/quickcontrols2/fusion/DialogButtonBox.qml
+       src/quickcontrols2/fusion/Drawer.qml
+       src/quickcontrols2/fusion/Frame.qml
+       src/quickcontrols2/fusion/GroupBox.qml
+       src/quickcontrols2/fusion/HorizontalHeaderView.qml
+       src/quickcontrols2/fusion/ItemDelegate.qml
+       src/quickcontrols2/fusion/Label.qml
+       src/quickcontrols2/fusion/Menu.qml
+       src/quickcontrols2/fusion/MenuBar.qml
+       src/quickcontrols2/fusion/MenuBarItem.qml
+       src/quickcontrols2/fusion/MenuItem.qml
+       src/quickcontrols2/fusion/MenuSeparator.qml
+       src/quickcontrols2/fusion/Page.qml
+       src/quickcontrols2/fusion/PageIndicator.qml
+       src/quickcontrols2/fusion/Pane.qml
+       src/quickcontrols2/fusion/Popup.qml
+       src/quickcontrols2/fusion/ProgressBar.qml
+       src/quickcontrols2/fusion/RadioButton.qml
+       src/quickcontrols2/fusion/RadioDelegate.qml
+       src/quickcontrols2/fusion/RangeSlider.qml
+       src/quickcontrols2/fusion/RoundButton.qml
+       src/quickcontrols2/fusion/ScrollBar.qml
+       src/quickcontrols2/fusion/ScrollIndicator.qml
+       src/quickcontrols2/fusion/ScrollView.qml
+       src/quickcontrols2/fusion/SelectionRectangle.qml
+       src/quickcontrols2/fusion/Slider.qml
+       src/quickcontrols2/fusion/SpinBox.qml
+       src/quickcontrols2/fusion/SplitView.qml
+       src/quickcontrols2/fusion/SwipeDelegate.qml
+       src/quickcontrols2/fusion/Switch.qml
+       src/quickcontrols2/fusion/SwitchDelegate.qml
+       src/quickcontrols2/fusion/TabBar.qml
+       src/quickcontrols2/fusion/TabButton.qml
+       src/quickcontrols2/fusion/TextArea.qml
+       src/quickcontrols2/fusion/TextField.qml
+       src/quickcontrols2/fusion/ToolBar.qml
+       src/quickcontrols2/fusion/ToolButton.qml
+       src/quickcontrols2/fusion/ToolSeparator.qml
+       src/quickcontrols2/fusion/ToolTip.qml
+       src/quickcontrols2/fusion/Tumbler.qml
+       src/quickcontrols2/fusion/VerticalHeaderView.qml
+       src/quickcontrols2/fusion/impl/ButtonPanel.qml
+       src/quickcontrols2/fusion/impl/CheckIndicator.qml
+       src/quickcontrols2/fusion/impl/RadioIndicator.qml
+       src/quickcontrols2/fusion/impl/SliderGroove.qml
+       src/quickcontrols2/fusion/impl/SliderHandle.qml
+       src/quickcontrols2/fusion/impl/SwitchIndicator.qml
+       src/quickcontrols2/fusion/impl/qquickfusionbusyindicator.cpp
+       src/quickcontrols2/fusion/impl/qquickfusionbusyindicator_p.h
+       src/quickcontrols2/fusion/impl/qquickfusiondial.cpp
+       src/quickcontrols2/fusion/impl/qquickfusiondial_p.h
+       src/quickcontrols2/fusion/impl/qquickfusionknob.cpp
+       src/quickcontrols2/fusion/impl/qquickfusionknob_p.h
+       src/quickcontrols2/fusion/qquickfusionstyle.cpp
+       src/quickcontrols2/fusion/qquickfusionstyle_p.h
+       src/quickcontrols2/fusion/qquickfusiontheme.cpp
+       src/quickcontrols2/fusion/qquickfusiontheme_p.h
+       src/quickcontrols2/fusion/qtquickcontrols2fusionstyleplugin.cpp
+       src/quickcontrols2/imagine/ApplicationWindow.qml
+       src/quickcontrols2/imagine/BusyIndicator.qml
+       src/quickcontrols2/imagine/Button.qml
+       src/quickcontrols2/imagine/CheckBox.qml
+       src/quickcontrols2/imagine/CheckDelegate.qml
+       src/quickcontrols2/imagine/ComboBox.qml
+       src/quickcontrols2/imagine/DelayButton.qml
+       src/quickcontrols2/imagine/Dial.qml
+       src/quickcontrols2/imagine/Dialog.qml
+       src/quickcontrols2/imagine/DialogButtonBox.qml
+       src/quickcontrols2/imagine/Drawer.qml
+       src/quickcontrols2/imagine/Frame.qml
+       src/quickcontrols2/imagine/GroupBox.qml
+       src/quickcontrols2/imagine/HorizontalHeaderView.qml
+       src/quickcontrols2/imagine/ItemDelegate.qml
+       src/quickcontrols2/imagine/Label.qml
+       src/quickcontrols2/imagine/Menu.qml
+       src/quickcontrols2/imagine/MenuItem.qml
+       src/quickcontrols2/imagine/MenuSeparator.qml
+       src/quickcontrols2/imagine/Page.qml
+       src/quickcontrols2/imagine/PageIndicator.qml
+       src/quickcontrols2/imagine/Pane.qml
+       src/quickcontrols2/imagine/Popup.qml
+       src/quickcontrols2/imagine/ProgressBar.qml
+       src/quickcontrols2/imagine/RadioButton.qml
+       src/quickcontrols2/imagine/RadioDelegate.qml
+       src/quickcontrols2/imagine/RangeSlider.qml
+       src/quickcontrols2/imagine/RoundButton.qml
+       src/quickcontrols2/imagine/ScrollBar.qml
+       src/quickcontrols2/imagine/ScrollIndicator.qml
+       src/quickcontrols2/imagine/ScrollView.qml
+       src/quickcontrols2/imagine/SelectionRectangle.qml
+       src/quickcontrols2/imagine/Slider.qml
+       src/quickcontrols2/imagine/SpinBox.qml
+       src/quickcontrols2/imagine/SplitView.qml
+       src/quickcontrols2/imagine/StackView.qml
+       src/quickcontrols2/imagine/SwipeDelegate.qml
+       src/quickcontrols2/imagine/SwipeView.qml
+       src/quickcontrols2/imagine/Switch.qml
+       src/quickcontrols2/imagine/SwitchDelegate.qml
+       src/quickcontrols2/imagine/TabBar.qml
+       src/quickcontrols2/imagine/TabButton.qml
+       src/quickcontrols2/imagine/TextArea.qml
+       src/quickcontrols2/imagine/TextField.qml
+       src/quickcontrols2/imagine/ToolBar.qml
+       src/quickcontrols2/imagine/ToolButton.qml
+       src/quickcontrols2/imagine/ToolSeparator.qml
+       src/quickcontrols2/imagine/ToolTip.qml
+       src/quickcontrols2/imagine/Tumbler.qml
+       src/quickcontrols2/imagine/VerticalHeaderView.qml
+       src/quickcontrols2/imagine/impl/OpacityMask.qml
+       src/quickcontrols2/imagine/impl/qquickimageselector.cpp
+       src/quickcontrols2/imagine/impl/qquickimageselector_p.h
+       src/quickcontrols2/imagine/impl/qquickninepatchimage.cpp
+       src/quickcontrols2/imagine/impl/qquickninepatchimage_p.h
+       src/quickcontrols2/imagine/qquickimaginestyle.cpp
+       src/quickcontrols2/imagine/qquickimaginestyle_p.h
+       src/quickcontrols2/imagine/qquickimaginetheme.cpp
+       src/quickcontrols2/imagine/qquickimaginetheme_p.h
+       src/quickcontrols2/imagine/qtquickcontrols2imaginestyleplugin.cpp
+       src/quickcontrols2/macos/Button.qml
+       src/quickcontrols2/macos/CheckBox.qml
+       src/quickcontrols2/macos/ComboBox.qml
+       src/quickcontrols2/macos/Dial.qml
+       src/quickcontrols2/macos/Frame.qml
+       src/quickcontrols2/macos/GroupBox.qml
+       src/quickcontrols2/macos/ProgressBar.qml
+       src/quickcontrols2/macos/RadioButton.qml
+       src/quickcontrols2/macos/ScrollBar.qml
+       src/quickcontrols2/macos/ScrollView.qml
+       src/quickcontrols2/macos/SelectionRectangle.qml
+       src/quickcontrols2/macos/Slider.qml
+       src/quickcontrols2/macos/SpinBox.qml
+       src/quickcontrols2/macos/TextArea.qml
+       src/quickcontrols2/macos/TextField.qml
+       src/quickcontrols2/macos/qtquickcontrols2macosstyleplugin.cpp
+       src/quickcontrols2/material/ApplicationWindow.qml
+       src/quickcontrols2/material/BusyIndicator.qml
+       src/quickcontrols2/material/Button.qml
+       src/quickcontrols2/material/CheckBox.qml
+       src/quickcontrols2/material/CheckDelegate.qml
+       src/quickcontrols2/material/ComboBox.qml
+       src/quickcontrols2/material/DelayButton.qml
+       src/quickcontrols2/material/Dial.qml
+       src/quickcontrols2/material/Dialog.qml
+       src/quickcontrols2/material/DialogButtonBox.qml
+       src/quickcontrols2/material/Drawer.qml
+       src/quickcontrols2/material/Frame.qml
+       src/quickcontrols2/material/GroupBox.qml
+       src/quickcontrols2/material/HorizontalHeaderView.qml
+       src/quickcontrols2/material/ItemDelegate.qml
+       src/quickcontrols2/material/Label.qml
+       src/quickcontrols2/material/Menu.qml
+       src/quickcontrols2/material/MenuBar.qml
+       src/quickcontrols2/material/MenuBarItem.qml
+       src/quickcontrols2/material/MenuItem.qml
+       src/quickcontrols2/material/MenuSeparator.qml
+       src/quickcontrols2/material/Page.qml
+       src/quickcontrols2/material/PageIndicator.qml
+       src/quickcontrols2/material/Pane.qml
+       src/quickcontrols2/material/Popup.qml
+       src/quickcontrols2/material/ProgressBar.qml
+       src/quickcontrols2/material/RadioButton.qml
+       src/quickcontrols2/material/RadioDelegate.qml
+       src/quickcontrols2/material/RangeSlider.qml
+       src/quickcontrols2/material/RoundButton.qml
+       src/quickcontrols2/material/ScrollBar.qml
+       src/quickcontrols2/material/ScrollIndicator.qml
+       src/quickcontrols2/material/ScrollView.qml
+       src/quickcontrols2/material/SelectionRectangle.qml
+       src/quickcontrols2/material/Slider.qml
+       src/quickcontrols2/material/SpinBox.qml
+       src/quickcontrols2/material/SplitView.qml
+       src/quickcontrols2/material/StackView.qml
+       src/quickcontrols2/material/SwipeDelegate.qml
+       src/quickcontrols2/material/SwipeView.qml
+       src/quickcontrols2/material/Switch.qml
+       src/quickcontrols2/material/SwitchDelegate.qml
+       src/quickcontrols2/material/TabBar.qml
+       src/quickcontrols2/material/TabButton.qml
+       src/quickcontrols2/material/TextArea.qml
+       src/quickcontrols2/material/TextField.qml
+       src/quickcontrols2/material/ToolBar.qml
+       src/quickcontrols2/material/ToolButton.qml
+       src/quickcontrols2/material/ToolSeparator.qml
+       src/quickcontrols2/material/ToolTip.qml
+       src/quickcontrols2/material/Tumbler.qml
+       src/quickcontrols2/material/VerticalHeaderView.qml
+       src/quickcontrols2/material/impl/BoxShadow.qml
+       src/quickcontrols2/material/impl/CheckIndicator.qml
+       src/quickcontrols2/material/impl/CursorDelegate.qml
+       src/quickcontrols2/material/impl/ElevationEffect.qml
+       src/quickcontrols2/material/impl/RadioIndicator.qml
+       src/quickcontrols2/material/impl/RectangularGlow.qml
+       src/quickcontrols2/material/impl/SliderHandle.qml
+       src/quickcontrols2/material/impl/SwitchIndicator.qml
+       src/quickcontrols2/material/impl/qquickmaterialbusyindicator.cpp
+       src/quickcontrols2/material/impl/qquickmaterialbusyindicator_p.h
+       src/quickcontrols2/material/impl/qquickmaterialprogressbar.cpp
+       src/quickcontrols2/material/impl/qquickmaterialprogressbar_p.h
+       src/quickcontrols2/material/impl/qquickmaterialripple.cpp
+       src/quickcontrols2/material/impl/qquickmaterialripple_p.h
+       src/quickcontrols2/material/qquickmaterialstyle.cpp
+       src/quickcontrols2/material/qquickmaterialstyle_p.h
+       src/quickcontrols2/material/qquickmaterialtheme.cpp
+       src/quickcontrols2/material/qquickmaterialtheme_p.h
+       src/quickcontrols2/material/qtquickcontrols2materialstyleplugin.cpp
+       src/quickcontrols2/qquickstyle.cpp
+       src/quickcontrols2/qquickstyle.h
+       src/quickcontrols2/qquickstyle_p.h
+       src/quickcontrols2/qquickstyleplugin.cpp
+       src/quickcontrols2/qquickstyleplugin_p.h
+       src/quickcontrols2/qtquickcontrols2global.h
+       src/quickcontrols2/qtquickcontrols2plugin.cpp
+       src/quickcontrols2/universal/ApplicationWindow.qml
+       src/quickcontrols2/universal/BusyIndicator.qml
+       src/quickcontrols2/universal/Button.qml
+       src/quickcontrols2/universal/CheckBox.qml
+       src/quickcontrols2/universal/CheckDelegate.qml
+       src/quickcontrols2/universal/ComboBox.qml
+       src/quickcontrols2/universal/DelayButton.qml
+       src/quickcontrols2/universal/Dial.qml
+       src/quickcontrols2/universal/Dialog.qml
+       src/quickcontrols2/universal/DialogButtonBox.qml
+       src/quickcontrols2/universal/Drawer.qml
+       src/quickcontrols2/universal/Frame.qml
+       src/quickcontrols2/universal/GroupBox.qml
+       src/quickcontrols2/universal/HorizontalHeaderView.qml
+       src/quickcontrols2/universal/ItemDelegate.qml
+       src/quickcontrols2/universal/Label.qml
+       src/quickcontrols2/universal/Menu.qml
+       src/quickcontrols2/universal/MenuBar.qml
+       src/quickcontrols2/universal/MenuBarItem.qml
+       src/quickcontrols2/universal/MenuItem.qml
+       src/quickcontrols2/universal/MenuSeparator.qml
+       src/quickcontrols2/universal/Page.qml
+       src/quickcontrols2/universal/PageIndicator.qml
+       src/quickcontrols2/universal/Pane.qml
+       src/quickcontrols2/universal/Popup.qml
+       src/quickcontrols2/universal/ProgressBar.qml
+       src/quickcontrols2/universal/RadioButton.qml
+       src/quickcontrols2/universal/RadioDelegate.qml
+       src/quickcontrols2/universal/RangeSlider.qml
+       src/quickcontrols2/universal/RoundButton.qml
+       src/quickcontrols2/universal/ScrollBar.qml
+       src/quickcontrols2/universal/ScrollIndicator.qml
+       src/quickcontrols2/universal/ScrollView.qml
+       src/quickcontrols2/universal/SelectionRectangle.qml
+       src/quickcontrols2/universal/Slider.qml
+       src/quickcontrols2/universal/SpinBox.qml
+       src/quickcontrols2/universal/SplitView.qml
+       src/quickcontrols2/universal/StackView.qml
+       src/quickcontrols2/universal/SwipeDelegate.qml
+       src/quickcontrols2/universal/Switch.qml
+       src/quickcontrols2/universal/SwitchDelegate.qml
+       src/quickcontrols2/universal/TabBar.qml
+       src/quickcontrols2/universal/TabButton.qml
+       src/quickcontrols2/universal/TextArea.qml
+       src/quickcontrols2/universal/TextField.qml
+       src/quickcontrols2/universal/ToolBar.qml
+       src/quickcontrols2/universal/ToolButton.qml
+       src/quickcontrols2/universal/ToolSeparator.qml
+       src/quickcontrols2/universal/ToolTip.qml
+       src/quickcontrols2/universal/Tumbler.qml
+       src/quickcontrols2/universal/VerticalHeaderView.qml
+       src/quickcontrols2/universal/impl/CheckIndicator.qml
+       src/quickcontrols2/universal/impl/RadioIndicator.qml
+       src/quickcontrols2/universal/impl/SwitchIndicator.qml
+       src/quickcontrols2/universal/impl/qquickuniversalbusyindicator.cpp
+       src/quickcontrols2/universal/impl/qquickuniversalbusyindicator_p.h
+       src/quickcontrols2/universal/impl/qquickuniversalfocusrectangle.cpp
+       src/quickcontrols2/universal/impl/qquickuniversalfocusrectangle_p.h
+       src/quickcontrols2/universal/impl/qquickuniversalprogressbar.cpp
+       src/quickcontrols2/universal/impl/qquickuniversalprogressbar_p.h
+       src/quickcontrols2/universal/qquickuniversalstyle.cpp
+       src/quickcontrols2/universal/qquickuniversalstyle_p.h
+       src/quickcontrols2/universal/qquickuniversaltheme.cpp
+       src/quickcontrols2/universal/qquickuniversaltheme_p.h
+       src/quickcontrols2/universal/qtquickcontrols2universalstyleplugin.cpp
+       src/quickcontrols2/windows/Button.qml
+       src/quickcontrols2/windows/CheckBox.qml
+       src/quickcontrols2/windows/ComboBox.qml
+       src/quickcontrols2/windows/Frame.qml
+       src/quickcontrols2/windows/GroupBox.qml
+       src/quickcontrols2/windows/ProgressBar.qml
+       src/quickcontrols2/windows/RadioButton.qml
+       src/quickcontrols2/windows/ScrollBar.qml
+       src/quickcontrols2/windows/ScrollView.qml
+       src/quickcontrols2/windows/SelectionRectangle.qml
+       src/quickcontrols2/windows/Slider.qml
+       src/quickcontrols2/windows/SpinBox.qml
+       src/quickcontrols2/windows/TextArea.qml
+       src/quickcontrols2/windows/TextField.qml
+       src/quickcontrols2/windows/qtquickcontrols2windowsstyleplugin.cpp
+       src/quickcontrols2impl/qquickanimatednode.cpp
+       src/quickcontrols2impl/qquickanimatednode_p.h
+       src/quickcontrols2impl/qquickattachedobject.cpp
+       src/quickcontrols2impl/qquickattachedobject_p.h
+       src/quickcontrols2impl/qquickchecklabel.cpp
+       src/quickcontrols2impl/qquickchecklabel_p.h
+       src/quickcontrols2impl/qquickclippedtext.cpp
+       src/quickcontrols2impl/qquickclippedtext_p.h
+       src/quickcontrols2impl/qquickcolor.cpp
+       src/quickcontrols2impl/qquickcolor_p.h
+       src/quickcontrols2impl/qquickcolorimage.cpp
+       src/quickcontrols2impl/qquickcolorimage_p.h
+       src/quickcontrols2impl/qquickiconimage.cpp
+       src/quickcontrols2impl/qquickiconimage_p.h
+       src/quickcontrols2impl/qquickiconimage_p_p.h
+       src/quickcontrols2impl/qquickiconlabel.cpp
+       src/quickcontrols2impl/qquickiconlabel_p.h
+       src/quickcontrols2impl/qquickiconlabel_p_p.h
+       src/quickcontrols2impl/qquickitemgroup.cpp
+       src/quickcontrols2impl/qquickitemgroup_p.h
+       src/quickcontrols2impl/qquickmnemoniclabel.cpp
+       src/quickcontrols2impl/qquickmnemoniclabel_p.h
+       src/quickcontrols2impl/qquickpaddedrectangle.cpp
+       src/quickcontrols2impl/qquickpaddedrectangle_p.h
+       src/quickcontrols2impl/qquickplaceholdertext.cpp
+       src/quickcontrols2impl/qquickplaceholdertext_p.h
+       src/quickcontrols2impl/qquicktumblerview.cpp
+       src/quickcontrols2impl/qquicktumblerview_p.h
+       src/quickcontrols2impl/qtquickcontrols2foreign_p.h
+       src/quickcontrols2impl/qtquickcontrols2implglobal_p.h
+       src/quickcontrolstestutils/dialogstestutils_p.h
+       src/quickcontrolstestutils/qtest_quickcontrols_p.h
+       src/quickdialogs2/quickdialogs2/qquickabstractdialog.cpp
+       src/quickdialogs2/quickdialogs2/qquickabstractdialog_p.h
+       src/quickdialogs2/quickdialogs2/qquickfiledialog.cpp
+       src/quickdialogs2/quickdialogs2/qquickfiledialog_p.h
+       src/quickdialogs2/quickdialogs2/qquickfontdialog.cpp
+       src/quickdialogs2/quickdialogs2/qquickfontdialog_p.h
+       src/quickdialogs2/quickdialogs2/qtquickdialogs2foreign_p.h
+       src/quickdialogs2/quickdialogs2/qtquickdialogs2global_p.h
+       src/quickdialogs2/quickdialogs2quickimpl/qml/+Fusion/FileDialog.qml
+       src/quickdialogs2/quickdialogs2quickimpl/qml/+Fusion/FileDialogDelegate.qml
+       src/quickdialogs2/quickdialogs2quickimpl/qml/+Fusion/FolderBreadcrumbBar.qml
+       src/quickdialogs2/quickdialogs2quickimpl/qml/+Fusion/FontDialog.qml
+       src/quickdialogs2/quickdialogs2quickimpl/qml/+Imagine/FileDialog.qml
+       src/quickdialogs2/quickdialogs2quickimpl/qml/+Imagine/FileDialogDelegate.qml
+       src/quickdialogs2/quickdialogs2quickimpl/qml/+Imagine/FolderBreadcrumbBar.qml
+       src/quickdialogs2/quickdialogs2quickimpl/qml/+Imagine/FontDialog.qml
+       src/quickdialogs2/quickdialogs2quickimpl/qml/+Material/FileDialog.qml
+       src/quickdialogs2/quickdialogs2quickimpl/qml/+Material/FileDialogDelegate.qml
+       src/quickdialogs2/quickdialogs2quickimpl/qml/+Material/FolderBreadcrumbBar.qml
+       src/quickdialogs2/quickdialogs2quickimpl/qml/+Material/FontDialog.qml
+       src/quickdialogs2/quickdialogs2quickimpl/qml/+Universal/FileDialog.qml
+       src/quickdialogs2/quickdialogs2quickimpl/qml/+Universal/FileDialogDelegate.qml
+       src/quickdialogs2/quickdialogs2quickimpl/qml/+Universal/FolderBreadcrumbBar.qml
+       src/quickdialogs2/quickdialogs2quickimpl/qml/+Universal/FontDialog.qml
+       src/quickdialogs2/quickdialogs2quickimpl/qml/FileDialog.qml
+       src/quickdialogs2/quickdialogs2quickimpl/qml/FileDialogDelegate.qml
+       src/quickdialogs2/quickdialogs2quickimpl/qml/FileDialogDelegateLabel.qml
+       src/quickdialogs2/quickdialogs2quickimpl/qml/FolderBreadcrumbBar.qml
+       src/quickdialogs2/quickdialogs2quickimpl/qml/FontDialog.qml
+       src/quickdialogs2/quickdialogs2quickimpl/qml/FontDialogContent.qml
+       src/quickdialogs2/quickdialogs2quickimpl/qquickdialogimplfactory.cpp
+       src/quickdialogs2/quickdialogs2quickimpl/qquickdialogimplfactory_p.h
+       src/quickdialogs2/quickdialogs2quickimpl/qquickfiledialogdelegate.cpp
+       src/quickdialogs2/quickdialogs2quickimpl/qquickfiledialogdelegate_p.h
+       src/quickdialogs2/quickdialogs2quickimpl/qquickfiledialogimpl.cpp
+       src/quickdialogs2/quickdialogs2quickimpl/qquickfiledialogimpl_p.h
+       src/quickdialogs2/quickdialogs2quickimpl/qquickfiledialogimpl_p_p.h
+       src/quickdialogs2/quickdialogs2quickimpl/qquickfolderbreadcrumbbar.cpp
+       src/quickdialogs2/quickdialogs2quickimpl/qquickfolderbreadcrumbbar_p.h
+       src/quickdialogs2/quickdialogs2quickimpl/qquickfolderbreadcrumbbar_p_p.h
+       src/quickdialogs2/quickdialogs2quickimpl/qquickfontdialogimpl.cpp
+       src/quickdialogs2/quickdialogs2quickimpl/qquickfontdialogimpl_p.h
+       src/quickdialogs2/quickdialogs2quickimpl/qquickfontdialogimpl_p_p.h
+       src/quickdialogs2/quickdialogs2quickimpl/qquickplatformfiledialog.cpp
+       src/quickdialogs2/quickdialogs2quickimpl/qquickplatformfiledialog_p.h
+       src/quickdialogs2/quickdialogs2quickimpl/qquickplatformfontdialog.cpp
+       src/quickdialogs2/quickdialogs2quickimpl/qquickplatformfontdialog_p.h
+       src/quickdialogs2/quickdialogs2quickimpl/qtquickdialogs2quickimplforeign_p.h
+       src/quickdialogs2/quickdialogs2quickimpl/qtquickdialogs2quickimplglobal_p.h
+       src/quickdialogs2/quickdialogs2utils/qquickfilenamefilter.cpp
+       src/quickdialogs2/quickdialogs2utils/qquickfilenamefilter_p.h
+       src/quickdialogs2/quickdialogs2utils/qtquickdialogs2utilsglobal_p.h
+       src/quicknativestyle/controls/DefaultButton.qml
+       src/quicknativestyle/controls/DefaultCheckBox.qml
+       src/quicknativestyle/controls/DefaultComboBox.qml
+       src/quicknativestyle/controls/DefaultDial.qml
+       src/quicknativestyle/controls/DefaultFrame.qml
+       src/quicknativestyle/controls/DefaultGroupBox.qml
+       src/quicknativestyle/controls/DefaultProgressBar.qml
+       src/quicknativestyle/controls/DefaultRadioButton.qml
+       src/quicknativestyle/controls/DefaultScrollBar.qml
+       src/quicknativestyle/controls/DefaultSlider.qml
+       src/quicknativestyle/controls/DefaultSpinBox.qml
+       src/quicknativestyle/controls/DefaultTextArea.qml
+       src/quicknativestyle/controls/DefaultTextField.qml
+       src/quicknativestyle/items/qquickstyleitem.cpp
+       src/quicknativestyle/items/qquickstyleitem.h
+       src/quicknativestyle/items/qquickstyleitembutton.cpp
+       src/quicknativestyle/items/qquickstyleitembutton.h
+       src/quicknativestyle/items/qquickstyleitemcheckbox.cpp
+       src/quicknativestyle/items/qquickstyleitemcheckbox.h
+       src/quicknativestyle/items/qquickstyleitemcombobox.cpp
+       src/quicknativestyle/items/qquickstyleitemcombobox.h
+       src/quicknativestyle/items/qquickstyleitemdial.cpp
+       src/quicknativestyle/items/qquickstyleitemdial.h
+       src/quicknativestyle/items/qquickstyleitemframe.cpp
+       src/quicknativestyle/items/qquickstyleitemframe.h
+       src/quicknativestyle/items/qquickstyleitemgroupbox.cpp
+       src/quicknativestyle/items/qquickstyleitemgroupbox.h
+       src/quicknativestyle/items/qquickstyleitemprogressbar.cpp
+       src/quicknativestyle/items/qquickstyleitemprogressbar.h
+       src/quicknativestyle/items/qquickstyleitemradiobutton.cpp
+       src/quicknativestyle/items/qquickstyleitemradiobutton.h
+       src/quicknativestyle/items/qquickstyleitemscrollbar.cpp
+       src/quicknativestyle/items/qquickstyleitemscrollbar.h
+       src/quicknativestyle/items/qquickstyleitemscrollviewcorner.cpp
+       src/quicknativestyle/items/qquickstyleitemscrollviewcorner.h
+       src/quicknativestyle/items/qquickstyleitemslider.cpp
+       src/quicknativestyle/items/qquickstyleitemslider.h
+       src/quicknativestyle/items/qquickstyleitemspinbox.cpp
+       src/quicknativestyle/items/qquickstyleitemspinbox.h
+       src/quicknativestyle/items/qquickstyleitemtextfield.cpp
+       src/quicknativestyle/items/qquickstyleitemtextfield.h
+       src/quicknativestyle/qstyle/mac/qquickmacstyle_mac.mm
+       src/quicknativestyle/qstyle/mac/qquickmacstyle_mac_p.h
+       src/quicknativestyle/qstyle/mac/qquickmacstyle_mac_p_p.h
+       src/quicknativestyle/qstyle/qquickcommonstyle.cpp
+       src/quicknativestyle/qstyle/qquickcommonstyle.h
+       src/quicknativestyle/qstyle/qquickcommonstyle_p.h
+       src/quicknativestyle/qstyle/qquickcommonstylepixmaps_p.h
+       src/quicknativestyle/qstyle/qquickdrawutil.cpp
+       src/quicknativestyle/qstyle/qquickdrawutil.h
+       src/quicknativestyle/qstyle/qquicknativestyle.cpp
+       src/quicknativestyle/qstyle/qquicknativestyle.h
+       src/quicknativestyle/qstyle/qquickstyle.cpp
+       src/quicknativestyle/qstyle/qquickstyle.h
+       src/quicknativestyle/qstyle/qquickstyle_p.h
+       src/quicknativestyle/qstyle/qquickstylehelper.cpp
+       src/quicknativestyle/qstyle/qquickstylehelper_p.h
+       src/quicknativestyle/qstyle/qquickstyleoption.cpp
+       src/quicknativestyle/qstyle/qquickstyleoption.h
+       src/quicknativestyle/qtquickcontrols2nativestyleplugin.cpp
+       src/quicknativestyle/util/FocusFrame.qml
+       src/quicknativestyle/util/qquickmacfocusframe.h
+       src/quicknativestyle/util/qquickmacfocusframe.mm
+       src/quickshapes/qquickshapesglobal.h
+       src/quicktemplates2/accessible/qaccessiblequickpage.cpp
+       src/quicktemplates2/accessible/qaccessiblequickpage_p.h
+       src/quicktemplates2/qquickabstractbutton.cpp
+       src/quicktemplates2/qquickabstractbutton_p.h
+       src/quicktemplates2/qquickabstractbutton_p_p.h
+       src/quicktemplates2/qquickaction.cpp
+       src/quicktemplates2/qquickaction_p.h
+       src/quicktemplates2/qquickaction_p_p.h
+       src/quicktemplates2/qquickactiongroup.cpp
+       src/quicktemplates2/qquickactiongroup_p.h
+       src/quicktemplates2/qquickapplicationwindow.cpp
+       src/quicktemplates2/qquickapplicationwindow_p.h
+       src/quicktemplates2/qquickbusyindicator.cpp
+       src/quicktemplates2/qquickbusyindicator_p.h
+       src/quicktemplates2/qquickbutton.cpp
+       src/quicktemplates2/qquickbutton_p.h
+       src/quicktemplates2/qquickbutton_p_p.h
+       src/quicktemplates2/qquickbuttongroup.cpp
+       src/quicktemplates2/qquickbuttongroup_p.h
+       src/quicktemplates2/qquickcheckbox.cpp
+       src/quicktemplates2/qquickcheckbox_p.h
+       src/quicktemplates2/qquickcheckdelegate.cpp
+       src/quicktemplates2/qquickcheckdelegate_p.h
+       src/quicktemplates2/qquickcombobox.cpp
+       src/quicktemplates2/qquickcombobox_p.h
+       src/quicktemplates2/qquickcontainer.cpp
+       src/quicktemplates2/qquickcontainer_p.h
+       src/quicktemplates2/qquickcontainer_p_p.h
+       src/quicktemplates2/qquickcontentitem.cpp
+       src/quicktemplates2/qquickcontentitem_p.h
+       src/quicktemplates2/qquickcontrol.cpp
+       src/quicktemplates2/qquickcontrol_p.h
+       src/quicktemplates2/qquickcontrol_p_p.h
+       src/quicktemplates2/qquickdeferredexecute.cpp
+       src/quicktemplates2/qquickdeferredexecute_p_p.h
+       src/quicktemplates2/qquickdeferredpointer_p_p.h
+       src/quicktemplates2/qquickdelaybutton.cpp
+       src/quicktemplates2/qquickdelaybutton_p.h
+       src/quicktemplates2/qquickdial.cpp
+       src/quicktemplates2/qquickdial_p.h
+       src/quicktemplates2/qquickdialog.cpp
+       src/quicktemplates2/qquickdialog_p.h
+       src/quicktemplates2/qquickdialog_p_p.h
+       src/quicktemplates2/qquickdialogbuttonbox.cpp
+       src/quicktemplates2/qquickdialogbuttonbox_p.h
+       src/quicktemplates2/qquickdialogbuttonbox_p_p.h
+       src/quicktemplates2/qquickdrawer.cpp
+       src/quicktemplates2/qquickdrawer_p.h
+       src/quicktemplates2/qquickdrawer_p_p.h
+       src/quicktemplates2/qquickframe.cpp
+       src/quicktemplates2/qquickframe_p.h
+       src/quicktemplates2/qquickframe_p_p.h
+       src/quicktemplates2/qquickgroupbox.cpp
+       src/quicktemplates2/qquickgroupbox_p.h
+       src/quicktemplates2/qquickheaderview_p_p.h
+       src/quicktemplates2/qquickicon.cpp
+       src/quicktemplates2/qquickicon_p.h
+       src/quicktemplates2/qquickindicatorbutton_p.cpp
+       src/quicktemplates2/qquickindicatorbutton_p.h
+       src/quicktemplates2/qquickitemdelegate.cpp
+       src/quicktemplates2/qquickitemdelegate_p.h
+       src/quicktemplates2/qquickitemdelegate_p_p.h
+       src/quicktemplates2/qquicklabel.cpp
+       src/quicktemplates2/qquicklabel_p.h
+       src/quicktemplates2/qquicklabel_p_p.h
+       src/quicktemplates2/qquickmenu.cpp
+       src/quicktemplates2/qquickmenu_p.h
+       src/quicktemplates2/qquickmenu_p_p.h
+       src/quicktemplates2/qquickmenubar.cpp
+       src/quicktemplates2/qquickmenubar_p.h
+       src/quicktemplates2/qquickmenubar_p_p.h
+       src/quicktemplates2/qquickmenubaritem.cpp
+       src/quicktemplates2/qquickmenubaritem_p.h
+       src/quicktemplates2/qquickmenubaritem_p_p.h
+       src/quicktemplates2/qquickmenuitem.cpp
+       src/quicktemplates2/qquickmenuitem_p.h
+       src/quicktemplates2/qquickmenuitem_p_p.h
+       src/quicktemplates2/qquickmenuseparator.cpp
+       src/quicktemplates2/qquickmenuseparator_p.h
+       src/quicktemplates2/qquickoverlay.cpp
+       src/quicktemplates2/qquickoverlay_p.h
+       src/quicktemplates2/qquickoverlay_p_p.h
+       src/quicktemplates2/qquickpage.cpp
+       src/quicktemplates2/qquickpage_p.h
+       src/quicktemplates2/qquickpage_p_p.h
+       src/quicktemplates2/qquickpageindicator.cpp
+       src/quicktemplates2/qquickpageindicator_p.h
+       src/quicktemplates2/qquickpane.cpp
+       src/quicktemplates2/qquickpane_p.h
+       src/quicktemplates2/qquickpane_p_p.h
+       src/quicktemplates2/qquickpopup.cpp
+       src/quicktemplates2/qquickpopup_p.h
+       src/quicktemplates2/qquickpopup_p_p.h
+       src/quicktemplates2/qquickpopupanchors.cpp
+       src/quicktemplates2/qquickpopupanchors_p.h
+       src/quicktemplates2/qquickpopupanchors_p_p.h
+       src/quicktemplates2/qquickpopupitem.cpp
+       src/quicktemplates2/qquickpopupitem_p_p.h
+       src/quicktemplates2/qquickpopuppositioner.cpp
+       src/quicktemplates2/qquickpopuppositioner_p_p.h
+       src/quicktemplates2/qquickpresshandler.cpp
+       src/quicktemplates2/qquickpresshandler_p_p.h
+       src/quicktemplates2/qquickprogressbar.cpp
+       src/quicktemplates2/qquickprogressbar_p.h
+       src/quicktemplates2/qquickradiobutton.cpp
+       src/quicktemplates2/qquickradiobutton_p.h
+       src/quicktemplates2/qquickradiodelegate.cpp
+       src/quicktemplates2/qquickradiodelegate_p.h
+       src/quicktemplates2/qquickrangeslider.cpp
+       src/quicktemplates2/qquickrangeslider_p.h
+       src/quicktemplates2/qquickroundbutton.cpp
+       src/quicktemplates2/qquickroundbutton_p.h
+       src/quicktemplates2/qquickscrollbar.cpp
+       src/quicktemplates2/qquickscrollbar_p.h
+       src/quicktemplates2/qquickscrollbar_p_p.h
+       src/quicktemplates2/qquickscrollindicator.cpp
+       src/quicktemplates2/qquickscrollindicator_p.h
+       src/quicktemplates2/qquickscrollview.cpp
+       src/quicktemplates2/qquickscrollview_p.h
+       src/quicktemplates2/qquickselectionrectangle.cpp
+       src/quicktemplates2/qquickselectionrectangle_p.h
+       src/quicktemplates2/qquickselectionrectangle_p_p.h
+       src/quicktemplates2/qquickshortcutcontext.cpp
+       src/quicktemplates2/qquickshortcutcontext_p_p.h
+       src/quicktemplates2/qquickslider.cpp
+       src/quicktemplates2/qquickslider_p.h
+       src/quicktemplates2/qquickspinbox.cpp
+       src/quicktemplates2/qquickspinbox_p.h
+       src/quicktemplates2/qquicksplitview.cpp
+       src/quicktemplates2/qquicksplitview_p.h
+       src/quicktemplates2/qquicksplitview_p_p.h
+       src/quicktemplates2/qquickstackelement.cpp
+       src/quicktemplates2/qquickstackelement_p_p.h
+       src/quicktemplates2/qquickstacktransition.cpp
+       src/quicktemplates2/qquickstacktransition_p_p.h
+       src/quicktemplates2/qquickstackview.cpp
+       src/quicktemplates2/qquickstackview_p.cpp
+       src/quicktemplates2/qquickstackview_p.h
+       src/quicktemplates2/qquickstackview_p_p.h
+       src/quicktemplates2/qquickswipe_p.h
+       src/quicktemplates2/qquickswipedelegate.cpp
+       src/quicktemplates2/qquickswipedelegate_p.h
+       src/quicktemplates2/qquickswipedelegate_p_p.h
+       src/quicktemplates2/qquickswipeview.cpp
+       src/quicktemplates2/qquickswipeview_p.h
+       src/quicktemplates2/qquickswitch.cpp
+       src/quicktemplates2/qquickswitch_p.h
+       src/quicktemplates2/qquickswitchdelegate.cpp
+       src/quicktemplates2/qquickswitchdelegate_p.h
+       src/quicktemplates2/qquicktabbar.cpp
+       src/quicktemplates2/qquicktabbar_p.h
+       src/quicktemplates2/qquicktabbutton.cpp
+       src/quicktemplates2/qquicktabbutton_p.h
+       src/quicktemplates2/qquicktextarea.cpp
+       src/quicktemplates2/qquicktextarea_p.h
+       src/quicktemplates2/qquicktextarea_p_p.h
+       src/quicktemplates2/qquicktextfield.cpp
+       src/quicktemplates2/qquicktextfield_p.h
+       src/quicktemplates2/qquicktextfield_p_p.h
+       src/quicktemplates2/qquicktheme.cpp
+       src/quicktemplates2/qquicktheme_p.h
+       src/quicktemplates2/qquicktheme_p_p.h
+       src/quicktemplates2/qquicktoolbar.cpp
+       src/quicktemplates2/qquicktoolbar_p.h
+       src/quicktemplates2/qquicktoolbutton.cpp
+       src/quicktemplates2/qquicktoolbutton_p.h
+       src/quicktemplates2/qquicktoolseparator.cpp
+       src/quicktemplates2/qquicktoolseparator_p.h
+       src/quicktemplates2/qquicktooltip.cpp
+       src/quicktemplates2/qquicktooltip_p.h
+       src/quicktemplates2/qquicktumbler.cpp
+       src/quicktemplates2/qquicktumbler_p.h
+       src/quicktemplates2/qquicktumbler_p_p.h
+       src/quicktemplates2/qquickvelocitycalculator.cpp
+       src/quicktemplates2/qquickvelocitycalculator_p_p.h
+       src/quicktemplates2/qtquicktemplates2global_p.h
+       src/quicktemplates2/qtquicktemplates2plugin.cpp
+       tests/auto/core/tst_core.cpp
+       tests/auto/qml/qqmlecmascript/data/getThis.qml
+       tests/auto/qml/qqmlenginecleanup/CustomModuleImport/ModuleType.qml
+       tests/auto/qml/qqmlenginecleanup/CustomModuleImport/moduleplugin.cpp
+       tests/auto/quickcontrols2/accessibility/tst_accessibility.cpp
+       tests/auto/quickcontrols2/controls/basic/tst_basic.cpp
+       tests/auto/quickcontrols2/controls/fusion/tst_fusion.cpp
+       tests/auto/quickcontrols2/controls/imagine/tst_imagine.cpp
+       tests/auto/quickcontrols2/controls/material/tst_material.cpp
+       tests/auto/quickcontrols2/controls/universal/tst_universal.cpp
+       tests/auto/quickcontrols2/controls/windows/tst_windows.cpp
+       tests/auto/quickcontrols2/cursor/tst_cursor.cpp
+       tests/auto/quickcontrols2/customization/tst_customization.cpp
+       tests/auto/quickcontrols2/designer/tst_designer.cpp
+       tests/auto/quickcontrols2/dialogs/qquickfiledialogimpl/tst_qquickfiledialogimpl.cpp
+       tests/auto/quickcontrols2/dialogs/qquickfontdialogimpl/tst_qquickfontdialogimpl.cpp
+       tests/auto/quickcontrols2/focus/tst_focus.cpp
+       tests/auto/quickcontrols2/font/tst_font.cpp
+       tests/auto/quickcontrols2/palette/tst_palette.cpp
+       tests/auto/quickcontrols2/platform/tst_platform.cpp
+       tests/auto/quickcontrols2/pressandhold/tst_pressandhold.cpp
+       tests/auto/quickcontrols2/qquickapplicationwindow/tst_qquickapplicationwindow.cpp
+       tests/auto/quickcontrols2/qquickcolor/tst_qquickcolor.cpp
+       tests/auto/quickcontrols2/qquickcontrol/tst_qquickcontrol.cpp
+       tests/auto/quickcontrols2/qquickdrawer/tst_qquickdrawer.cpp
+       tests/auto/quickcontrols2/qquickheaderview/tst_qquickheaderview.cpp
+       tests/auto/quickcontrols2/qquickimaginestyle/tst_qquickimaginestyle.cpp
+       tests/auto/quickcontrols2/qquickmaterialstyle/tst_qquickmaterialstyle.cpp
+       tests/auto/quickcontrols2/qquickmaterialstyleconf/tst_qquickmaterialstyleconf.cpp
+       tests/auto/quickcontrols2/qquickmenu/tst_qquickmenu.cpp
+       tests/auto/quickcontrols2/qquickmenubar/tst_qquickmenubar.cpp
+       tests/auto/quickcontrols2/qquickpopup/tst_qquickpopup.cpp
+       tests/auto/quickcontrols2/qquickstyle/tst_qquickstyle.cpp
+       tests/auto/quickcontrols2/qquickuniversalstyle/tst_qquickuniversalstyle.cpp
+       tests/auto/quickcontrols2/qquickuniversalstyleconf/tst_qquickuniversalstyleconf.cpp
+       tests/auto/quickcontrols2/revisions/tst_revisions.cpp
+       tests/auto/quickcontrols2/sanity/tst_sanity.cpp
+       tests/auto/quickcontrols2/snippets/tst_snippets.cpp
+       tests/auto/quickcontrols2/styleimports/tst_styleimports.cpp
+       tests/auto/quickcontrols2/styleimportscompiletimematerial/tst_styleimportscompiletimematerial.cpp
+       tests/auto/quickcontrols2/styleimportscompiletimeqmlonly/tst_styleimportscompiletimeqmlonly.cpp
+       tests/auto/quickcontrols2/translation/tst_translation.cpp
+       tests/benchmarks/quick/colorresolving/data/tst_colorresolving.qml
+       tests/benchmarks/quick/colorresolving/tst_colorresolving.cpp
+       tests/benchmarks/quickcontrols2/creationtime/tst_creationtime.cpp
+       tests/benchmarks/quickcontrols2/objectcount/tst_objectcount.cpp
+       tests/manual/quickcontrols2/fonts/main.cpp
+       tests/manual/quickcontrols2/gifs/capturedevent.cpp
+       tests/manual/quickcontrols2/gifs/capturedevent.h
+       tests/manual/quickcontrols2/gifs/eventcapturer.cpp
+       tests/manual/quickcontrols2/gifs/eventcapturer.h
+       tests/manual/quickcontrols2/gifs/gifrecorder.cpp
+       tests/manual/quickcontrols2/gifs/gifrecorder.h
+       tests/manual/quickcontrols2/gifs/tst_gifs.cpp
+       tests/manual/quickcontrols2/nativestyle/Buttons.qml
+       tests/manual/quickcontrols2/nativestyle/CheckBoxes.qml
+       tests/manual/quickcontrols2/nativestyle/ComboBoxes.qml
+       tests/manual/quickcontrols2/nativestyle/ControlContainer.qml
+       tests/manual/quickcontrols2/nativestyle/CustomButtons.qml
+       tests/manual/quickcontrols2/nativestyle/CustomCheckBoxes.qml
+       tests/manual/quickcontrols2/nativestyle/CustomComboBoxes.qml
+       tests/manual/quickcontrols2/nativestyle/CustomDials.qml
+       tests/manual/quickcontrols2/nativestyle/CustomFrames.qml
+       tests/manual/quickcontrols2/nativestyle/CustomProgressBars.qml
+       tests/manual/quickcontrols2/nativestyle/CustomRadioButtons.qml
+       tests/manual/quickcontrols2/nativestyle/CustomScrollBars.qml
+       tests/manual/quickcontrols2/nativestyle/CustomSliders.qml
+       tests/manual/quickcontrols2/nativestyle/CustomSpinBoxes.qml
+       tests/manual/quickcontrols2/nativestyle/CustomTextAreas.qml
+       tests/manual/quickcontrols2/nativestyle/CustomTextFields.qml
+       tests/manual/quickcontrols2/nativestyle/Dials.qml
+       tests/manual/quickcontrols2/nativestyle/Frames.qml
+       tests/manual/quickcontrols2/nativestyle/ProgressBars.qml
+       tests/manual/quickcontrols2/nativestyle/RadioButtons.qml
+       tests/manual/quickcontrols2/nativestyle/ScrollBars.qml
+       tests/manual/quickcontrols2/nativestyle/Sliders.qml
+       tests/manual/quickcontrols2/nativestyle/SlidersMini.qml
+       tests/manual/quickcontrols2/nativestyle/SlidersSmall.qml
+       tests/manual/quickcontrols2/nativestyle/SpinBoxes.qml
+       tests/manual/quickcontrols2/nativestyle/TextAreas.qml
+       tests/manual/quickcontrols2/nativestyle/TextFields.qml
+       tests/manual/quickcontrols2/nativestyle/main.cpp
+       tests/manual/quickcontrols2/nativestyle/main.qml
+       tests/manual/quickcontrols2/viewinqwidget/main.cpp
+       tests/manual/quickcontrols2/viewinqwidget/main.qml
+Copyright: 2017-2021 The Qt Company Ltd.
+License: LGPL-3 or GPL-2+
+
+## END AUTO GENERATED BLOCK
+
+## 3rd psrty stuff
+Files: src/3rdparty/masm/*
+Copyright: 2003-2018 Apple Inc.
+License: BSD-2-clause
+
+Files: src/3rdparty/masm/disassembler/udis86/*
+Copyright: 2002-2009 Vivek Thampi
+License: BSD-2-clause
+
+Files: src/3rdparty/masm/disassembler/udis86/udis86_itab_holder.c
+Copyright: 2012 Apple Inc.
+License: BSD-2-clause
+
+Files: src/3rdparty/masm/disassembler/mips32/Mips32Opcode.h
+       src/3rdparty/masm/disassembler/mips32/Mips32Opcode.cpp
+       src/3rdparty/masm/disassembler/Mips32Disassembler.cpp
+Copyright: 2015 Cisco Systems, Inc.
+License: BSD-2-clause
+
+Files: src/3rdparty/masm/assembler/AssemblerBufferWithConstantPool.h
+Copyright: 2009 University of Szeged
+License: BSD-2-clause
+
+Files: src/3rdparty/masm/assembler/ARMv7Assembler.h
+       src/3rdparty/masm/assembler/MacroAssemblerARMv7.h
+Copyright: 2009-2013 Apple Inc.
+           2010 University of Szeged
+License: BSD-2-clause
+
+Files: src/3rdparty/masm/assembler/MacroAssemblerMIPS.h
+Copyright: 2008-2009 Apple Inc.
+           2010 MIPS Technologies, Inc.
+License: BSD-2-clause
+
+Files: src/3rdparty/masm/assembler/MIPSAssembler.h
+Copyright: 2009 Apple Inc.
+           2009 University of Szeged
+           2010 MIPS Technologies, Inc.
+License: BSD-2-clause
+
+Files: src/3rdparty/masm/wtf/ASCIICType.h
+       src/3rdparty/masm/wtf/SegmentedVector.h
+       src/3rdparty/masm/wtf/Locker.h
+Copyright: 2007-2011 Apple Inc.
+License: BSD-3-clause
+
+Files: src/3rdparty/masm/wtf/OSAllocatorIntegrity.cpp
+Copyright: 2016 Rolland Dudemaine
+           2016 The Qt Company Ltd.
+License: LGPL-3 or GPL-2+
+
+Files: src/3rdparty/masm/wtf/CryptographicallyRandomNumber.h
+Copyright: 2008 Torch Mobile Inc. (http://www.torchmobile.com/)
+License: BSD-2-clause
+
+Files: src/3rdparty/masm/wtf/FeatureDefines.h
+Copyright: 2006-2013 Apple Inc.
+           2007-2009 Torch Mobile, Inc.
+           2010-2011 Research In Motion Limited.
+           2013 Samsung Electronics.
+License: BSD-2-clause
+
+Files: src/3rdparty/masm/wtf/Platform.h
+Copyright: 2006-2013 Apple Inc.
+           2007-2009 Torch Mobile, Inc.
+           2010-2011 Research In Motion Limited.
+           2018 The Qt Company Ltd.
+License: BSD-2-clause
+
+Files: src/3rdparty/masm/wtf/Atomics.h
+Copyright: 2007-2012 Apple Inc.
+           2007 Justin Haygood <jhaygood@reaktix.com>
+License: BSD-3-clause
+
+Files: src/3rdparty/masm/wtf/DynamicAnnotations.h
+Copyright: 2011 Google Inc.
+License: BSD-2-clause
+
+Files: src/3rdparty/masm/stubs/*
+       src/3rdparty/masm/config.h
+       src/3rdparty/masm/WeakRandom.h
+Copyright: 2016-2018 The Qt Company Ltd.
+License: LGPL-3 or GPL-2
+
+Files: src/3rdparty/masm/stubs/runtime/RegExpKey.h
+Copyright: 2010 University of Szeged
+           2010 Renata Hodovan <hodovan@inf.u-szeged.hu>
+License: BSD-2-clause
+
+Files: src/3rdparty/masm/yarr/Yarr.h
+       src/3rdparty/masm/yarr/YarrInterpreter.cpp
+       src/3rdparty/masm/yarr/YarrPattern.cpp
+       src/3rdparty/masm/yarr/YarrPattern.h
+Copyright: 2009-2017 Apple Inc.
+           2010 Peter Varga <pvarga@inf.u-szeged.hu>, University of Szeged
+License: BSD-2-clause
+
+Files: src/3rdparty/masm/yarr/YarrErrorCode.cpp
+       src/3rdparty/masm/yarr/YarrErrorCode.h
+Copyright: 2017 Yusuke Suzuki <utatane.tea@gmail.com>
+License: BSD-2-clause
+
+## License texts
+
+License: LGPL-3
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Lesser General Public License version 3
+ as published by the Free Software Foundation.
+ .
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Lesser General Public License for more details.
+ .
+ On Debian systems, the complete text of the GNU Lesser General Public
+ License version 3 can be found in /usr/share/common-licenses/LGPL-3.
+
+License: GPL-2
+ This file may be used under the terms of the GNU General Public License
+ version 2.0 as published by the Free Software Foundation.
+ .
+ On Debian systems, the complete text of the GNU General Public License
+ version 2 can be found in /usr/share/common-licenses/GPL-2.
+
+License: GFDL-NIV-1.3
+ Permission is granted to copy, distribute and/or modify this document
+ under the terms of the GNU Free Documentation License, Version 1.3
+ or any later version published by the Free Software Foundation;
+ with no Invariant Sections, no Front-Cover Texts, and no Back-Cover Texts.
+ .
+ On Debian systems, the complete text of the GNU Free Documentation
+ License version 1.3 can be found in /usr/share/common-licenses/GFDL-1.3.
+
+License: GPL-3 with Qt-1.0 exception
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License version 3 as
+ published by the Free Software Foundation.
+ .
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ .
+ On Debian systems, the complete text of the GNU General Public License
+ version 3 can be found in /usr/share/common-licenses/GPL-3.
+ .
+ The Qt Company GPL Exception 1.0
+ Exception 1:
+ .
+ As a special exception you may create a larger work which contains the
+ output of this application and distribute that work under terms of your
+ choice, so long as the work is not otherwise derived from or based on
+ this application and so long as the work does not in itself generate
+ output that contains the output from this application in its original
+ or modified form.
+ .
+ Exception 2:
+ .
+ As a special exception, you have permission to combine this application
+ with Plugins licensed under the terms of your choice, to produce an
+ executable, and to copy and distribute the resulting executable under
+ the terms of your choice. However, the executable must be accompanied
+ by a prominent notice offering all users of the executable the entire
+ source code to this application, excluding the source code of the
+ independent modules, but including any changes you have made to this
+ application, under the terms of this license.
+
+License: BSD-3-clause
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+ .
+   * Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+   * Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in
+     the documentation and/or other materials provided with the
+     distribution.
+   * Neither the name of The Qt Company Ltd nor the names of its
+     contributors may be used to endorse or promote products derived
+     from this software without specific prior written permission.
+ .
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+License: BSD-3-clause-Ecma
+ The <<Software identified by reference to the Ecma Standard* ("Software)">>
+ is protected by copyright and is being made available under the "BSD License",
+ included below. This Software may be subject to third party rights (rights
+ from parties other than Ecma International), including patent rights, and no
+ licenses under such third party rights are granted under this license even if
+ the third party concerned is a member of Ecma International.
+ .
+ SEE THE ECMA CODE OF CONDUCT IN PATENT MATTERS AVAILABLE AT
+ http://www.ecma-international.org/memento/codeofconduct.htm FOR INFORMATION
+ REGARDING THE LICENSING OF PATENT CLAIMS THAT ARE REQUIRED TO IMPLEMENT ECMA
+ INTERNATIONAL STANDARDS*.
+ .
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ .
+  1. Redistributions of source code must retain the above copyright notice,
+     this list of conditions and the following disclaimer.
+  2. Redistributions in binary form must reproduce the above copyright notice,
+     this list of conditions and the following disclaimer in the documentation
+     and/or other materials provided with the distribution.
+  3. Neither the name of the authors nor Ecma International may be used to
+     endorse or promote products derived from this software without specific
+     prior written permission.
+ .
+ THIS SOFTWARE IS PROVIDED BY THE ECMA INTERNATIONAL "AS IS" AND ANY EXPRESS OR
+ IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+ EVENT SHALL ECMA INTERNATIONAL BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+ IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ POSSIBILITY OF SUCH DAMAGE.
+ .
+ * Ecma International Standards hereafter means Ecma International Standards as
+ well as Ecma Technical Reports
+
+License: MPL-1.1
+ The contents of this file are subject to the Mozilla Public License Version
+ 1.1 (the "License"); you may not use this file except in compliance with
+ the License.
+ .
+ Software distributed under the License is distributed on an "AS IS" basis,
+ WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ for the specific language governing rights and limitations under the
+ License.
+ .
+ On Debian systems, the complete text of the Mozilla Public License Version
+ 1.1 can be found in /usr/share/common-licenses/MPL-1.1.
+
+License: GPL-2+
+ This program is free software; you can redistribute it
+ and/or modify it under the terms of the GNU General Public
+ License as published by the Free Software Foundation; either
+ version 2 of the License, or (at your option) any later
+ version.
+ .
+ This program is distributed in the hope that it will be
+ useful, but WITHOUT ANY WARRANTY; without even the implied
+ warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+ PURPOSE.  See the GNU General Public License for more
+ details.
+ .
+ You should have received a copy of the GNU General Public
+ License along with this package; if not, write to the Free
+ Software Foundation, Inc., 51 Franklin St, Fifth Floor,
+ Boston, MA  02110-1301 USA
+ .
+ On Debian systems, the full text of the GNU General Public
+ License version 2 can be found in the file
+ `/usr/share/common-licenses/GPL-2'.
+
+License: LGPL-2.1
+ GNU Lesser General Public License version 2.1:
+ This file may be used under the terms of the GNU Lesser General Public
+ License version 2.1 as published by the Free Software Foundation and
+ appearing in the file LICENSE.LGPL included in the packaging of this
+ file. Please review the following information to ensure the GNU Lesser
+ General Public License version 2.1 requirements will be met:
+ http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+ .
+ On Debian systems, the complete text of the GNU Lesser General Public License
+ can be found in `/usr/share/common-licenses/LGPL-2.1`.
+
+License: Expat
+ Permission is hereby granted, free of charge, to any person
+ obtaining a copy of this software and associated documentation
+ files (the "Software"), to deal in the Software without
+ restriction, including without limitation the rights to use,
+ copy, modify, merge, publish, distribute, sublicense, and/or sell
+ copies of the Software, and to permit persons to whom the
+ Software is furnished to do so, subject to the following
+ conditions:
+ .
+ The above copyright notice and this permission notice shall be
+ included in all copies or substantial portions of the Software.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ OTHER DEALINGS IN THE SOFTWARE.
+
+License: Apache-2.0
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ .
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ .
+ On Debian systems, the full text of Apache License, Version 2.0 can
+ be found in /usr/share/common-licenses/Apache-2.0.
+
+License: GPL-3
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License version 3 as
+ published by the Free Software Foundation.
+ .
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ .
+ On Debian systems, the complete text of the GNU General Public License
+ version 3 can be found in /usr/share/common-licenses/GPL-3.
+
+License: BSD-2-clause
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions
+ are met:
+ 1. Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+ 2. Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in the
+    documentation and/or other materials provided with the distribution.
+ .
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.

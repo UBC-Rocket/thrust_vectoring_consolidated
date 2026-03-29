@@ -1,0 +1,187 @@
+{
+    "classes": [
+        {
+            "className": "CommandSender",
+            "methods": [
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "which",
+                            "type": "int"
+                        },
+                        {
+                            "name": "code",
+                            "type": "QString"
+                        }
+                    ],
+                    "name": "sendCode",
+                    "returnType": "bool"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "which",
+                            "type": "int"
+                        },
+                        {
+                            "name": "commandType",
+                            "type": "int"
+                        }
+                    ],
+                    "name": "sendFlightCommand",
+                    "returnType": "bool"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "which",
+                            "type": "int"
+                        },
+                        {
+                            "name": "code",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "hz",
+                            "type": "int"
+                        }
+                    ],
+                    "name": "startPeriodic",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "which",
+                            "type": "int"
+                        },
+                        {
+                            "name": "code",
+                            "type": "QString"
+                        }
+                    ],
+                    "name": "startPeriodic",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "which",
+                            "type": "int"
+                        }
+                    ],
+                    "name": "stopPeriodic",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "which",
+                            "type": "int"
+                        }
+                    ],
+                    "name": "isPeriodicRunning",
+                    "returnType": "bool"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "which",
+                            "type": "int"
+                        },
+                        {
+                            "name": "PIDValues",
+                            "type": "QVariantList"
+                        }
+                    ],
+                    "name": "sendPIDValues",
+                    "returnType": "bool"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "which",
+                            "type": "int"
+                        },
+                        {
+                            "name": "referenceValues",
+                            "type": "QVariantList"
+                        }
+                    ],
+                    "name": "sendReferenceValues",
+                    "returnType": "bool"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "which",
+                            "type": "int"
+                        },
+                        {
+                            "name": "configValues",
+                            "type": "QVariantList"
+                        }
+                    ],
+                    "name": "sendConfigValues",
+                    "returnType": "bool"
+                }
+            ],
+            "object": true,
+            "qualifiedClassName": "CommandSender",
+            "signals": [
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "payload",
+                            "type": "QString"
+                        }
+                    ],
+                    "name": "messageSent",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "error",
+                            "type": "QString"
+                        }
+                    ],
+                    "name": "errorOccurred",
+                    "returnType": "void"
+                }
+            ],
+            "slots": [
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "bridge",
+                            "type": "SerialBridge*"
+                        }
+                    ],
+                    "name": "setBridge",
+                    "returnType": "void"
+                }
+            ],
+            "superClasses": [
+                {
+                    "access": "public",
+                    "name": "QObject"
+                }
+            ]
+        }
+    ],
+    "inputFile": "CommandSender.h",
+    "outputRevision": 68
+}

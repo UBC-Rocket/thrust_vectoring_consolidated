@@ -1,0 +1,6 @@
+<RCC>
+  <qresource prefix="/ulysses_ground_control">
+    <file alias="qmldir">/workspace/embedded-software/ground-station/build-linux/ulysses_ground_control/qmldir</file>
+  </qresource>
+</RCC>
+

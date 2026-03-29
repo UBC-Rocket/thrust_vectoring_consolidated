@@ -1,0 +1,24 @@
+module ulysses_ground_control
+typeinfo ulysses_ground_control.qmltypes
+prefer :/ulysses_ground_control/
+FullDroneAssembly 1.0 QMLFiles/FullDroneAssembly.qml
+Header 1.0 QMLFiles/Header.qml
+LayoutGrid 1.0 QMLFiles/LayoutGrid.qml
+Main 1.0 QMLFiles/Main.qml
+RadioOutputWindow 1.0 QMLFiles/RadioOutputWindow.qml
+RadioTestWindow 1.0 QMLFiles/RadioTestWindow.qml
+Shortcuts 1.0 QMLFiles/Shortcuts.qml
+Panel_State_And_Position 1.0 QMLFiles/Panels/Panel_State_And_Position.qml
+Panel_Control 1.0 QMLFiles/Panels/Panel_Control.qml
+Panel_Angles_And_Engine 1.0 QMLFiles/Panels/Panel_Angles_And_Engine.qml
+Panel_PID_Controller 1.0 QMLFiles/Panels/Panel_PID_Controller.qml
+Panel_Rocket_Visualization 1.0 QMLFiles/Panels/Panel_Rocket_Visualization.qml
+Panel_System_Alert 1.0 QMLFiles/Panels/Panel_System_Alert.qml
+Panel_System_Health 1.0 QMLFiles/Panels/Panel_System_Health.qml
+BaseHeader 1.0 QMLFiles/Items/BaseHeader.qml
+BasePanel 1.0 QMLFiles/Items/BasePanel.qml
+CommandCard 1.0 QMLFiles/Items/CommandCard.qml
+DataBox 1.0 QMLFiles/Items/DataBox.qml
+DataBoxList 1.0 QMLFiles/Items/DataBoxList.qml
+singleton Theme 1.0 QMLFiles/Items/Theme.qml
+

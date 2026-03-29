@@ -1,0 +1,2 @@
+/usr/bin/ar qc librocket-protocol.a CMakeFiles/rocket-protocol.dir/generated/tvr/common.pb.c.o CMakeFiles/rocket-protocol.dir/generated/tvr/telemetry.pb.c.o CMakeFiles/rocket-protocol.dir/generated/tvr/command.pb.c.o CMakeFiles/rocket-protocol.dir/generated/tvr/status.pb.c.o CMakeFiles/rocket-protocol.dir/generated/tvr/downlink.pb.c.o CMakeFiles/rocket-protocol.dir/src/codec.c.o
+/usr/bin/ranlib librocket-protocol.a

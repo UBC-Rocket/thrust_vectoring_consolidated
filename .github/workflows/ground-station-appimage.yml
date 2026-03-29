@@ -1,0 +1,53 @@
+name: Ground Station AppImage
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'embedded-software/ground-station/**'
+      - 'embedded-software/libs/rocket-protocol/**'
+
+jobs:
+  build-appimage:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt6
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.7.*'
+          modules: 'qtserialport qtquickcontrols2 qtquick3d qtshadertools'
+
+      - name: Install AppImage tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y file libfuse2 patchelf
+
+          curl -fsSL -o /tmp/linuxdeployqt.AppImage \
+            https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage
+          chmod +x /tmp/linuxdeployqt.AppImage
+          sudo mv /tmp/linuxdeployqt.AppImage /usr/local/bin/linuxdeployqt.AppImage
+          printf '%s\n' '#!/bin/sh' 'exec /usr/local/bin/linuxdeployqt.AppImage --appimage-extract-and-run "$@"' | sudo tee /usr/local/bin/linuxdeployqt >/dev/null
+          sudo chmod +x /usr/local/bin/linuxdeployqt
+
+          curl -fsSL -o /tmp/appimagetool.AppImage \
+            https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x /tmp/appimagetool.AppImage
+          sudo mv /tmp/appimagetool.AppImage /usr/local/bin/appimagetool.AppImage
+          printf '%s\n' '#!/bin/sh' 'exec env ARCH=x86_64 /usr/local/bin/appimagetool.AppImage --appimage-extract-and-run "$@"' | sudo tee /usr/local/bin/appimagetool >/dev/null
+          sudo chmod +x /usr/local/bin/appimagetool
+
+      - name: Build AppImage
+        working-directory: embedded-software/ground-station
+        env:
+          BUILD_JOBS: 2
+        run: ./distribution/Linux/build-appimage.sh
+
+      - name: Upload AppImage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ulysses-ground-control-appimage
+          path: embedded-software/ground-station/build-linux/*.AppImage

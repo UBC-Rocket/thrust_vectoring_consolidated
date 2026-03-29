@@ -1,0 +1,1026 @@
+[
+    {
+        "classes": [
+            {
+                "className": "AlarmReceiver",
+                "object": true,
+                "qualifiedClassName": "AlarmReceiver",
+                "signals": [
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "line",
+                                "type": "QString"
+                            }
+                        ],
+                        "name": "rxError",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "line",
+                                "type": "QString"
+                            }
+                        ],
+                        "name": "rxWarning",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "line",
+                                "type": "QString"
+                            }
+                        ],
+                        "name": "rxSuccess",
+                        "returnType": "void"
+                    }
+                ],
+                "slots": [
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "line",
+                                "type": "QString"
+                            }
+                        ],
+                        "name": "onLineReceived",
+                        "returnType": "void"
+                    }
+                ],
+                "superClasses": [
+                    {
+                        "access": "public",
+                        "name": "QObject"
+                    }
+                ]
+            }
+        ],
+        "inputFile": "AlarmReceiver.h",
+        "outputRevision": 68
+    },
+    {
+        "classes": [
+            {
+                "className": "CommandSender",
+                "methods": [
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "which",
+                                "type": "int"
+                            },
+                            {
+                                "name": "code",
+                                "type": "QString"
+                            }
+                        ],
+                        "name": "sendCode",
+                        "returnType": "bool"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "which",
+                                "type": "int"
+                            },
+                            {
+                                "name": "commandType",
+                                "type": "int"
+                            }
+                        ],
+                        "name": "sendFlightCommand",
+                        "returnType": "bool"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "which",
+                                "type": "int"
+                            },
+                            {
+                                "name": "code",
+                                "type": "QString"
+                            },
+                            {
+                                "name": "hz",
+                                "type": "int"
+                            }
+                        ],
+                        "name": "startPeriodic",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "which",
+                                "type": "int"
+                            },
+                            {
+                                "name": "code",
+                                "type": "QString"
+                            }
+                        ],
+                        "name": "startPeriodic",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "which",
+                                "type": "int"
+                            }
+                        ],
+                        "name": "stopPeriodic",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "which",
+                                "type": "int"
+                            }
+                        ],
+                        "name": "isPeriodicRunning",
+                        "returnType": "bool"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "which",
+                                "type": "int"
+                            },
+                            {
+                                "name": "PIDValues",
+                                "type": "QVariantList"
+                            }
+                        ],
+                        "name": "sendPIDValues",
+                        "returnType": "bool"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "which",
+                                "type": "int"
+                            },
+                            {
+                                "name": "referenceValues",
+                                "type": "QVariantList"
+                            }
+                        ],
+                        "name": "sendReferenceValues",
+                        "returnType": "bool"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "which",
+                                "type": "int"
+                            },
+                            {
+                                "name": "configValues",
+                                "type": "QVariantList"
+                            }
+                        ],
+                        "name": "sendConfigValues",
+                        "returnType": "bool"
+                    }
+                ],
+                "object": true,
+                "qualifiedClassName": "CommandSender",
+                "signals": [
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "payload",
+                                "type": "QString"
+                            }
+                        ],
+                        "name": "messageSent",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "error",
+                                "type": "QString"
+                            }
+                        ],
+                        "name": "errorOccurred",
+                        "returnType": "void"
+                    }
+                ],
+                "slots": [
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "bridge",
+                                "type": "SerialBridge*"
+                            }
+                        ],
+                        "name": "setBridge",
+                        "returnType": "void"
+                    }
+                ],
+                "superClasses": [
+                    {
+                        "access": "public",
+                        "name": "QObject"
+                    }
+                ]
+            }
+        ],
+        "inputFile": "CommandSender.h",
+        "outputRevision": 68
+    },
+    {
+        "classes": [
+            {
+                "className": "SensorDataModel",
+                "methods": [
+                    {
+                        "access": "public",
+                        "name": "clearRawPacketLog",
+                        "returnType": "void"
+                    }
+                ],
+                "object": true,
+                "properties": [
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": false,
+                        "index": 0,
+                        "name": "altitude",
+                        "notify": "baroDataChanged",
+                        "read": "altitude",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "double",
+                        "user": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": false,
+                        "index": 1,
+                        "name": "posX",
+                        "notify": "baroDataChanged",
+                        "read": "posX",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "double",
+                        "user": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": false,
+                        "index": 2,
+                        "name": "posY",
+                        "notify": "baroDataChanged",
+                        "read": "posY",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "double",
+                        "user": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": false,
+                        "index": 3,
+                        "name": "rawAngleX",
+                        "notify": "kalmanDataChanged",
+                        "read": "rawAngleX",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "double",
+                        "user": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": false,
+                        "index": 4,
+                        "name": "filteredAngleX",
+                        "notify": "kalmanDataChanged",
+                        "read": "filteredAngleX",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "double",
+                        "user": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": false,
+                        "index": 5,
+                        "name": "rawAngleY",
+                        "notify": "kalmanDataChanged",
+                        "read": "rawAngleY",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "double",
+                        "user": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": false,
+                        "index": 6,
+                        "name": "filteredAngleY",
+                        "notify": "kalmanDataChanged",
+                        "read": "filteredAngleY",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "double",
+                        "user": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": false,
+                        "index": 7,
+                        "name": "rawAngleZ",
+                        "notify": "kalmanDataChanged",
+                        "read": "rawAngleZ",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "double",
+                        "user": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": false,
+                        "index": 8,
+                        "name": "filteredAngleZ",
+                        "notify": "kalmanDataChanged",
+                        "read": "filteredAngleZ",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "double",
+                        "user": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": false,
+                        "index": 9,
+                        "name": "thrustCmd",
+                        "notify": "engineDataChanged",
+                        "read": "thrustCmd",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "double",
+                        "user": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": false,
+                        "index": 10,
+                        "name": "gimbalX",
+                        "notify": "engineDataChanged",
+                        "read": "gimbalX",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "double",
+                        "user": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": false,
+                        "index": 11,
+                        "name": "gimbalY",
+                        "notify": "engineDataChanged",
+                        "read": "gimbalY",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "double",
+                        "user": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": false,
+                        "index": 12,
+                        "name": "velocity",
+                        "notify": "telemetryDataChanged",
+                        "read": "velocity",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "double",
+                        "user": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": false,
+                        "index": 13,
+                        "name": "rawPacketLog",
+                        "notify": "rawPacketLogChanged",
+                        "read": "rawPacketLog",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "QString",
+                        "user": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": false,
+                        "index": 14,
+                        "name": "flightState",
+                        "notify": "statusReceived",
+                        "read": "flightState",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "int",
+                        "user": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": false,
+                        "index": 15,
+                        "name": "uptimeMs",
+                        "notify": "statusReceived",
+                        "read": "uptimeMs",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "quint32",
+                        "user": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": false,
+                        "index": 16,
+                        "name": "accelOk",
+                        "notify": "statusReceived",
+                        "read": "accelOk",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "bool",
+                        "user": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": false,
+                        "index": 17,
+                        "name": "gyroOk",
+                        "notify": "statusReceived",
+                        "read": "gyroOk",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "bool",
+                        "user": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": false,
+                        "index": 18,
+                        "name": "baro1Ok",
+                        "notify": "statusReceived",
+                        "read": "baro1Ok",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "bool",
+                        "user": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": false,
+                        "index": 19,
+                        "name": "baro2Ok",
+                        "notify": "statusReceived",
+                        "read": "baro2Ok",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "bool",
+                        "user": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": false,
+                        "index": 20,
+                        "name": "gpsConnected",
+                        "notify": "statusReceived",
+                        "read": "gpsConnected",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "bool",
+                        "user": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": false,
+                        "index": 21,
+                        "name": "radioRxCount",
+                        "notify": "statusReceived",
+                        "read": "radioRxCount",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "quint32",
+                        "user": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": false,
+                        "index": 22,
+                        "name": "radioTxCount",
+                        "notify": "statusReceived",
+                        "read": "radioTxCount",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "quint32",
+                        "user": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": false,
+                        "index": 23,
+                        "name": "cmdRxCount",
+                        "notify": "statusReceived",
+                        "read": "cmdRxCount",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "quint32",
+                        "user": false
+                    }
+                ],
+                "qualifiedClassName": "SensorDataModel",
+                "signals": [
+                    {
+                        "access": "public",
+                        "name": "kalmanDataChanged",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "baroDataChanged",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "engineDataChanged",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "telemetryDataChanged",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "statusReceived",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "rawPacketLogChanged",
+                        "returnType": "void"
+                    }
+                ],
+                "slots": [
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "which",
+                                "type": "int"
+                            },
+                            {
+                                "name": "packet",
+                                "type": "QByteArray"
+                            }
+                        ],
+                        "name": "onBinaryPacketReceived",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "rawAngleX",
+                                "type": "double"
+                            },
+                            {
+                                "name": "filteredAngleX",
+                                "type": "double"
+                            },
+                            {
+                                "name": "rawAngleY",
+                                "type": "double"
+                            },
+                            {
+                                "name": "filteredAngleY",
+                                "type": "double"
+                            },
+                            {
+                                "name": "rawAngleZ",
+                                "type": "double"
+                            },
+                            {
+                                "name": "filteredAngleZ",
+                                "type": "double"
+                            }
+                        ],
+                        "name": "updateKalman",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "altitude",
+                                "type": "double"
+                            },
+                            {
+                                "name": "posX",
+                                "type": "double"
+                            },
+                            {
+                                "name": "posY",
+                                "type": "double"
+                            }
+                        ],
+                        "name": "updatePosition",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "altitude",
+                                "type": "double"
+                            },
+                            {
+                                "name": "posX",
+                                "type": "double"
+                            }
+                        ],
+                        "name": "updatePosition",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "altitude",
+                                "type": "double"
+                            }
+                        ],
+                        "name": "updatePosition",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "thrustCmd",
+                                "type": "double"
+                            },
+                            {
+                                "name": "gimbalX",
+                                "type": "double"
+                            },
+                            {
+                                "name": "gimbalY",
+                                "type": "double"
+                            }
+                        ],
+                        "name": "updateEngine",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "velocity",
+                                "type": "double"
+                            }
+                        ],
+                        "name": "updateTelemetry",
+                        "returnType": "void"
+                    }
+                ],
+                "superClasses": [
+                    {
+                        "access": "public",
+                        "name": "QObject"
+                    }
+                ]
+            }
+        ],
+        "inputFile": "SensorDataModel.h",
+        "outputRevision": 68
+    },
+    {
+        "classes": [
+            {
+                "className": "SerialBridge",
+                "methods": [
+                    {
+                        "access": "public",
+                        "name": "refreshPorts",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "which",
+                                "type": "int"
+                            },
+                            {
+                                "name": "name",
+                                "type": "QString"
+                            },
+                            {
+                                "name": "baudRate",
+                                "type": "int"
+                            }
+                        ],
+                        "name": "connectPort",
+                        "returnType": "bool"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "which",
+                                "type": "int"
+                            }
+                        ],
+                        "name": "disconnectPort",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "which",
+                                "type": "int"
+                            }
+                        ],
+                        "name": "setTxTo",
+                        "returnType": "bool"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "which",
+                                "type": "int"
+                            }
+                        ],
+                        "name": "setRxFrom",
+                        "returnType": "bool"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "which",
+                                "type": "int"
+                            },
+                            {
+                                "name": "text",
+                                "type": "QString"
+                            }
+                        ],
+                        "name": "sendText",
+                        "returnType": "bool"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "which",
+                                "type": "int"
+                            },
+                            {
+                                "name": "data",
+                                "type": "QByteArray"
+                            }
+                        ],
+                        "name": "sendBinary",
+                        "returnType": "bool"
+                    },
+                    {
+                        "access": "public",
+                        "name": "ports",
+                        "returnType": "QStringList"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "which",
+                                "type": "int"
+                            }
+                        ],
+                        "name": "isConnected",
+                        "returnType": "bool"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "which",
+                                "type": "int"
+                            }
+                        ],
+                        "name": "portName",
+                        "returnType": "QString"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "which",
+                                "type": "int"
+                            }
+                        ],
+                        "name": "baudRate",
+                        "returnType": "int"
+                    }
+                ],
+                "object": true,
+                "properties": [
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": false,
+                        "index": 0,
+                        "name": "ports",
+                        "notify": "portsChanged",
+                        "read": "ports",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "QStringList",
+                        "user": false
+                    }
+                ],
+                "qualifiedClassName": "SerialBridge",
+                "signals": [
+                    {
+                        "access": "public",
+                        "name": "portsChanged",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "which",
+                                "type": "int"
+                            },
+                            {
+                                "name": "connected",
+                                "type": "bool"
+                            }
+                        ],
+                        "name": "connectedChanged",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "which",
+                                "type": "int"
+                            }
+                        ],
+                        "name": "baudChanged",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "which",
+                                "type": "int"
+                            }
+                        ],
+                        "name": "portNameChanged",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "rxFromChanged",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "name": "txToChanged",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "which",
+                                "type": "int"
+                            },
+                            {
+                                "name": "line",
+                                "type": "QString"
+                            }
+                        ],
+                        "name": "textReceivedFrom",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "which",
+                                "type": "int"
+                            },
+                            {
+                                "name": "packet",
+                                "type": "QByteArray"
+                            }
+                        ],
+                        "name": "binaryPacketReceived",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "arguments": [
+                            {
+                                "name": "msg",
+                                "type": "QString"
+                            }
+                        ],
+                        "name": "errorMessage",
+                        "returnType": "void"
+                    }
+                ],
+                "superClasses": [
+                    {
+                        "access": "public",
+                        "name": "QObject"
+                    }
+                ]
+            }
+        ],
+        "inputFile": "SerialBridge.h",
+        "outputRevision": 68
+    }
+]

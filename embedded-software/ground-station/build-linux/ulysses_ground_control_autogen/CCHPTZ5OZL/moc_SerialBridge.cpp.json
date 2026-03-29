@@ -1,0 +1,255 @@
+{
+    "classes": [
+        {
+            "className": "SerialBridge",
+            "methods": [
+                {
+                    "access": "public",
+                    "name": "refreshPorts",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "which",
+                            "type": "int"
+                        },
+                        {
+                            "name": "name",
+                            "type": "QString"
+                        },
+                        {
+                            "name": "baudRate",
+                            "type": "int"
+                        }
+                    ],
+                    "name": "connectPort",
+                    "returnType": "bool"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "which",
+                            "type": "int"
+                        }
+                    ],
+                    "name": "disconnectPort",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "which",
+                            "type": "int"
+                        }
+                    ],
+                    "name": "setTxTo",
+                    "returnType": "bool"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "which",
+                            "type": "int"
+                        }
+                    ],
+                    "name": "setRxFrom",
+                    "returnType": "bool"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "which",
+                            "type": "int"
+                        },
+                        {
+                            "name": "text",
+                            "type": "QString"
+                        }
+                    ],
+                    "name": "sendText",
+                    "returnType": "bool"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "which",
+                            "type": "int"
+                        },
+                        {
+                            "name": "data",
+                            "type": "QByteArray"
+                        }
+                    ],
+                    "name": "sendBinary",
+                    "returnType": "bool"
+                },
+                {
+                    "access": "public",
+                    "name": "ports",
+                    "returnType": "QStringList"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "which",
+                            "type": "int"
+                        }
+                    ],
+                    "name": "isConnected",
+                    "returnType": "bool"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "which",
+                            "type": "int"
+                        }
+                    ],
+                    "name": "portName",
+                    "returnType": "QString"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "which",
+                            "type": "int"
+                        }
+                    ],
+                    "name": "baudRate",
+                    "returnType": "int"
+                }
+            ],
+            "object": true,
+            "properties": [
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 0,
+                    "name": "ports",
+                    "notify": "portsChanged",
+                    "read": "ports",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "QStringList",
+                    "user": false
+                }
+            ],
+            "qualifiedClassName": "SerialBridge",
+            "signals": [
+                {
+                    "access": "public",
+                    "name": "portsChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "which",
+                            "type": "int"
+                        },
+                        {
+                            "name": "connected",
+                            "type": "bool"
+                        }
+                    ],
+                    "name": "connectedChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "which",
+                            "type": "int"
+                        }
+                    ],
+                    "name": "baudChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "which",
+                            "type": "int"
+                        }
+                    ],
+                    "name": "portNameChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "name": "rxFromChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "name": "txToChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "which",
+                            "type": "int"
+                        },
+                        {
+                            "name": "line",
+                            "type": "QString"
+                        }
+                    ],
+                    "name": "textReceivedFrom",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "which",
+                            "type": "int"
+                        },
+                        {
+                            "name": "packet",
+                            "type": "QByteArray"
+                        }
+                    ],
+                    "name": "binaryPacketReceived",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "msg",
+                            "type": "QString"
+                        }
+                    ],
+                    "name": "errorMessage",
+                    "returnType": "void"
+                }
+            ],
+            "superClasses": [
+                {
+                    "access": "public",
+                    "name": "QObject"
+                }
+            ]
+        }
+    ],
+    "inputFile": "SerialBridge.h",
+    "outputRevision": 68
+}

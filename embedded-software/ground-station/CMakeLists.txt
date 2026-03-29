@@ -71,6 +71,11 @@ qt_add_executable(ulysses_ground_control
     ${HDR_FILES}
 )
 
+set_target_properties(ulysses_ground_control
+    PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+)
+
 # ----------------------------------------------------------------------
 # QML module
 # ----------------------------------------------------------------------
