@@ -4,7 +4,7 @@
 
 #include <math.h>
 
-#define TOL (20) /**< Tolerance for PWM period comparisons */
+#define TOL (5) /**< Tolerance for PWM period comparisons */
 
 void test_pwm_zeroes(void)
 {
