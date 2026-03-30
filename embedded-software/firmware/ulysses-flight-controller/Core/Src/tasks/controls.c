@@ -30,16 +30,26 @@
 #define STALE_STATE_THRESHOLD_TICKS 100  /**< If state_seq unchanged for this many ticks, treat as stale and output safe (zero). */
 
 /* ── Startup test parameters ────────────────────────────────────────────── */
-#define SWEEP_RANGE_DEG   90.0f         /**< Servo sweep half-range (degrees). */
-#define SWEEP_STEP_DEG    1.0f          /**< Degrees per step. */
-#define SWEEP_STEP_MS     5             /**< Milliseconds between steps. */
-#define CIRCLE_RADIUS_DEG 72.0f         /**< Servo circle sweep radius (degrees). */
-#define CIRCLE_STEPS      72            /**< Steps per full revolution (5 deg each). */
-#define CIRCLE_STEP_MS    18            /**< Milliseconds between circle steps. */
-#define ESC_TEST_THRUST   (0.1f * 1200) /**< Motor test thrust (10%). */
-#define ESC_RAMP_STEPS    50            /**< Steps to ramp up/down. */
-#define ESC_RAMP_STEP_MS  10            /**< Milliseconds per ramp step. */
-#define ESC_HOLD_MS       500           /**< Hold at peak thrust (ms). */
+#define SWEEP_RANGE_DEG     90.0f         /**< Servo sweep half-range (degrees). */
+#define SWEEP_STEP_DEG      1.0f          /**< Degrees per step. */
+#define SWEEP_STEP_MS       5             /**< Milliseconds between steps. */
+#define CIRCLE_RADIUS_DEG   72.0f         /**< Servo circle sweep radius (degrees). */
+#define CIRCLE_STEPS        72            /**< Steps per full revolution (5 deg each). */
+#define CIRCLE_STEP_MS      18            /**< Milliseconds between circle steps. */
+#define ESC_TEST_THRUST     (0.1f * 1200) /**< Motor test thrust (10%). */
+#define ESC_RAMP_STEPS      50            /**< Steps to ramp up/down. */
+#define ESC_RAMP_STEP_MS    10            /**< Milliseconds per ramp step. */
+#define ESC_HOLD_MS         500           /**< Hold at peak thrust (ms). */
+#define ESC_STARTUP_TIME_MS (7000)        /**< Startup time for the ESC before usable */
+
+#define SERVO_MAX_DEGREES (25)
+#define SERVO_MIN_DEGREES (-25)
+
+// TODO: remove me later if not needed, this was used for
+// the Tesla networking event
+#define USE_CINEMATIC_STARTUP (false)
+
+static inline float clampf(float value, float minimum, float maximum);
 
 /** Fill config with default gains and limits (tune in use). */
 static void init_default_config(flight_controller_config_t *cfg)
@@ -206,7 +216,7 @@ static void run_startup_actuator_test(void)
 
     /* ── Motor test ── */
     esc_pair_arm();
-    osDelay(7000);
+    osDelay(ESC_STARTUP_TIME_MS);
 
     DLOG_PRINT("[CTRL] Motor 1 ramp\r\n");
     ramp_motor(0);
@@ -245,7 +255,17 @@ void controls_task_start(void *argument)
     init_default_ref(&ref);
 
     /* Run cinematic startup test before entering the control loop. */
-    run_startup_actuator_test();
+    if (USE_CINEMATIC_STARTUP) {
+        run_startup_actuator_test();
+    } else {
+        servo_pair_enable(true);
+        set_servo_pair_degrees(0.0f, 0.0f);
+
+        esc_pair_set_armed(true);
+        osDelay(ESC_STARTUP_TIME_MS);
+
+        state_exchange_publish_startup_test_complete(true);
+    }
 
     for (;;) {
         /* Block until TIM4 CH2 output-compare ISR fires (see timing.c) */
@@ -263,8 +283,6 @@ void controls_task_start(void *argument)
             esc_pair_disarm();
             esc_running = false;
             esc_arm_tick = 0;
-
-            run_startup_actuator_test();
 
             flight_controller_init(&config);
             config_done = 1;
@@ -310,11 +328,12 @@ void controls_task_start(void *argument)
         // bool state_stale = (stale_tick_count >= STALE_STATE_THRESHOLD_TICKS);
 
         /* Do not run controller unless armed with valid state. */
-        if (!armed || state_seq == 0 ){//|| state_stale) {
+        if (!armed || state_seq == 0) { //|| state_stale) {
             memset(&control_output, 0, sizeof(control_output));
         } else {
             flight_controller_run(&current_state, &ref, &config, &control_output, CONTROLS_DT_S);
         }
+
         state_exchange_publish_control_output(&control_output);
 
         /* Log control output at 100 Hz (every 8th 800-Hz cycle). */
@@ -339,44 +358,22 @@ void controls_task_start(void *argument)
             });
         }
 
-        if (armed) {
-            set_servo_pair_degrees(control_output.theta_x_cmd, control_output.theta_y_cmd);
+        if (armed && flight_state == RISE) {
+            // Limit the range of the servo since anymore may result in the propellers hitting
+            // the landing legs
+            float theta_x_cmd_clamped = clampf(control_output.theta_x_cmd, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
+            float theta_y_cmd_clamped = clampf(control_output.theta_y_cmd, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
+
+            set_servo_pair_degrees(-theta_y_cmd_clamped, -theta_x_cmd_clamped);
             esc_pair_set_force(control_output.T_cmd, control_output.tau_thrust);
+        } else {
+            set_servo_pair_degrees(0.0, 0.0);
+            esc_pair_set_force(0.0, 0.0);
         }
-
-        // /* Drive actuators only when armed. */
-        // if (armed) {
-        //     /* Gimbal locked out post-startup: hold centre and keep disabled. */
-        //     set_servo_pair_degrees(0.0f, 0.0f);
-        //     servo_pair_enable(false);
-
-        //     /* ESC: arm once on RISE entry, hold min throttle for the same
-        //      * 7 s init window the startup sequence uses, then run at 10%.
-        //      * Disarm once on exit. */
-        //     if (flight_state == RISE) {
-        //         if (!esc_running) {
-        //             esc_pair_arm();
-        //             esc_arm_tick = HAL_GetTick();
-        //             esc_running = true;
-        //         }
-        //         if ((HAL_GetTick() - esc_arm_tick) >= 7000UL) {
-        //             esc_pair_set_force(0.10f, 0.10f);
-        //         }
-        //     } else {
-        //         if (esc_running) {
-        //             esc_pair_set_force(0.0f, 0.0f);
-        //             esc_pair_disarm();
-        //             esc_running = false;
-        //         }
-        //     }
-        // } else {
-        //     set_servo_pair_degrees(0.0f, 0.0f);
-        //     servo_pair_enable(false);
-        //     if (esc_running) {
-        //         esc_pair_set_force(0.0f, 0.0f);
-        //         esc_pair_disarm();
-        //         esc_running = false;
-        //     }
-        // }
     }
+}
+
+static inline float clampf(float value, float minimum, float maximum)
+{
+    return fminf(fmaxf(value, minimum), maximum);
 }
