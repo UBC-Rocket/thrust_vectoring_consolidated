@@ -69,6 +69,10 @@ qt_add_executable(ulysses_ground_control
     ${HDR_FILES}
 )
 
+if(UNIX AND NOT APPLE)
+    set_target_properties(ulysses_ground_control PROPERTIES OUTPUT_NAME ulysses_gcs)
+endif()
+
 # ----------------------------------------------------------------------
 # QML module
 # ----------------------------------------------------------------------
