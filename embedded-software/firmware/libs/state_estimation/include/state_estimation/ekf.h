@@ -103,6 +103,7 @@ typedef struct {
  */
 typedef struct {
     float q_nom[4];                        /**< Nominal quaternion [w,x,y,z] */
+    float yaw_nom;                         /**< Separately tracked yaw [rad] */
     float b_gyro[ESKF_MAX_IMUS][3];        /**< Per-IMU gyro bias [rad/s] */
     float b_accel[ESKF_MAX_IMUS][3];       /**< Per-IMU accel bias [g] */
     uint8_t num_imus;                      /**< Number of active IMUs */
@@ -147,6 +148,7 @@ typedef struct {
 
     uint64_t last_gyro_ts;     /**< Persists between eskf_process calls */
     uint64_t last_accel_ts;    /**< Persists between eskf_process calls */
+    float last_gyro_norm[ESKF_MAX_IMUS]; /**< Latest gyro norm [rad/s] per IMU */
 } eskf_t;
 
 /* ========================================================================
