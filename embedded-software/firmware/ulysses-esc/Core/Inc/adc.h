@@ -37,7 +37,7 @@ extern ADC_HandleTypeDef hadc1;
 extern ADC_HandleTypeDef hadc2;
 
 /* USER CODE BEGIN Private defines */
-
+extern volatile uint16_t adc_dma_buffer[3];
 /* USER CODE END Private defines */
 
 void MX_ADC1_Init(void);

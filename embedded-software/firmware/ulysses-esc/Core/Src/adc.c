@@ -21,7 +21,7 @@
 #include "adc.h"
 
 /* USER CODE BEGIN 0 */
-
+volatile uint16_t adc_dma_buffer[3] = {0};
 /* USER CODE END 0 */
 
 ADC_HandleTypeDef hadc1;
