@@ -45,10 +45,6 @@
 #define SERVO_MAX_DEGREES (25)
 #define SERVO_MIN_DEGREES (-25)
 
-// TODO: remove me later if not needed, this was used for
-// the Tesla networking event
-#define USE_CINEMATIC_STARTUP (false)
-
 static inline float clampf(float value, float minimum, float maximum);
 
 /** Fill config with default gains and limits (tune in use). */
@@ -97,139 +93,6 @@ static void init_default_ref(flight_controller_ref_t *ref)
     ref->vz_ref = 0.0f;
 }
 
-/* ── Startup actuator test ────────────────────────────────────────────── */
-
-/** Sweep a single servo through center → +max → center → -max → center. */
-static void sweep_servo(int servo_index)
-{
-    const int steps = (int)(SWEEP_RANGE_DEG / SWEEP_STEP_DEG);
-
-    /* center → +max */
-    for (int i = 0; i <= steps; i++) {
-        float angle = SWEEP_STEP_DEG * (float)i;
-        if (servo_index == 0)
-            set_servo_pair_degrees(angle, 0.0f);
-        else
-            set_servo_pair_degrees(0.0f, angle);
-        osDelay(SWEEP_STEP_MS);
-    }
-
-    /* +max → center */
-    for (int i = steps; i >= 0; i--) {
-        float angle = SWEEP_STEP_DEG * (float)i;
-        if (servo_index == 0)
-            set_servo_pair_degrees(angle, 0.0f);
-        else
-            set_servo_pair_degrees(0.0f, angle);
-        osDelay(SWEEP_STEP_MS);
-    }
-
-    /* center → -max */
-    for (int i = 0; i <= steps; i++) {
-        float angle = -SWEEP_STEP_DEG * (float)i;
-        if (servo_index == 0)
-            set_servo_pair_degrees(angle, 0.0f);
-        else
-            set_servo_pair_degrees(0.0f, angle);
-        osDelay(SWEEP_STEP_MS);
-    }
-
-    /* -max → center */
-    for (int i = steps; i >= 0; i--) {
-        float angle = -SWEEP_STEP_DEG * (float)i;
-        if (servo_index == 0)
-            set_servo_pair_degrees(angle, 0.0f);
-        else
-            set_servo_pair_degrees(0.0f, angle);
-        osDelay(SWEEP_STEP_MS);
-    }
-}
-
-/** Trace one full clockwise circle with both servos simultaneously. */
-static void sweep_circle(void)
-{
-    for (int i = 0; i <= CIRCLE_STEPS; i++) {
-        float angle_rad = (2.0f * 3.14159265f * (float)i) / (float)CIRCLE_STEPS;
-        float x = CIRCLE_RADIUS_DEG * cosf(angle_rad);
-        float y = CIRCLE_RADIUS_DEG * sinf(angle_rad);
-        set_servo_pair_degrees(x, y);
-        osDelay(CIRCLE_STEP_MS);
-    }
-    /* Return to centre */
-    set_servo_pair_degrees(0.0f, 0.0f);
-    osDelay(50);
-}
-
-/** Smooth ramp a single motor: 0 → peak → hold → 0. */
-static void ramp_motor(int motor_index)
-{
-    /* Ramp up */
-    for (int i = 0; i <= ESC_RAMP_STEPS; i++) {
-        float t = ESC_TEST_THRUST * (float)i / (float)ESC_RAMP_STEPS;
-
-        esc_pair_set_force(t, 0.0f);
-
-        osDelay(ESC_RAMP_STEP_MS);
-    }
-
-    /* Hold */
-    osDelay(ESC_HOLD_MS);
-
-    /* Ramp down */
-    for (int i = ESC_RAMP_STEPS; i >= 0; i--) {
-        float t = ESC_TEST_THRUST * (float)i / (float)ESC_RAMP_STEPS;
-
-        esc_pair_set_force(t, 0.0f);
-
-        osDelay(ESC_RAMP_STEP_MS);
-    }
-}
-
-/**
- * @brief Run the startup actuator test sequence.
- *
- * Sweeps each servo through its full range one at a time, then briefly
- * spins each motor up to ESC_TEST_THRUST and back.  Total duration ~8 s.
- * The TIM4 ISR is already applying servo/ESC values in the background.
- */
-static void run_startup_actuator_test(void)
-{
-    DLOG_PRINT("[CTRL] Startup actuator test begin\r\n");
-
-    /* ── Servo test ── */
-    servo_pair_enable(true);
-    set_servo_pair_degrees(0.0f, 0.0f);
-
-    DLOG_PRINT("[CTRL] Servo 1 sweep\r\n");
-    sweep_servo(0);
-
-    DLOG_PRINT("[CTRL] Servo 2 sweep\r\n");
-    sweep_servo(1);
-
-    DLOG_PRINT("[CTRL] Servo circle\r\n");
-    sweep_circle();
-
-    /* Return to center and disable */
-    set_servo_pair_degrees(0.0f, 0.0f);
-    osDelay(50);
-    servo_pair_enable(false);
-
-    /* ── Motor test ── */
-    esc_pair_arm();
-    osDelay(ESC_STARTUP_TIME_MS);
-
-    DLOG_PRINT("[CTRL] Motor 1 ramp\r\n");
-    ramp_motor(0);
-
-    /* Shut down */
-    esc_pair_set_force(0.0f, 0.0f);
-    osDelay(50);
-    esc_pair_disarm();
-
-    DLOG_PRINT("[CTRL] Startup actuator test complete\r\n");
-    state_exchange_publish_startup_test_complete(true);
-}
-
 /* ── Task entry ───────────────────────────────────────────────────────── */
 
 /**
@@ -254,18 +117,13 @@ void controls_task_start(void *argument)
     init_default_config(&config);
     init_default_ref(&ref);
 
-    /* Run cinematic startup test before entering the control loop. */
-    if (USE_CINEMATIC_STARTUP) {
-        run_startup_actuator_test();
-    } else {
-        servo_pair_enable(true);
-        set_servo_pair_degrees(0.0f, 0.0f);
+    servo_pair_enable(true);
+    set_servo_pair_degrees(0.0f, 0.0f);
 
-        esc_pair_set_armed(true);
-        osDelay(ESC_STARTUP_TIME_MS);
+    esc_pair_set_armed(true);
+    osDelay(ESC_STARTUP_TIME_MS);
 
-        state_exchange_publish_startup_test_complete(true);
-    }
+    state_exchange_publish_startup_test_complete(true);
 
     for (;;) {
         /* Block until TIM4 CH2 output-compare ISR fires (see timing.c) */
