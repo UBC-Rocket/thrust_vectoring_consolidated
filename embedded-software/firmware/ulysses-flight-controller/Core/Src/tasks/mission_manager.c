@@ -19,6 +19,7 @@
 #include "status.pb.h"
 #include "common.pb.h"
 #include "rp/codec.h"
+#include "timestamp.h"
 
 #define TELEMETRY_INTERVAL_MS 100   /* 10 Hz */
 #define STATUS_INTERVAL_MS    1000  /* 1 Hz */
@@ -154,7 +155,7 @@ static void handle_pid_gains(const tvr_SetPidGains *pid) {
     }
 
     log_service_log_pid_gains(&(log_record_pid_gains_t){
-        .timestamp_us = (uint32_t)HAL_GetTick() * 1000U,
+        .timestamp_us = timestamp_us(),
         .has_attitude_kp = pid->has_attitude_kp,
         .attitude_kp_x = pid->has_attitude_kp ? pid->attitude_kp.x : 0.0f,
         .attitude_kp_y = pid->has_attitude_kp ? pid->attitude_kp.y : 0.0f,
@@ -168,6 +169,8 @@ static void handle_pid_gains(const tvr_SetPidGains *pid) {
         .z_kd = pid->z_kd,
         .z_integral_limit = pid->z_integral_limit,
     });
+
+    state_exchange_publish_pid_gains(*pid);
 }
 
 static void handle_reference(const tvr_SetReference *reference) {
@@ -176,7 +179,7 @@ static void handle_reference(const tvr_SetReference *reference) {
     }
 
     log_service_log_reference(&(log_record_reference_t){
-        .timestamp_us = (uint32_t)HAL_GetTick() * 1000U,
+        .timestamp_us = timestamp_us(),
         .z_ref = reference->z_ref,
         .vz_ref = reference->vz_ref,
         .has_q_ref = reference->has_q_ref,
@@ -185,6 +188,8 @@ static void handle_reference(const tvr_SetReference *reference) {
         .q_ref_y = reference->has_q_ref ? reference->q_ref.y : 0.0f,
         .q_ref_z = reference->has_q_ref ? reference->q_ref.z : 0.0f,
     });
+
+    state_exchange_publish_flight_reference(*reference);
 }
 
 static void handle_configuration(const tvr_SetConfig *configuration) {
@@ -193,13 +198,15 @@ static void handle_configuration(const tvr_SetConfig *configuration) {
     }
 
     log_service_log_configuration(&(log_record_configuration_t){
-        .timestamp_us = (uint32_t)HAL_GetTick() * 1000U,
+        .timestamp_us = timestamp_us(),
         .mass = configuration->mass,
         .T_min = configuration->T_min,
         .T_max = configuration->T_max,
         .theta_min = configuration->theta_min,
         .theta_max = configuration->theta_max,
     });
+
+    state_exchange_publish_vehicle_config(*configuration);
 }
 
 static void handle_state_command(const tvr_StateCommand *cmd,
@@ -208,35 +215,37 @@ static void handle_state_command(const tvr_StateCommand *cmd,
         case tvr_StateCommand_Type_CMD_ARM:
         {
             if (*flight_state == IDLE) {
-                /* Disarm and invalidate the previous test so the controls task
-                 * re-runs the full startup sequence before going live. */
-                state_exchange_publish_armed(false);
-                state_exchange_publish_startup_test_complete(false);
-                state_exchange_publish_rearm_request(true);
+                state_exchange_publish_armed(true);
                 DLOG_PRINT("[MM] ARM: rearm sequence requested\r\n");
             } else {
-                DLOG_PRINT("[MM] ARM rejected: flight_state=%d\r\n",
-                           (int)*flight_state);
+                DLOG_PRINT("[MM] ARM rejected: flight_state=%d\r\n", (int)*flight_state);
             }
             break;
         }
 
         case tvr_StateCommand_Type_CMD_LAUNCH:
+        {
             if (*flight_state == IDLE) {
                 *flight_state = RISE;
             }
             break;
+        }
 
         case tvr_StateCommand_Type_CMD_ABORT:
+        {
             *flight_state = IDLE;
+            state_exchange_publish_armed(false);
             DLOG_PRINT("[MM] Abort: ESC off, flight_state -> IDLE\r\n");
             break;
+        }
 
         case tvr_StateCommand_Type_CMD_LAND:
+        {
             if (*flight_state == HOVER) {
                 *flight_state = LOWER;
             }
             break;
+        }
 
         case tvr_StateCommand_Type_CMD_NONE:
         default:

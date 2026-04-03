@@ -2,7 +2,9 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+
 #include "motor_drivers/pwm_output.h"
+#include "controls/pwm.h"
 
 #define ESC_PWM_MIN_US 1000U
 #define ESC_PWM_MAX_US 2000U
@@ -13,7 +15,6 @@
 typedef struct {
     pwm_output_t pwm;
 
-    float desired_thrust;
     uint16_t desired_pulse_us;
     volatile uint32_t desired_pulse_ticks;
 
@@ -23,18 +24,22 @@ typedef struct {
 } esc_t;
 
 typedef struct {
-    esc_t esc1;
-    esc_t esc2;
+    bool initialized;
+
+    esc_t esc_upper;
+    esc_t esc_lower;
+
+    float thrust;
+    float torque;
 } esc_pair_t;
 
-void ESC_init(esc_t *esc, const pwm_output_t *pwm);
-void ESC_arm(esc_t *esc);
-void ESC_disarm(esc_t *esc);
-void ESC_set_thrust(esc_t *esc, float thrust);
-void ESC_apply(esc_t *esc);
+void esc_pair_init(const pwm_output_t *pwm_upper, const pwm_output_t *pwm_lower);
+void esc_pair_set_armed(bool armed);
+void esc_pair_arm(void);
+void esc_pair_disarm(void);
+void esc_pair_set_force(float thrust, float torque);
+void esc_pair_apply(void);
 
-void ESC_pair_init(const pwm_output_t *pwm1, const pwm_output_t *pwm2);
-void ESC_pair_arm(void);
-void ESC_pair_disarm(void);
-void ESC_set_pair_thrust(float thrust1, float thrust2);
-void ESC_apply_pair(void);
+#if (ESC_PWM_MIN_US != PWM_MIN_PERIOD_US) || (ESC_PWM_MAX_US != PWM_MAX_PERIOD_US)
+#error "Mismatch between ESC and PWM mapping. Ensure a correct mapping is used for the current ESC."
+#endif

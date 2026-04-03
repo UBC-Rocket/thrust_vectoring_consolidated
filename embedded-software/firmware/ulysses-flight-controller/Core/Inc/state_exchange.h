@@ -10,6 +10,7 @@
 #include "state_estimation/state.h"
 #include "mission_manager/mission_manager.h"
 #include "controls/flight_controller.h"
+#include "command.pb.h"
 
 /**
  * @brief Initialise synchronization primitives for state sharing.
@@ -101,5 +102,47 @@ uint32_t state_exchange_publish_rearm_request(bool requested);
  * @return Sequence number associated with the returned value.
  */
 uint32_t state_exchange_get_rearm_request(bool *requested_out);
+
+/**
+ * @brief Publish the new PID gains to be used.
+ * @param pid_gains New PID gains.
+ * @return Monotonic sequence number after publish.
+ */
+uint32_t state_exchange_publish_pid_gains(tvr_SetPidGains pid_gains);
+
+/**
+ * @brief Copy the PID gains.
+ * @param pid_gains_out Destination pointer (optional).
+ * @return Sequence number associated with the returned value.
+ */
+uint32_t state_exchange_get_pid_gains(tvr_SetPidGains *pid_gains_out);
+
+/**
+ * @brief Publish the new physical vehicle configuration to be used.
+ * @param config New vehicle configuration.
+ * @return Monotonic sequence number after publish.
+ */
+uint32_t state_exchange_publish_vehicle_config(tvr_SetConfig config);
+
+/**
+ * @brief Copy the physical vehicle configuration.
+ * @param config_out Destination pointer (optional).
+ * @return Sequence number associated with the returned value.
+ */
+uint32_t state_exchange_get_vehicle_config(tvr_SetConfig *config_out);
+
+/**
+ * @brief Publish the new flight reference to be used.
+ * @param reference New flight reference.
+ * @return Monotonic sequence number after publish.
+ */
+uint32_t state_exchange_publish_flight_reference(tvr_SetReference reference);
+
+/**
+ * @brief Copy the flight reference.
+ * @param reference_out Destination pointer (optional).
+ * @return Sequence number associated with the returned value.
+ */
+uint32_t state_exchange_get_flight_reference(tvr_SetReference *reference_out);
 
 #endif /* STATE_EXCHANGE_H */

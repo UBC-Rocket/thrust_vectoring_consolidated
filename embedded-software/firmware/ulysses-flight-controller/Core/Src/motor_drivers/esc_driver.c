@@ -1,24 +1,31 @@
 #include "motor_drivers/esc_driver.h"
 
 #include <stddef.h>
+#include <stdint.h>
 
-static float clamp_f32(float x, float lo, float hi);
-static uint16_t thrust_to_us(float thrust);
+#include "controls/pwm.h"
+#include "motor_drivers/pwm_output.h"
 
 static esc_pair_t g_esc_pair;
-static volatile bool g_esc_pair_ready = false;
 
-/* ---- Init / arm / disarm ----------------------------------------------- */
+static void esc_init(esc_t *esc, const pwm_output_t *pwm);
+static void esc_arm(esc_t *esc);
+static void esc_disarm(esc_t *esc);
+static void esc_set_pwm_pulse_us(esc_t *esc, uint16_t pulse_us);
+static uint32_t esc_pwm_us_to_ticks(esc_t *esc, uint16_t pulse_us);
+static void esc_apply(esc_t *esc);
 
-void ESC_init(esc_t *esc, const pwm_output_t *pwm) {
+/* ---- Single ESC API ----------------------------------------------- */
+
+static void esc_init(esc_t *esc, const pwm_output_t *pwm)
+{
     if (esc == NULL || pwm == NULL || pwm->htim == NULL) {
         return;
     }
 
     esc->pwm = *pwm;
-    esc->desired_thrust = 0.0f;
     esc->desired_pulse_us = ESC_PWM_MIN_US;
-    esc->desired_pulse_ticks = pwm_clamp_ticks(&esc->pwm, pwm_us_to_ticks(&esc->pwm, ESC_PWM_MIN_US));
+    esc->desired_pulse_ticks = esc_pwm_us_to_ticks(esc, esc->desired_pulse_us);
     esc->update_divider_counter = 0U;
     esc->initialized = true;
     esc->armed = false;
@@ -27,45 +34,53 @@ void ESC_init(esc_t *esc, const pwm_output_t *pwm) {
     pwm_set_compare(&esc->pwm, esc->desired_pulse_ticks);
 }
 
-void ESC_arm(esc_t *esc) {
+static void esc_arm(esc_t *esc)
+{
     if (esc == NULL || !esc->initialized) {
         return;
     }
-    (void)HAL_TIM_PWM_Start(esc->pwm.htim, esc->pwm.channel);
+
     esc->armed = true;
+
+    (void)HAL_TIM_PWM_Start(esc->pwm.htim, esc->pwm.channel);
 }
 
-void ESC_disarm(esc_t *esc) {
+static void esc_disarm(esc_t *esc)
+{
     if (esc == NULL || !esc->initialized) {
         return;
     }
+
     esc->armed = false;
-    esc->desired_thrust = 0.0f;
     esc->desired_pulse_us = ESC_PWM_MIN_US;
-    esc->desired_pulse_ticks = pwm_clamp_ticks(&esc->pwm, pwm_us_to_ticks(&esc->pwm, ESC_PWM_MIN_US));
+    esc->desired_pulse_ticks = esc_pwm_us_to_ticks(esc, esc->desired_pulse_us);
+
     pwm_set_compare(&esc->pwm, esc->desired_pulse_ticks);
+
     (void)HAL_TIM_PWM_Stop(esc->pwm.htim, esc->pwm.channel);
 }
 
-/* ---- Task-level API ---------------------------------------------------- */
-
-void ESC_set_thrust(esc_t *esc, float thrust) {
+static void esc_set_pwm_pulse_us(esc_t *esc, uint16_t pulse_us)
+{
     if (esc == NULL || !esc->initialized || !esc->armed) {
         return;
     }
 
-    float clamped = clamp_f32(thrust, 0.0f, 1.0f);
-    uint16_t pulse_us = thrust_to_us(clamped);
-    uint32_t pulse_ticks = pwm_clamp_ticks(&esc->pwm, pwm_us_to_ticks(&esc->pwm, pulse_us));
+    uint32_t pulse_ticks = esc_pwm_us_to_ticks(esc, pulse_us);
 
-    esc->desired_thrust = clamped;
     esc->desired_pulse_us = pulse_us;
     esc->desired_pulse_ticks = pulse_ticks;
 }
 
+static uint32_t esc_pwm_us_to_ticks(esc_t *esc, uint16_t pulse_us)
+{
+    return pwm_clamp_ticks(&esc->pwm, pwm_us_to_ticks(&esc->pwm, pulse_us));
+}
+
 /* ---- ISR-level API ----------------------------------------------------- */
 
-void ESC_apply(esc_t *esc) {
+static void esc_apply(esc_t *esc)
+{
     if (esc == NULL || !esc->initialized || !esc->armed) {
         return;
     }
@@ -79,56 +94,69 @@ void ESC_apply(esc_t *esc) {
     pwm_set_compare(&esc->pwm, esc->desired_pulse_ticks);
 }
 
-/* ---- Pair wrappers ----------------------------------------------------- */
+/* ---- ESC Pair API ----------------------------------------------------- */
 
-void ESC_pair_init(const pwm_output_t *pwm1, const pwm_output_t *pwm2) {
-    ESC_init(&g_esc_pair.esc1, pwm1);
-    ESC_init(&g_esc_pair.esc2, pwm2);
-    g_esc_pair_ready = true;
+void esc_pair_init(const pwm_output_t *pwm_upper, const pwm_output_t *pwm_lower)
+{
+    esc_init(&g_esc_pair.esc_upper, pwm_upper);
+    esc_init(&g_esc_pair.esc_lower, pwm_lower);
+
+    g_esc_pair.thrust = 0.0f;
+    g_esc_pair.torque = 0.0f;
+
+    g_esc_pair.initialized = true;
 }
 
-void ESC_pair_arm(void) {
-    if (!g_esc_pair_ready) {
+void esc_pair_set_armed(bool armed)
+{
+    if (armed) {
+        esc_pair_arm();
+    } else {
+        esc_pair_disarm();
+    }
+}
+
+void esc_pair_arm(void)
+{
+    if (!g_esc_pair.initialized) {
         return;
     }
-    ESC_arm(&g_esc_pair.esc1);
-    ESC_arm(&g_esc_pair.esc2);
+
+    esc_arm(&g_esc_pair.esc_upper);
+    esc_arm(&g_esc_pair.esc_lower);
 }
 
-void ESC_pair_disarm(void) {
-    if (!g_esc_pair_ready) {
+void esc_pair_disarm(void)
+{
+    if (!g_esc_pair.initialized) {
         return;
     }
-    ESC_disarm(&g_esc_pair.esc1);
-    ESC_disarm(&g_esc_pair.esc2);
+
+    esc_disarm(&g_esc_pair.esc_upper);
+    esc_disarm(&g_esc_pair.esc_lower);
 }
 
-void ESC_set_pair_thrust(float thrust1, float thrust2) {
-    if (!g_esc_pair_ready) {
+void esc_pair_set_force(float thrust, float torque)
+{
+    if (!g_esc_pair.initialized) {
         return;
     }
-    ESC_set_thrust(&g_esc_pair.esc1, thrust1);
-    ESC_set_thrust(&g_esc_pair.esc2, thrust2);
+
+    g_esc_pair.thrust = thrust;
+    g_esc_pair.torque = torque;
+
+    pwm_setpoint_t pulses = pwm_setpoint_from_forces(thrust, torque);
+
+    esc_set_pwm_pulse_us(&g_esc_pair.esc_upper, pulses.upper_motor_us);
+    esc_set_pwm_pulse_us(&g_esc_pair.esc_lower, pulses.lower_motor_us);
 }
 
-void ESC_apply_pair(void) {
-    if (!g_esc_pair_ready) {
+void esc_pair_apply(void)
+{
+    if (!g_esc_pair.initialized) {
         return;
     }
-    ESC_apply(&g_esc_pair.esc1);
-    ESC_apply(&g_esc_pair.esc2);
-}
 
-/* ---- Static helpers ---------------------------------------------------- */
-
-static float clamp_f32(float x, float lo, float hi) {
-    if (x < lo) return lo;
-    if (x > hi) return hi;
-    return x;
-}
-
-static uint16_t thrust_to_us(float thrust) {
-    float clamped = clamp_f32(thrust, 0.0f, 1.0f);
-    float us = (float)ESC_PWM_MIN_US + clamped * (float)(ESC_PWM_MAX_US - ESC_PWM_MIN_US);
-    return (uint16_t)(us + 0.5f);
+    esc_apply(&g_esc_pair.esc_upper);
+    esc_apply(&g_esc_pair.esc_lower);
 }
