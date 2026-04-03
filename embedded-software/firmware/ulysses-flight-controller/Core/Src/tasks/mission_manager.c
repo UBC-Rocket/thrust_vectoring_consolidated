@@ -19,6 +19,7 @@
 #include "status.pb.h"
 #include "common.pb.h"
 #include "rp/codec.h"
+#include "timestamp.h"
 
 #define TELEMETRY_INTERVAL_MS 100   /* 10 Hz */
 #define STATUS_INTERVAL_MS    1000  /* 1 Hz */
@@ -154,7 +155,7 @@ static void handle_pid_gains(const tvr_SetPidGains *pid) {
     }
 
     log_service_log_pid_gains(&(log_record_pid_gains_t){
-        .timestamp_us = (uint32_t)HAL_GetTick() * 1000U,
+        .timestamp_us = timestamp_us(),
         .has_attitude_kp = pid->has_attitude_kp,
         .attitude_kp_x = pid->has_attitude_kp ? pid->attitude_kp.x : 0.0f,
         .attitude_kp_y = pid->has_attitude_kp ? pid->attitude_kp.y : 0.0f,
@@ -176,7 +177,7 @@ static void handle_reference(const tvr_SetReference *reference) {
     }
 
     log_service_log_reference(&(log_record_reference_t){
-        .timestamp_us = (uint32_t)HAL_GetTick() * 1000U,
+        .timestamp_us = timestamp_us(),
         .z_ref = reference->z_ref,
         .vz_ref = reference->vz_ref,
         .has_q_ref = reference->has_q_ref,
@@ -193,7 +194,7 @@ static void handle_configuration(const tvr_SetConfig *configuration) {
     }
 
     log_service_log_configuration(&(log_record_configuration_t){
-        .timestamp_us = (uint32_t)HAL_GetTick() * 1000U,
+        .timestamp_us = timestamp_us(),
         .mass = configuration->mass,
         .T_min = configuration->T_min,
         .T_max = configuration->T_max,
@@ -222,21 +223,27 @@ static void handle_state_command(const tvr_StateCommand *cmd,
         }
 
         case tvr_StateCommand_Type_CMD_LAUNCH:
+        {
             if (*flight_state == IDLE) {
                 *flight_state = RISE;
             }
             break;
+        }
 
         case tvr_StateCommand_Type_CMD_ABORT:
+        {
             *flight_state = IDLE;
             DLOG_PRINT("[MM] Abort: ESC off, flight_state -> IDLE\r\n");
             break;
+        }
 
         case tvr_StateCommand_Type_CMD_LAND:
+        {
             if (*flight_state == HOVER) {
                 *flight_state = LOWER;
             }
             break;
+        }
 
         case tvr_StateCommand_Type_CMD_NONE:
         default:
