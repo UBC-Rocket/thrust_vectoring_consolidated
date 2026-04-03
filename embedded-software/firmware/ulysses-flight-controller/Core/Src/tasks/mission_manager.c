@@ -169,6 +169,8 @@ static void handle_pid_gains(const tvr_SetPidGains *pid) {
         .z_kd = pid->z_kd,
         .z_integral_limit = pid->z_integral_limit,
     });
+
+    state_exchange_publish_pid_gains(*pid);
 }
 
 static void handle_reference(const tvr_SetReference *reference) {
@@ -186,6 +188,8 @@ static void handle_reference(const tvr_SetReference *reference) {
         .q_ref_y = reference->has_q_ref ? reference->q_ref.y : 0.0f,
         .q_ref_z = reference->has_q_ref ? reference->q_ref.z : 0.0f,
     });
+
+    state_exchange_publish_flight_reference(*reference);
 }
 
 static void handle_configuration(const tvr_SetConfig *configuration) {
@@ -201,6 +205,8 @@ static void handle_configuration(const tvr_SetConfig *configuration) {
         .theta_min = configuration->theta_min,
         .theta_max = configuration->theta_max,
     });
+
+    state_exchange_publish_vehicle_config(*configuration);
 }
 
 static void handle_state_command(const tvr_StateCommand *cmd,
@@ -209,15 +215,10 @@ static void handle_state_command(const tvr_StateCommand *cmd,
         case tvr_StateCommand_Type_CMD_ARM:
         {
             if (*flight_state == IDLE) {
-                /* Disarm and invalidate the previous test so the controls task
-                 * re-runs the full startup sequence before going live. */
-                state_exchange_publish_armed(false);
-                state_exchange_publish_startup_test_complete(false);
-                state_exchange_publish_rearm_request(true);
+                state_exchange_publish_armed(true);
                 DLOG_PRINT("[MM] ARM: rearm sequence requested\r\n");
             } else {
-                DLOG_PRINT("[MM] ARM rejected: flight_state=%d\r\n",
-                           (int)*flight_state);
+                DLOG_PRINT("[MM] ARM rejected: flight_state=%d\r\n", (int)*flight_state);
             }
             break;
         }
@@ -233,6 +234,7 @@ static void handle_state_command(const tvr_StateCommand *cmd,
         case tvr_StateCommand_Type_CMD_ABORT:
         {
             *flight_state = IDLE;
+            state_exchange_publish_armed(false);
             DLOG_PRINT("[MM] Abort: ESC off, flight_state -> IDLE\r\n");
             break;
         }
