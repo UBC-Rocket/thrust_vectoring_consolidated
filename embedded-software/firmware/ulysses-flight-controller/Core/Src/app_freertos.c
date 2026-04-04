@@ -54,15 +54,13 @@ const osThreadAttr_t DebugLoggingTask_attributes = {
 };
 #endif // ULYSSES_ENABLE_DEBUG_LOGGING
 
-#ifdef DEBUG
-osThreadId_t TraceFlushTaskHandle;
-const osThreadAttr_t TraceFlushTask_attributes = {
-  .name = "TraceFlush",
-  .priority = (osPriority_t) osPriorityLow,
-  .stack_size = 512 * 4,
+osThreadId_t SdFlushTaskHandle;
+const osThreadAttr_t SdFlushTask_attributes = {
+  .name = "SdFlush",
+  .priority = (osPriority_t) osPriorityAboveNormal,
+  .stack_size = 256 * 4,
 };
-extern void trace_flush_task_start(void *argument);
-#endif // DEBUG
+extern void sd_flush_task_start(void *argument);
 
 /* USER CODE END Variables */
 /* Definitions for MissionManager */
@@ -121,26 +119,29 @@ void MX_FREERTOS_Init(void) {
   /* creation of MissionManager */
   MissionManagerHandle = osThreadNew(mission_manager_task_start, NULL, &MissionManager_attributes);
   crash_dump_register_task((TaskHandle_t)MissionManagerHandle);
+  vTaskSetTaskNumber((TaskHandle_t)MissionManagerHandle, 1);
 
   /* creation of Controls */
   ControlsHandle = osThreadNew(controls_task_start, NULL, &Controls_attributes);
   crash_dump_register_task((TaskHandle_t)ControlsHandle);
+  vTaskSetTaskNumber((TaskHandle_t)ControlsHandle, 2);
 
   /* creation of StateEstimation */
   StateEstimationHandle = osThreadNew(state_estimation_task_start, NULL, &StateEstimation_attributes);
   crash_dump_register_task((TaskHandle_t)StateEstimationHandle);
+  vTaskSetTaskNumber((TaskHandle_t)StateEstimationHandle, 3);
 
   /* USER CODE BEGIN RTOS_THREADS */
 
 #ifdef ULYSSES_ENABLE_DEBUG_LOGGING
   DebugLoggingTaskHandle = osThreadNew(debug_logging_task_start, NULL, &DebugLoggingTask_attributes);
   crash_dump_register_task((TaskHandle_t)DebugLoggingTaskHandle);
+  vTaskSetTaskNumber((TaskHandle_t)DebugLoggingTaskHandle, 4);
 #endif // ULYSSES_ENABLE_DEBUG_LOGGING
 
-#ifdef DEBUG
-  TraceFlushTaskHandle = osThreadNew(trace_flush_task_start, NULL, &TraceFlushTask_attributes);
-  crash_dump_register_task((TaskHandle_t)TraceFlushTaskHandle);
-#endif // DEBUG
+  SdFlushTaskHandle = osThreadNew(sd_flush_task_start, NULL, &SdFlushTask_attributes);
+  crash_dump_register_task((TaskHandle_t)SdFlushTaskHandle);
+  vTaskSetTaskNumber((TaskHandle_t)SdFlushTaskHandle, 5);
 
   /* USER CODE END RTOS_THREADS */
 
@@ -152,6 +153,13 @@ void MX_FREERTOS_Init(void) {
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
+
+#include "timestamp.h"
+
+void vApplicationTickHook(void)
+{
+    timestamp_update();
+}
 
 /* USER CODE END Application */
 

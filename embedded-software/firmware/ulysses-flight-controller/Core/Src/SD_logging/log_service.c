@@ -11,12 +11,9 @@
 #define M_PI 3.14159265358979323846f
 #endif
 
-#define LOG_FLUSH_INTERVAL 100U
-
 extern bool g_sd_card_initialized;
 
 static bool s_logger_initialised = false;
-static uint32_t s_flush_counter = 0U;
 
 void log_service_try_init(void)
 {
@@ -176,15 +173,3 @@ void log_service_log_event(uint16_t event_code, uint16_t data, uint32_t timestam
                              sizeof(event));
 }
 
-void log_service_periodic_flush(void)
-{
-    if (!log_service_ready()) {
-        return;
-    }
-
-    s_flush_counter++;
-    if (s_flush_counter >= LOG_FLUSH_INTERVAL) {
-        log_writer_flush();
-        s_flush_counter = 0U;
-    }
-}

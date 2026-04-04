@@ -1,4 +1,4 @@
-"""Auto-generated from Core/Inc/SD_logging/log_records.h
+"""Auto-generated from libs/log_records/include/log_records/log_records.h
 Do not edit manually. Run tools/logging/generate_log_schema.py instead.
 """
 
@@ -101,6 +101,28 @@ RECORDS = {
         ],
         "format": "<IiiI",
         "struct": struct.Struct("<IiiI"),
+    },
+    "trace_batch": {
+        "id": 32,
+        "enum": "LOG_RECORD_TYPE_trace_batch",
+        "fields": [
+            ("uint32_t", "base_timestamp_us"),
+            ("uint8_t", "event_count"),
+            ("uint8_t", "reserved1"),
+            ("uint16_t", "reserved2"),
+        ],
+        "format": "<IBBH",
+        "struct": struct.Struct("<IBBH"),
+    },
+    "trace_overflow": {
+        "id": 33,
+        "enum": "LOG_RECORD_TYPE_trace_overflow",
+        "fields": [
+            ("uint32_t", "timestamp_us"),
+            ("uint32_t", "dropped_count"),
+        ],
+        "format": "<II",
+        "struct": struct.Struct("<II"),
     },
 }
 

@@ -160,7 +160,6 @@ void mission_manager_task_start(void *argument) {
                        (unsigned long)err_cnt);
         }
 
-        log_service_periodic_flush();
         log_flight_state_if_changed(flight_state, current_state.u_s);
         state_exchange_publish_flight_state(flight_state);
     }

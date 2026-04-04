@@ -55,9 +55,4 @@ void log_service_log_baro2_sample(uint32_t timestamp_us,
  */
 void log_service_log_event(uint16_t event_code, uint16_t data, uint32_t timestamp_us);
 
-/**
- * @brief Periodic flush helper to limit data loss on power failure.
- */
-void log_service_periodic_flush(void);
-
 #endif /* LOG_SERVICE_H */
