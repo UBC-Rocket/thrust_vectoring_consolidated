@@ -119,7 +119,6 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/SD_logging/log_writer.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/SD_logging/log_service.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/crash/crash_dump.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/trace/trace_ringbuf.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/trace/trace_hooks.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/trace/trace_flush_task.c
     ${DEBUG_MODULE_SRC}

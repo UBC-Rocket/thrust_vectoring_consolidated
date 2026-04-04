@@ -2,9 +2,18 @@
 #define LOG_RECORDS_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
-#define LOG_SCHEMA_VERSION 2U
+#define LOG_SCHEMA_VERSION 5U
 #define LOG_RECORD_MAGIC 0xA5U
+
+/* ── Enable modes for per-record compile-time gating ── */
+#define LOG_ENABLE_ALWAYS     1
+#ifdef DEBUG
+  #define LOG_ENABLE_DBG_ONLY 1
+#else
+  #define LOG_ENABLE_DBG_ONLY 0
+#endif
 
 typedef enum {
     LOG_FRAME_FLAG_NONE = 0x00,
@@ -54,9 +63,14 @@ typedef struct __attribute__((packed)) {
     FIELD(float, q_y) \
     FIELD(float, q_z) \
     FIELD(float, altitude_m) \
+    FIELD(float, pos_n_m) \
+    FIELD(float, pos_e_m) \
     FIELD(float, vel_n_mps) \
     FIELD(float, vel_e_mps) \
     FIELD(float, vel_d_mps) \
+    FIELD(float, omega_bx_rad_s) \
+    FIELD(float, omega_by_rad_s) \
+    FIELD(float, omega_bz_rad_s) \
     FIELD(uint8_t, flight_state) \
     FIELD(uint8_t, estop_active) \
     FIELD(uint16_t, reserved)
@@ -65,6 +79,127 @@ typedef struct __attribute__((packed)) {
     FIELD(uint32_t, timestamp_us) \
     FIELD(uint16_t, event_code) \
     FIELD(uint16_t, data_u16)
+
+/* Calibration: IMU biases accumulated over STARTUP_CALIBRATION_SAMPLES and logged
+ * exactly once on the first EKF step after calibration completes.
+ * accel_bias units: [g] (normalized, same frame as EXPECTED_GRAVITY = {0,0,1}).
+ * gyro_bias units:  [rad/s]. Total payload: 30 bytes. */
+#define LOG_RECORD_FIELDS_CALIBRATION(FIELD) \
+    FIELD(uint32_t, timestamp_us) \
+    FIELD(float,    accel_bias_x) \
+    FIELD(float,    accel_bias_y) \
+    FIELD(float,    accel_bias_z) \
+    FIELD(float,    gyro_bias_x) \
+    FIELD(float,    gyro_bias_y) \
+    FIELD(float,    gyro_bias_z) \
+    FIELD(uint16_t, calibration_samples)
+
+/* Control output: all fields from control_output_t at 100 Hz (every 8th 800-Hz cycle).
+ * Includes intermediate torque commands, attitude error vector, z-PID integral, and
+ * reference setpoints so post-flight analysis can separate tracking error from
+ * disturbance and controller faults from allocator/gimbal faults. Total payload: 56 bytes. */
+#define LOG_RECORD_FIELDS_CONTROL_OUTPUT(FIELD) \
+    FIELD(uint32_t, timestamp_us) \
+    FIELD(float,    T_cmd) \
+    FIELD(float,    theta_x_cmd) \
+    FIELD(float,    theta_y_cmd) \
+    FIELD(float,    tau_gim_x) \
+    FIELD(float,    tau_gim_y) \
+    FIELD(float,    tau_gim_z) \
+    FIELD(float,    tau_thrust) \
+    FIELD(float,    phi_x) \
+    FIELD(float,    phi_y) \
+    FIELD(float,    phi_z) \
+    FIELD(float,    z_pid_integral) \
+    FIELD(float,    z_ref) \
+    FIELD(float,    vz_ref)
+
+/* GPS fix: all fields from gps_fix_t relevant for post-flight analysis.
+ * lat/lon kept as double to preserve full GPS precision (float gives ~2m error).
+ * Total payload: 44 bytes. */
+#define LOG_RECORD_FIELDS_GPS_FIX(FIELD) \
+    FIELD(uint32_t, timestamp_us) \
+    FIELD(double,   latitude) \
+    FIELD(double,   longitude) \
+    FIELD(float,    altitude_msl) \
+    FIELD(float,    ground_speed) \
+    FIELD(float,    course) \
+    FIELD(float,    hdop) \
+    FIELD(uint32_t, time_of_week_ms) \
+    FIELD(uint8_t,  fix_quality) \
+    FIELD(uint8_t,  num_satellites) \
+    FIELD(uint16_t, reserved)
+
+#define LOG_RECORD_FIELDS_PID_GAINS(FIELD) \
+    FIELD(uint32_t, timestamp_us) \
+    FIELD(bool, has_attitude_kp) \
+    FIELD(float, attitude_kp_x) \
+    FIELD(float, attitude_kp_y) \
+    FIELD(float, attitude_kp_z) \
+    FIELD(bool, has_attitude_kd) \
+    FIELD(float, attitude_kd_x) \
+    FIELD(float, attitude_kd_y) \
+    FIELD(float, attitude_kd_z) \
+    FIELD(float, z_kp) \
+    FIELD(float, z_ki) \
+    FIELD(float, z_kd) \
+    FIELD(float, z_integral_limit)
+
+#define LOG_RECORD_FIELDS_REFERENCE(FIELD) \
+    FIELD(uint32_t, timestamp_us) \
+    FIELD(float, z_ref) \
+    FIELD(float, vz_ref) \
+    FIELD(bool, has_q_ref) \
+    FIELD(float, q_ref_w) \
+    FIELD(float, q_ref_x) \
+    FIELD(float, q_ref_y) \
+    FIELD(float, q_ref_z)
+
+#define LOG_RECORD_FIELDS_CONFIGURATION(FIELD) \
+    FIELD(uint32_t, timestamp_us) \
+    FIELD(float, mass) \
+    FIELD(float, T_min) \
+    FIELD(float, T_max) \
+    FIELD(float, theta_min) \
+    FIELD(float, theta_max)
+
+#define LOG_RECORD_FIELDS_RADIO_TELEMETRY(FIELD) \
+    FIELD(uint32_t, timestamp_us) \
+    FIELD(uint32_t, timestamp_ms) \
+    FIELD(float, position_x) \
+    FIELD(float, position_y) \
+    FIELD(float, position_z) \
+    FIELD(float, velocity_x) \
+    FIELD(float, velocity_y) \
+    FIELD(float, velocity_z) \
+    FIELD(float, attitude_w) \
+    FIELD(float, attitude_x) \
+    FIELD(float, attitude_y) \
+    FIELD(float, attitude_z) \
+    FIELD(float, angular_rate_x) \
+    FIELD(float, angular_rate_y) \
+    FIELD(float, angular_rate_z) \
+    FIELD(float, thrust_cmd) \
+    FIELD(float, gimbal_x) \
+    FIELD(float, gimbal_y) \
+    FIELD(uint8_t, flight_state) \
+    FIELD(uint8_t, reserved1) \
+    FIELD(uint16_t, reserved2)
+
+#define LOG_RECORD_FIELDS_RADIO_STATUS(FIELD) \
+    FIELD(uint32_t, timestamp_us) \
+    FIELD(uint32_t, timestamp_ms) \
+    FIELD(uint32_t, uptime_ms) \
+    FIELD(uint32_t, radio_tx_count) \
+    FIELD(uint32_t, radio_rx_count) \
+    FIELD(uint32_t, cmd_rx_count) \
+    FIELD(uint8_t, flight_state) \
+    FIELD(bool, accel_ok) \
+    FIELD(bool, gyro_ok) \
+    FIELD(bool, baro1_ok) \
+    FIELD(bool, baro2_ok) \
+    FIELD(bool, gps_connected) \
+    FIELD(uint16_t, reserved)
 
 #define LOG_RECORD_FIELDS_TRACE_BATCH(FIELD) \
     FIELD(uint32_t, base_timestamp_us) \
@@ -76,35 +211,54 @@ typedef struct __attribute__((packed)) {
     FIELD(uint32_t, timestamp_us) \
     FIELD(uint32_t, dropped_count)
 
+
+/* ── Master record table ──
+ * APP(id, name, fields_macro, enable_mode)
+ *
+ * enable_mode: LOG_ENABLE_ALWAYS  — always compiled in
+ *              LOG_ENABLE_DBG_ONLY — compiled to no-op in release builds
+ */
 #define LOG_RECORD_LIST(APP) \
-    APP(0x10, flight_header, LOG_RECORD_FIELDS_FLIGHT_HEADER) \
-    APP(0x01, accel_sample, LOG_RECORD_FIELDS_ACCEL_SAMPLE) \
-    APP(0x02, gyro_sample, LOG_RECORD_FIELDS_GYRO_SAMPLE) \
-    APP(0x03, baro_sample, LOG_RECORD_FIELDS_BARO_SAMPLE) \
-    APP(0x04, state_snapshot, LOG_RECORD_FIELDS_STATE_SNAPSHOT) \
-    APP(0x05, event, LOG_RECORD_FIELDS_EVENT) \
-    APP(0x06, baro2_sample, LOG_RECORD_FIELDS_BARO2_SAMPLE) \
-    APP(0x20, trace_batch, LOG_RECORD_FIELDS_TRACE_BATCH) \
-    APP(0x21, trace_overflow, LOG_RECORD_FIELDS_TRACE_OVERFLOW)
+    APP(0x10, flight_header,    LOG_RECORD_FIELDS_FLIGHT_HEADER,    LOG_ENABLE_ALWAYS)   \
+    APP(0x01, accel_sample,     LOG_RECORD_FIELDS_ACCEL_SAMPLE,     LOG_ENABLE_ALWAYS)   \
+    APP(0x02, gyro_sample,      LOG_RECORD_FIELDS_GYRO_SAMPLE,      LOG_ENABLE_ALWAYS)   \
+    APP(0x03, baro_sample,      LOG_RECORD_FIELDS_BARO_SAMPLE,      LOG_ENABLE_ALWAYS)   \
+    APP(0x04, state_snapshot,   LOG_RECORD_FIELDS_STATE_SNAPSHOT,    LOG_ENABLE_ALWAYS)   \
+    APP(0x05, event,            LOG_RECORD_FIELDS_EVENT,             LOG_ENABLE_ALWAYS)   \
+    APP(0x06, baro2_sample,     LOG_RECORD_FIELDS_BARO2_SAMPLE,     LOG_ENABLE_ALWAYS)   \
+    APP(0x07, gps_fix,          LOG_RECORD_FIELDS_GPS_FIX,           LOG_ENABLE_ALWAYS)   \
+    APP(0x08, control_output,   LOG_RECORD_FIELDS_CONTROL_OUTPUT,    LOG_ENABLE_DBG_ONLY) \
+    APP(0x09, calibration,      LOG_RECORD_FIELDS_CALIBRATION,       LOG_ENABLE_DBG_ONLY) \
+    APP(0x0A, pid_gains,        LOG_RECORD_FIELDS_PID_GAINS,         LOG_ENABLE_ALWAYS)   \
+    APP(0x0B, reference,        LOG_RECORD_FIELDS_REFERENCE,         LOG_ENABLE_ALWAYS)   \
+    APP(0x0C, configuration,    LOG_RECORD_FIELDS_CONFIGURATION,     LOG_ENABLE_ALWAYS)   \
+    APP(0x0D, radio_telemetry,  LOG_RECORD_FIELDS_RADIO_TELEMETRY,   LOG_ENABLE_ALWAYS)   \
+    APP(0x0E, radio_status,     LOG_RECORD_FIELDS_RADIO_STATUS,      LOG_ENABLE_ALWAYS)   \
+    APP(0x20, trace_batch,      LOG_RECORD_FIELDS_TRACE_BATCH,       LOG_ENABLE_DBG_ONLY) \
+    APP(0x21, trace_overflow,   LOG_RECORD_FIELDS_TRACE_OVERFLOW,    LOG_ENABLE_DBG_ONLY)
 
-#define DECLARE_ENUM(id, name, fields) LOG_RECORD_TYPE_##name = id,
+
+/* ── Auto-generated enum ── */
+#define DECLARE_ENUM_(id, name, fields, enable) LOG_RECORD_TYPE_##name = id,
 typedef enum {
-    LOG_RECORD_LIST(DECLARE_ENUM)
+    LOG_RECORD_LIST(DECLARE_ENUM_)
 } log_record_type_t;
-#undef DECLARE_ENUM
+#undef DECLARE_ENUM_
 
-#define DECLARE_FIELD(type, name) type name;
-#define DECLARE_STRUCT(id, name, fields) \
+/* ── Auto-generated packed structs ── */
+#define DECLARE_FIELD_(type, name) type name;
+#define DECLARE_STRUCT_(id, name, fields, enable) \
     typedef struct __attribute__((packed)) { \
-        fields(DECLARE_FIELD) \
+        fields(DECLARE_FIELD_) \
     } log_record_##name##_t;
-LOG_RECORD_LIST(DECLARE_STRUCT)
-#undef DECLARE_STRUCT
-#undef DECLARE_FIELD
+LOG_RECORD_LIST(DECLARE_STRUCT_)
+#undef DECLARE_STRUCT_
+#undef DECLARE_FIELD_
 
-#define DECLARE_SIZE(id, name, fields) \
+/* ── Auto-generated size constants ── */
+#define DECLARE_SIZE_(id, name, fields, enable) \
     enum { LOG_RECORD_##name##_SIZE = sizeof(log_record_##name##_t) };
-LOG_RECORD_LIST(DECLARE_SIZE)
-#undef DECLARE_SIZE
+LOG_RECORD_LIST(DECLARE_SIZE_)
+#undef DECLARE_SIZE_
 
 #endif /* LOG_RECORDS_H */

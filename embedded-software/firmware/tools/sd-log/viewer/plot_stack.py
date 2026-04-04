@@ -107,6 +107,41 @@ class PlotStack(QScrollArea):
             layout.addWidget(strip)
             self._strips.append(strip)
 
+        # ── Derived diagnostic graphs ──
+
+        # CPU Utilization (computed from trace_batch events)
+        if "cpu_utilization" in flight_data.groups:
+            cpu_data = flight_data.groups["cpu_utilization"]
+            cpu_fields = [f for f in cpu_data.fields.keys()]
+            if cpu_fields:
+                colors = [COLOR_PALETTE[i % len(COLOR_PALETTE)] for i in range(len(cpu_fields))]
+                strip = PlotStrip(
+                    title="CPU Utilization",
+                    group_data=cpu_data,
+                    field_names=cpu_fields,
+                    colors=colors,
+                    y_label="%",
+                    controller=controller,
+                    events=flight_data.events,
+                )
+                layout.addWidget(strip)
+                self._strips.append(strip)
+
+        # Controls Task Jitter
+        if "controls_jitter" in flight_data.groups:
+            jitter_data = flight_data.groups["controls_jitter"]
+            strip = PlotStrip(
+                title="Controls Period Jitter",
+                group_data=jitter_data,
+                field_names=["jitter_us"],
+                colors=["#e6194b"],
+                y_label="\u00b5s",
+                controller=controller,
+                events=flight_data.events,
+            )
+            layout.addWidget(strip)
+            self._strips.append(strip)
+
         # Dedicated event timeline strip
         if flight_data.events:
             event_strip = EventStrip(flight_data.events, controller)
