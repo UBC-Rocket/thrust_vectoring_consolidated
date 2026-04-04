@@ -43,8 +43,15 @@ uint32_t trace_hooks_take_dropped(void)
 
 static inline void trace_append(const trace_event_t *evt)
 {
-    /* If we lost our buffer, try to reclaim one */
+    /* If we lost our buffer, try to reclaim one.
+     * Guard on log_writer_ready() to prevent claiming buffers before
+     * log_writer_init() has set up the context — the hooks fire from
+     * the moment the scheduler starts, but init happens ~2s later. */
     if (s_trace_buf == NULL) {
+        if (!log_writer_ready()) {
+            s_dropped++;
+            return;
+        }
         s_trace_buf = log_writer_claim_trace_buffer();
         if (s_trace_buf == NULL) {
             s_dropped++;

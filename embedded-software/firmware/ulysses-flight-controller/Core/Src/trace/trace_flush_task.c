@@ -1,4 +1,5 @@
 #include "SD_logging/log_writer.h"
+#include "SD_logging/log_service.h"
 #include "log_records/log_records.h"
 #include "log_records/log_frame.h"
 #include "FreeRTOS.h"
@@ -75,11 +76,22 @@ void sd_flush_task_start(void *argument)
 {
     (void)argument;
 
-    /* Wait for log_writer to be initialized (done by mission_manager via
-     * log_service_try_init).  We must not call trace_hooks_init() or drain
-     * the submit queue until the writer context is fully set up. */
-    while (!log_writer_ready()) {
+    /* Initialize the SD log writer.  Retries until the SD card is ready
+     * (HAL_SD_Init may need the peripheral to settle after power-on). */
+    while (!log_writer_init()) {
         vTaskDelay(pdMS_TO_TICKS(50U));
+    }
+    log_service_mark_ready();
+
+    /* Write flight header so the decoder can identify this flight */
+    {
+        uint32_t magic = HAL_GetTick() ^ 0x5A5AA5A5U;
+        if (magic == 0U) magic = 0xA5A5A5A5U;
+        log_service_log_flight_header(&(log_record_flight_header_t){
+            .timestamp_us   = timestamp_us(),
+            .flight_magic   = magic,
+            .flight_counter = HAL_GetTick(),
+        });
     }
 
     /* Register so the DMA ISR can wake us immediately after each write */

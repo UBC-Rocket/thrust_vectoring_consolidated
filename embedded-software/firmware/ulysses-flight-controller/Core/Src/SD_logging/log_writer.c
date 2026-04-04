@@ -179,7 +179,10 @@ bool log_writer_append_record(log_record_type_t type,
 {
     if (!log_writer_ready()) return false;
 
-    if (xSemaphoreTake(g_ctx.buffer_mutex, portMAX_DELAY) != pdTRUE) {
+    /* Non-blocking: if the mutex is held (e.g. by flush or another task's
+     * log call), drop the record rather than stalling the caller.  Critical
+     * for the Controls task which must never block on logging. */
+    if (xSemaphoreTake(g_ctx.buffer_mutex, 0) != pdTRUE) {
         return false;
     }
 
@@ -262,7 +265,8 @@ bool log_writer_flush(void)
 {
     if (!log_writer_ready()) return false;
 
-    if (xSemaphoreTake(g_ctx.buffer_mutex, portMAX_DELAY) != pdTRUE) {
+    /* Short timeout — flush task can retry next cycle */
+    if (xSemaphoreTake(g_ctx.buffer_mutex, pdMS_TO_TICKS(5)) != pdTRUE) {
         return false;
     }
 
