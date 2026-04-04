@@ -7,7 +7,7 @@
 
 #define COMM_FREQ_HZ    170000U  /* Electrical commutation cycles/sec — adjust  */
 #define COMM_STEP_ARR   ((16000000U / (COMM_FREQ_HZ * 6U)) - 1U) /* TIM15 ARR */
-#define BEMF_BUFFER_SIZE 8 /*Size of the circular buffer for back emf averaging*/
+#define BEMF_BUFFER_SIZE 32 /*Size of the circular buffer for back emf averaging*/
 
 typedef struct {
     uint16_t samples[BEMF_BUFFER_SIZE];
@@ -83,12 +83,12 @@ static uint16_t get_averaged_bemf(PhaseBuffer* buf){
  */
 static uint16_t get_bemf_for_step(uint8_t step){
     switch (step){
-        case 0: return get_averaged_bemf(&phase_C);  /* Phase C floating */
-        case 1: return get_averaged_bemf(&phase_B);  /* Phase B floating */
-        case 2: return get_averaged_bemf(&phase_A);  /* Phase A floating */
-        case 3: return get_averaged_bemf(&phase_C);  /* Phase C floating */
-        case 4: return get_averaged_bemf(&phase_B);  /* Phase B floating */
-        case 5: return get_averaged_bemf(&phase_A);  /* Phase A floating */
+        case 0: return get_averaged_bemf(&phase_B);  /* Phase B floating */
+        case 1: return get_averaged_bemf(&phase_A);  /* Phase A floating */
+        case 2: return get_averaged_bemf(&phase_C);  /* Phase C floating */
+        case 3: return get_averaged_bemf(&phase_B);  /* Phase B floating */
+        case 4: return get_averaged_bemf(&phase_A);  /* Phase A floating */
+        case 5: return get_averaged_bemf(&phase_C);  /* Phase C floating */
         default: return 0;
     };
 }
