@@ -49,6 +49,9 @@ class PlotStrip(QWidget):
         self._plot_widget.viewport().installEventFilter(self)
         layout.addWidget(self._plot_widget)
 
+        # Legend must be added before curves so it auto-captures names
+        self._plot_widget.addLegend(offset=(10, 10))
+
         # Create curves
         self._curves: list[pg.PlotDataItem] = []
         for i, field_name in enumerate(field_names):
@@ -57,8 +60,6 @@ class PlotStrip(QWidget):
                 pen=pg.mkPen(color, width=1.5), name=field_name
             )
             self._curves.append(curve)
-
-        self._plot_widget.addLegend(offset=(10, 10))
 
         # Add event markers as vertical lines
         self._event_lines: list[pg.InfiniteLine] = []

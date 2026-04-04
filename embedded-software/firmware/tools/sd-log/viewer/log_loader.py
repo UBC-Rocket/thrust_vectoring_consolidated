@@ -78,6 +78,114 @@ EVENT_CODES = {
     0x0004: "ARM_STATE",
 }
 
+TASK_NAMES = {
+    0: "Idle",
+    1: "MissionMgr",
+    2: "Controls",
+    3: "StateEst",
+    4: "DebugLog",
+    5: "SdFlush",
+}
+
+TRACE_EVT_SWITCH_IN = 0
+TRACE_EVT_SWITCH_OUT = 1
+
+
+def _compute_trace_groups(
+    records: list[dict],
+    t_min_s: float,
+    t_max_s: float,
+    window_ms: float = 100.0,
+) -> dict[str, "GroupData"]:
+    """Compute CPU utilization and controls jitter from trace_batch records."""
+    # Extract all trace events
+    events: list[tuple[float, int, int]] = []  # (time_s, task_number, event_type)
+    for rec in records:
+        if rec.get("record_name") != "trace_batch":
+            continue
+        payload = rec.get("payload", {})
+        for evt in payload.get("events", []):
+            events.append((
+                evt["timestamp_us"] / 1e6,
+                evt["task_number"],
+                evt["event_type"],
+            ))
+
+    if not events:
+        return {}
+
+    events.sort(key=lambda e: e[0])
+
+    # ── CPU utilization per task in sliding windows ──
+    window_s = window_ms / 1000.0
+    window_start = t_min_s
+    window_times: list[float] = []
+
+    # Track switch-in time per task
+    task_switch_in: dict[int, float] = {}
+    # Accumulate CPU time per task per window
+    task_ids = sorted({e[1] for e in events})
+    task_cpu: dict[int, list[float]] = {tid: [] for tid in task_ids}
+    task_accum: dict[int, float] = {tid: 0.0 for tid in task_ids}
+
+    evt_idx = 0
+    while window_start + window_s <= t_max_s:
+        window_end = window_start + window_s
+
+        # Process events in this window
+        while evt_idx < len(events) and events[evt_idx][0] < window_end:
+            t, tid, etype = events[evt_idx]
+            if etype == TRACE_EVT_SWITCH_IN:
+                task_switch_in[tid] = t
+            elif etype == TRACE_EVT_SWITCH_OUT:
+                if tid in task_switch_in:
+                    run_time = t - task_switch_in[tid]
+                    if run_time > 0:
+                        task_accum[tid] = task_accum.get(tid, 0.0) + run_time
+                    del task_switch_in[tid]
+            evt_idx += 1
+
+        # Record utilization as percentage
+        window_times.append(window_start + window_s / 2)
+        for tid in task_ids:
+            pct = min(task_accum.get(tid, 0.0) / window_s * 100.0, 100.0)
+            task_cpu[tid].append(pct)
+            task_accum[tid] = 0.0
+
+        window_start += window_s
+
+    groups: dict[str, GroupData] = {}
+
+    if window_times:
+        ts_arr = np.array(window_times, dtype=np.float64)
+        fields = {}
+        for tid in task_ids:
+            name = TASK_NAMES.get(tid, f"Task{tid}")
+            fields[name] = np.array(task_cpu[tid], dtype=np.float64)
+        groups["cpu_utilization"] = GroupData(timestamps=ts_arr, fields=fields)
+
+    # ── Controls task period jitter ──
+    controls_task_id = 2  # Controls task number
+    controls_switch_ins = [
+        e[0] for e in events
+        if e[1] == controls_task_id and e[2] == TRACE_EVT_SWITCH_IN
+    ]
+
+    if len(controls_switch_ins) > 2:
+        switch_in_arr = np.array(controls_switch_ins, dtype=np.float64)
+        periods_us = np.diff(switch_in_arr) * 1e6  # convert to microseconds
+        # Use median period as the "expected" period
+        expected_us = float(np.median(periods_us))
+        jitter_us = periods_us - expected_us
+        jitter_ts = (switch_in_arr[:-1] + switch_in_arr[1:]) / 2  # midpoints
+
+        groups["controls_jitter"] = GroupData(
+            timestamps=jitter_ts,
+            fields={"jitter_us": jitter_us},
+        )
+
+    return groups
+
 
 def load_jsonl(path: Path) -> FlightData:
     """Parse a JSONL flight log, extracting only the first flight (with header)."""
@@ -124,7 +232,7 @@ def load_jsonl(path: Path) -> FlightData:
             raw_events.append((ts_s, code, data))
             continue
 
-        if record_name == "calibration":
+        if record_name in ("calibration", "trace_batch", "trace_overflow"):
             continue
 
         # Accumulate time-series data
@@ -165,6 +273,10 @@ def load_jsonl(path: Path) -> FlightData:
     if global_min == float("inf"):
         global_min = 0.0
         global_max = 0.0
+
+    # Compute derived trace groups (CPU utilization, jitter)
+    trace_groups = _compute_trace_groups(records, global_min, global_max)
+    groups.update(trace_groups)
 
     return FlightData(
         groups=groups,
