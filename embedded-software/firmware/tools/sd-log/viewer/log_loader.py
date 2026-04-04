@@ -39,32 +39,21 @@ class FlightData:
 def _split_flights(records: list[dict]) -> list[list[dict]]:
     """Split a flat list of parsed JSONL records into per-flight segments.
 
-    A new flight starts at each flight_header record, or when timestamps
-    jump backward by more than 1 second (stale data from a previous flight
-    on the SD card).
+    A new flight starts at each flight_header record.  Backward timestamp
+    jumps within a flight are normal (different sensors log at different
+    rates and may interleave out of order).
     """
     flights: list[list[dict]] = []
     current: list[dict] = []
-    prev_ts = 0
 
     for rec in records:
-        ts = rec.get("timestamp_us", 0)
         is_header = rec.get("record_name") == "flight_header"
 
-        # Detect flight boundary: header or large backward timestamp jump
         if is_header and current:
             flights.append(current)
             current = []
-            prev_ts = 0
-        elif not is_header and ts < prev_ts - 1_000_000:
-            # Backward jump > 1 second = stale data from old flight
-            flights.append(current)
-            current = []
-            prev_ts = 0
 
         current.append(rec)
-        if not is_header:
-            prev_ts = ts
 
     if current:
         flights.append(current)
