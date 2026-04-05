@@ -42,8 +42,8 @@ extern "C" {
  * Check individual bits to determine which sensors are available.
  */
 typedef struct {
-    bool accel_ok;      /**< BMI088 accelerometer initialized successfully */
-    bool gyro_ok;       /**< BMI088 gyroscope initialized successfully */
+    bool accel_ok;      /**< IMU accelerometer channel initialized successfully */
+    bool gyro_ok;       /**< IMU gyroscope channel initialized successfully */
     bool baro_ok;       /**< MS5611 barometer initialized successfully */
     bool baro2_ok;      /**< MS5607 barometer 2 initialized successfully */
     uint8_t accel_err;  /**< Accelerometer error code (0 = success) */
@@ -62,16 +62,16 @@ typedef struct {
  * This function performs the following:
  *   1. Initialize SPI job queues
  *   2. Initialize sample ring buffers
- *   3. Initialize BMI088 accelerometer (blocking SPI)
- *   4. Initialize BMI088 gyroscope (blocking SPI)
- *   5. Initialize MS5611 barometer poller (blocking SPI for PROM read)
- *   6. Set device ready flags
+ *   3. Initialize the ICM-40609 IMU (blocking SPI)
+ *   4. Initialize the MS5611 barometer poller
+ *   5. Initialize the MS5607 barometer poller
+ *   6. Publish device ready flags and status
  *
  * @param config Sensor configuration (range, ODR, etc.). Pass NULL for defaults.
  * @return Status structure indicating success/failure for each sensor.
  *
- * @note This function uses blocking SPI operations and takes several
- *       hundred milliseconds to complete (due to sensor reset delays).
+ * @note This function uses blocking SPI operations and takes tens of
+ *       milliseconds to complete (mostly IMU reset and startup delays).
  *       Call before starting the FreeRTOS scheduler.
  */
 sensors_init_status_t sensors_init_with_config(const sensor_system_config_t *config);
@@ -157,4 +157,3 @@ ms5607_poller_t *sensors_get_baro2_poller(void);
 #endif
 
 #endif /* SENSORS_INIT_H */
-

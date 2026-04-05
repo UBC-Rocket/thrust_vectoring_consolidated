@@ -1,3 +1,4 @@
+#if 0  /* BMI088 flight-controller device layer kept for reference */
 #include "SPI_device_interactions.h"
 #include "main.h"
 
@@ -194,3 +195,4 @@ void bmi088_accel_interrupt(void)
 
     spi_submit_job(job, &jobq_spi_2);
 }
+#endif

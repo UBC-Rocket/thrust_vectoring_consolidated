@@ -56,7 +56,7 @@ sensors_init_status_t sensors_init_with_config(const sensor_system_config_t *con
      * Step 1: Initialize SPI job queues
      *
      * The job queues must be initialized before any sensor operations.
-     * jobq_spi_2: IMU (BMI088) and barometer 1 (MS5611)
+     * jobq_spi_2: IMU (ICM-40609) and barometer 1 (MS5611)
      * jobq_spi_4: Barometer 2 (MS5607)
      */
 
@@ -78,11 +78,14 @@ sensors_init_status_t sensors_init_with_config(const sensor_system_config_t *con
      * These buffers transfer sensor data from ISR context to task context.
      * Initialize head/tail to 0 for empty state.
      */
-    bmi088_acc_sample_ring.head = 0;
-    bmi088_acc_sample_ring.tail = 0;
+    /* BMI088 ring buffer init — commented out, replaced by ICM-40609 */
+    // bmi088_acc_sample_ring.head = 0;
+    // bmi088_acc_sample_ring.tail = 0;
+    // bmi088_gyro_sample_ring.head = 0;
+    // bmi088_gyro_sample_ring.tail = 0;
 
-    bmi088_gyro_sample_ring.head = 0;
-    bmi088_gyro_sample_ring.tail = 0;
+    icm40609_sample_ring.head = 0;
+    icm40609_sample_ring.tail = 0;
 
     ms5611_sample_ring.head = 0;
     ms5611_sample_ring.tail = 0;
@@ -91,43 +94,59 @@ sensors_init_status_t sensors_init_with_config(const sensor_system_config_t *con
     ms5607_sample_ring.tail = 0;
 
     /*
-     * Step 3: Initialize BMI088 Accelerometer with configuration
+     * Step 3: Initialize ICM-40609-D IMU with configuration
      *
-     * This is a blocking operation that takes ~600ms due to soft reset delay.
+     * Replaces BMI088 accel + gyro initialization.
+     * This is a blocking operation that takes ~60ms due to soft reset
+     * and gyro startup delays.
      */
-    status.accel_err = bmi088_accel_init_with_config(&hspi2,
-                                                      BMI_ACC_Chip_Select_GPIO_Port,
-                                                      BMI_ACC_Chip_Select_Pin,
-                                                      &accel,
-                                                      &g_active_config.accel);
 
-    if (status.accel_err == 0) {
-        bmi088_accel_ready = true;
+    /* BMI088 accel init — commented out, replaced by ICM-40609 */
+    // status.accel_err = bmi088_accel_init_with_config(&hspi2,
+    //                                                   BMI_ACC_Chip_Select_GPIO_Port,
+    //                                                   BMI_ACC_Chip_Select_Pin,
+    //                                                   &accel,
+    //                                                   &g_active_config.accel);
+    // if (status.accel_err == 0) {
+    //     bmi088_accel_ready = true;
+    //     status.accel_ok = true;
+    // } else {
+    //     bmi088_accel_ready = false;
+    // }
+
+    /* BMI088 gyro init — commented out, replaced by ICM-40609 */
+    // status.gyro_err = bmi088_gyro_init_with_config(&hspi2,
+    //                                                 BMI_GYRO_Chip_Select_GPIO_Port,
+    //                                                 BMI_GYRO_Chip_Select_Pin,
+    //                                                 &gyro,
+    //                                                 &g_active_config.gyro);
+    // if (status.gyro_err == 0) {
+    //     bmi088_gyro_ready = true;
+    //     status.gyro_ok = true;
+    // } else {
+    //     bmi088_gyro_ready = false;
+    // }
+
+    uint8_t icm_status = icm40609_init_with_config(&hspi2,
+                                                    ICM40609_CS_GPIO_Port,
+                                                    ICM40609_CS_Pin,
+                                                    &icm40609_dev,
+                                                    &g_active_config.imu);
+
+    if (icm_status == 0) {
+        icm40609_ready = true;
         status.accel_ok = true;
-    } else {
-        bmi088_accel_ready = false;
-    }
-
-    /*
-     * Step 4: Initialize BMI088 Gyroscope with configuration
-     *
-     * This is a blocking operation that takes ~100ms due to soft reset delay.
-     */
-    status.gyro_err = bmi088_gyro_init_with_config(&hspi2,
-                                                    BMI_GYRO_Chip_Select_GPIO_Port,
-                                                    BMI_GYRO_Chip_Select_Pin,
-                                                    &gyro,
-                                                    &g_active_config.gyro);
-
-    if (status.gyro_err == 0) {
-        bmi088_gyro_ready = true;
         status.gyro_ok = true;
+        status.accel_err = 0;
+        status.gyro_err = 0;
     } else {
-        bmi088_gyro_ready = false;
+        icm40609_ready = false;
+        status.accel_err = icm_status;
+        status.gyro_err = icm_status;
     }
 
     /*
-     * Step 5: Initialize MS5611 Barometer Poller with configuration
+     * Step 4: Initialize MS5611 Barometer Poller with configuration
      *
      * This is a blocking operation that:
      *   - Resets the device
@@ -150,7 +169,7 @@ sensors_init_status_t sensors_init_with_config(const sensor_system_config_t *con
     }
 
     /*
-     * Step 6: Initialize MS5607 Barometer 2 Poller with configuration
+     * Step 5: Initialize MS5607 Barometer 2 Poller with configuration
      *
      * This is a blocking operation that:
      *   - Resets the device

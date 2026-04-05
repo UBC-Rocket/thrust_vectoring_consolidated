@@ -414,9 +414,7 @@ bool icm40609_parse_accel_gyro(const uint8_t *rx_buf,
      *   [13] GYRO_DATA_Z0 (low)
      */
 
-    /* Temperature: Temp_C = (TEMP_DATA / 132.48) + 25 */
-    int16_t temp_raw = (int16_t)((rx_buf[0] << 8) | rx_buf[1]);
-    sample->temp_c = ((float)temp_raw / 132.48f) + 25.0f;
+    /* Temperature bytes at rx_buf[0..1] are skipped (not stored) */
 
     /* Accelerometer (big-endian) */
     sample->ax_raw = (int16_t)((rx_buf[2]  << 8) | rx_buf[3]);
@@ -482,8 +480,7 @@ bool icm40609_parse_fifo_packet(const uint8_t *rx_buf,
         sample->gy_raw = (int16_t)((rx_buf[9]  << 8) | rx_buf[10]);
         sample->gz_raw = (int16_t)((rx_buf[11] << 8) | rx_buf[12]);
 
-        /* FIFO temperature: Temp_C = (FIFO_TEMP_DATA / 2.07) + 25 */
-        sample->temp_c = ((float)(int8_t)rx_buf[13] / 2.07f) + 25.0f;
+        /* FIFO temperature byte at rx_buf[13] is skipped (not stored) */
 
         sample->ax = (float)sample->ax_raw * accel_mps2_per_lsb;
         sample->ay = (float)sample->ay_raw * accel_mps2_per_lsb;
@@ -505,7 +502,7 @@ bool icm40609_parse_fifo_packet(const uint8_t *rx_buf,
         sample->gy_raw = 0;
         sample->gz_raw = 0;
 
-        sample->temp_c = ((float)(int8_t)rx_buf[7] / 2.07f) + 25.0f;
+        /* FIFO temperature byte at rx_buf[7] is skipped (not stored) */
 
         sample->ax = (float)sample->ax_raw * accel_mps2_per_lsb;
         sample->ay = (float)sample->ay_raw * accel_mps2_per_lsb;
@@ -526,7 +523,7 @@ bool icm40609_parse_fifo_packet(const uint8_t *rx_buf,
         sample->gy_raw = (int16_t)((rx_buf[3] << 8) | rx_buf[4]);
         sample->gz_raw = (int16_t)((rx_buf[5] << 8) | rx_buf[6]);
 
-        sample->temp_c = ((float)(int8_t)rx_buf[7] / 2.07f) + 25.0f;
+        /* FIFO temperature byte at rx_buf[7] is skipped (not stored) */
 
         sample->ax = 0.0f;
         sample->ay = 0.0f;

@@ -80,8 +80,9 @@ set(RTOS_TASKS_SRC
 set(SPI_DRIVER_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/spi_drivers/SPI_queue.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/spi_drivers/SPI_device_common.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/spi_drivers/bmi088_accel_device.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/spi_drivers/bmi088_gyro_device.c
+    # ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/spi_drivers/bmi088_accel_device.c
+    # ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/spi_drivers/bmi088_gyro_device.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/spi_drivers/icm40609_device.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/spi_drivers/ms5611_device.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/spi_drivers/ms5607_device.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/spi_drivers/spi1_bus.c
@@ -144,10 +145,13 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Add project symbols (macros)
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined symbols
-    BMI_ACC_Chip_Select_GPIO_Port=BMI_ACC_CS_GPIO_Port
-    BMI_ACC_Chip_Select_Pin=BMI_ACC_CS_Pin
-    BMI_GYRO_Chip_Select_GPIO_Port=BMI_GYRO_CS_GPIO_Port
-    BMI_GYRO_Chip_Select_Pin=BMI_GYRO_CS_Pin
+    # BMI_ACC_Chip_Select_GPIO_Port=BMI_ACC_CS_GPIO_Port
+    # BMI_ACC_Chip_Select_Pin=BMI_ACC_CS_Pin
+    # BMI_GYRO_Chip_Select_GPIO_Port=BMI_GYRO_CS_GPIO_Port
+    # BMI_GYRO_Chip_Select_Pin=BMI_GYRO_CS_Pin
+    ICM40609_CS_GPIO_Port=GPIOD
+    ICM40609_CS_Pin=GPIO_PIN_15
+    ICM40609_INT1_Pin=GPIO_PIN_12
     $<$<BOOL:${ULYSSES_USE_USB}>:ULYSSES_USE_USB>
     $<$<BOOL:${ULYSSES_ENABLE_DEBUG_LOGGING}>:ULYSSES_ENABLE_DEBUG_LOGGING>
 )

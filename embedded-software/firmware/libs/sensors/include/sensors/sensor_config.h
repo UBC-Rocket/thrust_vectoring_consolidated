@@ -1,14 +1,14 @@
 /**
  * @file sensor_config.h
- * @brief Sensor configuration structures for BMI088 and MS5611.
+ * @brief Sensor configuration structures for IMU and barometer devices.
  *
  * Centralizes sensor configuration (range, ODR, bandwidth, interrupts)
  * to avoid hardcoded values in init functions and enable runtime tuning.
  *
  * Usage:
- *   bmi088_accel_config_t accel_cfg = BMI088_ACCEL_CONFIG_DEFAULT;
- *   accel_cfg.range = BMI088_ACC_RANGE_6G;  // Override if needed
- *   bmi088_accel_init_with_config(&hspi, cs_port, cs_pin, &dev, &accel_cfg);
+ *   sensor_system_config_t cfg = SENSOR_SYSTEM_CONFIG_DEFAULT;
+ *   cfg.imu.accel_fs = ICM40609_ACCEL_FS_16G;  // Override if needed
+ *   cfg.imu.gyro_fs = ICM40609_GYRO_FS_2000DPS;
  *
  * UBC Rocket, Benedikt Howard, 2025
  */
@@ -16,10 +16,21 @@
 #ifndef SENSOR_CONFIG_H
 #define SENSOR_CONFIG_H
 
+#include "sensors/icm40609.h"
 #include "sensors/bmi088_accel.h"
 #include "sensors/bmi088_gyro.h"
 #include "sensors/ms5611_baro.h"
 #include "sensors/ms5607_baro.h"
+
+/* -------------------------------------------------------------------------- */
+/* ICM-40609-D IMU Configuration                                              */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * icm40609_config_t and ICM40609_CONFIG_DEFAULT are defined in
+ * sensors/icm40609.h. Keep the BMI088 configuration blocks below for
+ * reference while the flight-controller integration is migrated.
+ */
 
 /* -------------------------------------------------------------------------- */
 /* BMI088 Accelerometer Configuration                                         */
@@ -202,18 +213,16 @@ typedef struct {
  * @brief Combined sensor configuration for the entire system.
  */
 typedef struct {
-    bmi088_accel_config_t accel;
-    bmi088_gyro_config_t  gyro;
-    ms5611_config_t       baro;
-    ms5607_config_t       baro2;
+    icm40609_config_t imu;
+    ms5611_config_t   baro;
+    ms5607_config_t   baro2;
 } sensor_system_config_t;
 
 /**
  * @brief Default system sensor configuration.
  */
 #define SENSOR_SYSTEM_CONFIG_DEFAULT {          \
-    .accel = BMI088_ACCEL_CONFIG_DEFAULT,       \
-    .gyro  = BMI088_GYRO_CONFIG_DEFAULT,        \
+    .imu   = ICM40609_CONFIG_DEFAULT,           \
     .baro  = MS5611_CONFIG_DEFAULT,             \
     .baro2 = MS5607_CONFIG_DEFAULT              \
 }

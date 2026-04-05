@@ -25,8 +25,7 @@
 
 #include "stm32h5xx_hal.h"
 #include "SPI_queue.h"
-#include "sensors/bmi088_accel.h"
-#include "sensors/bmi088_gyro.h"
+#include "sensors/icm40609.h"
 #include "sensors/ms5611_baro.h"
 #include <stdbool.h>
 
@@ -35,13 +34,13 @@ extern "C" {
 #endif
 
 /* -------------------------------------------------------------------------- */
-/* Accelerometer Context                                                      */
+/* IMU Context                                                                */
 /* -------------------------------------------------------------------------- */
 
 /**
- * @brief Complete context for BMI088 accelerometer.
+ * @brief Complete context for the ICM-40609 IMU.
  *
- * Groups all accelerometer-related state:
+ * Groups all IMU-related state:
  * - Device configuration (range, ODR, scale factors)
  * - Sample ring buffer
  * - Ready flag
@@ -49,37 +48,10 @@ extern "C" {
  */
 typedef struct {
     /** Device configuration and state */
-    bmi088_accel_t config;
+    icm40609_t config;
 
-    /** Sample ring buffer - producer: ISR, consumer: state estimation task */
-    bmi088_accel_sample_queue_t samples;
-
-    /** True when device is initialized and ready for interrupt-driven operation */
-    volatile bool ready;
-
-    /** Chip select GPIO port */
-    GPIO_TypeDef *cs_port;
-
-    /** Chip select GPIO pin */
-    uint16_t cs_pin;
-
-    /** Pointer to SPI job queue for this sensor */
-    spi_job_queue_t *job_queue;
-} accel_context_t;
-
-/* -------------------------------------------------------------------------- */
-/* Gyroscope Context                                                          */
-/* -------------------------------------------------------------------------- */
-
-/**
- * @brief Complete context for BMI088 gyroscope.
- */
-typedef struct {
-    /** Device configuration and state */
-    bmi088_gyro_t config;
-
-    /** Sample ring buffer - producer: ISR, consumer: state estimation task */
-    bmi088_gyro_sample_queue_t samples;
+    /** Sample ring buffer - producer: ISR, consumer: state estimation */
+    icm40609_sample_queue_t samples;
 
     /** True when device is initialized and ready for interrupt-driven operation */
     volatile bool ready;
@@ -92,7 +64,7 @@ typedef struct {
 
     /** Pointer to SPI job queue for this sensor */
     spi_job_queue_t *job_queue;
-} gyro_context_t;
+} imu_context_t;
 
 /* -------------------------------------------------------------------------- */
 /* Barometer Context                                                          */
@@ -167,11 +139,8 @@ typedef struct {
     /** HAL SPI handle */
     SPI_HandleTypeDef *spi_handle;
 
-    /** Accelerometer context */
-    accel_context_t accel;
-
-    /** Gyroscope context */
-    gyro_context_t gyro;
+    /** IMU context */
+    imu_context_t imu;
 
     /** Barometer context */
     baro_context_t baro;
@@ -182,32 +151,16 @@ typedef struct {
 /* -------------------------------------------------------------------------- */
 
 /**
- * @brief Initialize accelerometer context to safe defaults.
+ * @brief Initialize IMU context to safe defaults.
  * @param ctx Context to initialize.
  * @param cs_port Chip select GPIO port.
  * @param cs_pin Chip select GPIO pin.
  * @param job_queue Pointer to SPI job queue.
  */
-static inline void accel_context_init(accel_context_t *ctx,
-                                      GPIO_TypeDef *cs_port,
-                                      uint16_t cs_pin,
-                                      spi_job_queue_t *job_queue)
-{
-    ctx->ready = false;
-    ctx->cs_port = cs_port;
-    ctx->cs_pin = cs_pin;
-    ctx->job_queue = job_queue;
-    ctx->samples.head = 0;
-    ctx->samples.tail = 0;
-}
-
-/**
- * @brief Initialize gyroscope context to safe defaults.
- */
-static inline void gyro_context_init(gyro_context_t *ctx,
-                                     GPIO_TypeDef *cs_port,
-                                     uint16_t cs_pin,
-                                     spi_job_queue_t *job_queue)
+static inline void imu_context_init(imu_context_t *ctx,
+                                    GPIO_TypeDef *cs_port,
+                                    uint16_t cs_pin,
+                                    spi_job_queue_t *job_queue)
 {
     ctx->ready = false;
     ctx->cs_port = cs_port;
@@ -253,8 +206,7 @@ static inline void sensor_bus_context_init(sensor_bus_context_t *ctx,
 
     /* Individual sensors init with pointers to the shared job queue */
     /* Note: CS pins need to be set by caller based on hardware config */
-    ctx->accel.job_queue = &ctx->job_queue;
-    ctx->gyro.job_queue = &ctx->job_queue;
+    ctx->imu.job_queue = &ctx->job_queue;
     ctx->baro.job_queue = &ctx->job_queue;
 }
 
@@ -263,4 +215,3 @@ static inline void sensor_bus_context_init(sensor_bus_context_t *ctx,
 #endif
 
 #endif /* SENSOR_CONTEXT_H */
-

@@ -267,7 +267,6 @@ typedef struct {
     int16_t  gx_raw, gy_raw, gz_raw;
     float    ax, ay, az;   ///< acceleration in m/s^2
     float    gx, gy, gz;   ///< angular rate in rad/s
-    float    temp_c;       ///< die temperature in degrees Celsius
 } icm40609_sample_t;
 
 /* -------------------------------------------------------------------------- */

@@ -11,19 +11,6 @@
 #include "sensors/icm40609.h"
 #include "main.h"
 
-/*
- * TODO: The SPI bus, chip-select GPIO, and EXTI pin assignments are TBD
- * pending hardware design. Update these placeholders once the schematic
- * is finalized.
- *
- * Example for SPI2 (same bus as BMI088):
- *   #define ICM40609_SPI_HANDLE       hspi2
- *   #define ICM40609_CS_GPIO_PORT     ICM_Chip_Select_GPIO_Port
- *   #define ICM40609_CS_PIN           ICM_Chip_Select_Pin
- *   #define ICM40609_JOB_QUEUE        jobq_spi_2
- *   #define ICM40609_SAMPLE_FLAG      (1U << 4)
- */
-
 /* -------------------------------------------------------------------------- */
 /* SPI helper: blocking single-register write with CS control                 */
 /* -------------------------------------------------------------------------- */
@@ -69,6 +56,8 @@ uint8_t icm40609_init_with_config(SPI_HandleTypeDef *hspi,
 {
     uint8_t tx[16], rx[16];
     size_t n;
+
+    icm40609_ready = false;
 
     /* --- 1. Soft reset ---
      * Write 1 to DEVICE_CONFIG.SOFT_RESET_CONFIG, then wait 1ms for reset
@@ -189,6 +178,7 @@ uint8_t icm40609_init_with_config(SPI_HandleTypeDef *hspi,
     if (!icm40609_parse_accel_gyro(&rx[1], &sample, dev))
         return 4;
 
+    icm40609_ready = true;
     return 0;  /* success */
 }
 
@@ -204,19 +194,6 @@ uint8_t icm40609_init(SPI_HandleTypeDef *hspi,
 /* -------------------------------------------------------------------------- */
 /* DMA completion callback                                                    */
 /* -------------------------------------------------------------------------- */
-
-/*
- * These externs must be defined in SPI_device_common.c (or equivalent)
- * once integration is done:
- *
- *   icm40609_t icm40609_dev;
- *   icm40609_sample_queue_t icm40609_sample_ring;
- *
- * For now, the device file references them as extern so it compiles
- * independently of integration.
- */
-extern icm40609_t icm40609_dev;
-extern icm40609_sample_queue_t icm40609_sample_ring;
 
 static void icm40609_done(spi_job_t *job,
                            const uint8_t *rx_buf,
@@ -243,29 +220,23 @@ static void icm40609_done(spi_job_t *job,
  * Call this function from HAL_GPIO_EXTI_Rising_Callback (or Falling,
  * depending on INT1 polarity config) when the ICM-40609 DATA_RDY
  * interrupt fires.
- *
- * TODO: Update CS port/pin and job queue once hardware is assigned.
  */
-#if 0  /* Enable once hardware pin definitions and job queue are available */
 void icm40609_data_ready_interrupt(void)
 {
     const uint64_t now = timestamp_us();
 
     spi_job_t job;
 
-    /* TODO: Replace with actual chip select definitions from main.h */
-    job.cs_port  = ICM40609_CS_GPIO_PORT;
-    job.cs_pin   = ICM40609_CS_PIN;
+    job.cs_port  = ICM40609_CS_GPIO_Port;
+    job.cs_pin   = ICM40609_CS_Pin;
 
     job.len      = icm40609_build_read_accel_gyro(job.tx);
     job.t_sample = now;
     job.type     = SPI_XFER_TXRX;
     job.done     = icm40609_done;
     job.done_arg = NULL;
-    job.sensor   = SENSOR_ID_OTHER;  /* TODO: Add SENSOR_ID_ICM40609 to enum */
-    job.task_notification_flag = 0;  /* TODO: Define ICM40609_SAMPLE_FLAG */
+    job.sensor   = SENSOR_ID_ACCEL;
+    job.task_notification_flag = ICM40609_SAMPLE_FLAG;
 
-    /* TODO: Replace with actual SPI job queue for the assigned bus */
-    spi_submit_job(job, &ICM40609_JOB_QUEUE);
+    spi_submit_job(job, &jobq_spi_2);
 }
-#endif

@@ -161,30 +161,55 @@ void state_estimation_task_start(void *argument)
 
         /* ---- Dequeue all available sensor data ---- */
 
-        bmi088_accel_sample_t accel_sample;
-        while (bmi088_acc_sample_dequeue(&bmi088_acc_sample_ring, &accel_sample)) {
-            log_service_log_accel_sample((uint32_t)accel_sample.t_us,
-                accel_sample.ax, accel_sample.ay, accel_sample.az);
+        /* BMI088 dequeue — commented out, replaced by ICM-40609 unified dequeue */
+        // bmi088_accel_sample_t accel_sample;
+        // while (bmi088_acc_sample_dequeue(&bmi088_acc_sample_ring, &accel_sample)) {
+        //     log_service_log_accel_sample((uint32_t)accel_sample.t_us,
+        //         accel_sample.ax, accel_sample.ay, accel_sample.az);
+        //     if (n_accel < FUSION_VECTOR_SAMPLE_SIZE) {
+        //         accel_buf[n_accel].timestamp_us = accel_sample.t_us;
+        //         accel_buf[n_accel].data[0] =  accel_sample.ax / GRAV;
+        //         accel_buf[n_accel].data[1] =  accel_sample.ay / GRAV;
+        //         accel_buf[n_accel].data[2] = -accel_sample.az / GRAV;
+        //         n_accel++;
+        //     }
+        // }
+        // bmi088_gyro_sample_t gyro_sample;
+        // while (bmi088_gyro_sample_dequeue(&bmi088_gyro_sample_ring, &gyro_sample)) {
+        //     log_service_log_gyro_sample(gyro_sample.t_us,
+        //         gyro_sample.gx, gyro_sample.gy, gyro_sample.gz);
+        //     if (n_gyro < FUSION_VECTOR_SAMPLE_SIZE) {
+        //         gyro_buf[n_gyro].timestamp_us = gyro_sample.t_us;
+        //         gyro_buf[n_gyro].data[0] =  gyro_sample.gx;
+        //         gyro_buf[n_gyro].data[1] =  gyro_sample.gy;
+        //         gyro_buf[n_gyro].data[2] = -gyro_sample.gz;
+        //         n_gyro++;
+        //     }
+        // }
+
+        /* ICM-40609: single dequeue provides both accel + gyro per sample */
+        icm40609_sample_t imu_sample;
+        while (icm40609_sample_dequeue(&icm40609_sample_ring, &imu_sample)) {
+            log_service_log_accel_sample((uint32_t)imu_sample.t_us,
+                imu_sample.ax, imu_sample.ay, imu_sample.az);
+            log_service_log_gyro_sample((uint32_t)imu_sample.t_us,
+                imu_sample.gx, imu_sample.gy, imu_sample.gz);
+
+            /* Feed accel to ESKF (convert m/s^2 -> g, negate Z for body frame) */
             if (n_accel < FUSION_VECTOR_SAMPLE_SIZE) {
-                accel_buf[n_accel].timestamp_us = accel_sample.t_us;
-                /* BMI088 Z-axis points down on PCB; negate Z to match Z-up body frame */
-                accel_buf[n_accel].data[0] =  accel_sample.ax / GRAV;
-                accel_buf[n_accel].data[1] =  accel_sample.ay / GRAV;
-                accel_buf[n_accel].data[2] = -accel_sample.az / GRAV;
+                accel_buf[n_accel].timestamp_us = imu_sample.t_us;
+                accel_buf[n_accel].data[0] =  imu_sample.ax / GRAV;
+                accel_buf[n_accel].data[1] =  imu_sample.ay / GRAV;
+                accel_buf[n_accel].data[2] = -imu_sample.az / GRAV;
                 n_accel++;
             }
-        }
 
-        bmi088_gyro_sample_t gyro_sample;
-        while (bmi088_gyro_sample_dequeue(&bmi088_gyro_sample_ring, &gyro_sample)) {
-            log_service_log_gyro_sample(gyro_sample.t_us,
-                gyro_sample.gx, gyro_sample.gy, gyro_sample.gz);
+            /* Feed gyro to ESKF (negate Z for body frame) */
             if (n_gyro < FUSION_VECTOR_SAMPLE_SIZE) {
-                gyro_buf[n_gyro].timestamp_us = gyro_sample.t_us;
-                /* BMI088 Z-axis points down on PCB; negate Z to match Z-up */
-                gyro_buf[n_gyro].data[0] =  gyro_sample.gx;
-                gyro_buf[n_gyro].data[1] =  gyro_sample.gy;
-                gyro_buf[n_gyro].data[2] = -gyro_sample.gz;
+                gyro_buf[n_gyro].timestamp_us = imu_sample.t_us;
+                gyro_buf[n_gyro].data[0] =  imu_sample.gx;
+                gyro_buf[n_gyro].data[1] =  imu_sample.gy;
+                gyro_buf[n_gyro].data[2] = -imu_sample.gz;
                 n_gyro++;
             }
         }
