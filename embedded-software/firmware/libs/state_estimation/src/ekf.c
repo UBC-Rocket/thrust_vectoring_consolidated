@@ -17,7 +17,8 @@
 
 // change to whatever you want the EKF yaw to output
 // RADIANS
-#define FIXED_YAW 0.0f
+#define FIX_YAW false
+#define FIXED_YAW_VALUE 0.0f
 
 /* ========================================================================
  * Helpers
@@ -42,48 +43,105 @@ typedef struct {
     float data[3];
 } timeline_event_t;
 
-static float yaw_from_quat(const float q[4])
+static void quat_from_array(const float q[4], quaternion_t *out)
 {
-    const float siny = 2.0f * (q[0] * q[3] + q[1] * q[2]);
-    const float cosy = 1.0f - 2.0f * (q[2] * q[2] + q[3] * q[3]);
-    return atan2f(siny, cosy);
+    out->w = q[0];
+    out->x = q[1];
+    out->y = q[2];
+    out->z = q[3];
+}
+
+static void quat_to_array(const quaternion_t *q, float out[4])
+{
+    out[0] = q->w;
+    out[1] = q->x;
+    out[2] = q->y;
+    out[3] = q->z;
+}
+
+static bool quat_normalize_in_place(quaternion_t *q)
+{
+    const float norm_sq = q->w * q->w + q->x * q->x + q->y * q->y + q->z * q->z;
+    if (norm_sq < 1e-10f) {
+        return false;
+    }
+
+    const float inv_norm = 1.0f / sqrtf(norm_sq);
+    q->w *= inv_norm;
+    q->x *= inv_norm;
+    q->y *= inv_norm;
+    q->z *= inv_norm;
+    return true;
+}
+
+static bool extract_nav_z_twist(const float q[4], quaternion_t *q_twist)
+{
+    /* For body-to-nav attitude, the left-factor twist about nav-Z lives in
+     * the quaternion's {w, z} subspace. Project there directly to avoid
+     * reconstructing an Euler yaw angle. */
+    q_twist->w = q[0];
+    q_twist->x = 0.0f;
+    q_twist->y = 0.0f;
+    q_twist->z = q[3];
+    return quat_normalize_in_place(q_twist);
+}
+
+static bool extract_nav_z_swing_twist(const float q[4],
+                                      quaternion_t *q_swing,
+                                      quaternion_t *q_twist)
+{
+    quaternion_t q_twist_local;
+    if (!extract_nav_z_twist(q, &q_twist_local)) {
+        return false;
+    }
+
+    if (q_twist != NULL) {
+        *q_twist = q_twist_local;
+    }
+
+    if (q_swing != NULL) {
+        quaternion_t q_in;
+        quaternion_t q_twist_conj;
+
+        quat_from_array(q, &q_in);
+        quaternion_conjugate(&q_twist_local, &q_twist_conj);
+        quaternion_multiply(&q_twist_conj, &q_in, q_swing);
+        quat_normalize_in_place(q_swing);
+    }
+
+    return true;
+}
+
+static void refresh_nominal_twist(orientation_eskf_state_t *ori)
+{
+    quaternion_t q_twist;
+    if (extract_nav_z_twist(ori->q_nom, &q_twist)) {
+        quat_to_array(&q_twist, ori->q_twist_nom);
+    }
 }
 
 static void set_quat_yaw(float q[4], float yaw_rad)
 {
-    /* Apply only nav-Z twist delta.
-     * For this attitude convention, that is equivalent to replacing yaw twist
-     * while preserving the current swing (tilt), without Euler reconstruction. */
+    /* Replace only the nav-Z twist factor while preserving the current swing. */
     normalize(q);
 
-    float yaw_delta = yaw_rad - yaw_from_quat(q);
-    const float pi = 3.14159265358979323846f;
-    const float two_pi = 2.0f * pi;
-    while (yaw_delta > pi) yaw_delta -= two_pi;
-    while (yaw_delta < -pi) yaw_delta += two_pi;
+    quaternion_t q_swing;
+    if (!extract_nav_z_swing_twist(q, &q_swing, NULL)) {
+        return;
+    }
 
-    const float half_delta = 0.5f * yaw_delta;
-    quaternion_t q_delta = {
-        .w = cosf(half_delta),
+    const float half_yaw = 0.5f * yaw_rad;
+    quaternion_t q_twist_desired = {
+        .w = cosf(half_yaw),
         .x = 0.0f,
         .y = 0.0f,
-        .z = sinf(half_delta)
-    };
-
-    quaternion_t q_in = {
-        .w = q[0],
-        .x = q[1],
-        .y = q[2],
-        .z = q[3]
+        .z = sinf(half_yaw)
     };
 
     quaternion_t q_out;
-    quaternion_multiply(&q_delta, &q_in, &q_out);
+    quaternion_multiply(&q_twist_desired, &q_swing, &q_out);
 
-    q[0] = q_out.w;
-    q[1] = q_out.x;
-    q[2] = q_out.y;
-    q[3] = q_out.z;
+    quat_to_array(&q_out, q);
     normalize(q);
 }
 
@@ -97,7 +155,7 @@ void eskf_init(eskf_t *eskf, const eskf_config_t *config)
 
     /* Orientation: identity quaternion, zero biases */
     eskf->orientation.q_nom[0] = 1.0f;
-    eskf->orientation.yaw_nom = 0.0f;
+    eskf->orientation.q_twist_nom[0] = 1.0f;
     eskf->orientation.num_imus = config->num_imus;
 
     /* Initial covariance */
@@ -180,7 +238,7 @@ static void orientation_predict(eskf_t *eskf, const float gyro_raw[3],
 
     /* Propagate nominal quaternion */
     eskf_propagate_nominal(ori, gyro_corr, dt);
-    ori->yaw_nom = yaw_from_quat(ori->q_nom);
+    refresh_nominal_twist(ori);
 
     /* Build sparse F blocks directly (no full 9×9 matrix) */
     /* F00 = I - [ω]×·dt */
@@ -504,31 +562,42 @@ static void process_accel(eskf_t *eskf, const float accel_raw[3],
     /* Normalize */
     float a_norm[3] = { a_corr[0], a_corr[1], a_corr[2] };
     float mag = vec3_normalize(a_norm);
-    if (mag < 0.1f) return;
 
-    /* Predicted accel from nominal quaternion */
-    float a_pred[3];
-    eskf_predict_accel(ori->q_nom, eskf->expected_g, a_pred);
+    /* Low specific force is unreliable for gravity-based attitude correction,
+     * but it is still a valid body acceleration input (for example free fall). */
+    if (mag >= 0.1f) {
+        /* Predicted accel from nominal quaternion */
+        float a_pred[3];
+        eskf_predict_accel(ori->q_nom, eskf->expected_g, a_pred);
 
-    /* Innovation */
-    float innov[3] = { a_norm[0] - a_pred[0],
-                       a_norm[1] - a_pred[1],
-                       a_norm[2] - a_pred[2] };
+        /* Innovation */
+        float innov[3] = { a_norm[0] - a_pred[0],
+                           a_norm[1] - a_pred[1],
+                           a_norm[2] - a_pred[2] };
 
-    /* H Jacobian */
-    float H[3][ESKF_ERR_DIM];
-    eskf_get_H_accel(ori->q_nom, eskf->expected_g, H, imu_idx);
+        /* H Jacobian */
+        float H[3][ESKF_ERR_DIM];
+        eskf_get_H_accel(ori->q_nom, eskf->expected_g, H, imu_idx);
 
-    /* Measurement update.
-     * Hard guard: accel must not inject into bias states (especially yaw via b_gz). */
-    memcpy(b_gyro_prev, ori->b_gyro, sizeof(b_gyro_prev));
-    memcpy(b_accel_prev, ori->b_accel, sizeof(b_accel_prev));
-    orientation_measurement_update(eskf, innov, H, R);
-    memcpy(ori->b_gyro, b_gyro_prev, sizeof(b_gyro_prev));
-    memcpy(ori->b_accel, b_accel_prev, sizeof(b_accel_prev));
+        /* Measurement update.
+         * Hard guard: accel must not inject into bias states (especially yaw via b_gz). */
+        memcpy(b_gyro_prev, ori->b_gyro, sizeof(b_gyro_prev));
+        memcpy(b_accel_prev, ori->b_accel, sizeof(b_accel_prev));
+        orientation_measurement_update(eskf, innov, H, R);
+        memcpy(ori->b_gyro, b_gyro_prev, sizeof(b_gyro_prev));
+        memcpy(ori->b_accel, b_accel_prev, sizeof(b_accel_prev));
 
-    /* Restore yaw from separately tracked yaw state. */
-    set_quat_yaw(ori->q_nom, ori->yaw_nom);
+        /* Restore the stored nav-Z twist while keeping accel-updated swing. */
+        quaternion_t q_swing;
+        quaternion_t q_twist_locked;
+        quat_from_array(ori->q_twist_nom, &q_twist_locked);
+        if (extract_nav_z_swing_twist(ori->q_nom, &q_swing, NULL)) {
+            quaternion_t q_locked;
+            quaternion_multiply(&q_twist_locked, &q_swing, &q_locked);
+            quat_to_array(&q_locked, ori->q_nom);
+            normalize(ori->q_nom);
+        }
+    }
 
     /* Body predict: transform accel to nav frame */
     if (dt > 0.0f) {
@@ -651,7 +720,7 @@ void eskf_process(eskf_t *eskf, const eskf_input_t *input)
                                   eskf->mag_ref, H);
 
                     orientation_measurement_update(eskf, innov, H, cfg->noise);
-                    eskf->orientation.yaw_nom = yaw_from_quat(eskf->orientation.q_nom);
+                    refresh_nominal_twist(&eskf->orientation);
                 }
             }
             break;
@@ -670,7 +739,8 @@ void eskf_get_state(const eskf_t *eskf, float quat[4], float pos[3],
                     float vel[3])
 {
     memcpy(quat, eskf->orientation.q_nom, sizeof(float) * 4);
-    set_quat_yaw(quat, FIXED_YAW);
+    if (FIX_YAW) set_quat_yaw(quat, FIXED_YAW_VALUE);
+
     memcpy(pos, eskf->body.position, sizeof(float) * 3);
     memcpy(vel, eskf->body.velocity, sizeof(float) * 3);
 }
