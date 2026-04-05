@@ -132,15 +132,48 @@ void eskf_init(eskf_t *eskf, const eskf_config_t *config)
 }
 
 /* ========================================================================
- * ESKF Orientation: Predict
+ * ESKF Orientation: Predict (sparse block formulation)
+ *
+ * F has block structure (for 1 IMU, dim=9, three 3×3 blocks per row):
+ *
+ *   F = [ F00  F01   0  ]     F00 = I - [ω]×·dt
+ *       [  0    I    0  ]     F01 = -I₃·dt
+ *       [  0    0    I  ]
+ *
+ * So F*P*F^T only modifies the blocks involving row/column 0:
+ *   P'[0,0] = F00·P00·F00^T + F00·P01·F01^T + F01·P10·F00^T + F01·P11·F01^T
+ *   P'[0,j] = F00·P0j + F01·P1j   (for j=1,2)
+ *   P'[i,0] = P'[0,i]^T            (symmetry)
+ *   P'[i,j] = P[i,j]               (for i,j >= 1, unchanged)
+ *
+ * This replaces 2 × 9×9 mat_muls (1458 FLOPs) with ~10 × 3×3 (270 FLOPs).
  * ====================================================================== */
+
+/* Extract 3×3 block (bi,bj) from a DIM×DIM matrix */
+static inline void blk_get(const float P[ESKF_ERR_DIM][ESKF_ERR_DIM],
+                           int bi, int bj, float B[3][3])
+{
+    int r0 = bi * 3, c0 = bj * 3;
+    for (int i = 0; i < 3; i++)
+        for (int j = 0; j < 3; j++)
+            B[i][j] = P[r0 + i][c0 + j];
+}
+
+/* Write 3×3 block (bi,bj) into a DIM×DIM matrix */
+static inline void blk_set(float P[ESKF_ERR_DIM][ESKF_ERR_DIM],
+                           int bi, int bj, const float B[3][3])
+{
+    int r0 = bi * 3, c0 = bj * 3;
+    for (int i = 0; i < 3; i++)
+        for (int j = 0; j < 3; j++)
+            P[r0 + i][c0 + j] = B[i][j];
+}
 
 static void orientation_predict(eskf_t *eskf, const float gyro_raw[3],
                                 float dt, uint8_t imu_idx)
 {
     orientation_eskf_state_t *ori = &eskf->orientation;
 
-    /* Correct gyro with this IMU's biasprocess_accel estimate */
     float gyro_corr[3] = { gyro_raw[0] - ori->b_gyro[imu_idx][0],
                            gyro_raw[1] - ori->b_gyro[imu_idx][1],
                            gyro_raw[2] - ori->b_gyro[imu_idx][2] };
@@ -149,24 +182,66 @@ static void orientation_predict(eskf_t *eskf, const float gyro_raw[3],
     eskf_propagate_nominal(ori, gyro_corr, dt);
     ori->yaw_nom = yaw_from_quat(ori->q_nom);
 
-    /* Error-state covariance prediction: P = F_d * P * F_d^T + Q */
-    float F_d[ESKF_ERR_DIM][ESKF_ERR_DIM];
-    eskf_get_F(gyro_corr, dt, F_d, imu_idx);
+    /* Build sparse F blocks directly (no full 9×9 matrix) */
+    /* F00 = I - [ω]×·dt */
+    float F00[3][3] = {
+        { 1.0f,             gyro_corr[2]*dt, -gyro_corr[1]*dt },
+        { -gyro_corr[2]*dt, 1.0f,             gyro_corr[0]*dt },
+        {  gyro_corr[1]*dt, -gyro_corr[0]*dt, 1.0f            }
+    };
 
-    float F_dT[ESKF_ERR_DIM][ESKF_ERR_DIM];
-    mat_transpose((const float *)F_d, (float *)F_dT, ESKF_ERR_DIM, ESKF_ERR_DIM);
+    /* F01 = -I₃·dt at the gyro bias columns for this IMU */
+    float F01[3][3] = {
+        { -dt,  0.0f, 0.0f },
+        { 0.0f, -dt,  0.0f },
+        { 0.0f, 0.0f, -dt  }
+    };
 
-    float FP[ESKF_ERR_DIM][ESKF_ERR_DIM];
-    mat_mul((const float *)F_d, (const float *)ori->covar, (float *)FP,
-            ESKF_ERR_DIM, ESKF_ERR_DIM, ESKF_ERR_DIM);
+    /* Number of 3×3 blocks per row/column */
+    int nblk = ESKF_ERR_DIM / 3;
+    int bg_blk = 1 + 2 * imu_idx;  /* Block index of this IMU's gyro bias */
 
-    float FPFT[ESKF_ERR_DIM][ESKF_ERR_DIM];
-    mat_mul((const float *)FP, (const float *)F_dT, (float *)FPFT,
-            ESKF_ERR_DIM, ESKF_ERR_DIM, ESKF_ERR_DIM);
+    /* Extract needed P blocks */
+    float P00[3][3], P01[3][3], P10[3][3], P11[3][3];
+    blk_get(ori->covar, 0, 0, P00);
+    blk_get(ori->covar, 0, bg_blk, P01);
+    blk_get(ori->covar, bg_blk, 0, P10);
+    blk_get(ori->covar, bg_blk, bg_blk, P11);
 
+    /* P'[0,0] = F00·P00·F00^T + F00·P01·F01^T + F01·P10·F00^T + F01·P11·F01^T */
+    float tmp[3][3], new00[3][3];
+    mat3_zero(new00);
+
+    mat3_mul(F00, P00, tmp);    mat3_mul_BT_add(tmp, F00, new00);
+    mat3_mul(F00, P01, tmp);    mat3_mul_BT_add(tmp, F01, new00);
+    mat3_mul(F01, P10, tmp);    mat3_mul_BT_add(tmp, F00, new00);
+    mat3_mul(F01, P11, tmp);    mat3_mul_BT_add(tmp, F01, new00);
+
+    blk_set(ori->covar, 0, 0, new00);
+
+    /* P'[0,j] = F00·P[0,j] + F01·P[bg_blk,j]  for j != 0 and j != bg_blk */
+    for (int j = 1; j < nblk; j++) {
+        float P0j[3][3], Pbj[3][3], new0j[3][3];
+        blk_get(ori->covar, 0, j, P0j);
+        blk_get(ori->covar, bg_blk, j, Pbj);
+
+        mat3_mul(F00, P0j, new0j);
+        mat3_mul_add(F01, Pbj, new0j);
+
+        blk_set(ori->covar, 0, j, new0j);
+
+        /* Symmetric: P'[j,0] = P'[0,j]^T */
+        float new0j_T[3][3];
+        mat3_transpose(new0j, new0j_T);
+        blk_set(ori->covar, j, 0, new0j_T);
+    }
+
+    /* All other blocks P'[i,j] for i,j >= 1 are unchanged (F is identity there) */
+
+    /* Add process noise: P += Q * dt */
     for (int i = 0; i < ESKF_ERR_DIM; i++)
         for (int j = 0; j < ESKF_ERR_DIM; j++)
-            ori->covar[i][j] = FPFT[i][j] + ori->process[i][j] * dt;
+            ori->covar[i][j] += ori->process[i][j] * dt;
 }
 
 /* ========================================================================
@@ -182,15 +257,13 @@ static void orientation_measurement_update(eskf_t *eskf,
 
     /* S = H * P * H^T + R  (3x3) */
     float HT[ESKF_ERR_DIM][3];
-    mat_transpose((const float *)H, (float *)HT, 3, ESKF_ERR_DIM);
+    matN_transpose_3xN(H, HT);
 
     float PH_T[ESKF_ERR_DIM][3];
-    mat_mul((const float *)ori->covar, (const float *)HT, (float *)PH_T,
-            ESKF_ERR_DIM, ESKF_ERR_DIM, 3);
+    matN_mul_Nx3(ori->covar, HT, PH_T);
 
     float S[3][3];
-    mat_mul((const float *)H, (const float *)PH_T, (float *)S,
-            3, ESKF_ERR_DIM, 3);
+    matN_mul_3x3(H, PH_T, S);
 
     for (int i = 0; i < 3; i++)
         for (int j = 0; j < 3; j++)
@@ -201,8 +274,7 @@ static void orientation_measurement_update(eskf_t *eskf,
 
     /* K = P * H^T * S^-1  (ESKF_ERR_DIM x 3) */
     float K[ESKF_ERR_DIM][3];
-    mat_mul((const float *)PH_T, (const float *)S_inv, (float *)K,
-            ESKF_ERR_DIM, 3, 3);
+    matN_mul_Nx3_by_3x3(PH_T, S_inv, K);
 
     /* Error correction: δx = K * innovation */
     float dx[ESKF_ERR_DIM];
@@ -241,8 +313,7 @@ static void orientation_measurement_update(eskf_t *eskf,
 
     /* Covariance update: P = (I - K*H) * P */
     float KH[ESKF_ERR_DIM][ESKF_ERR_DIM];
-    mat_mul((const float *)K, (const float *)H, (float *)KH,
-            ESKF_ERR_DIM, 3, ESKF_ERR_DIM);
+    matN_mul_Nx3_by_3xN(K, H, KH);
 
     float IKH[ESKF_ERR_DIM][ESKF_ERR_DIM];
     memset(IKH, 0, sizeof(IKH));
@@ -252,8 +323,7 @@ static void orientation_measurement_update(eskf_t *eskf,
             IKH[i][j] -= KH[i][j];
 
     float P_new[ESKF_ERR_DIM][ESKF_ERR_DIM];
-    mat_mul((const float *)IKH, (const float *)ori->covar, (float *)P_new,
-            ESKF_ERR_DIM, ESKF_ERR_DIM, ESKF_ERR_DIM);
+    matN_mul_NxN((const float *)IKH, (const float *)ori->covar, (float *)P_new);
 
     memcpy(ori->covar, P_new, sizeof(ori->covar));
 }

@@ -9,7 +9,7 @@
 
 extern SD_HandleTypeDef hsd1;
 
-#define LOG_ERASE_BLOCK_COUNT      131072U   /* 64 MB */
+#define LOG_ERASE_BLOCK_COUNT      262144U   /* 128 MB */
 #define LOG_ERASE_TIMEOUT_MS       15000U
 #define LOG_ERASE_AHEAD_THRESHOLD  4096U
 #define LOG_ERASE_AHEAD_SIZE       32768U
@@ -300,7 +300,14 @@ bool log_writer_dma_write_block(uint8_t buf_idx)
     if (!log_writer_ready()) return false;
 
     wait_for_dma_completion();
-    erase_ahead_if_needed();
+
+    /* Erase-ahead disabled: the preflight erase covers 128 MB (262144 blocks)
+     * which is ~9 minutes at current write rates.  Runtime erase causes
+     * 25ms busy-wait stalls in HAL_SD_Erase that disrupt trace capture.
+     * Stop writing if we've exhausted the pre-erased region. */
+    if (g_ctx.block_address >= LOG_ERASE_BLOCK_COUNT) {
+        return false;
+    }
 
     if (!wait_for_card_ready(LOG_ERASE_TIMEOUT_MS)) {
         g_ctx.error = true;

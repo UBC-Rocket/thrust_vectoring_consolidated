@@ -6,7 +6,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
-#define CRASH_DUMP_SD_BLOCK_START   (131072U - 16U) /* Last 16 blocks of initial erase */
+#define CRASH_DUMP_SD_BLOCK_START   (262144U - 16U) /* Last 16 blocks of initial erase (128 MB) */
 #define CRASH_DUMP_SD_BLOCK_COUNT   16U             /* 8 KB total */
 #define CRASH_DUMP_MAGIC            0xDEADFA17U
 #define CRASH_DUMP_VERSION          1U

@@ -17,7 +17,7 @@ import struct
 import sys
 from pathlib import Path
 
-CRASH_SD_BLOCK_START = 131072 - 16  # 131056
+CRASH_SD_BLOCK_START = 262144 - 16  # Last 16 blocks of 128 MB erase region
 CRASH_SD_BLOCK_COUNT = 16
 CRASH_BYTE_OFFSET = CRASH_SD_BLOCK_START * 512
 CRASH_BYTE_SIZE = CRASH_SD_BLOCK_COUNT * 512  # 8192 bytes
