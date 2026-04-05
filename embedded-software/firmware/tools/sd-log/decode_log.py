@@ -38,8 +38,8 @@ FRAME_SIZE = FRAME_STRUCT.size
 LOG_RECORD_MAGIC = 0xA5
 CHUNK_SIZE = 8192
 
-# Firmware erases/writes the first 64 MB of the SD card.
-LOG_ERASE_BYTES = 131072 * 512  # 64 MB
+# Firmware erases/writes the first 128 MB of the SD card.
+LOG_ERASE_BYTES = 262144 * 512  # 128 MB
 
 # Max payload size: a full trace sector = 512 - 8 (frame header) = 504 bytes.
 # MAX_RECORD_SIZE from log_schema only covers fixed-size records, so we use

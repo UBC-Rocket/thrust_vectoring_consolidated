@@ -147,8 +147,11 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
     $<$<BOOL:${ULYSSES_ENABLE_DEBUG_LOGGING}>:ULYSSES_ENABLE_DEBUG_LOGGING>
 )
 
-# Enable -ffast-math for EKF math sources (FMA contraction, relaxed NaN handling)
-target_compile_options(state_estimation PRIVATE -ffast-math)
+# Enable -ffast-math and aggressive optimization for EKF math sources
+# -O3: more aggressive inlining and loop optimization than -O2
+# -funroll-loops: unroll fixed-dimension matrix loops (3×3, 9×9)
+# -ffast-math: FMA contraction, relaxed NaN handling
+target_compile_options(state_estimation PRIVATE -ffast-math -O3 -funroll-loops)
 
 # Remove wrong libob.a library dependency when using cpp files
 list(REMOVE_ITEM CMAKE_C_IMPLICIT_LINK_LIBRARIES ob)
