@@ -33,6 +33,7 @@ void test_mat_mul_identity(void);
 void test_eskf_init_gives_identity_quaternion(void);
 void test_eskf_orientation_stable_at_rest(void);
 void test_eskf_body_zero_accel_gps_origin(void);
+void test_eskf_body_free_fall_accel_predicts_downward_motion(void);
 void test_eskf_calibration_seeds_biases(void);
 void test_eskf_twist_lock_stable_near_vertical_pitch(void);
 
@@ -77,6 +78,7 @@ int main(void)
     RUN_TEST(test_eskf_init_gives_identity_quaternion);
     RUN_TEST(test_eskf_orientation_stable_at_rest);
     RUN_TEST(test_eskf_body_zero_accel_gps_origin);
+    RUN_TEST(test_eskf_body_free_fall_accel_predicts_downward_motion);
     RUN_TEST(test_eskf_calibration_seeds_biases);
     RUN_TEST(test_eskf_twist_lock_stable_near_vertical_pitch);
 

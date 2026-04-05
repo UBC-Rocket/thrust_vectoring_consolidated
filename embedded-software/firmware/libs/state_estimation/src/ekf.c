@@ -562,38 +562,41 @@ static void process_accel(eskf_t *eskf, const float accel_raw[3],
     /* Normalize */
     float a_norm[3] = { a_corr[0], a_corr[1], a_corr[2] };
     float mag = vec3_normalize(a_norm);
-    if (mag < 0.1f) return;
 
-    /* Predicted accel from nominal quaternion */
-    float a_pred[3];
-    eskf_predict_accel(ori->q_nom, eskf->expected_g, a_pred);
+    /* Low specific force is unreliable for gravity-based attitude correction,
+     * but it is still a valid body acceleration input (for example free fall). */
+    if (mag >= 0.1f) {
+        /* Predicted accel from nominal quaternion */
+        float a_pred[3];
+        eskf_predict_accel(ori->q_nom, eskf->expected_g, a_pred);
 
-    /* Innovation */
-    float innov[3] = { a_norm[0] - a_pred[0],
-                       a_norm[1] - a_pred[1],
-                       a_norm[2] - a_pred[2] };
+        /* Innovation */
+        float innov[3] = { a_norm[0] - a_pred[0],
+                           a_norm[1] - a_pred[1],
+                           a_norm[2] - a_pred[2] };
 
-    /* H Jacobian */
-    float H[3][ESKF_ERR_DIM];
-    eskf_get_H_accel(ori->q_nom, eskf->expected_g, H, imu_idx);
+        /* H Jacobian */
+        float H[3][ESKF_ERR_DIM];
+        eskf_get_H_accel(ori->q_nom, eskf->expected_g, H, imu_idx);
 
-    /* Measurement update.
-     * Hard guard: accel must not inject into bias states (especially yaw via b_gz). */
-    memcpy(b_gyro_prev, ori->b_gyro, sizeof(b_gyro_prev));
-    memcpy(b_accel_prev, ori->b_accel, sizeof(b_accel_prev));
-    orientation_measurement_update(eskf, innov, H, R);
-    memcpy(ori->b_gyro, b_gyro_prev, sizeof(b_gyro_prev));
-    memcpy(ori->b_accel, b_accel_prev, sizeof(b_accel_prev));
+        /* Measurement update.
+         * Hard guard: accel must not inject into bias states (especially yaw via b_gz). */
+        memcpy(b_gyro_prev, ori->b_gyro, sizeof(b_gyro_prev));
+        memcpy(b_accel_prev, ori->b_accel, sizeof(b_accel_prev));
+        orientation_measurement_update(eskf, innov, H, R);
+        memcpy(ori->b_gyro, b_gyro_prev, sizeof(b_gyro_prev));
+        memcpy(ori->b_accel, b_accel_prev, sizeof(b_accel_prev));
 
-    /* Restore the stored nav-Z twist while keeping accel-updated swing. */
-    quaternion_t q_swing;
-    quaternion_t q_twist_locked;
-    quat_from_array(ori->q_twist_nom, &q_twist_locked);
-    if (extract_nav_z_swing_twist(ori->q_nom, &q_swing, NULL)) {
-        quaternion_t q_locked;
-        quaternion_multiply(&q_twist_locked, &q_swing, &q_locked);
-        quat_to_array(&q_locked, ori->q_nom);
-        normalize(ori->q_nom);
+        /* Restore the stored nav-Z twist while keeping accel-updated swing. */
+        quaternion_t q_swing;
+        quaternion_t q_twist_locked;
+        quat_from_array(ori->q_twist_nom, &q_twist_locked);
+        if (extract_nav_z_swing_twist(ori->q_nom, &q_swing, NULL)) {
+            quaternion_t q_locked;
+            quaternion_multiply(&q_twist_locked, &q_swing, &q_locked);
+            quat_to_array(&q_locked, ori->q_nom);
+            normalize(ori->q_nom);
+        }
     }
 
     /* Body predict: transform accel to nav frame */

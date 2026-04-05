@@ -216,6 +216,45 @@ void test_eskf_body_zero_accel_gps_origin(void)
     }
 }
 
+void test_eskf_body_free_fall_accel_predicts_downward_motion(void)
+{
+    eskf_t eskf;
+    eskf_config_t cfg;
+    make_default_config(&cfg);
+    eskf_init(&eskf, &cfg);
+
+    const int n = 50;
+    const uint64_t dt_us = 10000;
+
+    eskf_sample_t accel_samples[n];
+    for (int i = 0; i < n; i++) {
+        accel_samples[i].timestamp_us = (uint64_t)(i + 1) * dt_us;
+        accel_samples[i].data[0] = 0.0f;
+        accel_samples[i].data[1] = 0.0f;
+        accel_samples[i].data[2] = 0.0f;
+    }
+
+    eskf_sensor_channel_t channels[] = {
+        { ESKF_SENSOR_ACCEL, 0, accel_samples, n },
+    };
+    eskf_input_t input = { channels, 1 };
+    eskf_process(&eskf, &input);
+
+    float q[4], pos[3], vel[3];
+    eskf_get_state(&eskf, q, pos, vel);
+
+    const float total_dt = (float)(n - 1) * ((float)dt_us / 1e6f);
+    const float expected_vz = -9.807f * total_dt;
+    const float expected_pz = -0.5f * 9.807f * total_dt * total_dt;
+
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, expected_vz, vel[2]);
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, expected_pz, pos[2]);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.0f, pos[0]);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.0f, pos[1]);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.0f, vel[0]);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.0f, vel[1]);
+}
+
 /* ---------- Calibration ---------- */
 
 void test_eskf_calibration_seeds_biases(void)

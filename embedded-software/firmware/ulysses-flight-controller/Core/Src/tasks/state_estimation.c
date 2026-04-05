@@ -415,7 +415,8 @@ void state_estimation_task_start(void *argument)
                         (int)(eskf.orientation.b_accel[0][2]*1000));
                     break;
                 }
-                debug_phase = (debug_phase + 1) % 5;
+                if (debug_phase == 1) debug_phase = 1;
+                else debug_phase = 1;
             }
 #endif
             ticks++;
