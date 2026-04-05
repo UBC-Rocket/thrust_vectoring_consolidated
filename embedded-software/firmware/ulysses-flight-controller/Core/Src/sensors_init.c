@@ -9,11 +9,15 @@
 #include "spi_drivers/SPI_device_interactions.h"
 #include "spi_drivers/ms5611_poller.h"
 #include "spi_drivers/ms5607_poller.h"
+#include "sensors/sen0306_mmwave.h"
 #include "main.h"
 
 /* External SPI handles from main.c */
 extern SPI_HandleTypeDef hspi2;
 extern SPI_HandleTypeDef hspi4;
+
+/* External UART handle from main.c */
+extern UART_HandleTypeDef huart4;
 
 /* MS5611 poller instance - owned by this module, used by state estimation task */
 static ms5611_poller_t g_baro_poller;
@@ -89,6 +93,9 @@ sensors_init_status_t sensors_init_with_config(const sensor_system_config_t *con
 
     ms5607_sample_ring.head = 0;
     ms5607_sample_ring.tail = 0;
+
+    sen0306_ctx.queue.head = 0;
+    sen0306_ctx.queue.tail = 0;
 
     /*
      * Step 3: Initialize BMI088 Accelerometer with configuration
@@ -172,6 +179,17 @@ sensors_init_status_t sensors_init_with_config(const sensor_system_config_t *con
         status.baro2_err = 1;  /* PROM read failed */
     }
 
+    /*
+     * Step 7: Initialize SEN0306 mmWave radar
+     *
+     * Lightweight: sets the UART handle and initialized flag.
+     * Hardware reception (hex-mode command + HAL_UART_Receive_IT) is
+     * started in main.c USER CODE 2, after this function returns.
+     */
+    sen0306_init(&huart4);
+    status.mmwave_ok  = sen0306_ctx.initialized;
+    status.mmwave_err = sen0306_ctx.initialized ? 0 : 1;
+
     g_init_status = status;
     return status;
 }
@@ -217,4 +235,9 @@ ms5611_poller_t *sensors_get_baro_poller(void)
 ms5607_poller_t *sensors_get_baro2_poller(void)
 {
     return &g_baro2_poller;
+}
+
+sen0306_context_t *sensors_get_mmwave_ctx(void)
+{
+    return &sen0306_ctx;
 }

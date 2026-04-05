@@ -100,6 +100,9 @@ add_subdirectory(${FW_LIBS_DIR}/log_records ${CMAKE_BINARY_DIR}/log_records)
 # Enable ARM hardware memory barrier for sensor ring buffers (static inline in headers)
 target_compile_definitions(sensors INTERFACE SENSORS_USE_ARM_BARRIER)
 
+# Give the sensors lib access to STM32 HAL headers (required by sen0306_mmwave which uses UART_HandleTypeDef)
+target_link_libraries(sensors PRIVATE stm32cubemx)
+
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined library search paths

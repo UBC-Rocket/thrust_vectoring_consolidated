@@ -6,6 +6,7 @@ add_library(sensors STATIC
     src/bmi088_gyro.c
     src/ms5611_baro.c
     src/ms5607_baro.c
+    src/sen0306_mmwave.c
 )
 
 target_include_directories(sensors

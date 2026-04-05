@@ -20,6 +20,7 @@
 #include "sensors/bmi088_gyro.h"
 #include "sensors/ms5611_baro.h"
 #include "sensors/ms5607_baro.h"
+#include "sensors/sen0306_mmwave.h"
 
 /* -------------------------------------------------------------------------- */
 /* BMI088 Accelerometer Configuration                                         */
@@ -195,6 +196,26 @@ typedef struct {
 }
 
 /* -------------------------------------------------------------------------- */
+/* SEN0306 mmWave Radar Configuration                                           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * @brief Configuration for SEN0306 mmWave radar.
+ */
+typedef struct {
+    uint32_t uart_baudrate; /**< UART baud rate for communication */
+} sen0306_config_t;
+
+/**
+ * @brief Default mmWave radar configuration.
+ *
+ * UART Baud Rate: 115200 (sufficient for 50 Hz updates with small frames)
+ */
+#define SEN0306_CONFIG_DEFAULT {     \
+    .uart_baudrate = 115200          \
+}
+
+/* -------------------------------------------------------------------------- */
 /* Complete System Configuration                                              */
 /* -------------------------------------------------------------------------- */
 
@@ -206,16 +227,18 @@ typedef struct {
     bmi088_gyro_config_t  gyro;
     ms5611_config_t       baro;
     ms5607_config_t       baro2;
+    sen0306_config_t      mmwave;
 } sensor_system_config_t;
 
 /**
  * @brief Default system sensor configuration.
  */
 #define SENSOR_SYSTEM_CONFIG_DEFAULT {          \
-    .accel = BMI088_ACCEL_CONFIG_DEFAULT,       \
-    .gyro  = BMI088_GYRO_CONFIG_DEFAULT,        \
-    .baro  = MS5611_CONFIG_DEFAULT,             \
-    .baro2 = MS5607_CONFIG_DEFAULT              \
+    .accel  = BMI088_ACCEL_CONFIG_DEFAULT,      \
+    .gyro   = BMI088_GYRO_CONFIG_DEFAULT,       \
+    .baro   = MS5611_CONFIG_DEFAULT,            \
+    .baro2  = MS5607_CONFIG_DEFAULT,            \
+    .mmwave = SEN0306_CONFIG_DEFAULT            \
 }
 
 #endif /* SENSOR_CONFIG_H */

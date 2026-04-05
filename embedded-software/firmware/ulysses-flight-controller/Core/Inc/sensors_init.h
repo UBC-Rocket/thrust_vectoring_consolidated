@@ -24,6 +24,7 @@
 #include "spi_drivers/ms5611_poller.h"
 #include "spi_drivers/ms5607_poller.h"
 #include "sensors/sensor_config.h"
+#include "sensors/sen0306_mmwave.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -42,14 +43,16 @@ extern "C" {
  * Check individual bits to determine which sensors are available.
  */
 typedef struct {
-    bool accel_ok;      /**< BMI088 accelerometer initialized successfully */
-    bool gyro_ok;       /**< BMI088 gyroscope initialized successfully */
-    bool baro_ok;       /**< MS5611 barometer initialized successfully */
-    bool baro2_ok;      /**< MS5607 barometer 2 initialized successfully */
-    uint8_t accel_err;  /**< Accelerometer error code (0 = success) */
-    uint8_t gyro_err;   /**< Gyroscope error code (0 = success) */
-    uint8_t baro_err;   /**< Barometer error code (0 = success) */
-    uint8_t baro2_err;  /**< Barometer 2 error code (0 = success) */
+    bool accel_ok;       /**< BMI088 accelerometer initialized successfully */
+    bool gyro_ok;        /**< BMI088 gyroscope initialized successfully */
+    bool baro_ok;        /**< MS5611 barometer initialized successfully */
+    bool baro2_ok;       /**< MS5607 barometer 2 initialized successfully */
+    bool mmwave_ok;      /**< SEN0306 mmWave radar initialized successfully */
+    uint8_t accel_err;   /**< Accelerometer error code (0 = success) */
+    uint8_t gyro_err;    /**< Gyroscope error code (0 = success) */
+    uint8_t baro_err;    /**< Barometer error code (0 = success) */
+    uint8_t baro2_err;   /**< Barometer 2 error code (0 = success) */
+    uint8_t mmwave_err;  /**< mmWave radar error code (0 = success) */
 } sensors_init_status_t;
 
 /* -------------------------------------------------------------------------- */
@@ -127,7 +130,8 @@ static inline bool sensors_init_critical_ok(const sensors_init_status_t *status)
  */
 static inline bool sensors_init_all_ok(const sensors_init_status_t *status)
 {
-    return status->accel_ok && status->gyro_ok && status->baro_ok && status->baro2_ok;
+    return status->accel_ok && status->gyro_ok && status->baro_ok
+           && status->baro2_ok && status->mmwave_ok;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -151,6 +155,13 @@ ms5611_poller_t *sensors_get_baro_poller(void);
  * @return Pointer to the global barometer 2 poller.
  */
 ms5607_poller_t *sensors_get_baro2_poller(void);
+
+/**
+ * @brief Get pointer to the SEN0306 mmWave radar context.
+ *
+ * @return Pointer to the global sen0306 context (read-only after init).
+ */
+sen0306_context_t *sensors_get_mmwave_ctx(void);
 
 #ifdef __cplusplus
 }

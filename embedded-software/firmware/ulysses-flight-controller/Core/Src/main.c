@@ -118,6 +118,37 @@ static HAL_StatusTypeDef sd_enable_internal_dma(SD_HandleTypeDef *hsd);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+/**
+ * @brief UART Rx-event callback — fired by the UART IDLE interrupt or when
+ *        the DMA buffer fills completely (HAL_UARTEx_ReceiveToIdle_DMA).
+ *
+ * In DMA_NORMAL mode the transfer stops after each burst, so we re-arm
+ * immediately after handing the received bytes to the driver.  Size is the
+ * number of bytes written into dma_buf[0..Size-1] during this burst.
+ */
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
+{
+    if (huart->Instance == UART4) {
+        sen0306_irq_handler(huart, Size);
+        /* DMA_NORMAL stops after each burst — re-arm for next reception */
+        HAL_UARTEx_ReceiveToIdle_DMA(huart, sen0306_ctx.dma_buf, SEN0306_DMA_BUF_SIZE);
+    }
+}
+
+/**
+ * @brief UART error callback — clears framing/overrun/noise/parity flags
+ *        and re-arms DMA reception so the driver recovers automatically.
+ */
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
+{
+    if (huart->Instance == UART4) {
+        __HAL_UART_CLEAR_FLAG(huart, UART_CLEAR_OREF | UART_CLEAR_NEF |
+                                     UART_CLEAR_FEF | UART_CLEAR_PEF);
+        HAL_UARTEx_ReceiveToIdle_DMA(huart,
+            sen0306_ctx.dma_buf, SEN0306_DMA_BUF_SIZE);
+    }
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -232,6 +263,29 @@ int main(void)
     (void)sensor_status;  /* Avoid unused warning in release builds */
 #endif
     /* Continue anyway - tasks will check ready flags */
+  }
+
+  /* SEN0306 startup sequence:
+   *   1. Send the 7-byte hex-mode command so the sensor switches from ASCII
+   *      to binary (8-byte) frame output.
+   *   2. Wait ~500k cycles for the sensor to process the command and flush
+   *      its own TX buffer before we open the UART RX path.
+   *   3. Clear any stale UART error flags accumulated during the delay, then
+   *      flush the RX data register so the first DMA transfer starts clean.
+   *   4. Arm DMA reception — from this point HAL_UARTEx_RxEventCallback fires
+   *      on every IDLE event and re-arms automatically.
+   */
+  {
+    static const uint8_t hex_mode_cmd[] = {0x55, 0xAA, 0x02, 0x00, 0x01, 0x00, 0x03};
+    HAL_UART_Transmit(&huart4, (uint8_t *)hex_mode_cmd, sizeof(hex_mode_cmd), 100);
+    for (volatile uint32_t i = 0; i < 500000; i++) {}  /* sensor settle delay */
+    __HAL_UART_CLEAR_FLAG(&huart4, UART_CLEAR_OREF | UART_CLEAR_NEF |
+                                   UART_CLEAR_FEF | UART_CLEAR_PEF);
+    __HAL_UART_SEND_REQ(&huart4, UART_RXDATA_FLUSH_REQUEST);
+    if (HAL_UARTEx_ReceiveToIdle_DMA(&huart4,
+            sen0306_ctx.dma_buf, SEN0306_DMA_BUF_SIZE) != HAL_OK) {
+        Error_Handler();
+    }
   }
 
   /* USER CODE END 2 */

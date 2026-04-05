@@ -128,7 +128,7 @@ static float clamp_f32(float x, float lo, float hi) {
 }
 
 static uint16_t thrust_to_us(float thrust) {
-    float clamped = clamp_f32(thrust, 0.0f, 1.0f);
+    float clamped = clamp_f32(thrust, 0.0f, 2000.0f);
     float us = (float)ESC_PWM_MIN_US + clamped * (float)(ESC_PWM_MAX_US - ESC_PWM_MIN_US);
     return (uint16_t)(us + 0.5f);
 }
