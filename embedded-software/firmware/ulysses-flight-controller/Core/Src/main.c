@@ -243,7 +243,7 @@ int main(void)
 
   /* Start scheduler */
 
-/home/j1m1  osKernelStart();
+  osKernelStart();
 
   /* We should never get here as control is now taken by the scheduler */
 

@@ -27,6 +27,10 @@ cmake --preset debug && cmake --build --preset debug
 # GNSS radio
 cd ulysses-gnss-radio
 cmake --preset Debug && cmake --build --preset Debug
+
+# Gimbal test stand
+cd gimbal_test_stand
+cmake --preset debug && cmake --build --preset debug
 ```
 
 ## Testing
