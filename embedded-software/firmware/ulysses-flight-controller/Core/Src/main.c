@@ -242,6 +242,7 @@ int main(void)
   MX_FREERTOS_Init();
 
   /* Start scheduler */
+
   osKernelStart();
 
   /* We should never get here as control is now taken by the scheduler */
