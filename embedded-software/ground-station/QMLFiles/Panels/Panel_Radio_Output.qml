@@ -1,19 +1,19 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
-import QtQuick.Window 2.15
-import "Items"
+import "../Items"
 
-ApplicationWindow {
+Pane {
     id: radioOutWin
-    width: 820
-    height: 700
-    visible: false
-    title: "Radio Output — Raw Packets"
-    modality: Qt.NonModal
-    flags: Qt.Window
-
+    padding: 0
     font.family: Theme.fontFamily
+
+    background: Rectangle {
+        color: Theme.background
+        border.color: Theme.border
+        border.width: Theme.strokePanel
+        radius: Theme.radiusPanel
+    }
 
     palette {
         window:          Theme.background
@@ -36,7 +36,17 @@ ApplicationWindow {
         anchors.margins: Theme.paddingMd
         spacing: Theme.paddingSm
 
+        Label {
+            text: "Radio Output — Raw Packets"
+            color: Theme.accent
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontH1
+            font.bold: true
+            Layout.fillWidth: true
+        }
+
         Flickable {
+            id: outputFlick
             Layout.fillWidth: true
             Layout.fillHeight: true
             contentWidth: width
@@ -57,7 +67,7 @@ ApplicationWindow {
                 text: sensorData.rawPacketLog
 
                 onTextChanged: {
-                    parent.contentY = Math.max(0, parent.contentHeight - parent.height)
+                    outputFlick.contentY = Math.max(0, outputFlick.contentHeight - outputFlick.height)
                 }
             }
         }

@@ -4,6 +4,7 @@ import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
 import QtQuick.Window
 import "Items"
+import "Panels"
 
 ApplicationWindow {
     //Initializing the Window
@@ -36,113 +37,120 @@ ApplicationWindow {
         }
 
 
-        // Initialize the layout
-        LayoutGrid {
-        }
-    }
+        // Pages: [main grid, UWB probe map, radio console, radio output]
+        // Switched via the arrow row, not by swipe
+        SwipeView {
+            id: pageSwipe
+            anchors.fill: parent
+            anchors.bottomMargin: navRow.height + 8
+            currentIndex: 0
+            clip: true
+            interactive: false
 
-    property var radioConsole: null
-    property var radioOutput: null
+            Item {
+                LayoutGrid { anchors.fill: parent }
+            }
 
-    Component {
-        id: radioConsoleComponent
-        RadioTestWindow { }
-    }
+            Item {
+                Panel_Probe_Map { anchors.fill: parent; anchors.margins: 2 }
+            }
 
-    Component {
-        id: radioOutputComponent
-        RadioOutputWindow { }
-    }
+            Item {
+                Panel_Radio_Console { anchors.fill: parent; anchors.margins: 2 }
+            }
 
-    function openRadioConsole() {
-        if (!radioConsole) {
-            radioConsole = radioConsoleComponent.createObject(window, {
-                x: window.x + 60,
-                y: window.y + 60
-            })
-        }
-        radioConsole.show()
-        radioConsole.raise()
-        radioConsole.requestActivate()
-    }
-
-    // Top-right button to open the radio window
-    function openRadioOutput() {
-        if (!radioOutput) {
-            radioOutput = radioOutputComponent.createObject(window, {
-                x: window.x + 40,
-                y: window.y + 40
-            })
-        }
-        radioOutput.show()
-        radioOutput.raise()
-        radioOutput.requestActivate()
-    }
-
-    // Bottom-right button to open the radio output window
-    Basic.Button {
-        id: openRadioOutputBtn
-        text: "Radio Output"
-        anchors.bottom: parent.bottom
-        anchors.right: openRadioBtn.left
-        anchors.margins: 8
-        z: 9999
-        hoverEnabled: true
-        padding: 10
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontBody
-
-        background: Rectangle {
-            radius: Theme.radiusControl
-            color: openRadioOutputBtn.down    ? Theme.btnPrimaryPress
-                 : openRadioOutputBtn.hovered ? Theme.btnPrimaryHover
-                 :                              Theme.btnPrimaryBg
-            border.width: Theme.strokeControl
-            border.color: Theme.btnPrimaryBorder
-            Behavior on color { ColorAnimation { duration: Theme.transitionFast } }
-        }
-        contentItem: Text {
-            text: openRadioOutputBtn.text
-            color: Theme.btnPrimaryText
-            font: openRadioOutputBtn.font
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
+            Item {
+                Panel_Radio_Output { anchors.fill: parent; anchors.margins: 2 }
+            }
         }
 
-        onClicked: openRadioOutput()
-    }
+        // Bottom-center navigation row: ‹  • •  ›
+        RowLayout {
+            id: navRow
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 6
+            spacing: 10
+            z: 100
 
-    // Bottom-right button to open the radio console window
-    Basic.Button {
-        id: openRadioBtn
-        text: "Open Radio Console"
-        anchors.bottom: parent.bottom
-        anchors.right: parent.right
-        anchors.margins: 8
-        z: 9999
-        hoverEnabled: true
-        padding: 10
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontBody
+            Basic.Button {
+                id: prevBtn
+                text: "‹"
+                enabled: pageSwipe.currentIndex > 0
+                hoverEnabled: true
+                Layout.preferredWidth: 24
+                Layout.preferredHeight: 22
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontBody
+                background: Rectangle {
+                    radius: Theme.radiusControl
+                    color: !prevBtn.enabled ? Theme.surface
+                         : prevBtn.down     ? Theme.btnSecondaryPress
+                         : prevBtn.hovered  ? Theme.btnSecondaryHover
+                         :                    Theme.btnSecondaryBg
+                    border.width: Theme.strokeControl
+                    border.color: Theme.btnSecondaryBorder
+                }
+                contentItem: Text {
+                    anchors.centerIn: parent
+                    text: prevBtn.text
+                    color: prevBtn.enabled ? Theme.textSecondary : Theme.textTertiary
+                    font.pixelSize: 16
+                    font.family: Theme.fontFamily
+                }
+                onClicked: pageSwipe.decrementCurrentIndex()
+            }
 
-        background: Rectangle {
-            radius: Theme.radiusControl
-            color: openRadioBtn.down    ? Theme.btnPrimaryPress
-                 : openRadioBtn.hovered ? Theme.btnPrimaryHover
-                 :                        Theme.btnPrimaryBg
-            border.width: Theme.strokeControl
-            border.color: Theme.btnPrimaryBorder
-            Behavior on color { ColorAnimation { duration: Theme.transitionFast } }
+            PageIndicator {
+                id: pageIndicator
+                count: pageSwipe.count
+                currentIndex: pageSwipe.currentIndex
+                interactive: true
+                onCurrentIndexChanged: pageSwipe.currentIndex = currentIndex
+
+                delegate: Rectangle {
+                    implicitWidth: 10
+                    implicitHeight: 10
+                    radius: 5
+                    color: index === pageIndicator.currentIndex ? Theme.accent : Theme.borderLight
+                    border.color: Theme.border
+                    border.width: 1
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: pageSwipe.currentIndex = index
+                    }
+                }
+            }
+
+            Basic.Button {
+                id: nextBtn
+                text: "›"
+                enabled: pageSwipe.currentIndex < pageSwipe.count - 1
+                hoverEnabled: true
+                Layout.preferredWidth: 24
+                Layout.preferredHeight: 22
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontBody
+                background: Rectangle {
+                    radius: Theme.radiusControl
+                    color: !nextBtn.enabled ? Theme.surface
+                         : nextBtn.down     ? Theme.btnSecondaryPress
+                         : nextBtn.hovered  ? Theme.btnSecondaryHover
+                         :                    Theme.btnSecondaryBg
+                    border.width: Theme.strokeControl
+                    border.color: Theme.btnSecondaryBorder
+                }
+                contentItem: Text {
+                    anchors.centerIn: parent
+                    text: nextBtn.text
+                    color: nextBtn.enabled ? Theme.textSecondary : Theme.textTertiary
+                    font.pixelSize: 16
+                    font.family: Theme.fontFamily
+                }
+                onClicked: pageSwipe.incrementCurrentIndex()
+            }
         }
-        contentItem: Text {
-            text: openRadioBtn.text
-            color: Theme.btnPrimaryText
-            font: openRadioBtn.font
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-        }
-
-        onClicked: openRadioConsole()
     }
 
 }
