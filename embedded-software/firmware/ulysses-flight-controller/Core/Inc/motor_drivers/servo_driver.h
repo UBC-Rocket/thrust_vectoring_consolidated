@@ -24,14 +24,16 @@ typedef struct {
 
 /* ── Per-servo pulse width calibration (microseconds) ───────────────── */
 /* Servo 1: TIM1 CH2 / PE11 (physical "Servo 2") */
-#define SERVO1_US_MIN   900
-#define SERVO1_US_MID  1125
-#define SERVO1_US_MAX  1450
+#define SERVO1_US_MIN       (900)
+#define SERVO1_US_MID       (1125 + 150)
+#define SERVO1_US_MAX       (1450)
+#define SERVO1_DEGREE_RANGE (55)
 
 /* Servo 2: TIM3 CH3 / PB0 (physical "Servo 1") */
-#define SERVO2_US_MIN  1575
-#define SERVO2_US_MID  1860
-#define SERVO2_US_MAX  2200
+#define SERVO2_US_MIN       (1575)
+#define SERVO2_US_MID       (1860 - 20)
+#define SERVO2_US_MAX       (2100)
+#define SERVO2_DEGREE_RANGE (52.5)
 
 typedef struct {
     servo_t servo1;
