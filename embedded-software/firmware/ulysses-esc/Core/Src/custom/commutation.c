@@ -3,7 +3,8 @@
 
 #include "tim.h"
 
-#define PWM_DUTY_CYCLE  60U   /* 71/94 counts = 75.5% at 170.2 kHz          */
+//our arr is 999. ARR = (Timer freq / target freq) - 1 = (170MHz/170KHz) - 1
+#define PWM_DUTY_CYCLE  200U   /* example: 71/94 counts = 75.5% at 170.2 kHz          */
 
 /*
  * Channel mapping (from MSP):
