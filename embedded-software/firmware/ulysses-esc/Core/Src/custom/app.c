@@ -8,9 +8,11 @@
 
 //startup defines 
 #define VOLTAGE_RATING 2700U
-#define TARGET_RPM (VOLTAGE_RATING * 3.7037)
+#define SUPPLY_VOLTAGE 20
+#define DUTY_CYCLE 0.20 //tied to commutation.c, under PWM_DUTY_CYCLE
+#define TARGET_RPM (VOLTAGE_RATING * SUPPLY_VOLTAGE * DUTY_CYCLE)
 #define MOTOR_POLES_PAIRS 7
-#define STARTUP_RAMP_TIME_MS 1000           // how long initalization speed takes (milliseconds)
+#define STARTUP_RAMP_TIME_MS 10000           // how long initalization speed takes (milliseconds)
 #define STARTUP_MIN_FREQ_HZ 100             // min freq we run at 
 
 //blanking defines 
@@ -21,7 +23,7 @@
 #define COMM_STEP_ARR   ((16000000U / (COMM_FREQ_HZ)) - 1U) /* TIM15 ARR */
 #define BEMF_BUFFER_SIZE 32 /*Size of the circular buffer for back emf averaging*/
 
-#define SYSCLOCK_HZ 16000000UL 
+#define SYSCLOCK_HZ HAL_RCC_GetHCLKFreq()
 
 typedef enum { 
     STATE_STARTUP,           // Using timer to force commutation 
@@ -180,12 +182,12 @@ static uint16_t get_averaged_bemf(PhaseBuffer* buf){
  * In each step we have 3 pins, hi low and floating. in each step,
  * we get a different phase. from commutation.c i ge tthat 
  * 
- *   Step 0: HinA/LinB active Phase C floats
- *   Step 1: HinA/LinC active  Phase B floats
- *   Step 2: HinB/LinC active  Phase C floats
- *   Step 3: HinB/LinA active Phase B floats
- *   Step 4: HinC/LinA active  Phase B floats
- *   Step 5: HinC/LinB active Phase A floats
+ *   Step 0: HinA/LinC active Phase B floats
+ *   Step 1: HinB/LinC active  Phase A floats
+ *   Step 2: HinB/LinA active  Phase C floats
+ *   Step 3: HinC/LinA active Phase B floats
+ *   Step 4: HinC/LinB active  Phase A floats
+ *   Step 5: HinA/LinB active Phase C floats
  * 
  * @param step: current commutation step (0-5) 
  * @return averaged backemf votlage of floating phases. 
