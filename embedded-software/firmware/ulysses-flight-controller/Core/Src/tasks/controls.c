@@ -49,8 +49,12 @@
 #define ESC_ARM_TIME_MS      (3000) /**< Delay before PWM output */
 
 /* Empirical values for a safe operational range of the gimbal */
-#define SERVO_MAX_DEGREES (25)
-#define SERVO_MIN_DEGREES (-25)
+#define SERVO_MAX_DEGREES (100)
+#define SERVO_MIN_DEGREES (-100)
+
+// TODO: remove me when we get empirical mech values, used for control testing
+#define ROCKET_ESTIMATED_MASS_KG (1200.0 / 1000.0)
+#define ROCKET_MAX_THRUST_KG     (800.0 / 1000.0)
 
 static quaternion_t pb_to_fc_quaternion(tvr_Quaternion quaternion);
 static inline float clampf(float value, float minimum, float maximum);
@@ -75,13 +79,13 @@ static void init_default_config(flight_controller_config_t *cfg)
     cfg->allocation.t_hat[2] = -1.0f;
     /* Gimbal */
     cfg->gimbal.L = 0.2f;
-    cfg->gimbal.theta_min = -0.05f;
-    cfg->gimbal.theta_max = 0.05f;
+    cfg->gimbal.theta_min = SERVO_MIN_DEGREES / 180.0 * M_PI;
+    cfg->gimbal.theta_max = SERVO_MAX_DEGREES / 180.0 * M_PI;
     /* Thrust */
-    cfg->thrust.m = 1.0f;
+    cfg->thrust.m = ROCKET_ESTIMATED_MASS_KG;
     cfg->thrust.g = 9.8067f;
     cfg->thrust.T_min = 0.0f;
-    cfg->thrust.T_max = 50.0f;
+    cfg->thrust.T_max = ROCKET_MAX_THRUST_KG * (double)cfg->thrust.g;
     cfg->thrust.kp = 2.0f;
     cfg->thrust.ki = 0.5f;
     cfg->thrust.kd = 1.0f;
@@ -138,6 +142,8 @@ void controls_task_start(void *argument)
 
         // Arming status has changed
         if (armed_seq != last_armed_seq) {
+            last_armed_seq = armed_seq;
+
             DLOG_PRINT("[CTRL] ARM: begin %s sequence\r\n", armed ? "arm" : "disarm");
 
             if (armed) {
@@ -198,8 +204,6 @@ void controls_task_start(void *argument)
             esc_pair_set_force(0, 0);
             esc_pair_set_armed(armed);
 
-            osDelay(pdMS_TO_TICKS(ESC_ARM_TIME_MS));
-
             DLOG_PRINT("[CTRL] ARM: end %s sequence\r\n", armed ? "arm" : "disarm");
 
             log_service_log_event(&(log_record_event_t){
@@ -241,12 +245,12 @@ void controls_task_start(void *argument)
             if (flight_state == RISE) {
                 // FIXME: artificially limit the operational range of the gimbal since the propellers
                 // could hit the landing legs in the current design
-                float theta_x_cmd_safe =
-                    clampf(control_output.theta_x_cmd, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
-                float theta_y_cmd_safe =
-                    clampf(control_output.theta_y_cmd, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
+                float theta_x_cmd_safe = clampf((double)control_output.theta_x_cmd * 180.0 / M_PI,
+                                                SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
+                float theta_y_cmd_safe = clampf((double)control_output.theta_y_cmd * 180.0 / M_PI,
+                                                SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
 
-                set_servo_pair_degrees(-theta_y_cmd_safe, -theta_x_cmd_safe);
+                set_servo_pair_degrees(theta_x_cmd_safe, -theta_y_cmd_safe);
                 esc_pair_set_force(control_output.T_cmd, control_output.tau_thrust);
             }
         }
