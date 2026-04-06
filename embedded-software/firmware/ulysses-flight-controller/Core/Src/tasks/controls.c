@@ -216,7 +216,7 @@ void controls_task_start(void *argument)
         uint32_t state_seq = state_exchange_get_state(&current_state);
         state_exchange_get_flight_state(&flight_state);
 
-        if (armed && state_seq != 0) {
+        if (state_seq != 0 && armed && flight_state == RISE) {
             flight_controller_run(&current_state, &ref, &config, &control_output, CONTROLS_DT_S);
 
             state_exchange_publish_control_output(&control_output);
@@ -242,17 +242,15 @@ void controls_task_start(void *argument)
                 });
             }
 
-            if (flight_state == RISE) {
-                // FIXME: artificially limit the operational range of the gimbal since the propellers
-                // could hit the landing legs in the current design
-                float theta_x_cmd_safe = clampf((double)control_output.theta_x_cmd * 180.0 / M_PI,
-                                                SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
-                float theta_y_cmd_safe = clampf((double)control_output.theta_y_cmd * 180.0 / M_PI,
-                                                SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
+            // FIXME: artificially limit the operational range of the gimbal since the propellers
+            // could hit the landing legs in the current design
+            float theta_x_cmd_safe = clampf((double)control_output.theta_x_cmd * 180.0 / M_PI,
+                                            SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
+            float theta_y_cmd_safe = clampf((double)control_output.theta_y_cmd * 180.0 / M_PI,
+                                            SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
 
-                set_servo_pair_degrees(theta_x_cmd_safe, -theta_y_cmd_safe);
-                esc_pair_set_force(control_output.T_cmd, control_output.tau_thrust);
-            }
+            set_servo_pair_degrees(theta_x_cmd_safe, -theta_y_cmd_safe);
+            esc_pair_set_force(control_output.T_cmd, control_output.tau_thrust);
         }
     }
 }
