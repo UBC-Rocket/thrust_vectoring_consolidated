@@ -49,6 +49,8 @@ BasePanel {
         property string label: ""
         property alias text: input.text
         Layout.fillWidth: true
+        Layout.minimumWidth: 0
+        Layout.preferredWidth: 0
         spacing: 4
 
         Text {
@@ -61,6 +63,10 @@ BasePanel {
         Basic.TextField {
             id: input
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            Layout.preferredWidth: 0
+            leftPadding: 8
+            rightPadding: 8
             color: Theme.textPrimary
             font.family: Theme.monoFamily
             font.pixelSize: Theme.fontBody
@@ -75,22 +81,32 @@ BasePanel {
         }
     }
 
+    component SectionLabel: Text {
+        Layout.fillWidth: true
+        Layout.topMargin: 4
+        color: Theme.textTertiary
+        font.family: Theme.fontFamily
+        font.pixelSize: Theme.fontCaption
+        font.bold: true
+    }
+
     BaseHeader {
         id: header
         headerText: "Controller Commands"
     }
 
+    // TX channel indicator — aligned with the header bar, not floating
     Text {
-        anchors.top: parent.top
+        anchors.verticalCenter: header.verticalCenter
         anchors.right: parent.right
-        anchors.margins: 12
+        anchors.rightMargin: 15
         text: "TX channel: " + which
         color: Theme.textTertiary
         font.family: Theme.fontFamily
-        font.pixelSize: 12
+        font.pixelSize: Theme.fontCaption
     }
 
-    TabBar {
+    Basic.TabBar {
         id: tabs
         anchors.top: header.bottom
         anchors.left: parent.left
@@ -99,80 +115,21 @@ BasePanel {
         spacing: 8
 
         background: Rectangle {
-            radius: Theme.radiusControl
-            color: Theme.surfaceInset
-            border.width: Theme.strokeControl
-            border.color: Theme.border
+            color: "transparent"
+            border.width: 0
         }
 
-        TabButton {
-            id: pidTab
+        ThemedTabButton {
             text: "PID"
             width: (tabs.width - (tabs.spacing * 2)) / 3
-            hoverEnabled: true
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontBody
-            background: Rectangle {
-                radius: Theme.radiusControl
-                color: pidTab.checked ? Theme.btnPrimaryBg
-                     : pidTab.down ? Theme.btnSecondaryPress
-                     : pidTab.hovered ? Theme.btnSecondaryHover
-                     : Theme.btnSecondaryBg
-                border.width: Theme.strokeControl
-                border.color: pidTab.checked ? Theme.btnPrimaryBorder : Theme.btnSecondaryBorder
-            }
-            contentItem: Text {
-                anchors.centerIn: parent
-                text: pidTab.text
-                color: pidTab.checked ? Theme.btnPrimaryText : Theme.btnSecondaryText
-                font: pidTab.font
-            }
         }
-        TabButton {
-            id: referenceTab
+        ThemedTabButton {
             text: "Reference"
             width: (tabs.width - (tabs.spacing * 2)) / 3
-            hoverEnabled: true
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontBody
-            background: Rectangle {
-                radius: Theme.radiusControl
-                color: referenceTab.checked ? Theme.btnPrimaryBg
-                     : referenceTab.down ? Theme.btnSecondaryPress
-                     : referenceTab.hovered ? Theme.btnSecondaryHover
-                     : Theme.btnSecondaryBg
-                border.width: Theme.strokeControl
-                border.color: referenceTab.checked ? Theme.btnPrimaryBorder : Theme.btnSecondaryBorder
-            }
-            contentItem: Text {
-                anchors.centerIn: parent
-                text: referenceTab.text
-                color: referenceTab.checked ? Theme.btnPrimaryText : Theme.btnSecondaryText
-                font: referenceTab.font
-            }
         }
-        TabButton {
-            id: configTab
+        ThemedTabButton {
             text: "Config"
             width: (tabs.width - (tabs.spacing * 2)) / 3
-            hoverEnabled: true
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontBody
-            background: Rectangle {
-                radius: Theme.radiusControl
-                color: configTab.checked ? Theme.btnPrimaryBg
-                     : configTab.down ? Theme.btnSecondaryPress
-                     : configTab.hovered ? Theme.btnSecondaryHover
-                     : Theme.btnSecondaryBg
-                border.width: Theme.strokeControl
-                border.color: configTab.checked ? Theme.btnPrimaryBorder : Theme.btnSecondaryBorder
-            }
-            contentItem: Text {
-                anchors.centerIn: parent
-                text: configTab.text
-                color: configTab.checked ? Theme.btnPrimaryText : Theme.btnSecondaryText
-                font: configTab.font
-            }
         }
     }
 
@@ -184,86 +141,75 @@ BasePanel {
         anchors.margins: 12
         currentIndex: tabs.currentIndex
 
-        // PID tab (tvr_SetPidGains)
+        // ── PID tab (tvr_SetPidGains) ──
         ScrollView {
             id: pidScroll
             clip: true
             contentWidth: availableWidth
+            ScrollBar.vertical: ThemedScrollBar { }
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
             ColumnLayout {
                 width: pidScroll.availableWidth
-                spacing: 12
+                spacing: 10
 
-                CheckBox {
-                    text: "Proportional"
-                    checked: hasAttitudeKp
-                    onToggled: hasAttitudeKp = checked
+                // Attitude proportional
+                RowLayout {
+                    Layout.fillWidth: true
+                    SectionLabel { text: "ATTITUDE — PROPORTIONAL" }
+                    ThemedCheckBox {
+                        text: "enable"
+                        checked: hasAttitudeKp
+                        onToggled: hasAttitudeKp = checked
+                    }
                 }
-
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
+                    enabled: hasAttitudeKp
                     NumberField { label: "x"; text: String(attKpX); onTextChanged: attKpX = panel.sanitizedNumber(text, attKpX) }
                     NumberField { label: "y"; text: String(attKpY); onTextChanged: attKpY = panel.sanitizedNumber(text, attKpY) }
                     NumberField { label: "z"; text: String(attKpZ); onTextChanged: attKpZ = panel.sanitizedNumber(text, attKpZ) }
                 }
 
-                CheckBox {
-                    text: "Derivative"
-                    checked: hasAttitudeKd
-                    onToggled: hasAttitudeKd = checked
+                // Attitude derivative
+                RowLayout {
+                    Layout.fillWidth: true
+                    SectionLabel { text: "ATTITUDE — DERIVATIVE" }
+                    ThemedCheckBox {
+                        text: "enable"
+                        checked: hasAttitudeKd
+                        onToggled: hasAttitudeKd = checked
+                    }
                 }
-
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
+                    enabled: hasAttitudeKd
                     NumberField { label: "x"; text: String(attKdX); onTextChanged: attKdX = panel.sanitizedNumber(text, attKdX) }
                     NumberField { label: "y"; text: String(attKdY); onTextChanged: attKdY = panel.sanitizedNumber(text, attKdY) }
                     NumberField { label: "z"; text: String(attKdZ); onTextChanged: attKdZ = panel.sanitizedNumber(text, attKdZ) }
                 }
 
-                Text {
-                    text: "z"
-                    color: Theme.textTertiary
-                    font.family: Theme.fontFamily
-                    font.pixelSize: 12
-                }
-
+                // Z axis
+                SectionLabel { text: "Z AXIS" }
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
                     NumberField { label: "proportional"; text: String(zKp); onTextChanged: zKp = panel.sanitizedNumber(text, zKp) }
-                    NumberField { label: "integral"; text: String(zKi); onTextChanged: zKi = panel.sanitizedNumber(text, zKi) }
-                    NumberField { label: "derivative"; text: String(zKd); onTextChanged: zKd = panel.sanitizedNumber(text, zKd) }
+                    NumberField { label: "integral";     text: String(zKi); onTextChanged: zKi = panel.sanitizedNumber(text, zKi) }
+                    NumberField { label: "derivative";   text: String(zKd); onTextChanged: zKd = panel.sanitizedNumber(text, zKd) }
                 }
-
                 NumberField {
                     label: "integral limit"
                     text: String(zIntegralLimit)
                     onTextChanged: zIntegralLimit = panel.sanitizedNumber(text, zIntegralLimit)
                 }
 
-                Basic.Button {
-                    id: sendPidButton
+                PrimaryButton {
                     text: "Send PID"
                     Layout.alignment: Qt.AlignRight
-                    padding: 10
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontBody
-                    background: Rectangle {
-                        radius: Theme.radiusControl
-                        color: sendPidButton.down ? Theme.btnPrimaryPress
-                             : sendPidButton.hovered ? Theme.btnPrimaryHover
-                             : Theme.btnPrimaryBg
-                        border.width: Theme.strokeControl
-                        border.color: Theme.btnPrimaryBorder
-                    }
-                    contentItem: Text {
-                        anchors.centerIn: parent
-                        text: sendPidButton.text
-                        color: Theme.btnPrimaryText
-                        font: sendPidButton.font
-                    }
+                    Layout.topMargin: 6
                     onClicked: {
                         const values = [
                             hasAttitudeKp,
@@ -278,64 +224,54 @@ BasePanel {
             }
         }
 
-        // Reference tab (tvr_SetReference)
+        // ── Reference tab (tvr_SetReference) ──
         ScrollView {
             id: referenceScroll
             clip: true
             contentWidth: availableWidth
+            ScrollBar.vertical: ThemedScrollBar { }
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
             ColumnLayout {
                 width: referenceScroll.availableWidth
-                spacing: 12
+                spacing: 10
 
+                SectionLabel { text: "TRANSLATION" }
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
-                    NumberField { label: "z ref"; text: String(zRef); onTextChanged: zRef = panel.sanitizedNumber(text, zRef) }
+                    NumberField { label: "z ref";  text: String(zRef);  onTextChanged: zRef  = panel.sanitizedNumber(text, zRef) }
                     NumberField { label: "vz ref"; text: String(vzRef); onTextChanged: vzRef = panel.sanitizedNumber(text, vzRef) }
                 }
 
-                CheckBox {
-                    text: "has_q_ref"
-                    checked: hasQRef
-                    onToggled: hasQRef = checked
+                RowLayout {
+                    Layout.fillWidth: true
+                    SectionLabel { text: "QUATERNION" }
+                    ThemedCheckBox {
+                        text: "enable"
+                        checked: hasQRef
+                        onToggled: hasQRef = checked
+                    }
                 }
-
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
+                    enabled: hasQRef
                     NumberField { label: "q ref w"; text: String(qRefW); onTextChanged: qRefW = panel.sanitizedNumber(text, qRefW) }
                     NumberField { label: "q ref x"; text: String(qRefX); onTextChanged: qRefX = panel.sanitizedNumber(text, qRefX) }
                 }
-
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
+                    enabled: hasQRef
                     NumberField { label: "q ref y"; text: String(qRefY); onTextChanged: qRefY = panel.sanitizedNumber(text, qRefY) }
                     NumberField { label: "q ref z"; text: String(qRefZ); onTextChanged: qRefZ = panel.sanitizedNumber(text, qRefZ) }
                 }
 
-                Basic.Button {
-                    id: sendReferenceButton
+                PrimaryButton {
                     text: "Send Reference"
                     Layout.alignment: Qt.AlignRight
-                    padding: 10
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontBody
-                    background: Rectangle {
-                        radius: Theme.radiusControl
-                        color: sendReferenceButton.down ? Theme.btnPrimaryPress
-                             : sendReferenceButton.hovered ? Theme.btnPrimaryHover
-                             : Theme.btnPrimaryBg
-                        border.width: Theme.strokeControl
-                        border.color: Theme.btnPrimaryBorder
-                    }
-                    contentItem: Text {
-                        anchors.centerIn: parent
-                        text: sendReferenceButton.text
-                        color: Theme.btnPrimaryText
-                        font: sendReferenceButton.font
-                    }
+                    Layout.topMargin: 6
                     onClicked: {
                         const values = [zRef, vzRef, hasQRef, qRefW, qRefX, qRefY, qRefZ]
                         commandsender.sendReferenceValues(which, values)
@@ -344,18 +280,22 @@ BasePanel {
             }
         }
 
-        // Config tab (tvr_SetConfig)
+        // ── Config tab (tvr_SetConfig) ──
         ScrollView {
             id: configScroll
             clip: true
             contentWidth: availableWidth
+            ScrollBar.vertical: ThemedScrollBar { }
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
             ColumnLayout {
                 width: configScroll.availableWidth
-                spacing: 12
+                spacing: 10
 
+                SectionLabel { text: "VEHICLE" }
                 NumberField { label: "mass"; text: String(mass); onTextChanged: mass = panel.sanitizedNumber(text, mass) }
 
+                SectionLabel { text: "THRUST LIMITS" }
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
@@ -363,6 +303,7 @@ BasePanel {
                     NumberField { label: "T_max"; text: String(tMax); onTextChanged: tMax = panel.sanitizedNumber(text, tMax) }
                 }
 
+                SectionLabel { text: "GIMBAL LIMITS" }
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
@@ -370,27 +311,10 @@ BasePanel {
                     NumberField { label: "theta_max"; text: String(thetaMax); onTextChanged: thetaMax = panel.sanitizedNumber(text, thetaMax) }
                 }
 
-                Basic.Button {
-                    id: sendConfigButton
+                PrimaryButton {
                     text: "Send Config"
                     Layout.alignment: Qt.AlignRight
-                    padding: 10
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontBody
-                    background: Rectangle {
-                        radius: Theme.radiusControl
-                        color: sendConfigButton.down ? Theme.btnPrimaryPress
-                             : sendConfigButton.hovered ? Theme.btnPrimaryHover
-                             : Theme.btnPrimaryBg
-                        border.width: Theme.strokeControl
-                        border.color: Theme.btnPrimaryBorder
-                    }
-                    contentItem: Text {
-                        anchors.centerIn: parent
-                        text: sendConfigButton.text
-                        color: Theme.btnPrimaryText
-                        font: sendConfigButton.font
-                    }
+                    Layout.topMargin: 6
                     onClicked: {
                         const values = [mass, tMin, tMax, thetaMin, thetaMax]
                         commandsender.sendConfigValues(which, values)
