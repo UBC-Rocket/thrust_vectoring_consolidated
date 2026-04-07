@@ -1,297 +1,291 @@
 /**
  * @file    flight_controller.c
- * @brief   13-equation TVC algorithm from Control System Architecture PDF.
+ * @brief   Ulysses Phase 1 Proposal v2 — four-module flight control pipeline.
  *
- * Pipeline implements PDF equations in execution order:
- *   Eq 1:    Quaternion error
- *   Eq 2:    Axis-angle error extraction
- *   Eq 10:   Gyroscopic torque
- *   Eq 11:   Command torque
- *   Eq 12:   Roll torque (projection onto thrust direction)
- *   Eq 13:   Gimbal torque
- *   Eq 3:    Perpendicular thrust
- *   Eq 4:    Parallel thrust
- *   Eq 5:    Desired thrust vector (inline)
- *   Eq 6-7:  Gimbal angles
- *   Eq 8:    Thrust direction update
- *   z-PID:   Altitude control (not part of PDF)
- *   Eq 9:    Thrust magnitude
+ * Pipeline (per K. Lew, Jan 2026):
+ *   §3 Torque Module          : tau_cmd = -Kp*phi - Kd*omega + omega x (I omega)
+ *   §4 Torque Decomposition   : tau_z = tau_cmd . k_hat
+ *                               tau_thrust = tau_z / t_z
+ *                               tau_gim = tau_cmd - tau_thrust * t_hat
+ *   §5 Gimbal Control         : Tx = tau_y/L, Ty = -tau_x/L
+ *                               Tz = +sqrt(T^2 - Tx^2 - Ty^2)  (positive root,
+ *                                 thrust along body +z at hover; matches Eq 5.5)
+ *                               theta_x = -atan2(ty, tz), theta_y = arcsin(tx)
+ *                                 (signs derived from Eq 5.6 with +k̂ instead of
+ *                                 -k̂; Eq 5.6/5.7 in the PDF are inconsistent
+ *                                 with Eq 5.5 — we take Eq 5.5 as the source
+ *                                 of truth and re-derive the angle extraction.)
+ *                               saturate to [theta_min, theta_max]
+ *   §6 Thrust Control         : a_z_cmd = Kp*e + Ki*∫e + Kd*(vz_ref - vz)
+ *                               T_cmd = m*(g + a_z_cmd), saturate
+ *
+ * All internal helpers are static — only flight_controller_init() and
+ * flight_controller_run() have external linkage.
  */
 
 #include "controls/flight_controller.h"
 #include "controls/pid.h"
 #include "state_estimation/state.h"
+
 #include <math.h>
 #include <string.h>
 
-#define MIN_DT_S 1.0e-6f /**< Min dt [s] to avoid div-by-zero in PID */
+/** Min dt [s] to skip the z-PID step (avoids division by zero). */
+#define MIN_DT_S 1.0e-6f
+
+/** Tolerance below which a vector norm is considered zero. */
+#define EPS_NORM 1.0e-9f
 
 /* ── Static state persisting between calls ─────────────────────────────── */
 
-static pid_controller_t z_pid;
-static uint8_t z_pid_initialized = 0;
-static float s_t_hat[3]; /**< Thrust direction (Eq 8) */
-static float s_t_mag;    /**< Thrust magnitude (Eq 9) */
+static pid_controller_t s_z_pid;
+static uint8_t s_z_pid_initialized = 0;
 
+/** Current thrust direction in body frame (updated after gimbal control). */
+static float s_t_hat[3] = {0.0f, 0.0f, 1.0f};
 
-/* ── Utility ───────────────────────────────────────────────────────────── */
+/* ── Utilities ─────────────────────────────────────────────────────────── */
 
-float clampf(float value, float min_val, float max_val)
+static float clampf(float v, float lo, float hi)
 {
-    if (value > max_val)
-        return max_val;
-    if (value < min_val)
-        return min_val;
-    return value;
+    if (v > hi) return hi;
+    if (v < lo) return lo;
+    return v;
 }
 
-/* ── Eq 1: Quaternion error ────────────────────────────────────────────── */
+/* ── Module 1: Torque Module (PDF §3, Eq 3.8) ──────────────────────────── */
 
 /**
- * @brief q_err = q_des * conj(q_meas); negate if w < 0 for shortest path.
+ * @brief Compute the body torque command implementing the PD attitude law.
+ *
+ * Steps:
+ *   1. Δq = q_ref ⊗ q_meas* ; flip if w<0 for shortest-path rotation.
+ *   2. phi = exact axis-angle: 2*atan2(||v||, w) * v/||v||.
+ *   3. tau_cmd = -Kp*phi - Kd*omega + omega x (I*omega).
  */
-void compute_quaternion_error(const quaternion_t *q_des,
-                              const quaternion_t *q_meas,
-                              quaternion_t *q_err)
+static void torque_module(const flight_controller_attitude_config_t *cfg,
+                          const quaternion_t *q_ref,
+                          const quaternion_t *q_meas,
+                          const float omega[3],
+                          float phi_out[3],
+                          float tau_cmd_out[3])
 {
+    /* Eq 3.1: quaternion error */
     quaternion_t q_meas_conj;
     quaternion_conjugate(q_meas, &q_meas_conj);
-    quaternion_multiply(q_des, &q_meas_conj, q_err);
+    quaternion_t q_err;
+    quaternion_multiply(q_ref, &q_meas_conj, &q_err);
 
-    // flip is w < 0 to ensure shortest rotation
-    if (q_err->w < 0.0f)
+    /* Shortest-path: if w<0, the rotation is >pi, flip the sign. */
+    if (q_err.w < 0.0f)
     {
-        q_err->w = -q_err->w;
-        q_err->x = -q_err->x;
-        q_err->y = -q_err->y;
-        q_err->z = -q_err->z;
+        q_err.w = -q_err.w;
+        q_err.x = -q_err.x;
+        q_err.y = -q_err.y;
+        q_err.z = -q_err.z;
     }
-}
 
-/* ── Eq 2: Axis-angle error ────────────────────────────────────────────── */
-
-/**
- * @brief phi = 2 * atan2(||v||, q0) * v / ||v||; exact axis-angle extraction.
- */
-void compute_axis_angle_error(const quaternion_t *q_err, float phi[3])
-{
-    float vx = q_err->x;
-    float vy = q_err->y;
-    float vz = q_err->z;
+    /* Eq 3.2 / 3.5: axis-angle error (exact form) */
+    float vx = q_err.x, vy = q_err.y, vz = q_err.z;
     float v_norm = sqrtf(vx * vx + vy * vy + vz * vz);
-
-    if (v_norm < 1.0e-9f)
+    if (v_norm < EPS_NORM)
     {
-        phi[0] = 0.0f;
-        phi[1] = 0.0f;
-        phi[2] = 0.0f;
-        return;
+        phi_out[0] = 0.0f;
+        phi_out[1] = 0.0f;
+        phi_out[2] = 0.0f;
+    }
+    else
+    {
+        float angle = 2.0f * atan2f(v_norm, q_err.w);
+        float scale = angle / v_norm;
+        phi_out[0] = scale * vx;
+        phi_out[1] = scale * vy;
+        phi_out[2] = scale * vz;
     }
 
-    float angle = 2.0f * atan2f(v_norm, q_err->w);
-    float scale = angle / v_norm;
-    phi[0] = scale * vx;
-    phi[1] = scale * vy;
-    phi[2] = scale * vz;
+    /* Kp * phi (full 3x3 matrix multiply) */
+    float Kp_phi[3];
+    matrix33_vec3_mul(cfg->Kp, phi_out, Kp_phi);
+
+    /* Kd * omega */
+    float Kd_w[3];
+    matrix33_vec3_mul(cfg->Kd, omega, Kd_w);
+
+    /* I * omega, then omega x (I*omega) — gyroscopic feedforward */
+    float I_w[3];
+    matrix33_vec3_mul(cfg->I, omega, I_w);
+    float gyro[3];
+    vec3_cross(omega, I_w, gyro);
+
+    /* Eq 3.8: tau_cmd = -Kp*phi - Kd*omega + omega x (I*omega) */
+    tau_cmd_out[0] = -Kp_phi[0] - Kd_w[0] + gyro[0];
+    tau_cmd_out[1] = -Kp_phi[1] - Kd_w[1] + gyro[1];
+    tau_cmd_out[2] = -Kp_phi[2] - Kd_w[2] + gyro[2];
 }
 
-/* ── Eq 10: Gyroscopic torque ──────────────────────────────────────────── */
+/* ── Module 2: Torque Decomposition (PDF §4) ───────────────────────────── */
 
 /**
- * @brief tau_gyro = (I * omega) x omega.
+ * @brief Split tau_cmd into a gimbal portion and a scalar differential-prop
+ *        torque.
+ *
+ * Eq 4.2: tau_z = tau_cmd . k_hat (= tau_cmd[2])
+ * Eq 4.3: tau_thrust = tau_z / t_z
+ * Eq 4.4: tau_gim    = tau_cmd - tau_thrust * t_hat
+ *
+ * If t_z is too small (thrust direction nearly horizontal — degenerate), the
+ * differential-prop branch can't authoritatively realize the axial torque, so
+ * tau_thrust collapses to zero and the full tau_cmd is left to the gimbal.
  */
-void compute_gyroscopic_torque(const float I[3][3],
-                               const float omega[3],
-                               float tau_gyro[3])
+static void torque_decomposition(const float tau_cmd[3],
+                                 const float t_hat[3],
+                                 float tau_gim_out[3],
+                                 float *tau_thrust_out)
 {
-    float I_omega[3];
-    matrix33_vec3_mul(I, omega, I_omega);
-    vec3_cross(I_omega, omega, tau_gyro);
-}
+    float t_z = t_hat[2];
+    float tau_z = tau_cmd[2];
 
-/* ── Eq 11: Command torque ─────────────────────────────────────────────── */
-
-/**
- * @brief tau_cmd = -(tau_gyro + phi). No gain matrices.
- */
-void compute_command_torque(const float tau_gyro[3],
-                            const float phi[3],
-                            float tau_cmd[3])
-{
-    tau_cmd[0] = -(tau_gyro[0] + phi[0]);
-    tau_cmd[1] = -(tau_gyro[1] + phi[1]);
-    tau_cmd[2] = -(tau_gyro[2] + phi[2]);
-}
-
-/* ── Eq 12: Roll torque (projection onto thrust direction) ─────────────── */
-
-/**
- * @brief tau_roll = (tau_cmd . t_hat) * t_hat.
- */
-void compute_roll_torque(const float tau_cmd[3],
-                         const float t_hat[3],
-                         float tau_roll[3])
-{
-    float proj = vec3_dot(tau_cmd, t_hat);
-    tau_roll[0] = proj * t_hat[0];
-    tau_roll[1] = proj * t_hat[1];
-    tau_roll[2] = proj * t_hat[2];
-}
-
-/* ── Eq 13: Gimbal torque ──────────────────────────────────────────────── */
-
-/**
- * @brief tau_gim = tau_cmd - tau_roll.
- */
-void compute_gimbal_torque(const float tau_cmd[3],
-                           const float tau_roll[3],
-                           float tau_gim[3])
-{
-    tau_gim[0] = tau_cmd[0] - tau_roll[0];
-    tau_gim[1] = tau_cmd[1] - tau_roll[1];
-    tau_gim[2] = tau_cmd[2] - tau_roll[2];
-}
-
-/* ── Eq 3: Perpendicular thrust ────────────────────────────────────────── */
-
-/**
- * @brief t_perp = (tau_gim x r_gim) / ||r_gim||^2.
- */
-void compute_perpendicular_thrust(const float tau_gim[3],
-                                  const float r_gim[3],
-                                  float t_perp[3])
-{
-    float r_norm_sq = vec3_dot(r_gim, r_gim);
-    if (r_norm_sq < 1.0e-12f)
+    float tau_thrust;
+    if (fabsf(t_z) < EPS_NORM)
     {
-        t_perp[0] = 0.0f;
-        t_perp[1] = 0.0f;
-        t_perp[2] = 0.0f;
-        return;
+        tau_thrust = 0.0f;
     }
-    float cross[3];
-    vec3_cross(tau_gim, r_gim, cross);
-    float inv = 1.0f / r_norm_sq;
-    t_perp[0] = cross[0] * inv;
-    t_perp[1] = cross[1] * inv;
-    t_perp[2] = cross[2] * inv;
-}
-
-/* ── Eq 4: Parallel thrust ─────────────────────────────────────────────── */
-
-/**
- * @brief t_par = sqrt(||t||^2 - ||t_perp||^2) * r_hat_gim.
- *        Uses s_t_mag from previous iteration for ||t||.
- */
-void compute_parallel_thrust(float t_mag,
-                             const float t_perp[3],
-                             const float r_gim[3],
-                             float t_par[3])
-{
-    float r_norm_sq = vec3_dot(r_gim, r_gim);
-    if (r_norm_sq < 1.0e-12f)
+    else
     {
-        t_par[0] = 0.0f;
-        t_par[1] = 0.0f;
-        t_par[2] = 0.0f;
-        return;
+        tau_thrust = tau_z / t_z;
     }
 
-    float t_perp_sq = vec3_dot(t_perp, t_perp);
-    float diff = t_mag * t_mag - t_perp_sq;
-    if (diff < 0.0f)
-        diff = 0.0f;
+    tau_gim_out[0] = tau_cmd[0] - tau_thrust * t_hat[0];
+    tau_gim_out[1] = tau_cmd[1] - tau_thrust * t_hat[1];
+    tau_gim_out[2] = tau_cmd[2] - tau_thrust * t_hat[2];
 
-    float par_mag = sqrtf(diff);
-    float inv_r = 1.0f / sqrtf(r_norm_sq);
-
-    t_par[0] = par_mag * r_gim[0] * inv_r;
-    t_par[1] = par_mag * r_gim[1] * inv_r;
-    t_par[2] = par_mag * r_gim[2] * inv_r;
+    *tau_thrust_out = tau_thrust;
 }
 
-/* ── Eq 6-7: Gimbal angles ─────────────────────────────────────────────── */
+/* ── Module 3: Gimbal Control (PDF §5) ─────────────────────────────────── */
 
 /**
- * @brief theta_x = -atan2(t_hat_des[1], t_hat_des[2]),
- *        theta_y = asin(t_hat_des[0]).
- *        Clamp to [theta_min, theta_max].
+ * @brief Map (tau_gim, T) to gimbal angles (theta_x, theta_y) and update the
+ *        thrust direction t_hat.
+ *
+ * Eq 5.5: t_hat = [tau_y/(LT), -tau_x/(LT), sqrt(1 - tx^2 - ty^2)]
+ *         (positive root, +body-z convention)
+ * Eq 5.7 (re-derived for +k̂): theta_x = -atan2(ty, tz), theta_y = arcsin(tx)
+ * Eq 5.10: clip(theta, theta_min, theta_max)
+ *
+ * The recomputed t_hat (from the saturated angles via Eq 5.6 with +k̂) is
+ * written back to t_hat_out so the next iteration's torque decomposition uses
+ * a consistent direction.
  */
-void compute_gimbal_angles(const float t_des[3],
-                           const flight_controller_gimbal_config_t *cfg,
-                           float *theta_x_cmd,
-                           float *theta_y_cmd)
+static void gimbal_control(const flight_controller_gimbal_config_t *cfg,
+                           const float tau_gim[3],
+                           float T,
+                           float *theta_x_out,
+                           float *theta_y_out,
+                           float t_hat_out[3])
 {
-    float t_norm = sqrtf(vec3_dot(t_des, t_des));
-    if (t_norm < 1.0e-9f)
+    float L = cfg->L;
+
+    /* Eq 5.5: build t_hat from gimbal torques. Both L and T must be > 0. */
+    float tx, ty, tz;
+    if (L > EPS_NORM && T > EPS_NORM)
     {
-        *theta_x_cmd = 0.0f;
-        *theta_y_cmd = 0.0f;
-        return;
+        float inv_LT = 1.0f / (L * T);
+        tx =  tau_gim[1] * inv_LT;
+        ty = -tau_gim[0] * inv_LT;
+    }
+    else
+    {
+        tx = 0.0f;
+        ty = 0.0f;
     }
 
-    float inv = 1.0f / t_norm;
-    float tx = t_des[0] * inv;
-    float ty = t_des[1] * inv;
-    float tz = t_des[2] * inv;
+    /* Saturate the lateral components so 1 - tx^2 - ty^2 stays >= 0
+       (corresponds to T_x^2 + T_y^2 <= T^2 in the PDF). */
+    tx = clampf(tx, -1.0f, 1.0f);
+    ty = clampf(ty, -1.0f, 1.0f);
+    float lat_sq = tx * tx + ty * ty;
+    if (lat_sq > 1.0f)
+    {
+        float scale = 1.0f / sqrtf(lat_sq);
+        tx *= scale;
+        ty *= scale;
+        lat_sq = 1.0f;
+    }
+    tz = sqrtf(1.0f - lat_sq);  /* +z convention: t_hat ≈ +k̂ when ungimballed */
 
+    /* Eq 5.7 (re-derived for +k̂): extract angles from t_hat (exact). */
     float theta_x = -atan2f(ty, tz);
     float theta_y = asinf(clampf(tx, -1.0f, 1.0f));
 
-    *theta_x_cmd = clampf(theta_x, cfg->theta_min, cfg->theta_max);
-    *theta_y_cmd = clampf(theta_y, cfg->theta_min, cfg->theta_max);
+    /* Eq 5.10: saturate angles. */
+    theta_x = clampf(theta_x, cfg->theta_min, cfg->theta_max);
+    theta_y = clampf(theta_y, cfg->theta_min, cfg->theta_max);
+
+    *theta_x_out = theta_x;
+    *theta_y_out = theta_y;
+
+    /* Eq 5.6: rebuild t_hat from the saturated angles so subsequent
+       iterations decompose torque against the actual achievable direction. */
+    float sx = sinf(theta_x), cx = cosf(theta_x);
+    float sy = sinf(theta_y), cy = cosf(theta_y);
+    t_hat_out[0] =  sy;
+    t_hat_out[1] = -sx * cy;
+    t_hat_out[2] =  cx * cy;
 }
 
-/* ── Eq 8: Thrust direction update ─────────────────────────────────────── */
+/* ── Module 4: Thrust Control (PDF §6) ─────────────────────────────────── */
 
 /**
- * @brief t_hat = [sin(ty), -sin(tx)*cos(ty), cos(tx)*cos(ty)].
+ * @brief 1D PID on z position -> thrust magnitude command (Eq 6.1–6.4).
+ *
+ *   e        = z_ref - z
+ *   e_dot    = vz_ref - vz
+ *   a_z_cmd  = Kp*e + Ki*∫e + Kd*e_dot   (clamped to [a_z_min, a_z_max])
+ *   T_cmd    = m*(g + a_z_cmd)            (clamped to [T_min, T_max])
  */
-void update_thrust_direction(float theta_x, float theta_y,
-                             float t_hat[3])
+static float thrust_control(const flight_controller_thrust_config_t *cfg,
+                            float z_ref,
+                            float vz_ref,
+                            float z,
+                            float vz,
+                            float dt_s)
 {
-    float sx = sinf(theta_x);
-    float cx = cosf(theta_x);
-    float sy = sinf(theta_y);
-    float cy = cosf(theta_y);
+    float a_z_cmd;
+    if (dt_s < MIN_DT_S)
+    {
+        a_z_cmd = 0.0f;
+    }
+    else
+    {
+        a_z_cmd = pid_compute_with_ref_deriv(&s_z_pid,
+                                             z_ref, vz_ref,
+                                             z, vz,
+                                             dt_s);
+    }
+    a_z_cmd = clampf(a_z_cmd, cfg->a_z_min, cfg->a_z_max);
 
-    t_hat[0] = sy;
-    t_hat[1] = -sx * cy;
-    t_hat[2] = cx * cy;
-}
-
-/* ── Eq 9: Thrust magnitude ────────────────────────────────────────────── */
-
-/**
- * @brief T = m * dot(a_des, t_hat); clamp >= 0.
- */
-float compute_thrust_magnitude(float m, const float a_des[3],
-                               const float t_hat[3])
-{
-    float T = m * vec3_dot(a_des, t_hat);
-    if (T < 0.0f)
-        T = 0.0f;
-    return T;
+    float T_cmd = cfg->m * (cfg->g + a_z_cmd);
+    T_cmd = clampf(T_cmd, cfg->T_min, cfg->T_max);
+    return T_cmd;
 }
 
 /* ── Public API ────────────────────────────────────────────────────────── */
 
 void flight_controller_init(const flight_controller_config_t *config)
 {
-    if (!config)
-        return;
+    if (!config) return;
 
     const flight_controller_thrust_config_t *t = &config->thrust;
-    pid_init(&z_pid,
+    pid_init(&s_z_pid,
              t->kp, t->ki, t->kd,
              t->integral_limit,
              t->a_z_min, t->a_z_max);
-    z_pid_initialized = 1;
+    s_z_pid_initialized = 1;
 
     s_t_hat[0] = config->allocation.t_hat[0];
     s_t_hat[1] = config->allocation.t_hat[1];
     s_t_hat[2] = config->allocation.t_hat[2];
-    s_t_mag = 0.0f;
 }
 
 void flight_controller_run(const state_t *state,
@@ -300,88 +294,38 @@ void flight_controller_run(const state_t *state,
                            control_output_t *out,
                            float dt_s)
 {
-    if (!state || !ref || !config || !out)
-        return;
+    if (!state || !ref || !config || !out) return;
 
-    if (!z_pid_initialized)
+    if (!s_z_pid_initialized)
     {
         flight_controller_init(config);
     }
 
-    const flight_controller_thrust_config_t *tcfg = &config->thrust;
-    const flight_controller_gimbal_config_t *gcfg = &config->gimbal;
+    /* §3 Torque Module */
+    torque_module(&config->attitude,
+                  &ref->q_ref, &state->q_bn,
+                  state->omega_b,
+                  out->phi,
+                  out->tau_cmd);
 
-    /* Construct r_gim from scalar L */
-    float r_gim[3] = {0.0f, 0.0f, gcfg->L};
+    /* §6 Thrust Control — needed before §5 to know T (actuator magnitude)
+       used by gimbal control to convert torque to thrust direction. */
+    out->T_cmd = thrust_control(&config->thrust,
+                                ref->z_ref, ref->vz_ref,
+                                state->pos[2], state->vel[2],
+                                dt_s);
+    out->z_pid_integral = pid_get_integral(&s_z_pid);
 
-    /* Eq 1: Quaternion error */
-    quaternion_t q_err;
-    compute_quaternion_error(&ref->q_ref, &state->q_bn, &q_err);
+    /* §4 Torque Decomposition — uses the current (pre-update) thrust
+       direction so the split is consistent with what the actuators are
+       physically producing this cycle. */
+    torque_decomposition(out->tau_cmd, s_t_hat,
+                         out->tau_gim, &out->tau_thrust);
 
-    /* Eq 2: Axis-angle error */
-    float phi[3];
-    compute_axis_angle_error(&q_err, phi);
-    out->phi_x = phi[0];
-    out->phi_y = phi[1];
-    out->phi_z = phi[2];
-
-    /* Eq 10: Gyroscopic torque */
-    float tau_gyro[3];
-    compute_gyroscopic_torque(config->attitude.I, state->omega_b, tau_gyro);
-
-    /* Eq 11: Command torque */
-    float tau_cmd[3];
-    compute_command_torque(tau_gyro, phi, tau_cmd);
-
-    /* Eq 12: Roll torque */
-    float tau_roll[3];
-    compute_roll_torque(tau_cmd, s_t_hat, tau_roll);
-
-    /* Eq 13: Gimbal torque */
-    compute_gimbal_torque(tau_cmd, tau_roll, out->tau_gim);
-
-    /* Eq 3: Perpendicular thrust */
-    float t_perp[3];
-    compute_perpendicular_thrust(out->tau_gim, r_gim, t_perp);
-
-    /* Eq 4: Parallel thrust */
-    float t_par[3];
-    compute_parallel_thrust(s_t_mag, t_perp, r_gim, t_par);
-
-    /* Eq 5: Desired thrust vector */
-    float t_des[3];
-    t_des[0] = t_perp[0] + t_par[0];
-    t_des[1] = t_perp[1] + t_par[1];
-    t_des[2] = t_perp[2] + t_par[2];
-
-    /* Eq 6-7: Gimbal angles */
-    compute_gimbal_angles(t_des, gcfg, &out->theta_x_cmd, &out->theta_y_cmd);
-
-    /* Eq 8: Update thrust direction */
-    update_thrust_direction(out->theta_x_cmd, out->theta_y_cmd, s_t_hat);
-
-    /* Z-PID: compute a_z_cmd */
-    float a_z_cmd;
-    if (dt_s < MIN_DT_S)
-    {
-        a_z_cmd = 0.0f;
-    }
-    else
-    {
-        a_z_cmd = pid_compute(&z_pid, ref->z_ref, state->pos[2], dt_s);
-    }
-    a_z_cmd = clampf(a_z_cmd, tcfg->a_z_min, tcfg->a_z_max);
-
-    /* Desired acceleration vector */
-    float a_des[3] = {0.0f, 0.0f, tcfg->g + a_z_cmd};
-
-    /* Eq 9: Thrust magnitude */
-    float T = compute_thrust_magnitude(tcfg->m, a_des, s_t_hat);
-    T = clampf(T, tcfg->T_min, tcfg->T_max);
-    out->T_cmd = T;
-    s_t_mag = T;
-    out->z_pid_integral = pid_get_integral(&z_pid);
-
-    /* Roll torque scalar: projection of tau_cmd onto thrust direction */
-    out->tau_thrust = vec3_dot(tau_cmd, s_t_hat);
+    /* §5 Gimbal Control — produces angles and updates s_t_hat for next
+       iteration. */
+    gimbal_control(&config->gimbal,
+                   out->tau_gim, out->T_cmd,
+                   &out->theta_x_cmd, &out->theta_y_cmd,
+                   s_t_hat);
 }
