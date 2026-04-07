@@ -1,9 +1,15 @@
 /**
  * @file    flight_controller.h
- * @brief   Flight control body: torque, allocation, thrust PID, gimbal angles.
+ * @brief   Flight control body: torque, decomposition, gimbal control, thrust.
  *
- * Implements (main.tex): body torque control, control allocation, thrust
- * control (1D PID on z), gimbal angle computation. No Kalman or ESC/servo I/O.
+ * Implements the four-module pipeline from Ulysses Phase 1 Proposal v2
+ * (Kenneth Lew, Jan 2026):
+ *   §3 Torque Module          : tau_cmd = -Kp*phi - Kd*omega + omega x (I omega)
+ *   §4 Torque Decomposition   : split tau_cmd into gimbal vs differential prop
+ *   §5 Gimbal Control         : map (tau_gim, T) to servo angles (theta_x, theta_y)
+ *   §6 Thrust Control         : 1D PID on z position -> thrust magnitude command
+ *
+ * Convention: z-axis up. All quaternions unit. q_bn maps body -> nav.
  */
 
 #ifndef FLIGHT_CONTROLLER_H
@@ -65,15 +71,14 @@ typedef struct {
 
 /** Controller output for downstream ESC/gimbal actuators and logging. */
 typedef struct {
-    float tau_gim[3];      /**< Torque for gimbal [N·m] */
-    float tau_thrust;      /**< Differential torque from props [N·m] */
-    float T_cmd;           /**< Thrust magnitude [N] */
-    float theta_x_cmd;     /**< Gimbal angle x [rad] */
-    float theta_y_cmd;     /**< Gimbal angle y [rad] */
-    float phi_x;           /**< Attitude error vector x = 2*dq.x [rad] */
-    float phi_y;           /**< Attitude error vector y = 2*dq.y [rad] */
-    float phi_z;           /**< Attitude error vector z = 2*dq.z [rad] */
-    float z_pid_integral;  /**< Z-axis PID integral accumulator [m] */
+    float tau_cmd[3];      /**< Total commanded body torque (post PD law) [N·m] */
+    float tau_gim[3];      /**< Torque routed to gimbal [N·m] */
+    float tau_thrust;      /**< Scalar differential-prop torque (axial) [N·m] */
+    float T_cmd;           /**< Thrust magnitude command [N] */
+    float theta_x_cmd;     /**< Gimbal angle about body x [rad] */
+    float theta_y_cmd;     /**< Gimbal angle about body y [rad] */
+    float phi[3];          /**< Axis-angle attitude error [rad] (debug) */
+    float z_pid_integral;  /**< Z-axis PID integral accumulator (debug) */
 } control_output_t;
 
 /**

@@ -115,6 +115,35 @@ float pid_compute(pid_controller_t *pid,
                   float dt);
 
 /**
+ * @brief  Compute PID output using derivative-on-error
+ * @param  pid: Pointer to PID controller structure
+ * @param  setpoint: Desired value (e.g. z_ref)
+ * @param  setpoint_deriv: Time derivative of setpoint (e.g. vz_ref)
+ * @param  measurement: Current measured value (e.g. z)
+ * @param  measurement_deriv: Time derivative of measurement (e.g. vz)
+ * @param  dt: Time step since last call in seconds
+ * @retval PID output value (constrained to output_min/output_max)
+ *
+ * Algorithm (Ulysses Phase 1, Eq 6.1–6.2):
+ *   - error      = setpoint - measurement
+ *   - error_dot  = setpoint_deriv - measurement_deriv
+ *   - integral  += error * dt (with anti-windup limiting)
+ *   - output     = kp*error + ki*integral + kd*error_dot
+ *   - output is clamped to [output_min, output_max]
+ *
+ * @note  Unlike pid_compute(), this variant uses derivative-on-error and is
+ *        appropriate when both the setpoint trajectory and the measurement
+ *        derivative are known (e.g. an outer position loop with a velocity
+ *        feedforward and an estimated velocity).
+ */
+float pid_compute_with_ref_deriv(pid_controller_t *pid,
+                                 float setpoint,
+                                 float setpoint_deriv,
+                                 float measurement,
+                                 float measurement_deriv,
+                                 float dt);
+
+/**
  * @brief  Reset PID controller state
  * @param  pid: Pointer to PID controller structure
  * @retval None
