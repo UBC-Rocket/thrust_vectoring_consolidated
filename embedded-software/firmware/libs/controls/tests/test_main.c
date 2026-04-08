@@ -74,8 +74,8 @@ void test_eq10_scalar_mmoi_complex(void);
 void test_eq11_zero_gyro(void);
 void test_eq11_general(void);
 void test_eq11_all_zero(void);
-void test_eq11_correction(void);
-void test_eq11_offsetting(void);
+void test_eq11_with_damping(void);
+void test_eq11_gyro_feedforward(void);
 /* Eq 12 */
 void test_eq12_along_z(void);
 void test_eq12_diagonal(void);
@@ -204,8 +204,8 @@ int main(void)
     RUN_TEST(test_eq11_zero_gyro);
     RUN_TEST(test_eq11_general);
     RUN_TEST(test_eq11_all_zero);
-    RUN_TEST(test_eq11_correction);
-    RUN_TEST(test_eq11_offsetting);
+    RUN_TEST(test_eq11_with_damping);
+    RUN_TEST(test_eq11_gyro_feedforward);
 
     /* Eq 12 */
     RUN_TEST(test_eq12_along_z);
