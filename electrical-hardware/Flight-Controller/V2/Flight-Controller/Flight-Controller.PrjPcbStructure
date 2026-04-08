@@ -1,5 +1,11 @@
-Record=TopLevelDocument|FileName=BMI088.SchDoc|SheetNumber=4
-Record=NoMainPathDocument|SourceDocument=BMI088.SchDoc|FileName=ICM40609.SchDoc|SheetNumber=6
-Record=NoMainPathDocument|SourceDocument=BMI088.SchDoc|FileName=MAX M10S.SchDoc|SheetNumber=9
-Record=NoMainPathDocument|SourceDocument=BMI088.SchDoc|FileName=STM32H745.SchDoc|SheetNumber=2
-Record=NoMainPathDocument|SourceDocument=BMI088.SchDoc|FileName=TopLevel.SchDoc|SheetNumber=1
+Record=TopLevelDocument|FileName=TopLevel.SchDoc|SheetNumber=1
+Record=SheetSymbol|SourceDocument=TopLevel.SchDoc|Designator=ETH PHY|SchDesignator=ETH PHY|FileName=ETH PHY.SchDoc|SheetNumber=11|SymbolType=Normal|RawFileName=ETH PHY.SchDoc|DesignItemId= |SourceLibraryName= |ObjectKind=Sheet Symbol|RevisionGUID= |ItemGUID= |VaultGUID= 
+Record=SheetSymbol|SourceDocument=TopLevel.SchDoc|Designator=U_BMI088|SchDesignator=U_BMI088|FileName=BMI088.SchDoc|SheetNumber=4|SymbolType=Normal|RawFileName=BMI088.SchDoc|DesignItemId= |SourceLibraryName= |ObjectKind=Sheet Symbol|RevisionGUID= |ItemGUID= |VaultGUID= 
+Record=SheetSymbol|SourceDocument=TopLevel.SchDoc|Designator=U_Debug|SchDesignator=U_Debug|FileName=Debug.SchDoc|SheetNumber=10|SymbolType=Normal|RawFileName=Debug.SchDoc|DesignItemId= |SourceLibraryName= |ObjectKind=Sheet Symbol|RevisionGUID= |ItemGUID= |VaultGUID= 
+Record=SheetSymbol|SourceDocument=TopLevel.SchDoc|Designator=U_ICM40609|SchDesignator=U_ICM40609|FileName=ICM40609.SchDoc|SheetNumber=6|SymbolType=Normal|RawFileName=ICM40609.SchDoc|DesignItemId= |SourceLibraryName= |ObjectKind=Sheet Symbol|RevisionGUID= |ItemGUID= |VaultGUID= 
+Record=SheetSymbol|SourceDocument=TopLevel.SchDoc|Designator=U_MAX M10S|SchDesignator=U_MAX M10S|FileName=MAX M10S.SchDoc|SheetNumber=9|SymbolType=Normal|RawFileName=MAX M10S.SchDoc|DesignItemId= |SourceLibraryName= |ObjectKind=Sheet Symbol|RevisionGUID= |ItemGUID= |VaultGUID= 
+Record=SheetSymbol|SourceDocument=TopLevel.SchDoc|Designator=U_MMC5983MA|SchDesignator=U_MMC5983MA|FileName=MMC5983MA.SchDoc|SheetNumber=7|SymbolType=Normal|RawFileName=MMC5983MA.SchDoc|DesignItemId= |SourceLibraryName= |ObjectKind=Sheet Symbol|RevisionGUID= |ItemGUID= |VaultGUID= 
+Record=SheetSymbol|SourceDocument=TopLevel.SchDoc|Designator=U_MS5611|SchDesignator=U_MS5611|FileName=MS5611.SchDoc|SheetNumber=5|SymbolType=Normal|RawFileName=MS5611.SchDoc|DesignItemId= |SourceLibraryName= |ObjectKind=Sheet Symbol|RevisionGUID= |ItemGUID= |VaultGUID= 
+Record=SheetSymbol|SourceDocument=TopLevel.SchDoc|Designator=U_SD Card|SchDesignator=U_SD Card|FileName=SD Card.SchDoc|SheetNumber=3|SymbolType=Normal|RawFileName=SD Card.SchDoc|DesignItemId= |SourceLibraryName= |ObjectKind=Sheet Symbol|RevisionGUID= |ItemGUID= |VaultGUID= 
+Record=SheetSymbol|SourceDocument=TopLevel.SchDoc|Designator=U_STM32H745|SchDesignator=U_STM32H745|FileName=STM32H745.SchDoc|SheetNumber=2|SymbolType=Normal|RawFileName=STM32H745.SchDoc|DesignItemId= |SourceLibraryName= |ObjectKind=Sheet Symbol|RevisionGUID= |ItemGUID= |VaultGUID= 
+Record=SheetSymbol|SourceDocument=TopLevel.SchDoc|Designator=U_USBC|SchDesignator=U_USBC|FileName=USBC.SchDoc|SheetNumber=8|SymbolType=Normal|RawFileName=USBC.SchDoc|DesignItemId= |SourceLibraryName= |ObjectKind=Sheet Symbol|RevisionGUID= |ItemGUID= |VaultGUID= 
