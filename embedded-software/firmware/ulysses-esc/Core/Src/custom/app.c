@@ -73,14 +73,14 @@ static uint8_t comm_step = 0;
 void startup_begin( void ) {
     startup_start_time_ms = HAL_GetTick(); 
     comm_step = 0;
-    Set_Commutation_Step(0);
+    Set_Commutation_Step(comm_step);
+
+    HAL_TIM_Base_Start_IT(&htim15);
 
     //configure the TIM15 for startup minimum freq 
     uint32_t ARR = (SYSCLOCK_HZ / STARTUP_MIN_FREQ_HZ) - 1;
     __HAL_TIM_SET_AUTORELOAD(&htim15, ARR); 
     __HAL_TIM_SET_COUNTER(&htim15, 0); 
-
-    HAL_TIM_Base_Start_IT(&htim15);
 
     motor_state = STATE_STARTUP; 
 }
