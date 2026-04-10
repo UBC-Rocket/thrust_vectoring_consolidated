@@ -242,11 +242,17 @@ void controls_task_start(void *argument)
                 });
             }
 
-            // FIXME: artificially limit the operational range of the gimbal since the propellers
-            // could hit the landing legs in the current design
-            float theta_x_cmd_safe = clampf((double)control_output.theta_x_cmd * 180.0 / M_PI,
+            /* Rotate gimbal commands by 45° about z to convert from IMU body
+             * frame to gimbal servo frame (servos are mounted 45° rotated). */
+            #define GIMBAL_ROTATION_RAD  (M_PI / 4.0f)  /* 45 degrees */
+            float cos_r = cosf(GIMBAL_ROTATION_RAD);  /* 0.7071 */
+            float sin_r = sinf(GIMBAL_ROTATION_RAD);  /* 0.7071 */
+            float tx_rot = cos_r * control_output.theta_x_cmd - sin_r * control_output.theta_y_cmd;
+            float ty_rot = sin_r * control_output.theta_x_cmd + cos_r * control_output.theta_y_cmd;
+
+            float theta_x_cmd_safe = clampf(tx_rot * 180.0f / (float)M_PI,
                                             SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
-            float theta_y_cmd_safe = clampf((double)control_output.theta_y_cmd * 180.0 / M_PI,
+            float theta_y_cmd_safe = clampf(ty_rot * 180.0f / (float)M_PI,
                                             SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
 
             set_servo_pair_degrees(theta_x_cmd_safe, -theta_y_cmd_safe);
