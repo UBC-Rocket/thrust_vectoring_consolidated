@@ -887,11 +887,11 @@ void test_api_pitch_error(void)
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,      out.tau_gim[0]);
     TEST_ASSERT_FLOAT_WITHIN(TOL, -0.2f,     out.tau_gim[1]);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,      out.tau_gim[2]);
-    TEST_ASSERT_FLOAT_WITHIN(0.1f, -0.084f,  out.tau_thrust);
-    /* s_t_mag=0 → t_par=0 → t_des purely perpendicular → both angles saturate */
-    TEST_ASSERT_FLOAT_WITHIN(0.1f, 7.70f,    out.T_cmd);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.5f,      out.theta_x_cmd);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.5f,      out.theta_y_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,      out.tau_thrust);
+    /* s_t_mag=m*g → t_par dominates → small gimbal angles */
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 9.998f,  out.T_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,      out.theta_x_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -0.02f,    out.theta_y_cmd);
 }
 
 /* Test 3 — pure yaw error goes to thrust-axis torque, not gimbal */
@@ -943,13 +943,13 @@ void test_api_gyro_compensation(void)
     flight_controller_run(&state, &ref, &cfg, &out, 0.01f);
 
     /* I=diag(2,3,4), omega=[0,1,2]: I*omega=[0,3,8], omega×(I*omega)=[2,0,0].
-     * Kd=0, phi=0 → tau_cmd = [2,0,0]. tau_roll = dot([2,0,0],[0,0,-1])*[0,0,-1] = 0.
-     * tau_gim = [2,0,0]. s_t_mag=0 → t_par=0 → theta_x saturates. */
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 2.0f,  out.tau_gim[0]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_gim[1]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_gim[2]);
-    TEST_ASSERT_TRUE(out.theta_x_cmd == 0.5f || out.theta_x_cmd == -0.5f);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.theta_y_cmd);
+     * Kd=0, phi=0 → tau_cmd = [2,0,0]. tau_gim = [2,0,0].
+     * s_t_mag=m*g → t_par dominates → proportional theta_x. */
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 2.0f,   out.tau_gim[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,   out.tau_gim[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,   out.tau_gim[2]);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.2f,  out.theta_x_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,   out.theta_y_cmd);
 }
 
 /* Test 5 — boundary: thrust clamp (T_min=T_max=8) + Kp[1][1]=30.
@@ -976,10 +976,10 @@ void test_api_boundary_clamp(void)
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,       out.tau_gim[0]);
     TEST_ASSERT_FLOAT_WITHIN(0.01f, -6.0f,    out.tau_gim[1]);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,       out.tau_gim[2]);
-    TEST_ASSERT_FLOAT_WITHIN(0.1f, -2.524f,   out.tau_thrust);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,       out.tau_thrust);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 8.0f,       out.T_cmd);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.5f,       out.theta_x_cmd);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.5f,       out.theta_y_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,       out.theta_x_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -0.5f,      out.theta_y_cmd);
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
@@ -1089,13 +1089,14 @@ void test_api_v2_roll_correction(void)
     control_output_t out;
     flight_controller_run(&state, &ref, &cfg, &out, 0.01f);
 
-    /* s_t_mag=0 → theta_x saturates → T = g*cos(0.5) ≈ 8.6091 */
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 8.6091f, out.T_cmd);
-    TEST_ASSERT_TRUE(out.tau_gim[0] > 0.0f || out.tau_gim[0] < 0.0f);
+    /* s_t_mag=m*g → proportional theta_x response to roll error */
+    TEST_ASSERT_FLOAT_WITHIN(0.1f, 9.654f, out.T_cmd);
+    TEST_ASSERT_TRUE(out.tau_gim[0] != 0.0f);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[1]);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[2]);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_thrust);
-    TEST_ASSERT_TRUE(out.theta_x_cmd != 0.0f || out.theta_y_cmd != 0.0f);
+    TEST_ASSERT_TRUE(out.theta_x_cmd != 0.0f);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.theta_y_cmd);
 }
 
 /* Test 4 — angular rate damping: omega_b = [1,0,0], no attitude error.
@@ -1120,13 +1121,13 @@ void test_api_v2_rate_damping(void)
     control_output_t out;
     flight_controller_run(&state, &ref, &cfg, &out, 0.01f);
 
-    /* s_t_mag=0 → t_par=0 → theta_x saturates → T reduced */
+    /* s_t_mag=m*g → Kd produces tau_gim_x=-1, theta_x saturates at -0.5 */
     TEST_ASSERT_FLOAT_WITHIN(0.01f, 8.609f, out.T_cmd);
     TEST_ASSERT_FLOAT_WITHIN(TOL, -1.0f, out.tau_gim[0]);
     TEST_ASSERT_FLOAT_WITHIN(TOL,  0.0f, out.tau_gim[1]);
     TEST_ASSERT_FLOAT_WITHIN(TOL,  0.0f, out.tau_gim[2]);
     TEST_ASSERT_FLOAT_WITHIN(TOL,  0.0f, out.tau_thrust);
-    TEST_ASSERT_FLOAT_WITHIN(TOL,  0.5f, out.theta_x_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -0.5f, out.theta_x_cmd);
     TEST_ASSERT_FLOAT_WITHIN(TOL,  0.0f, out.theta_y_cmd);
 }
 
@@ -1334,9 +1335,9 @@ void test_api_v3_integral_windup(void)
         flight_controller_run(&state, &ref, &cfg, &out, 0.01f);
     }
 
-    /* By call 500: integral saturated at 3.0, error=1→P=2, D≈0. T = 9.81+2+3 but
-     * t_hat tilts on later steps → T ≈ 13.0 (exact value depends on t_hat evolution) */
-    TEST_ASSERT_FLOAT_WITHIN(0.1f, 13.0f, out.T_cmd);
+    /* By call 500: integral saturated at 3.0, error=1→P=2, D≈0.
+     * T = m*(g + kp*1 + ki*3) = 1*(9.81+2+3) = 14.81 */
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 14.81f, out.T_cmd);
 }
 
 /* Test 6 — Thrust Saturation (Min/Max) */

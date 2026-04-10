@@ -310,7 +310,12 @@ void flight_controller_init(const flight_controller_config_t *config)
     s_t_hat[0] = config->allocation.t_hat[0];
     s_t_hat[1] = config->allocation.t_hat[1];
     s_t_hat[2] = config->allocation.t_hat[2];
-    s_t_mag = 0.0f;
+    /* Bootstrap to hover thrust so the first compute_parallel_thrust call
+     * produces a dominant z-component in t_des.  With s_t_mag=0, t_par=0
+     * and t_des is purely perpendicular → gimbal saturates at ±90° →
+     * thrust direction goes horizontal → T_cmd=0 → s_t_mag stays 0.
+     * This vicious cycle never recovers. */
+    s_t_mag = config->thrust.m * config->thrust.g;
 }
 
 void flight_controller_run(const state_t *state,
@@ -330,8 +335,10 @@ void flight_controller_run(const state_t *state,
     const flight_controller_thrust_config_t *tcfg = &config->thrust;
     const flight_controller_gimbal_config_t *gcfg = &config->gimbal;
 
-    /* Construct r_gim from scalar L */
-    float r_gim[3] = {0.0f, 0.0f, gcfg->L};
+    /* Construct r_gim pointing in -z (thrust direction) so that
+     * compute_parallel_thrust produces t_par in -z, consistent with
+     * the -z thrust convention used by update_thrust_direction. */
+    float r_gim[3] = {0.0f, 0.0f, -gcfg->L};
 
     /* Eq 1: Quaternion error */
     quaternion_t q_err;
