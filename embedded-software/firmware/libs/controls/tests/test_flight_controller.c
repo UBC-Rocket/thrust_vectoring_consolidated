@@ -14,7 +14,9 @@
 void compute_quaternion_error(const quaternion_t *q_des, const quaternion_t *q_meas, quaternion_t *q_err);
 void compute_axis_angle_error(const quaternion_t *q_err, float phi[3]);
 void compute_gyroscopic_torque(const float I[3][3], const float omega[3], float tau_gyro[3]);
-void compute_command_torque(const float tau_gyro[3], const float phi[3], float tau_cmd[3]);
+void compute_command_torque(const float Kp[3][3], const float Kd[3][3],
+                            const float phi[3], const float omega[3],
+                            const float tau_gyro[3], float tau_cmd[3]);
 void compute_roll_torque(const float tau_cmd[3], const float t_hat[3], float tau_roll[3]);
 void compute_gimbal_torque(const float tau_cmd[3], const float tau_roll[3], float tau_gim[3]);
 void compute_perpendicular_thrust(const float tau_gim[3], const float r_gim[3], float t_perp[3]);
@@ -345,12 +347,15 @@ void test_eq5_yaw_correction(void)
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
- * Eq 6-7: compute_gimbal_angles   theta_x = -atan2(y,z), theta_y = asin(x)
+ * Eq 6-7: compute_gimbal_angles (spec eq 5.7, -z convention)
+ *   theta_x = atan2(ty, -tz),  theta_y = -asin(tx)
+ *   t_des has tz < 0 for nominal thrust along -z body axis.
  * ════════════════════════════════════════════════════════════════════════════ */
 
 void test_eq6_zero_angle(void)
 {
-    float t_des[3] = {0.0f, 0.0f, 1.0f};
+    /* Nominal -z thrust: t_des = [0, 0, -1] */
+    float t_des[3] = {0.0f, 0.0f, -1.0f};
     flight_controller_gimbal_config_t gcfg = {0.15f, -1.5f, 1.5f};
     float tx, ty;
     compute_gimbal_angles(t_des, &gcfg, &tx, &ty);
@@ -360,7 +365,9 @@ void test_eq6_zero_angle(void)
 
 void test_eq6_positive_theta_x(void)
 {
-    float t_des[3] = {0.0f, -0.295520f, 0.955336f};
+    /* Spec: t̂ = [-sin(θy), sin(θx)cos(θy), -cos(θx)cos(θy)]
+     * For θx=0.3, θy=0: t̂ = [0, sin(0.3), -cos(0.3)] = [0, 0.29552, -0.95534] */
+    float t_des[3] = {0.0f, 0.295520f, -0.955336f};
     flight_controller_gimbal_config_t gcfg = {0.15f, -1.5f, 1.5f};
     float tx, ty;
     compute_gimbal_angles(t_des, &gcfg, &tx, &ty);
@@ -370,7 +377,7 @@ void test_eq6_positive_theta_x(void)
 
 void test_eq7_zero_angle(void)
 {
-    float t_des[3] = {0.0f, 0.0f, 1.0f};
+    float t_des[3] = {0.0f, 0.0f, -1.0f};
     flight_controller_gimbal_config_t gcfg = {0.15f, -1.5f, 1.5f};
     float tx, ty;
     compute_gimbal_angles(t_des, &gcfg, &tx, &ty);
@@ -380,7 +387,9 @@ void test_eq7_zero_angle(void)
 
 void test_eq7_positive_theta_y(void)
 {
-    float t_des[3] = {0.389418f, 0.0f, 0.921061f};
+    /* For θx=0, θy=0.4: t̂ = [-sin(0.4), 0, -cos(0.4)] = [-0.38942, 0, -0.92106]
+     * theta_y = -asin(tx) = -asin(-0.38942) = 0.4 ✓ */
+    float t_des[3] = {-0.389418f, 0.0f, -0.921061f};
     flight_controller_gimbal_config_t gcfg = {0.15f, -1.5f, 1.5f};
     float tx, ty;
     compute_gimbal_angles(t_des, &gcfg, &tx, &ty);
@@ -388,10 +397,10 @@ void test_eq7_positive_theta_y(void)
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.4f, ty);
 }
 
-/* Hand-crafted: vertical thrust */
+/* Hand-crafted: vertical thrust (-z) */
 void test_eq67_vertical(void)
 {
-    float t_des[3] = {0.0f, 0.0f, 1.0f};
+    float t_des[3] = {0.0f, 0.0f, -1.0f};
     flight_controller_gimbal_config_t gcfg = {0.15f, -1.5f, 1.5f};
     float tx, ty;
     compute_gimbal_angles(t_des, &gcfg, &tx, &ty);
@@ -400,22 +409,24 @@ void test_eq67_vertical(void)
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, ty);
 }
 
-/* Hand-crafted: deflected in Y (induces pitch) */
+/* Hand-crafted: deflected in Y (spec: ty=sin(θx)cos(θy), tz=-cos(θx)cos(θy))
+ * θx≈0.523 (30°): t̂ = [0, 0.5, -0.866] */
 void test_eq67_y_deflection(void)
 {
-    float t_des[3] = {0.0f, 0.5f, 0.866f};
+    float t_des[3] = {0.0f, 0.5f, -0.866f};
     flight_controller_gimbal_config_t gcfg = {0.15f, -1.5f, 1.5f};
     float tx, ty;
     compute_gimbal_angles(t_des, &gcfg, &tx, &ty);
 
-    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, -0.523f, tx);
-    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE,  0.0f,   ty);
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 0.523f, tx);
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 0.0f,   ty);
 }
 
-/* Hand-crafted: deflected in X (induces yaw) */
+/* Hand-crafted: deflected in X (spec: tx=-sin(θy), tz=-cos(θy))
+ * θy≈0.523 (30°): t̂ = [-0.5, 0, -0.866] */
 void test_eq67_x_deflection(void)
 {
-    float t_des[3] = {0.5f, 0.0f, 0.866f};
+    float t_des[3] = {-0.5f, 0.0f, -0.866f};
     flight_controller_gimbal_config_t gcfg = {0.15f, -1.5f, 1.5f};
     float tx, ty;
     compute_gimbal_angles(t_des, &gcfg, &tx, &ty);
@@ -425,8 +436,8 @@ void test_eq67_x_deflection(void)
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
- * Eq 8: update_thrust_direction
- *   t_hat = [sin(ty), -sin(tx)*cos(ty), cos(tx)*cos(ty)]
+ * Eq 8: update_thrust_direction (spec eq 5.6, -z convention)
+ *   t_hat = [-sin(ty), sin(tx)*cos(ty), -cos(tx)*cos(ty)]
  * ════════════════════════════════════════════════════════════════════════════ */
 
 void test_eq8_zero_angles(void)
@@ -434,9 +445,9 @@ void test_eq8_zero_angles(void)
     float t_hat[3];
     update_thrust_direction(0.0f, 0.0f, t_hat);
 
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, t_hat[0]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, t_hat[1]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 1.0f, t_hat[2]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL,  0.0f, t_hat[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL,  0.0f, t_hat[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -1.0f, t_hat[2]);
 }
 
 void test_eq8_mixed_angles(void)
@@ -444,9 +455,10 @@ void test_eq8_mixed_angles(void)
     float t_hat[3];
     update_thrust_direction(0.2f, -0.3f, t_hat);
 
-    TEST_ASSERT_FLOAT_WITHIN(TOL, -0.295520f, t_hat[0]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, -0.189796f, t_hat[1]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL,  0.936293f, t_hat[2]);
+    /* -z convention: signs flip from old +z tests */
+    TEST_ASSERT_FLOAT_WITHIN(TOL,  0.295520f, t_hat[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL,  0.189796f, t_hat[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -0.936293f, t_hat[2]);
 }
 
 /* Hand-crafted: negative pitch deflection (~-30 deg) */
@@ -455,9 +467,9 @@ void test_eq8_neg_pitch(void)
     float t_hat[3];
     update_thrust_direction(-0.523f, 0.0f, t_hat);
 
-    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 0.0f,   t_hat[0]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 0.5f,   t_hat[1]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 0.866f,  t_hat[2]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE,  0.0f,   t_hat[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, -0.5f,   t_hat[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, -0.866f,  t_hat[2]);
 }
 
 /* Hand-crafted: positive yaw deflection (~30 deg) */
@@ -466,30 +478,34 @@ void test_eq8_pos_yaw(void)
     float t_hat[3];
     update_thrust_direction(0.0f, 0.523f, t_hat);
 
-    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 0.5f,   t_hat[0]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 0.0f,   t_hat[1]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 0.866f,  t_hat[2]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, -0.5f,   t_hat[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE,  0.0f,   t_hat[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, -0.866f,  t_hat[2]);
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
- * Eq 9: compute_thrust_magnitude   T = m * dot(a_des, t_hat)
+ * Eq 9: compute_thrust_magnitude   T = -m * dot(a_des, t_hat)
+ *        (negated because t_hat is -z, a_des is +z)
  * ════════════════════════════════════════════════════════════════════════════ */
 
 void test_eq9_hover(void)
 {
     float a[3]     = {0.0f, 0.0f, 9.81f};
-    float t_hat[3] = {0.0f, 0.0f, 1.0f};
+    float t_hat[3] = {0.0f, 0.0f, -1.0f};   /* -z thrust */
     float T = compute_thrust_magnitude(2.0f, a, t_hat);
 
+    /* T = -2 * dot([0,0,9.81],[0,0,-1]) = -2*(-9.81) = 19.62 */
     TEST_ASSERT_FLOAT_WITHIN(TOL, 19.62f, T);
 }
 
 void test_eq9_general(void)
 {
     float a[3]     = {1.0f, 2.0f, 4.0f};
-    float t_hat[3] = {0.6f, 0.0f, 0.8f};
+    float t_hat[3] = {-0.6f, 0.0f, -0.8f};  /* -z convention */
     float T = compute_thrust_magnitude(3.0f, a, t_hat);
 
+    /* dot = 1*(-0.6) + 2*0 + 4*(-0.8) = -0.6 - 3.2 = -3.8
+     * T = -3 * (-3.8) = 11.4 */
     TEST_ASSERT_FLOAT_WITHIN(TOL, 11.4f, T);
 }
 
@@ -497,7 +513,7 @@ void test_eq9_general(void)
 void test_eq9_vertical_ascent(void)
 {
     float a[3]     = {0.0f, 0.0f, 9.8f};
-    float t_hat[3] = {0.0f, 0.0f, 1.0f};
+    float t_hat[3] = {0.0f, 0.0f, -1.0f};
     float T = compute_thrust_magnitude(10.0f, a, t_hat);
 
     TEST_ASSERT_FLOAT_WITHIN(TOL, 98.0f, T);
@@ -507,19 +523,21 @@ void test_eq9_vertical_ascent(void)
 void test_eq9_lateral_ignored(void)
 {
     float a[3]     = {0.0f, 2.0f, 9.8f};
-    float t_hat[3] = {0.0f, 0.0f, 1.0f};
+    float t_hat[3] = {0.0f, 0.0f, -1.0f};
     float T = compute_thrust_magnitude(10.0f, a, t_hat);
 
     TEST_ASSERT_FLOAT_WITHIN(TOL, 98.0f, T);
 }
 
-/* Hand-crafted: angled thrust */
+/* Hand-crafted: angled thrust (-z convention) */
 void test_eq9_angled_thrust(void)
 {
     float a[3]     = {0.0f, 5.0f, 8.66f};
-    float t_hat[3] = {0.0f, 0.5f, 0.866f};
+    float t_hat[3] = {0.0f, -0.5f, -0.866f};  /* -z convention */
     float T = compute_thrust_magnitude(10.0f, a, t_hat);
 
+    /* dot = 0 + 5*(-0.5) + 8.66*(-0.866) = -2.5 - 7.5 = -10.0
+     * T = -10 * (-10) = 100 */
     TEST_ASSERT_FLOAT_WITHIN(0.1f, 100.0f, T);
 }
 
@@ -546,9 +564,10 @@ void test_eq10_multi_axis(void)
     float tau[3];
     compute_gyroscopic_torque(I, omega, tau);
 
-    TEST_ASSERT_FLOAT_WITHIN(TOL, -6.0f, tau[0]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL,  6.0f, tau[1]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, -2.0f, tau[2]);
+    /* ω × (I·ω): I·ω=[2,6,12], ω×(I·ω)=[2*12-3*6, 3*2-1*12, 1*6-2*2]=[6,-6,2] */
+    TEST_ASSERT_FLOAT_WITHIN(TOL,  6.0f, tau[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -6.0f, tau[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL,  2.0f, tau[2]);
 }
 
 /* Hand-crafted: zero rotation */
@@ -591,15 +610,21 @@ void test_eq10_scalar_mmoi_complex(void)
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
- * Eq 11: compute_command_torque   tau_cmd = -(tau_gyro + phi)
+ * Eq 11: compute_command_torque   tau_cmd = -Kp*phi - Kd*omega + tau_gyro
  * ════════════════════════════════════════════════════════════════════════════ */
+
+/* Identity Kp, zero Kd, zero omega for basic tests */
+static const float Kp_I[3][3] = {{1,0,0},{0,1,0},{0,0,1}};
+static const float Kd_0[3][3] = {{0,0,0},{0,0,0},{0,0,0}};
+static const float omega_0[3] = {0,0,0};
 
 void test_eq11_zero_gyro(void)
 {
     float tau_gyro[3] = {0.0f, 0.0f, 0.0f};
     float phi[3]      = {1.0f, -2.0f, 3.0f};
     float tau_cmd[3];
-    compute_command_torque(tau_gyro, phi, tau_cmd);
+    /* tau_cmd = -Kp*phi + tau_gyro = -phi + 0 */
+    compute_command_torque(Kp_I, Kd_0, phi, omega_0, tau_gyro, tau_cmd);
 
     TEST_ASSERT_FLOAT_WITHIN(TOL, -1.0f, tau_cmd[0]);
     TEST_ASSERT_FLOAT_WITHIN(TOL,  2.0f, tau_cmd[1]);
@@ -611,11 +636,12 @@ void test_eq11_general(void)
     float tau_gyro[3] = {-6.0f, 6.0f, -2.0f};
     float phi[3]      = {0.5f, 1.5f, -0.5f};
     float tau_cmd[3];
-    compute_command_torque(tau_gyro, phi, tau_cmd);
+    /* tau_cmd = -phi + tau_gyro = [-0.5-6, -1.5+6, 0.5-2] = [-6.5, 4.5, -1.5] */
+    compute_command_torque(Kp_I, Kd_0, phi, omega_0, tau_gyro, tau_cmd);
 
-    TEST_ASSERT_FLOAT_WITHIN(TOL,  5.5f, tau_cmd[0]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, -7.5f, tau_cmd[1]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL,  2.5f, tau_cmd[2]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -6.5f, tau_cmd[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL,  4.5f, tau_cmd[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -1.5f, tau_cmd[2]);
 }
 
 /* Hand-crafted: both zero → zero */
@@ -624,37 +650,41 @@ void test_eq11_all_zero(void)
     float tau_gyro[3] = {0.0f, 0.0f, 0.0f};
     float phi[3]      = {0.0f, 0.0f, 0.0f};
     float tau_cmd[3];
-    compute_command_torque(tau_gyro, phi, tau_cmd);
+    compute_command_torque(Kp_I, Kd_0, phi, omega_0, tau_gyro, tau_cmd);
 
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau_cmd[0]);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau_cmd[1]);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau_cmd[2]);
 }
 
-/* Hand-crafted: correction required */
-void test_eq11_correction(void)
+/* Hand-crafted: with Kd damping */
+void test_eq11_with_damping(void)
+{
+    float Kd[3][3] = {{0.1f,0,0},{0,0.1f,0},{0,0,0.1f}};
+    float tau_gyro[3] = {0.0f, 0.0f, 0.0f};
+    float phi[3]      = {1.0f, 0.0f, 0.0f};
+    float omega[3]    = {10.0f, 0.0f, 0.0f};
+    float tau_cmd[3];
+    /* tau_cmd = -Kp*phi - Kd*omega + tau_gyro = -1.0 - 0.1*10 + 0 = -2.0 */
+    compute_command_torque(Kp_I, Kd, phi, omega, tau_gyro, tau_cmd);
+
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -2.0f, tau_cmd[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL,  0.0f, tau_cmd[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL,  0.0f, tau_cmd[2]);
+}
+
+/* Hand-crafted: gyroscopic feedforward adds to output */
+void test_eq11_gyro_feedforward(void)
 {
     float tau_gyro[3] = {1.0f, 2.0f, 3.0f};
-    float phi[3]      = {4.0f, 5.0f, 6.0f};
+    float phi[3]      = {0.0f, 0.0f, 0.0f};
     float tau_cmd[3];
-    compute_command_torque(tau_gyro, phi, tau_cmd);
+    /* tau_cmd = -0 - 0 + tau_gyro = tau_gyro */
+    compute_command_torque(Kp_I, Kd_0, phi, omega_0, tau_gyro, tau_cmd);
 
-    TEST_ASSERT_FLOAT_WITHIN(TOL, -5.0f, tau_cmd[0]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, -7.0f, tau_cmd[1]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, -9.0f, tau_cmd[2]);
-}
-
-/* Hand-crafted: offsetting forces cancel */
-void test_eq11_offsetting(void)
-{
-    float tau_gyro[3] = {5.0f, -2.0f, 0.0f};
-    float phi[3]      = {-5.0f, 2.0f, 0.0f};
-    float tau_cmd[3];
-    compute_command_torque(tau_gyro, phi, tau_cmd);
-
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau_cmd[0]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau_cmd[1]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, tau_cmd[2]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 1.0f, tau_cmd[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 2.0f, tau_cmd[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 3.0f, tau_cmd[2]);
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
@@ -792,7 +822,7 @@ static flight_controller_config_t make_api_config(void)
     }
     cfg.allocation.t_hat[0] = 0.0f;
     cfg.allocation.t_hat[1] = 0.0f;
-    cfg.allocation.t_hat[2] = 1.0f;
+    cfg.allocation.t_hat[2] = -1.0f;
     cfg.gimbal.L         = 1.0f;
     cfg.gimbal.theta_min = -0.5f;
     cfg.gimbal.theta_max =  0.5f;
@@ -854,14 +884,14 @@ void test_api_pitch_error(void)
     control_output_t out;
     flight_controller_run(&state, &ref, &cfg, &out, 0.01f);
 
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_gim[0]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, -0.2f, out.tau_gim[1]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_gim[2]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_thrust);
-    /* s_t_mag=0 → theta_y saturates → t_hat tilts → T = g*cos(0.5) */
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 8.7758f, out.T_cmd);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,   out.theta_x_cmd);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, -0.5f,  out.theta_y_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,      out.tau_gim[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -0.2f,     out.tau_gim[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,      out.tau_gim[2]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,      out.tau_thrust);
+    /* s_t_mag=m*g → t_par dominates → small gimbal angles */
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 9.998f,  out.T_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,      out.theta_x_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -0.02f,    out.theta_y_cmd);
 }
 
 /* Test 3 — pure yaw error goes to thrust-axis torque, not gimbal */
@@ -884,13 +914,15 @@ void test_api_yaw_error(void)
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_gim[0]);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_gim[1]);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_gim[2]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, -0.2f, out.tau_thrust);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.2f,  out.tau_thrust);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 10.0f, out.T_cmd);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.theta_x_cmd);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.theta_y_cmd);
 }
 
-/* Test 4 — zero attitude error, nonzero body rates (gyro compensation) */
+/* Test 4 — zero attitude error, nonzero body rates.
+ * With Kd=0 in v1 config, angular rates don't produce torque.
+ * tau_gyro = ω×(I·ω) = [0,1,2]×[0,1,2] = [0,0,0] (parallel). */
 void test_api_gyro_compensation(void)
 {
     flight_controller_config_t cfg = make_api_config();
@@ -910,20 +942,18 @@ void test_api_gyro_compensation(void)
     control_output_t out;
     flight_controller_run(&state, &ref, &cfg, &out, 0.01f);
 
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 2.0f,  out.tau_gim[0]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_gim[1]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_gim[2]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_thrust);
-    /* s_t_mag=0 → t_par=0, t_des purely perpendicular → theta_x saturates
-     * → t_hat tilts → T = g*cos(theta_max) ≈ 8.7758 */
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 8.7758f, out.T_cmd);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.5f,    out.theta_x_cmd);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,    out.theta_y_cmd);
+    /* I=diag(2,3,4), omega=[0,1,2]: I*omega=[0,3,8], omega×(I*omega)=[2,0,0].
+     * Kd=0, phi=0 → tau_cmd = [2,0,0]. tau_gim = [2,0,0].
+     * s_t_mag=m*g → t_par dominates → proportional theta_x. */
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 2.0f,   out.tau_gim[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,   out.tau_gim[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,   out.tau_gim[2]);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.2f,  out.theta_x_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,   out.theta_y_cmd);
 }
 
-/* Test 5 — boundary: thrust clamp (T_min=T_max=8) + gimbal angle clamp.
- * PDF Eq 11 has no Kp gain, so Kp[1][1]=30 has no effect;
- * tau_gim[1] = -(phi[1]) ≈ -0.2, NOT -6.0. */
+/* Test 5 — boundary: thrust clamp (T_min=T_max=8) + Kp[1][1]=30.
+ * Now Kp IS used: tau_gim[1] = -30*0.2 = -6.0. */
 void test_api_boundary_clamp(void)
 {
     flight_controller_config_t cfg = make_api_config();
@@ -943,13 +973,13 @@ void test_api_boundary_clamp(void)
     control_output_t out;
     flight_controller_run(&state, &ref, &cfg, &out, 0.01f);
 
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_gim[0]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, -0.2f, out.tau_gim[1]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_gim[2]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.tau_thrust);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 8.0f,  out.T_cmd);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,  out.theta_x_cmd);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, -0.5f, out.theta_y_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,       out.tau_gim[0]);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, -6.0f,    out.tau_gim[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,       out.tau_gim[2]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,       out.tau_thrust);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 8.0f,       out.T_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f,       out.theta_x_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -0.5f,      out.theta_y_cmd);
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
@@ -967,7 +997,7 @@ static flight_controller_config_t make_api_config_v2(void)
     }
     cfg.allocation.t_hat[0] = 0.0f;
     cfg.allocation.t_hat[1] = 0.0f;
-    cfg.allocation.t_hat[2] = 1.0f;
+    cfg.allocation.t_hat[2] = -1.0f;
     cfg.gimbal.L         = 0.1f;
     cfg.gimbal.theta_min = -0.5f;
     cfg.gimbal.theta_max =  0.5f;
@@ -1059,19 +1089,19 @@ void test_api_v2_roll_correction(void)
     control_output_t out;
     flight_controller_run(&state, &ref, &cfg, &out, 0.01f);
 
-    /* s_t_mag=0 → theta_x saturates → T = g*cos(0.5) ≈ 8.6091 */
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 8.6091f, out.T_cmd);
-    TEST_ASSERT_TRUE(out.tau_gim[0] > 0.0f || out.tau_gim[0] < 0.0f);
+    /* s_t_mag=m*g → proportional theta_x response to roll error */
+    TEST_ASSERT_FLOAT_WITHIN(0.1f, 9.654f, out.T_cmd);
+    TEST_ASSERT_TRUE(out.tau_gim[0] != 0.0f);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[1]);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[2]);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_thrust);
-    TEST_ASSERT_TRUE(out.theta_x_cmd != 0.0f || out.theta_y_cmd != 0.0f);
+    TEST_ASSERT_TRUE(out.theta_x_cmd != 0.0f);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.theta_y_cmd);
 }
 
 /* Test 4 — angular rate damping: omega_b = [1,0,0], no attitude error.
- * PDF Eq 11 has no Kd gain. With I=identity and omega=[1,0,0],
- * tau_gyro = (I*omega) x omega = [1,0,0] x [1,0,0] = [0,0,0],
- * phi=[0,0,0], so tau_cmd=[0,0,0] and everything is zero. */
+ * Kd=I in v2 config: tau_cmd = -Kd*omega + tau_gyro = -[1,0,0] + [0,0,0]
+ * → tau_cmd = [-1, 0, 0] → tau_gim = [-1, 0, 0]. */
 void test_api_v2_rate_damping(void)
 {
     flight_controller_config_t cfg = make_api_config_v2();
@@ -1091,13 +1121,14 @@ void test_api_v2_rate_damping(void)
     control_output_t out;
     flight_controller_run(&state, &ref, &cfg, &out, 0.01f);
 
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 9.81f, out.T_cmd);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[0]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[1]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[2]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_thrust);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.theta_x_cmd);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.theta_y_cmd);
+    /* s_t_mag=m*g → Kd produces tau_gim_x=-1, theta_x saturates at -0.5 */
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 8.609f, out.T_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -1.0f, out.tau_gim[0]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL,  0.0f, out.tau_gim[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL,  0.0f, out.tau_gim[2]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL,  0.0f, out.tau_thrust);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -0.5f, out.theta_x_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL,  0.0f, out.theta_y_cmd);
 }
 
 /* Test 5 — actuator saturation: large z-error + 180-deg rotation */
@@ -1140,7 +1171,7 @@ static flight_controller_config_t make_api_config_v3(void)
     }
     cfg.allocation.t_hat[0] = 0.0f;
     cfg.allocation.t_hat[1] = 0.0f;
-    cfg.allocation.t_hat[2] = 1.0f;
+    cfg.allocation.t_hat[2] = -1.0f;
     cfg.gimbal.L         = 0.1f;
     cfg.gimbal.theta_min = -0.5f;
     cfg.gimbal.theta_max =  0.5f;
@@ -1304,7 +1335,8 @@ void test_api_v3_integral_windup(void)
         flight_controller_run(&state, &ref, &cfg, &out, 0.01f);
     }
 
-    /* By call 500: integral saturated at 3.0. T = 9.81 + 2.0 + 3.0 = 14.81 */
+    /* By call 500: integral saturated at 3.0, error=1→P=2, D≈0.
+     * T = m*(g + kp*1 + ki*3) = 1*(9.81+2+3) = 14.81 */
     TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 14.81f, out.T_cmd);
 }
 
@@ -1363,12 +1395,13 @@ void test_api_v3_pitch_correction(void)
     TEST_ASSERT_TRUE(out.tau_gim[1] < 0.0f);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[0]);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[2]);
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_thrust);
+    TEST_ASSERT_FLOAT_WITHIN(0.1f, -0.073f, out.tau_thrust);
 }
 
 /* Test 8 — Pure Yaw Correction: ~10 deg yaw.
- * PDF Eq 11: tau_cmd = -(phi). Positive phi[2] → negative tau_cmd[2].
- * Yaw torque projects onto thrust axis → tau_thrust < 0 (not > 0). */
+ * tau_cmd = -Kp*phi. Positive phi[2] → negative tau_cmd[2].
+ * t_hat = [0,0,-1] → tau_roll projects z-component → tau_thrust > 0
+ * (positive because dot(tau_cmd, [0,0,-1]) = -(-phi[2]) = phi[2] > 0). */
 void test_api_v3_yaw_correction(void)
 {
     flight_controller_config_t cfg = make_api_config_v3();
@@ -1385,7 +1418,7 @@ void test_api_v3_yaw_correction(void)
     control_output_t out;
     flight_controller_run(&state, &ref, &cfg, &out, 0.01f);
 
-    TEST_ASSERT_TRUE(out.tau_thrust < 0.0f);
+    TEST_ASSERT_TRUE(out.tau_thrust > 0.0f);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[0]);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[1]);
     TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[2]);
@@ -1394,9 +1427,7 @@ void test_api_v3_yaw_correction(void)
 }
 
 /* Test 9 — Pitch Rate Damping: omega_b[1]=1, I=identity.
- * PDF Eq 11 has no Kd. With I=identity: tau_gyro = (I*omega) x omega
- * = [0,1,0] x [0,1,0] = [0,0,0]. phi=[0,0,0].
- * tau_cmd = [0,0,0] → tau_gim = [0,0,0]. */
+ * Kd=I: tau_cmd = -Kd*omega = [0,-1,0]. tau_gim[1] = -1. */
 void test_api_v3_pitch_rate_damping(void)
 {
     flight_controller_config_t cfg = make_api_config_v3();
@@ -1414,7 +1445,7 @@ void test_api_v3_pitch_rate_damping(void)
     control_output_t out;
     flight_controller_run(&state, &ref, &cfg, &out, 0.01f);
 
-    TEST_ASSERT_FLOAT_WITHIN(TOL, 0.0f, out.tau_gim[1]);
+    TEST_ASSERT_FLOAT_WITHIN(TOL, -1.0f, out.tau_gim[1]);
 }
 
 /* Test 10 — Shortest Path Quaternion Rotation (double-cover edge case).

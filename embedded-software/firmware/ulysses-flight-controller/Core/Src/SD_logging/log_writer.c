@@ -123,7 +123,8 @@ bool log_writer_init(void)
     g_ctx.buffer_mutex = xSemaphoreCreateMutexStatic(&g_ctx.buffer_mutex_buf);
     if (!g_ctx.buffer_mutex) return false;
 
-    xSemaphoreGive(g_ctx.dma_done_sem);
+    /* Binary semaphore starts empty (count=0).  The drain in
+     * dma_write_block before each DMA start handles synchronization. */
 
     /* Reserve buffer 0 as the initial active log buffer */
     g_ctx.active_log_idx = 0U;
@@ -317,6 +318,15 @@ bool log_writer_dma_write_block(uint8_t buf_idx)
 
     g_ctx.buffers[buf_idx].state = BUF_FLUSHING;
 
+    /* Drain any stale semaphore signal and set the in-progress flag BEFORE
+     * starting DMA.  This closes the race window: once DMA starts, the ISR
+     * can fire at any time and its xSemaphoreGiveFromISR will always find
+     * the semaphore empty (count 0 → 1).  If we did this AFTER starting
+     * DMA, a fast ISR could give before we drain, and we'd consume the
+     * completion signal — deadlocking on the subsequent wait. */
+    xSemaphoreTake(g_ctx.dma_done_sem, 0);
+    g_ctx.dma_in_progress = true;
+
     HAL_StatusTypeDef status = HAL_SD_WriteBlocks_DMA(
         &hsd1,
         g_ctx.buffers[buf_idx].data,
@@ -324,6 +334,7 @@ bool log_writer_dma_write_block(uint8_t buf_idx)
         1U);
 
     if (status != HAL_OK) {
+        g_ctx.dma_in_progress = false;
         g_ctx.error = true;
         g_ctx.ready = false;
         g_ctx.buffers[buf_idx].state = BUF_EMPTY;
@@ -331,11 +342,8 @@ bool log_writer_dma_write_block(uint8_t buf_idx)
     }
 
     g_ctx.block_address += 1U;
-    g_ctx.dma_in_progress = true;
-    /* Reset semaphore so wait blocks until ISR releases it */
-    xSemaphoreTake(g_ctx.dma_done_sem, 0);
 
-    /* Block until DMA finishes — buffer must stay valid */
+    /* Block until DMA ISR gives the semaphore */
     wait_for_dma_completion();
 
     /* Buffer is now free */
