@@ -1,4 +1,5 @@
 #include "app.h"
+#include "main.h"
 #include "stm32g4xx_hal.h"
 #include "stm32g4xx_hal_adc.h"
 #include "stm32g4xx_hal_tim.h"
@@ -21,9 +22,9 @@
 //comm step freq defines 
 #define STARTUP_MAX_FREQ_HZ   (TARGET_RPM * MOTOR_POLES_PAIRS * 6) / 60  /* Electrical commutation cycles/sec — adjust  */
 #define COMM_STEP_ARR   ((16000000U / (COMM_FREQ_HZ)) - 1U) /* TIM15 ARR */
-#define BEMF_BUFFER_SIZE 32 /*Size of the circular buffer for back emf averaging*/
+#define BEMF_BUFFER_SIZE 128 /*Size of the circular buffer for back emf averaging*/
 
-#define SYSCLOCK_HZ HAL_RCC_GetHCLKFreq()
+#define SYSCLOCK_HZ HAL_RCC_GetCHLKFreq()
 
 typedef enum { 
     STATE_STARTUP,           // Using timer to force commutation 
@@ -71,13 +72,15 @@ static uint8_t comm_step = 0;
  */
 void startup_begin( void ) {
     startup_start_time_ms = HAL_GetTick(); 
+    comm_step = 0;
+    Set_Commutation_Step(comm_step);
+
+    HAL_TIM_Base_Start_IT(&htim15);
 
     //configure the TIM15 for startup minimum freq 
     uint32_t ARR = (SYSCLOCK_HZ / STARTUP_MIN_FREQ_HZ) - 1;
     __HAL_TIM_SET_AUTORELOAD(&htim15, ARR); 
     __HAL_TIM_SET_COUNTER(&htim15, 0); 
-
-    HAL_TIM_Base_Start_IT(&htim15);
 
     motor_state = STATE_STARTUP; 
 }
@@ -96,6 +99,12 @@ void startup_update( void ){
     
     if(elapsed_ms >= STARTUP_RAMP_TIME_MS) { 
         motor_state = STATE_SENSORLESS; 
+        //starting adc with dma 
+        if(HAL_ADC_Start_DMA(&hadc1, (uint32_t*) adc_dma_buffer, 3) != HAL_OK){
+        Error_Handler();
+        }
+        HAL_ADC_RegisterCallback(&hadc1, HAL_ADC_CONVERSION_COMPLETE_CB_ID, 
+                         HAL_ADC_ConvCpltCallback);
         return; 
     }
 
@@ -125,7 +134,10 @@ static uint8_t blanking_is_active( void ){
     }
 
     uint32_t current_ticks = __HAL_TIM_GET_COUNTER(&htim15);
-    uint32_t elapsed = current_ticks - blanking.commutation_ticks; 
+    //uint32_t elapsed = current_ticks - blanking.commutation_ticks; 
+    int32_t elapsed = (int32_t)(current_ticks - blanking.commutation_ticks);
+    if (elapsed < 0) elapsed += __HAL_TIM_GET_AUTORELOAD(&htim15) + 1;
+
 
     uint32_t current_arr = __HAL_TIM_GET_AUTORELOAD(&htim15); 
     uint32_t blanking_time = (current_arr * BLANKING_TIME_PERCENTAGE) / 100; 
@@ -223,8 +235,15 @@ static uint8_t detect_zero_crossing(uint8_t step){
     }
 
     static uint16_t prev_bemf = 0; 
+    static uint8_t prev_motor_state = STATE_STARTUP;
     uint16_t threshold = 2048;
     uint16_t bemf = get_bemf_for_step(step);
+
+    if(motor_state != prev_motor_state) {
+        prev_bemf = bemf;
+        prev_motor_state = motor_state;
+        return 0;
+    }
 
     if((prev_bemf < threshold && bemf >= threshold) || //rising edge
        (prev_bemf >= threshold && bemf < threshold)) //fallingedge
@@ -238,11 +257,9 @@ static uint8_t detect_zero_crossing(uint8_t step){
 }
 
 void app(void) {
-
-    //starting adc with dma 
-    HAL_ADC_Start_DMA(&hadc1, (uint32_t*) adc_dma_buffer, 3);
-
+    HAL_TIM_Base_Start(&htim1); 
     startup_begin();
+    
     //converted TIM15 into a watchdog safety just incase we skip a step
     // and the motor gets stuck, itll force the next phase. not too sure if 
     // this iwll work though logically it makes abit of sense to me
@@ -280,7 +297,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
             //force a step 
             comm_step = (comm_step + 1U) % 6U;
             Set_Commutation_Step(comm_step);
-            blanking_start(); 
         }
     }
     //if in sensorless mode, it dont do nothing 
