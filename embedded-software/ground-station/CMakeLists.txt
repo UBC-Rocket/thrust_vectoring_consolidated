@@ -23,6 +23,7 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../libs/rocket-protocol ${CMAKE_BIN
 find_package(Qt6 REQUIRED COMPONENTS
     Core
     Gui
+    Network
     Qml
     Quick
     QuickControls2
@@ -121,6 +122,7 @@ target_link_libraries(ulysses_ground_control
     PRIVATE
         Qt6::Core
         Qt6::Gui
+        Qt6::Network
         Qt6::Qml
         Qt6::Quick
         Qt6::QuickControls2

@@ -1,12 +1,32 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QQmlNetworkAccessManagerFactory>
+#include <QNetworkAccessManager>
+#include <QNetworkRequest>
 #include <QCommandLineParser>
 #include <QTimer>
 #include "SerialBridge.h"
 #include "SensorDataModel.h"
 #include "CommandSender.h"
 #include "AlarmReceiver.h"
+
+// Custom NAM that sets a User-Agent header on all requests (required by OSM tile servers)
+class OsmNetworkAccessManager : public QNetworkAccessManager {
+protected:
+    QNetworkReply *createRequest(Operation op, const QNetworkRequest &request, QIODevice *outgoingData) override {
+        QNetworkRequest req(request);
+        req.setHeader(QNetworkRequest::UserAgentHeader, "UlyssesGroundControl/0.1");
+        return QNetworkAccessManager::createRequest(op, req, outgoingData);
+    }
+};
+
+class OsmNetworkAccessManagerFactory : public QQmlNetworkAccessManagerFactory {
+public:
+    QNetworkAccessManager *create(QObject *parent) override {
+        return new OsmNetworkAccessManager();
+    }
+};
 
 int main(int argc, char *argv[])
 {
@@ -21,6 +41,7 @@ int main(int argc, char *argv[])
 
     // QML engine + expose C++ backends to QML by name
     QQmlApplicationEngine engine;
+    engine.setNetworkAccessManagerFactory(new OsmNetworkAccessManagerFactory());
     engine.rootContext()->setContextProperty("bridge", &bridge);
     engine.rootContext()->setContextProperty("commandsender", &commandsender);
     engine.rootContext()->setContextProperty("alarmreceiver", &alarmreceiver);
