@@ -26,15 +26,52 @@ Rectangle {
     property real dragCurXm: 0
     property real dragCurYm: 0
 
-    readonly property var poles: (rectWidth > 0 && rectHeight > 0)
-        ? [
-            { id: "P0", x: 0,             y: 0             },
-            { id: "P1", x: -rectWidth/2,  y: -rectHeight/2 },
-            { id: "P2", x:  rectWidth/2,  y: -rectHeight/2 },
-            { id: "P3", x:  rectWidth/2,  y:  rectHeight/2 },
-            { id: "P4", x: -rectWidth/2,  y:  rectHeight/2 }
-          ]
-        : []
+    // ── Poles (mutable) ───────────────────────────────────────────────────
+    // Each pole: { id: "Pn", x: float, y: float, isBase: bool }
+    // P0 = center, P1-P4 = corners (isBase: true), P5+ = user-placed extras
+    property var poles: []
+
+    function recomputeBasePoles() {
+        if (rectWidth <= 0 || rectHeight <= 0) {
+            poles = []
+            return
+        }
+        const base = [
+            { id: "P0", x: 0,            y: 0,             isBase: true },
+            { id: "P1", x: -rectWidth/2, y: -rectHeight/2, isBase: true },
+            { id: "P2", x:  rectWidth/2, y: -rectHeight/2, isBase: true },
+            { id: "P3", x:  rectWidth/2, y:  rectHeight/2, isBase: true },
+            { id: "P4", x: -rectWidth/2, y:  rectHeight/2, isBase: true }
+        ]
+        const extras = poles.length > 5 ? poles.slice(5) : []
+        poles = base.concat(extras)
+    }
+
+    function movePole(index, newXm, newYm) {
+        const arr = poles.slice()
+        arr[index] = { id: arr[index].id, x: newXm, y: newYm, isBase: arr[index].isBase }
+        poles = arr
+    }
+
+    function addPole(xm, ym) {
+        if (poles.length >= 15) return
+        const arr = poles.slice()
+        arr.push({ id: "P" + arr.length, x: xm, y: ym, isBase: false })
+        poles = arr
+    }
+
+    function removePole(index) {
+        if (index < 5) return  // cannot remove base poles
+        const arr = poles.slice()
+        arr.splice(index, 1)
+        // re-label extras
+        for (let i = 5; i < arr.length; i++)
+            arr[i] = { id: "P" + i, x: arr[i].x, y: arr[i].y, isBase: false }
+        poles = arr
+    }
+
+    onRectWidthChanged:  recomputeBasePoles()
+    onRectHeightChanged: recomputeBasePoles()
 
     // ── Coordinate transforms ──────────────────────────────────────────────
     function mxToPx(xm) { return mapView.width  / 2 + panX + xm * pxPerMeter }
@@ -88,7 +125,7 @@ Rectangle {
             font.pixelSize: Theme.fontBody
         }
         Text {
-            text: poles.length + " poles"
+            text: panel.poles.length + " poles"
             color: Theme.textTertiary
             font.family: Theme.monoFamily
             font.pixelSize: Theme.fontCaption
@@ -120,6 +157,7 @@ Rectangle {
             onClicked: {
                 panel.rectWidth = 0
                 panel.rectHeight = 0
+                panel.poles = []
                 geometryLayer.requestPaint()
             }
         }
@@ -309,17 +347,18 @@ Rectangle {
                     }
                 }
 
-                if (panel.poles.length !== 5) return
+                if (panel.poles.length < 5) return
 
                 const p = panel.poles
-                function pt(i) { return Qt.point(panel.mxToPx(p[i].x), panel.myToPy(p[i].y)) }
-                const c  = pt(0)
-                const c1 = pt(1)
-                const c2 = pt(2)
-                const c3 = pt(3)
-                const c4 = pt(4)
+                function ptOf(pole) { return Qt.point(panel.mxToPx(pole.x), panel.myToPy(pole.y)) }
 
-                // Solid rectangle outline
+                const c  = ptOf(p[0])  // center
+                const c1 = ptOf(p[1])  // P1 corner
+                const c2 = ptOf(p[2])  // P2 corner
+                const c3 = ptOf(p[3])  // P3 corner
+                const c4 = ptOf(p[4])  // P4 corner
+
+                // Solid rectangle outline (P1-P4)
                 ctx.strokeStyle = Theme.accentMuted
                 ctx.lineWidth = 1.5
                 ctx.setLineDash([])
@@ -331,35 +370,38 @@ Rectangle {
                 ctx.closePath()
                 ctx.stroke()
 
-                // Dashed lines: 4 perimeter + 4 spokes
+                // Dashed lines
                 ctx.strokeStyle = Theme.accent
                 ctx.lineWidth = 1.2
                 ctx.setLineDash([6, 4])
 
                 const w = panel.rectWidth
                 const h = panel.rectHeight
-                const diag = Math.sqrt((w/2)*(w/2) + (h/2)*(h/2))
 
-                // Perimeter
+                // Perimeter edges
                 drawDashedLine(ctx, c1.x, c1.y, c2.x, c2.y)
                 drawDashedLine(ctx, c2.x, c2.y, c3.x, c3.y)
                 drawDashedLine(ctx, c3.x, c3.y, c4.x, c4.y)
                 drawDashedLine(ctx, c4.x, c4.y, c1.x, c1.y)
-                // Spokes
-                drawDashedLine(ctx, c.x, c.y, c1.x, c1.y)
-                drawDashedLine(ctx, c.x, c.y, c2.x, c2.y)
-                drawDashedLine(ctx, c.x, c.y, c3.x, c3.y)
-                drawDashedLine(ctx, c.x, c.y, c4.x, c4.y)
 
-                // Length labels
-                drawLengthLabel(ctx, c1.x, c1.y, c2.x, c2.y, w)        // bottom edge (in screen-y, but we labeled top in scene-y. doesn't matter — w is correct)
+                // Spokes from center to ALL poles
+                for (let i = 1; i < p.length; ++i) {
+                    const pi = ptOf(p[i])
+                    drawDashedLine(ctx, c.x, c.y, pi.x, pi.y)
+                }
+
+                // Perimeter length labels
+                drawLengthLabel(ctx, c1.x, c1.y, c2.x, c2.y, w)
                 drawLengthLabel(ctx, c3.x, c3.y, c4.x, c4.y, w)
                 drawLengthLabel(ctx, c2.x, c2.y, c3.x, c3.y, h)
                 drawLengthLabel(ctx, c4.x, c4.y, c1.x, c1.y, h)
-                drawLengthLabel(ctx, c.x, c.y, c1.x, c1.y, diag)
-                drawLengthLabel(ctx, c.x, c.y, c2.x, c2.y, diag)
-                drawLengthLabel(ctx, c.x, c.y, c3.x, c3.y, diag)
-                drawLengthLabel(ctx, c.x, c.y, c4.x, c4.y, diag)
+
+                // Spoke distance labels
+                for (let i = 1; i < p.length; ++i) {
+                    const pi = ptOf(p[i])
+                    const dist = Math.sqrt(p[i].x * p[i].x + p[i].y * p[i].y)
+                    drawLengthLabel(ctx, c.x, c.y, pi.x, pi.y, dist)
+                }
             }
         }
 
@@ -370,29 +412,39 @@ Rectangle {
             function onPanYChanged()       { geometryLayer.requestPaint() }
             function onRectWidthChanged()  { geometryLayer.requestPaint() }
             function onRectHeightChanged() { geometryLayer.requestPaint() }
+            function onPolesChanged()      { geometryLayer.requestPaint() }
         }
 
-        // ── Pole markers ──
+        // ── Pole markers (draggable) ──
         Repeater {
+            id: poleRepeater
             model: panel.poles
             delegate: Item {
+                id: markerItem
                 required property var modelData
-                x: panel.mxToPx(modelData.x) - 6
-                y: panel.myToPy(modelData.y) - 6
-                width: 12
-                height: 12
-                visible: panel.poles.length === 5
-                z: 5
+                required property int index
+
+                x: panel.mxToPx(modelData.x) - hitSize/2
+                y: panel.myToPy(modelData.y) - hitSize/2
+
+                property int hitSize: 20
+                width: hitSize
+                height: hitSize
+                visible: panel.poles.length >= 5
+                z: 10
 
                 Rectangle {
                     anchors.centerIn: parent
                     width: 12
                     height: 12
                     radius: 6
-                    color: modelData.id === "P0" ? Theme.accent : Theme.successText
+                    color: modelData.id === "P0" ? Theme.accent
+                         : modelData.isBase      ? Theme.successText
+                         :                         Theme.warnText
                     border.color: Theme.background
                     border.width: 2
                 }
+
                 Text {
                     anchors.left: parent.right
                     anchors.bottom: parent.top
@@ -402,15 +454,58 @@ Rectangle {
                     font.family: Theme.monoFamily
                     font.pixelSize: Theme.fontCaption
                 }
+
+                MouseArea {
+                    id: markerDragArea
+                    anchors.fill: parent
+                    anchors.margins: -4
+                    hoverEnabled: true
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    cursorShape: containsMouse ? Qt.PointingHandCursor : Qt.ArrowCursor
+
+                    property bool isDragging: false
+                    property real offsetXm: 0
+                    property real offsetYm: 0
+
+                    onPressed: (mouse) => {
+                        if (mouse.button === Qt.RightButton) {
+                            if (!markerItem.modelData.isBase) {
+                                panel.removePole(markerItem.index)
+                            }
+                            mouse.accepted = true
+                            return
+                        }
+                        // Start drag
+                        isDragging = true
+                        const clickXm = panel.pxToMx(mouse.x + markerItem.x + markerItem.hitSize/2)
+                        const clickYm = panel.pyToMy(mouse.y + markerItem.y + markerItem.hitSize/2)
+                        offsetXm = markerItem.modelData.x - clickXm
+                        offsetYm = markerItem.modelData.y - clickYm
+                        mouse.accepted = true
+                    }
+
+                    onPositionChanged: (mouse) => {
+                        if (!isDragging) return
+                        const newXm = panel.pxToMx(mouse.x + markerItem.x + markerItem.hitSize/2) + offsetXm
+                        const newYm = panel.pyToMy(mouse.y + markerItem.y + markerItem.hitSize/2) + offsetYm
+                        panel.movePole(markerItem.index, newXm, newYm)
+                    }
+
+                    onReleased: (mouse) => {
+                        isDragging = false
+                        mouse.accepted = true
+                    }
+                }
             }
         }
 
-        // ── Interaction (drag rectangle, pan, wheel zoom) ──
+        // ── Interaction (drag rectangle, pan, wheel zoom, click-to-add) ──
         MouseArea {
             id: interaction
             anchors.fill: parent
             acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
             hoverEnabled: false
+            z: 0
 
             property bool panning: false
             property real lastX: 0
@@ -446,11 +541,20 @@ Rectangle {
 
             onReleased: (mouse) => {
                 if (panel.dragging && mouse.button === Qt.LeftButton) {
-                    const w = 2 * Math.abs(panel.dragCurXm - panel.dragStartXm)
-                    const h = 2 * Math.abs(panel.dragCurYm - panel.dragStartYm)
-                    if (w > 0.01 && h > 0.01) {
-                        panel.rectWidth = w
-                        panel.rectHeight = h
+                    const dxm = Math.abs(panel.dragCurXm - panel.dragStartXm)
+                    const dym = Math.abs(panel.dragCurYm - panel.dragStartYm)
+                    const isClick = dxm < 0.05 && dym < 0.05
+
+                    if (isClick && panel.poles.length >= 5 && panel.poles.length < 15) {
+                        // Click-to-add extra probe
+                        panel.addPole(panel.dragStartXm, panel.dragStartYm)
+                    } else if (!isClick) {
+                        const w = 2 * dxm
+                        const h = 2 * dym
+                        if (w > 0.01 && h > 0.01) {
+                            panel.rectWidth = w
+                            panel.rectHeight = h
+                        }
                     }
                     panel.dragging = false
                     geometryLayer.requestPaint()
@@ -589,6 +693,16 @@ Rectangle {
                         font.pixelSize: Theme.fontCaption
                     }
                 }
+                RowLayout {
+                    spacing: 6
+                    Rectangle { width: 10; height: 10; radius: 5; color: Theme.warnText }
+                    Text {
+                        text: "Extra probe (draggable)"
+                        color: Theme.textSecondary
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontCaption
+                    }
+                }
                 Text {
                     text: "Scale: " + panel.pxPerMeter.toFixed(0) + " px/m"
                     color: Theme.textTertiary
@@ -596,7 +710,13 @@ Rectangle {
                     font.pixelSize: Theme.fontCaption
                 }
                 Text {
-                    text: "Drag: rectangle  •  Right-drag: pan  •  Wheel: zoom"
+                    text: "Drag: rectangle  •  Click: add probe  •  Right-click: delete"
+                    color: Theme.textTertiary
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontCaption
+                }
+                Text {
+                    text: "Right-drag: pan  •  Wheel: zoom  •  Max 15 probes"
                     color: Theme.textTertiary
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontCaption
