@@ -77,11 +77,11 @@ void UART4_IRQHandler(void);
 void SDMMC1_IRQHandler(void);
 void SPI4_IRQHandler(void);
 void GPDMA2_Channel0_IRQHandler(void);
-void GPDMA2_Channel1_IRQHandler(void);
 void GPDMA2_Channel2_IRQHandler(void);
 void GPDMA2_Channel3_IRQHandler(void);
 void GPDMA2_Channel4_IRQHandler(void);
 void GPDMA2_Channel5_IRQHandler(void);
+void GPDMA2_Channel7_IRQHandler(void);
 /* USER CODE BEGIN EFP */
 
 /* USER CODE END EFP */

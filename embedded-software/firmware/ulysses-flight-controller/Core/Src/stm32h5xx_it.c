@@ -72,7 +72,7 @@ extern DMA_HandleTypeDef handle_GPDMA1_Channel2;
 extern SPI_HandleTypeDef hspi1;
 extern SPI_HandleTypeDef hspi2;
 extern SPI_HandleTypeDef hspi4;
-extern DMA_HandleTypeDef handle_GPDMA2_Channel1;
+extern DMA_HandleTypeDef handle_GPDMA2_Channel7;
 extern TIM_HandleTypeDef htim4;
 extern DMA_HandleTypeDef handle_GPDMA2_Channel5;
 extern DMA_HandleTypeDef handle_GPDMA2_Channel4;
@@ -569,20 +569,6 @@ void GPDMA2_Channel0_IRQHandler(void)
 }
 
 /**
-  * @brief This function handles GPDMA2 Channel 1 global interrupt.
-  */
-void GPDMA2_Channel1_IRQHandler(void)
-{
-  /* USER CODE BEGIN GPDMA2_Channel1_IRQn 0 */
-
-  /* USER CODE END GPDMA2_Channel1_IRQn 0 */
-  HAL_DMA_IRQHandler(&handle_GPDMA2_Channel1);
-  /* USER CODE BEGIN GPDMA2_Channel1_IRQn 1 */
-
-  /* USER CODE END GPDMA2_Channel1_IRQn 1 */
-}
-
-/**
   * @brief This function handles GPDMA2 Channel 2 global interrupt.
   */
 void GPDMA2_Channel2_IRQHandler(void)
@@ -636,6 +622,20 @@ void GPDMA2_Channel5_IRQHandler(void)
   /* USER CODE BEGIN GPDMA2_Channel5_IRQn 1 */
 
   /* USER CODE END GPDMA2_Channel5_IRQn 1 */
+}
+
+/**
+  * @brief This function handles GPDMA2 Channel 7 global interrupt.
+  */
+void GPDMA2_Channel7_IRQHandler(void)
+{
+  /* USER CODE BEGIN GPDMA2_Channel7_IRQn 0 */
+
+  /* USER CODE END GPDMA2_Channel7_IRQn 0 */
+  HAL_DMA_IRQHandler(&handle_GPDMA2_Channel7);
+  /* USER CODE BEGIN GPDMA2_Channel7_IRQn 1 */
+
+  /* USER CODE END GPDMA2_Channel7_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */

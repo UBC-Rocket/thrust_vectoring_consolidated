@@ -73,7 +73,7 @@ TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
-DMA_HandleTypeDef handle_GPDMA2_Channel1;
+DMA_HandleTypeDef handle_GPDMA2_Channel7;
 
 UART_HandleTypeDef huart4;
 UART_HandleTypeDef huart1;
@@ -398,8 +398,6 @@ static void MX_GPDMA2_Init(void)
   /* GPDMA2 interrupt Init */
     HAL_NVIC_SetPriority(GPDMA2_Channel0_IRQn, 5, 0);
     HAL_NVIC_EnableIRQ(GPDMA2_Channel0_IRQn);
-    HAL_NVIC_SetPriority(GPDMA2_Channel1_IRQn, 5, 0);
-    HAL_NVIC_EnableIRQ(GPDMA2_Channel1_IRQn);
     HAL_NVIC_SetPriority(GPDMA2_Channel2_IRQn, 5, 0);
     HAL_NVIC_EnableIRQ(GPDMA2_Channel2_IRQn);
     HAL_NVIC_SetPriority(GPDMA2_Channel3_IRQn, 5, 0);
@@ -408,6 +406,8 @@ static void MX_GPDMA2_Init(void)
     HAL_NVIC_EnableIRQ(GPDMA2_Channel4_IRQn);
     HAL_NVIC_SetPriority(GPDMA2_Channel5_IRQn, 5, 0);
     HAL_NVIC_EnableIRQ(GPDMA2_Channel5_IRQn);
+    HAL_NVIC_SetPriority(GPDMA2_Channel7_IRQn, 5, 0);
+    HAL_NVIC_EnableIRQ(GPDMA2_Channel7_IRQn);
 
   /* USER CODE BEGIN GPDMA2_Init 1 */
 #ifndef ULYSSES_ENABLE_DEBUG_LOGGING
