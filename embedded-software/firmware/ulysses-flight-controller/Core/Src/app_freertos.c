@@ -22,8 +22,10 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+
 #include "state_exchange.h"
 #include "crash/crash_dump.h"
+#include "timestamp.h"
 
 /* USER CODE END Includes */
 
@@ -90,6 +92,20 @@ const osThreadAttr_t StateEstimation_attributes = {
 
 /* USER CODE END FunctionPrototypes */
 
+/* USER CODE BEGIN 3 */
+void vApplicationTickHook( void )
+{
+  /* This function will be called by each tick interrupt if
+     configUSE_TICK_HOOK is set to 1 in FreeRTOSConfig.h. User code can be
+     added here, but the tick hook is called from an interrupt context, so
+     code must not attempt to block, and only the interrupt safe FreeRTOS API
+     functions can be used (those that end in FromISR()).
+  */
+
+  timestamp_update();
+}
+/* USER CODE END 3 */
+
 /**
   * @brief  FreeRTOS initialization
   * @param  None
@@ -118,20 +134,23 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE END RTOS_QUEUES */
   /* creation of MissionManager */
   MissionManagerHandle = osThreadNew(mission_manager_task_start, NULL, &MissionManager_attributes);
-  crash_dump_register_task((TaskHandle_t)MissionManagerHandle);
-  vTaskSetTaskNumber((TaskHandle_t)MissionManagerHandle, 1);
 
   /* creation of Controls */
   ControlsHandle = osThreadNew(controls_task_start, NULL, &Controls_attributes);
-  crash_dump_register_task((TaskHandle_t)ControlsHandle);
-  vTaskSetTaskNumber((TaskHandle_t)ControlsHandle, 2);
 
   /* creation of StateEstimation */
   StateEstimationHandle = osThreadNew(state_estimation_task_start, NULL, &StateEstimation_attributes);
-  crash_dump_register_task((TaskHandle_t)StateEstimationHandle);
-  vTaskSetTaskNumber((TaskHandle_t)StateEstimationHandle, 3);
 
   /* USER CODE BEGIN RTOS_THREADS */
+
+  crash_dump_register_task((TaskHandle_t)MissionManagerHandle);
+  vTaskSetTaskNumber((TaskHandle_t)MissionManagerHandle, 1);
+
+  crash_dump_register_task((TaskHandle_t)ControlsHandle);
+  vTaskSetTaskNumber((TaskHandle_t)ControlsHandle, 2);
+
+  crash_dump_register_task((TaskHandle_t)StateEstimationHandle);
+  vTaskSetTaskNumber((TaskHandle_t)StateEstimationHandle, 3);
 
 #ifdef ULYSSES_ENABLE_DEBUG_LOGGING
   DebugLoggingTaskHandle = osThreadNew(debug_logging_task_start, NULL, &DebugLoggingTask_attributes);
@@ -154,12 +173,4 @@ void MX_FREERTOS_Init(void) {
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
 
-#include "timestamp.h"
-
-void vApplicationTickHook(void)
-{
-    timestamp_update();
-}
-
 /* USER CODE END Application */
-

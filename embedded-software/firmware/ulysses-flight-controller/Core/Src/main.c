@@ -73,6 +73,7 @@ TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
+DMA_HandleTypeDef handle_GPDMA2_Channel1;
 
 UART_HandleTypeDef huart4;
 UART_HandleTypeDef huart1;
@@ -397,6 +398,8 @@ static void MX_GPDMA2_Init(void)
   /* GPDMA2 interrupt Init */
     HAL_NVIC_SetPriority(GPDMA2_Channel0_IRQn, 5, 0);
     HAL_NVIC_EnableIRQ(GPDMA2_Channel0_IRQn);
+    HAL_NVIC_SetPriority(GPDMA2_Channel1_IRQn, 5, 0);
+    HAL_NVIC_EnableIRQ(GPDMA2_Channel1_IRQn);
     HAL_NVIC_SetPriority(GPDMA2_Channel2_IRQn, 5, 0);
     HAL_NVIC_EnableIRQ(GPDMA2_Channel2_IRQn);
     HAL_NVIC_SetPriority(GPDMA2_Channel3_IRQn, 5, 0);
@@ -768,7 +771,7 @@ static void MX_TIM2_Init(void)
   {
     Error_Handler();
   }
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.OCMode = TIM_OCMODE_PWM2;
   sConfigOC.Pulse = 0;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
@@ -1256,9 +1259,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   if (htim->Instance == TIM6)
   {
     HAL_IncTick();
-    timestamp_update();
   }
   /* USER CODE BEGIN Callback 1 */
+
+  if (htim->Instance == TIM6)
+  {
+    timestamp_update();
+  }
 
   /* USER CODE END Callback 1 */
 }
