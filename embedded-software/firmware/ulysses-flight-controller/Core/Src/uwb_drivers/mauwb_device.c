@@ -108,7 +108,7 @@ mauwb_device_status_t mauwb_device_setup(mauwb_device_t *dev)
     if (dev == NULL) {
         return MAUWB_DEV_NULL;
     }
-
+    // send AT?
     tx_len = mauwb_build_at_test(tx_buf, sizeof(tx_buf));
     if (tx_len == 0U) {
         return MAUWB_DEV_BUILD_ERROR;
@@ -117,7 +117,7 @@ mauwb_device_status_t mauwb_device_setup(mauwb_device_t *dev)
     if (status != MAUWB_DEV_OK) {
         return status;
     }
-
+    // send AT_RESTORE
     tx_len = mauwb_build_command(MAUWB_CMD_RESTORE, tx_buf, sizeof(tx_buf));
     if (tx_len == 0U) {
         return MAUWB_DEV_BUILD_ERROR;
@@ -126,7 +126,7 @@ mauwb_device_status_t mauwb_device_setup(mauwb_device_t *dev)
     if (status != MAUWB_DEV_OK) {
         return status;
     }
-
+    // send AT_SETCFG
     tx_len = mauwb_build_setcfg(tx_buf,
                                 sizeof(tx_buf),
                                 dev->config.device_id,
@@ -140,7 +140,7 @@ mauwb_device_status_t mauwb_device_setup(mauwb_device_t *dev)
     if (status != MAUWB_DEV_OK) {
         return status;
     }
-
+    // send AT_SETCAP
     tx_len = mauwb_build_setcap(tx_buf,
                                 sizeof(tx_buf),
                                 dev->config.tag_capacity,
@@ -153,7 +153,7 @@ mauwb_device_status_t mauwb_device_setup(mauwb_device_t *dev)
     if (status != MAUWB_DEV_OK) {
         return status;
     }
-
+    // send AT_SETRPT
     tx_len = mauwb_build_setrpt(tx_buf, sizeof(tx_buf), 1U);
     if (tx_len == 0U) {
         return MAUWB_DEV_BUILD_ERROR;
@@ -162,7 +162,7 @@ mauwb_device_status_t mauwb_device_setup(mauwb_device_t *dev)
     if (status != MAUWB_DEV_OK) {
         return status;
     }
-
+    // send AT_SAVE
     tx_len = mauwb_build_save(tx_buf, sizeof(tx_buf));
     if (tx_len == 0U) {
         return MAUWB_DEV_BUILD_ERROR;
@@ -171,10 +171,11 @@ mauwb_device_status_t mauwb_device_setup(mauwb_device_t *dev)
     if (status != MAUWB_DEV_OK) {
         return status;
     }
-
+    // send AT_RESTART
     tx_len = mauwb_build_restart(tx_buf, sizeof(tx_buf));
     if (tx_len == 0U) {
         return MAUWB_DEV_BUILD_ERROR;
     }
     return mauwb_device_send_and_check(dev, tx_buf, tx_len, false);
+    /* ====== MaUWB initilization complete ====== */
 }
