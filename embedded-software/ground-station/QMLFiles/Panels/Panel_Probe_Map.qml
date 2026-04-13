@@ -179,164 +179,76 @@ Rectangle {
         headerText: "UWB Probe Layout"
     }
 
-    // ── Top toolbar ────────────────────────────────────────────────────────
-    ColumnLayout {
-        id: toolbarArea
+    // ── Top toolbar (probe controls) ──────────────────────────────────────
+    RowLayout {
+        id: toolbar
         anchors.top: parent.top
         anchors.right: parent.right
         anchors.topMargin: 18
         anchors.rightMargin: 18
-        spacing: 6
+        spacing: 12
         z: 30
 
-        // Row 1: existing probe controls
-        RowLayout {
-            id: toolbar
-            spacing: 12
+        Text {
+            text: "W: " + panel.rectWidth.toFixed(2) + " m"
+            color: Theme.textSecondary
+            font.family: Theme.monoFamily
+            font.pixelSize: Theme.fontBody
+        }
+        Text {
+            text: "H: " + panel.rectHeight.toFixed(2) + " m"
+            color: Theme.textSecondary
+            font.family: Theme.monoFamily
+            font.pixelSize: Theme.fontBody
+        }
+        Text {
+            text: panel.poles.length + " poles"
+            color: Theme.textTertiary
+            font.family: Theme.monoFamily
+            font.pixelSize: Theme.fontCaption
+        }
 
-            Text {
-                text: "W: " + panel.rectWidth.toFixed(2) + " m"
-                color: Theme.textSecondary
-                font.family: Theme.monoFamily
-                font.pixelSize: Theme.fontBody
+        Basic.Button {
+            id: clearBtn
+            text: "Clear"
+            enabled: panel.poles.length > 0
+            hoverEnabled: true
+            padding: 8
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontBody
+            background: Rectangle {
+                radius: Theme.radiusControl
+                color: !clearBtn.enabled ? Theme.surfaceInset
+                     : clearBtn.down     ? Theme.btnSecondaryPress
+                     : clearBtn.hovered  ? Theme.btnSecondaryHover
+                     :                     Theme.btnSecondaryBg
+                border.width: Theme.strokeControl
+                border.color: Theme.btnSecondaryBorder
             }
-            Text {
-                text: "H: " + panel.rectHeight.toFixed(2) + " m"
-                color: Theme.textSecondary
-                font.family: Theme.monoFamily
-                font.pixelSize: Theme.fontBody
+            contentItem: Text {
+                anchors.centerIn: parent
+                text: clearBtn.text
+                color: clearBtn.enabled ? Theme.btnSecondaryText : Theme.textTertiary
+                font: clearBtn.font
             }
-            Text {
-                text: panel.poles.length + " poles"
-                color: Theme.textTertiary
-                font.family: Theme.monoFamily
-                font.pixelSize: Theme.fontCaption
-            }
-
-            Basic.Button {
-                id: clearBtn
-                text: "Clear"
-                enabled: panel.poles.length > 0
-                hoverEnabled: true
-                padding: 8
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontBody
-                background: Rectangle {
-                    radius: Theme.radiusControl
-                    color: !clearBtn.enabled ? Theme.surfaceInset
-                         : clearBtn.down     ? Theme.btnSecondaryPress
-                         : clearBtn.hovered  ? Theme.btnSecondaryHover
-                         :                     Theme.btnSecondaryBg
-                    border.width: Theme.strokeControl
-                    border.color: Theme.btnSecondaryBorder
-                }
-                contentItem: Text {
-                    anchors.centerIn: parent
-                    text: clearBtn.text
-                    color: clearBtn.enabled ? Theme.btnSecondaryText : Theme.textTertiary
-                    font: clearBtn.font
-                }
-                onClicked: {
-                    panel.rectWidth = 0
-                    panel.rectHeight = 0
-                    panel.poles = []
-                    geometryLayer.requestPaint()
-                }
-            }
-
-            PrimaryButton {
-                id: sendBtn
-                text: "Send"
-                padding: 8
-                enabled: panel.poles.length > 0
-                onClicked: {
-                    console.log("probe layout:", JSON.stringify(panel.poles))
-                    if (typeof commandsender !== "undefined" && commandsender
-                        && typeof commandsender.sendProbeLayout === "function") {
-                        commandsender.sendProbeLayout(panel.poles)
-                    }
-                }
+            onClicked: {
+                panel.rectWidth = 0
+                panel.rectHeight = 0
+                panel.poles = []
+                geometryLayer.requestPaint()
             }
         }
 
-        // Row 2: map controls
-        RowLayout {
-            id: mapToolbar
-            spacing: 8
-            Layout.alignment: Qt.AlignRight
-
-            ThemedCheckBox {
-                id: mapToggle
-                text: "Map"
-                checked: panel.mapEnabled
-                onCheckedChanged: panel.mapEnabled = checked
-            }
-
-            Text {
-                text: "Lat"
-                color: Theme.textTertiary
-                font.family: Theme.monoFamily
-                font.pixelSize: Theme.fontCaption
-            }
-            Basic.TextField {
-                id: latField
-                implicitWidth: 110
-                text: panel.refValid ? panel.refLat.toFixed(6) : ""
-                placeholderText: "49.000000"
-                color: Theme.textPrimary
-                placeholderTextColor: Theme.textTertiary
-                font.family: Theme.monoFamily
-                font.pixelSize: Theme.fontBody
-                inputMethodHints: Qt.ImhFormattedNumbersOnly
-                validator: DoubleValidator { bottom: -90; top: 90; decimals: 8 }
-                padding: 4
-                background: Rectangle {
-                    radius: Theme.radiusControl
-                    color: Theme.surfaceInset
-                    border.width: Theme.strokeControl
-                    border.color: latField.activeFocus ? Theme.accent : Theme.border
-                }
-                onEditingFinished: {
-                    if (acceptableInput && lonField.acceptableInput) {
-                        panel.refLat   = parseFloat(text)
-                        panel.refLon   = parseFloat(lonField.text)
-                        panel.refValid = true
-                        panel.refreshTiles()
-                    }
-                }
-            }
-
-            Text {
-                text: "Lon"
-                color: Theme.textTertiary
-                font.family: Theme.monoFamily
-                font.pixelSize: Theme.fontCaption
-            }
-            Basic.TextField {
-                id: lonField
-                implicitWidth: 120
-                text: panel.refValid ? panel.refLon.toFixed(6) : ""
-                placeholderText: "-123.000000"
-                color: Theme.textPrimary
-                placeholderTextColor: Theme.textTertiary
-                font.family: Theme.monoFamily
-                font.pixelSize: Theme.fontBody
-                inputMethodHints: Qt.ImhFormattedNumbersOnly
-                validator: DoubleValidator { bottom: -180; top: 180; decimals: 8 }
-                padding: 4
-                background: Rectangle {
-                    radius: Theme.radiusControl
-                    color: Theme.surfaceInset
-                    border.width: Theme.strokeControl
-                    border.color: lonField.activeFocus ? Theme.accent : Theme.border
-                }
-                onEditingFinished: {
-                    if (acceptableInput && latField.acceptableInput) {
-                        panel.refLat   = parseFloat(latField.text)
-                        panel.refLon   = parseFloat(text)
-                        panel.refValid = true
-                        panel.refreshTiles()
-                    }
+        PrimaryButton {
+            id: sendBtn
+            text: "Send"
+            padding: 8
+            enabled: panel.poles.length > 0
+            onClicked: {
+                console.log("probe layout:", JSON.stringify(panel.poles))
+                if (typeof commandsender !== "undefined" && commandsender
+                    && typeof commandsender.sendProbeLayout === "function") {
+                    commandsender.sendProbeLayout(panel.poles)
                 }
             }
         }
@@ -369,7 +281,7 @@ Rectangle {
             visible: !panel.mapEnabled || !panel.refValid
         }
 
-        // ── OSM tile layer ──
+        // ── Satellite tile layer (Esri World Imagery) ──
         Repeater {
             id: tileLayer
             model: panel.visibleTiles
@@ -384,7 +296,7 @@ Rectangle {
                 height: modelData.size
 
                 source: panel.mapEnabled && panel.refValid
-                        ? "https://tile.openstreetmap.org/" + modelData.z + "/" + modelData.x + "/" + modelData.y + ".png"
+                        ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/" + modelData.z + "/" + modelData.y + "/" + modelData.x
                         : ""
 
                 smooth: true
@@ -399,6 +311,103 @@ Rectangle {
                     border.color: Theme.border
                     border.width: 0.5
                     visible: parent.status !== Image.Ready && panel.mapEnabled && panel.refValid
+                }
+            }
+        }
+
+        // ── Map controls bar (top-center, inside map area) ──
+        Rectangle {
+            id: mapControlBar
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top
+            anchors.topMargin: 8
+            width: mapBarRow.implicitWidth + 16
+            height: mapBarRow.implicitHeight + 8
+            color: Theme.surface
+            opacity: 0.92
+            border.color: Theme.border
+            border.width: Theme.strokeControl
+            radius: Theme.radiusCard
+            z: 25
+
+            RowLayout {
+                id: mapBarRow
+                anchors.centerIn: parent
+                spacing: 8
+
+                ThemedCheckBox {
+                    id: mapToggle
+                    text: "Map"
+                    checked: panel.mapEnabled
+                    onCheckedChanged: panel.mapEnabled = checked
+                }
+
+                Text {
+                    text: "Lat"
+                    color: Theme.textTertiary
+                    font.family: Theme.monoFamily
+                    font.pixelSize: Theme.fontCaption
+                }
+                Basic.TextField {
+                    id: latField
+                    implicitWidth: 110
+                    text: panel.refValid ? panel.refLat.toFixed(6) : ""
+                    placeholderText: "49.000000"
+                    color: Theme.textPrimary
+                    placeholderTextColor: Theme.textTertiary
+                    font.family: Theme.monoFamily
+                    font.pixelSize: Theme.fontBody
+                    inputMethodHints: Qt.ImhFormattedNumbersOnly
+                    validator: DoubleValidator { bottom: -90; top: 90; decimals: 8 }
+                    padding: 4
+                    background: Rectangle {
+                        radius: Theme.radiusControl
+                        color: Theme.surfaceInset
+                        border.width: Theme.strokeControl
+                        border.color: latField.activeFocus ? Theme.accent : Theme.border
+                    }
+                    onEditingFinished: {
+                        if (acceptableInput && lonField.acceptableInput) {
+                            panel.refLat   = parseFloat(text)
+                            panel.refLon   = parseFloat(lonField.text)
+                            panel.refValid = true
+                            panel.refreshTiles()
+                        }
+                    }
+                }
+
+                Text {
+                    text: "Lon"
+                    color: Theme.textTertiary
+                    font.family: Theme.monoFamily
+                    font.pixelSize: Theme.fontCaption
+                }
+                Basic.TextField {
+                    id: lonField
+                    implicitWidth: 120
+                    text: panel.refValid ? panel.refLon.toFixed(6) : ""
+                    placeholderText: "-123.000000"
+                    color: Theme.textPrimary
+                    placeholderTextColor: Theme.textTertiary
+                    font.family: Theme.monoFamily
+                    font.pixelSize: Theme.fontBody
+                    inputMethodHints: Qt.ImhFormattedNumbersOnly
+                    validator: DoubleValidator { bottom: -180; top: 180; decimals: 8 }
+                    padding: 4
+                    background: Rectangle {
+                        radius: Theme.radiusControl
+                        color: Theme.surfaceInset
+                        border.width: Theme.strokeControl
+                        border.color: lonField.activeFocus ? Theme.accent : Theme.border
+                    }
+                    onEditingFinished: {
+                        if (acceptableInput && latField.acceptableInput) {
+                            panel.refLat   = parseFloat(latField.text)
+                            panel.refLon   = parseFloat(text)
+                            panel.refValid = true
+                            panel.refreshTiles()
+                        }
+                    }
                 }
             }
         }
@@ -435,8 +444,9 @@ Rectangle {
                 const ymMin = panel.pyToMy(h)
                 const ymMax = panel.pyToMy(0)
 
-                // Minor grid
-                ctx.strokeStyle = Theme.divider
+                // Minor grid (darker when satellite map is active)
+                const mapOn = panel.mapEnabled && panel.refValid
+                ctx.strokeStyle = mapOn ? "rgba(0,0,0,0.35)" : Theme.divider
                 ctx.lineWidth = 1
                 ctx.beginPath()
                 let xStart = Math.ceil(xmMin / stepM) * stepM
@@ -454,7 +464,7 @@ Rectangle {
                 ctx.stroke()
 
                 // Axes
-                ctx.strokeStyle = Theme.borderLight
+                ctx.strokeStyle = mapOn ? "rgba(0,0,0,0.5)" : Theme.borderLight
                 ctx.lineWidth = 1.5
                 ctx.beginPath()
                 const ax = Math.round(panel.mxToPx(0)) + 0.5
@@ -464,7 +474,7 @@ Rectangle {
                 ctx.stroke()
 
                 // Tick labels (along bottom + left)
-                ctx.fillStyle = Theme.textTertiary
+                ctx.fillStyle = mapOn ? "rgba(255,255,255,0.5)" : Theme.textTertiary
                 ctx.font = "10px " + Theme.monoFamily
                 ctx.textBaseline = "bottom"
                 ctx.textAlign = "left"
@@ -566,7 +576,8 @@ Rectangle {
                 const c4 = ptOf(p[4])  // P4 corner
 
                 // Solid rectangle outline (P1-P4)
-                ctx.strokeStyle = Theme.accentMuted
+                const mapOn = panel.mapEnabled && panel.refValid
+                ctx.strokeStyle = mapOn ? "rgba(20,60,90,0.8)" : Theme.accentMuted
                 ctx.lineWidth = 1.5
                 ctx.setLineDash([])
                 ctx.beginPath()
@@ -578,7 +589,7 @@ Rectangle {
                 ctx.stroke()
 
                 // Dashed lines
-                ctx.strokeStyle = Theme.accent
+                ctx.strokeStyle = mapOn ? "rgba(30,80,120,0.7)" : Theme.accent
                 ctx.lineWidth = 1.2
                 ctx.setLineDash([6, 4])
 
@@ -622,11 +633,11 @@ Rectangle {
             function onPolesChanged()      { geometryLayer.requestPaint() }
         }
 
-        // Refresh tiles on map state changes
+        // Refresh tiles and repaint overlays on map state changes
         Connections {
             target: panel
-            function onMapEnabledChanged() { panel.refreshTiles() }
-            function onRefValidChanged()   { panel.refreshTiles() }
+            function onMapEnabledChanged() { panel.refreshTiles(); gridLayer.requestPaint(); geometryLayer.requestPaint() }
+            function onRefValidChanged()   { panel.refreshTiles(); gridLayer.requestPaint(); geometryLayer.requestPaint() }
         }
 
         // ── Pole markers (draggable) ──
@@ -652,10 +663,11 @@ Rectangle {
                     width: 12
                     height: 12
                     radius: 6
-                    color: modelData.id === "P0" ? Theme.accent
-                         : modelData.isBase      ? Theme.successText
-                         :                         Theme.warnText
-                    border.color: Theme.background
+                    property bool mapOn: panel.mapEnabled && panel.refValid
+                    color: modelData.id === "P0" ? (mapOn ? "#1a5a80" : Theme.accent)
+                         : modelData.isBase      ? (mapOn ? "#2a6648" : Theme.successText)
+                         :                         (mapOn ? "#8a6a20" : Theme.warnText)
+                    border.color: mapOn ? "#111" : Theme.background
                     border.width: 2
                 }
 
@@ -800,7 +812,7 @@ Rectangle {
             Text {
                 id: osmText
                 anchors.centerIn: parent
-                text: "\u00A9 OpenStreetMap contributors"
+                text: "\u00A9 Esri World Imagery"
                 color: Theme.textTertiary
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontCaption
