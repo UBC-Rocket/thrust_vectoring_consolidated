@@ -1,16 +1,21 @@
 #include "app.h"
 #include "main.h"
+#include "stm32g431xx.h"
 #include "stm32g4xx_hal.h"
 #include "stm32g4xx_hal_adc.h"
 #include "stm32g4xx_hal_tim.h"
 #include "tim.h"
 #include "commutation.h"
 #include "adc.h"
+#include "usart.h"
+#include "openloop.h"
+
+#include <stdio.h>
 
 //startup defines 
 #define VOLTAGE_RATING 2700U
 #define SUPPLY_VOLTAGE 20
-#define DUTY_CYCLE 0.20 //tied to commutation.c, under PWM_DUTY_CYCLE
+#define DUTY_CYCLE 0.90 //tied to commutation.c, under PWM_DUTY_CYCLE
 #define TARGET_RPM (VOLTAGE_RATING * SUPPLY_VOLTAGE * DUTY_CYCLE)
 #define MOTOR_POLES_PAIRS 7
 #define STARTUP_RAMP_TIME_MS 10000           // how long initalization speed takes (milliseconds)
@@ -24,7 +29,7 @@
 #define COMM_STEP_ARR   ((16000000U / (COMM_FREQ_HZ)) - 1U) /* TIM15 ARR */
 #define BEMF_BUFFER_SIZE 128 /*Size of the circular buffer for back emf averaging*/
 
-#define SYSCLOCK_HZ HAL_RCC_GetCHLKFreq()
+#define SYSCLOCK_HZ 170000000U
 
 typedef enum { 
     STATE_STARTUP,           // Using timer to force commutation 
@@ -75,12 +80,14 @@ void startup_begin( void ) {
     comm_step = 0;
     Set_Commutation_Step(comm_step);
 
-    HAL_TIM_Base_Start_IT(&htim15);
-
     //configure the TIM15 for startup minimum freq 
-    uint32_t ARR = (SYSCLOCK_HZ / STARTUP_MIN_FREQ_HZ) - 1;
-    __HAL_TIM_SET_AUTORELOAD(&htim15, ARR); 
-    __HAL_TIM_SET_COUNTER(&htim15, 0); 
+    // uint32_t ARR = (SYSCLOCK_HZ / STARTUP_MIN_FREQ_HZ) - 1;
+    // __HAL_TIM_SET_AUTORELOAD(&htim15, ARR); 
+    // __HAL_TIM_SET_COUNTER(&htim15, 0); 
+
+
+
+    HAL_TIM_Base_Start_IT(&htim15);
 
     motor_state = STATE_STARTUP; 
 }
@@ -115,6 +122,8 @@ void startup_update( void ){
     // update tim15 freq 
     uint32_t ARR = (SYSCLOCK_HZ / current_freq) - 1; 
     __HAL_TIM_SET_AUTORELOAD(&htim15, ARR);
+
+    printf("ARR: %lu\r\n", ARR);
 } 
 
 /** 
@@ -256,6 +265,11 @@ static uint8_t detect_zero_crossing(uint8_t step){
     return 0; 
 }
 
+int _write(int file, char *ptr, int len) {
+    HAL_UART_Transmit(&huart3, (uint8_t *)ptr, len, HAL_MAX_DELAY);
+    return len;
+}
+
 void app(void) {
     HAL_TIM_Base_Start(&htim1); 
     startup_begin();
@@ -271,6 +285,9 @@ void app(void) {
     uint32_t last_update_ms = HAL_GetTick(); 
     uint32_t current_ms = 0; 
 
+    printf("HELLO!!\r\n");
+
+    OpenLoop();
 
     while (1) {
         
@@ -278,7 +295,7 @@ void app(void) {
 
         if((current_ms - last_update_ms) >= 10) {
             startup_update();
-            last_update_ms = current_ms; 
+            last_update_ms = current_ms;
         }
 
         if(motor_state == STATE_SENSORLESS && zero_crossing_detected){
@@ -294,9 +311,12 @@ void app(void) {
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     if (htim->Instance == TIM15) {
         if(motor_state == STATE_STARTUP){
-            //force a step 
-            comm_step = (comm_step + 1U) % 6U;
-            Set_Commutation_Step(comm_step);
+            // //force a step 
+            // comm_step = (comm_step + 1U) % 6U;
+            // Set_Commutation_Step(comm_step);
+            // startup_update();
+
+            CommutationISR();
         }
     }
     //if in sensorless mode, it dont do nothing 
