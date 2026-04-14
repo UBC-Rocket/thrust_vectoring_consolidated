@@ -96,6 +96,43 @@ float pid_compute(pid_controller_t *pid,
 }
 
 /**
+ * @brief  Compute PID output using derivative-on-error
+ *
+ * Used by the z-altitude loop in the Ulysses flight controller (Eq 6.1–6.2).
+ * Both setpoint and measurement derivatives are supplied externally so the
+ * derivative term tracks a moving reference.
+ */
+float pid_compute_with_ref_deriv(pid_controller_t *pid,
+                                 float setpoint,
+                                 float setpoint_deriv,
+                                 float measurement,
+                                 float measurement_deriv,
+                                 float dt) {
+  float error;
+  float error_dot;
+  float output;
+
+  pid->dt = dt;
+
+  error = setpoint - measurement;
+  error_dot = setpoint_deriv - measurement_deriv;
+
+  /* Integral with anti-windup */
+  pid->integral_sum += error * dt;
+  pid->integral_sum =
+      clamp(pid->integral_sum, -pid->integral_limit, pid->integral_limit);
+
+  /* Track previous measurement so a later switch back to pid_compute()
+     does not see a stale derivative. */
+  pid->prev_measurement = measurement;
+
+  output = pid->kp * error + pid->ki * pid->integral_sum + pid->kd * error_dot;
+  output = clamp(output, pid->output_min, pid->output_max);
+
+  return output;
+}
+
+/**
  * @brief  Reset PID controller internal state
  */
 void pid_reset(pid_controller_t *pid) {
