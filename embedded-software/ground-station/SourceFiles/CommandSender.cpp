@@ -304,68 +304,16 @@ bool CommandSender::sendReferenceValues(int which, const QVariantList& reference
 }
 
 bool CommandSender::sendProbeLayout(const QVariantList& probes) {
+    // TODO(ulysses): tvr_SetProbeLayout / tvr_Vec2 / tvr_FlightCommand_set_probe_layout_tag
+    // are not defined in libs/rocket-protocol yet. Restore the probe-layout uplink path
+    // once the .proto is updated and regenerated (tracked on the dynamic-probes feature).
+    Q_UNUSED(probes);
     if (!m_bridge) {
         emit errorOccurred("No bridge");
         return false;
     }
-
-    if (probes.size() > 15) {
-        emit errorOccurred("Too many probes (max 15)");
-        return false;
-    }
-
-    tvr_SetProbeLayout layout = tvr_SetProbeLayout_init_zero;
-    layout.probe_count = static_cast<uint32_t>(probes.size());
-
-    // Pointers to the has/probe pairs for indexed access
-    bool* hasArr[15] = {
-        &layout.has_probe_0,  &layout.has_probe_1,  &layout.has_probe_2,
-        &layout.has_probe_3,  &layout.has_probe_4,  &layout.has_probe_5,
-        &layout.has_probe_6,  &layout.has_probe_7,  &layout.has_probe_8,
-        &layout.has_probe_9,  &layout.has_probe_10, &layout.has_probe_11,
-        &layout.has_probe_12, &layout.has_probe_13, &layout.has_probe_14
-    };
-    tvr_Vec2* probeArr[15] = {
-        &layout.probe_0,  &layout.probe_1,  &layout.probe_2,
-        &layout.probe_3,  &layout.probe_4,  &layout.probe_5,
-        &layout.probe_6,  &layout.probe_7,  &layout.probe_8,
-        &layout.probe_9,  &layout.probe_10, &layout.probe_11,
-        &layout.probe_12, &layout.probe_13, &layout.probe_14
-    };
-
-    for (int i = 0; i < probes.size(); ++i) {
-        const QVariantMap entry = probes[i].toMap();
-        *hasArr[i] = true;
-        probeArr[i]->x = static_cast<float>(entry.value("x").toDouble());
-        probeArr[i]->y = static_cast<float>(entry.value("y").toDouble());
-    }
-
-    tvr_FlightCommand cmd = tvr_FlightCommand_init_zero;
-    cmd.which_payload = tvr_FlightCommand_set_probe_layout_tag;
-    cmd.payload.set_probe_layout = layout;
-
-    uint8_t packet[300];
-    rp_packet_encode_result_t result = rp_packet_encode(
-        packet,
-        sizeof(packet),
-        tvr_FlightCommand_fields,
-        &cmd
-    );
-
-    if (result.status != RP_CODEC_OK) {
-        emit errorOccurred("Failed to encode probe layout packet");
-        return false;
-    }
-
-    QByteArray data(reinterpret_cast<const char*>(packet), result.written);
-
-    if (!m_bridge->sendBinary(1, data)) {
-        emit errorOccurred("Failed to send probe layout packet");
-        return false;
-    }
-
-    emit messageSent(QString("SetProbeLayout sent (%1 probes)").arg(probes.size()));
-    return true;
+    emit errorOccurred("SetProbeLayout: protocol schema not yet regenerated");
+    return false;
 }
 
 

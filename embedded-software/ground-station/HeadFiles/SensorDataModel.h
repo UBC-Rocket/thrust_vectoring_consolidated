@@ -3,6 +3,8 @@
 
 #include <QObject>
 #include <QString>
+#include <QFile>
+#include <QTextStream>
 
 class SerialBridge;
 
@@ -16,6 +18,7 @@ class SensorDataModel : public QObject {
 
 public:
     explicit SensorDataModel(SerialBridge* bridge, QObject* parent = nullptr);
+    ~SensorDataModel();
 
     // Position
     Q_PROPERTY(double altitude READ altitude NOTIFY baroDataChanged)
@@ -35,7 +38,7 @@ public:
     Q_PROPERTY(double gimbalX   READ gimbalX   NOTIFY engineDataChanged)
     Q_PROPERTY(double gimbalY   READ gimbalY   NOTIFY engineDataChanged)
 
-    // Telemetry
+    // Telemetry — velocity magnitude in m/s (consistent with altitude)
     Q_PROPERTY(double velocity READ velocity NOTIFY telemetryDataChanged)
 
     // Raw packet log (hex dump of every received binary packet)
@@ -52,6 +55,15 @@ public:
     Q_PROPERTY(quint32 radioRxCount  READ radioRxCount  NOTIFY statusReceived)
     Q_PROPERTY(quint32 radioTxCount  READ radioTxCount  NOTIFY statusReceived)
     Q_PROPERTY(quint32 cmdRxCount    READ cmdRxCount    NOTIFY statusReceived)
+
+    // Timestamp (wall clock, ms since epoch) of the last status packet received.
+    // Consumed by QML for a "seconds since last status" freshness display.
+    Q_PROPERTY(qint64 lastStatusMs READ lastStatusMs NOTIFY statusReceived)
+
+    // CSV recording controls / state
+    Q_PROPERTY(bool    isRecording    READ isRecording    NOTIFY recordingStateChanged)
+    Q_PROPERTY(QString currentCsvPath READ currentCsvPath NOTIFY recordingStateChanged)
+    Q_PROPERTY(QString defaultCsvPath READ defaultCsvPath CONSTANT)
 
     // Simple getters used by QML properties
     double altitude() const { return m_altitude; }
@@ -82,8 +94,22 @@ public:
     quint32 radioTxCount() const { return m_radioTxCount; }
     quint32 cmdRxCount()   const { return m_cmdRxCount; }
 
+    qint64  lastStatusMs() const { return m_lastStatusMs; }
+
     QString rawPacketLog() const { return m_rawPacketLog; }
     Q_INVOKABLE void clearRawPacketLog();
+
+    // CSV recording
+    bool    isRecording()    const { return m_csvFile && m_csvFile->isOpen(); }
+    QString currentCsvPath() const { return m_csvPath; }
+    QString defaultCsvPath() const;
+
+    /// Open a CSV file for writing. If `path` is empty, defaultCsvPath() is used.
+    /// Returns true on success, false otherwise (e.g. directory creation failed).
+    Q_INVOKABLE bool startCsvRecording(const QString& path = QString());
+
+    /// Flush and close the current CSV (no-op if not recording).
+    Q_INVOKABLE void stopCsvRecording();
 
 public slots:
     /// Entry point for binary COBS packets; decode Downlink and update model.
@@ -111,6 +137,7 @@ signals:
     void telemetryDataChanged();
     void statusReceived();
     void rawPacketLogChanged();
+    void recordingStateChanged();
 
 private:
     // Backing storage for the latest sensor values
@@ -143,10 +170,20 @@ private:
     quint32 m_radioTxCount = 0;
     quint32 m_cmdRxCount   = 0;
 
+    qint64 m_lastStatusMs = 0;
+
     QString m_rawPacketLog;
+
+    // CSV sink
+    QFile*       m_csvFile   = nullptr;
+    QTextStream* m_csvStream = nullptr;
+    QString      m_csvPath;
 
     /// Update model from decoded Downlink (TelemetryState or SystemStatus).
     void applyDownlink(int which, const void* downlinkStruct);
+
+    /// Write a row to the CSV (no-op if not recording).
+    void writeCsvRow(const void* downlinkStruct);
 
     SerialBridge* m_bridge = nullptr;
 };

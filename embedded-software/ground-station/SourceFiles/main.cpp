@@ -10,6 +10,7 @@
 #include "SensorDataModel.h"
 #include "CommandSender.h"
 #include "AlarmReceiver.h"
+#include "PresetManager.h"
 
 // Custom NAM that sets a User-Agent header on all requests (required by OSM tile servers)
 class OsmNetworkAccessManager : public QNetworkAccessManager {
@@ -38,6 +39,7 @@ int main(int argc, char *argv[])
     CommandSender   commandsender(&bridge);   // sends commands via bridge
     AlarmReceiver   alarmreceiver(&bridge);   // receives/decodes alarms via bridge
     SensorDataModel sensorData(&bridge);      // decodes all downlink packets (telemetry + status)
+    PresetManager   presetManager;            // JSON-backed PID/Reference/Config preset store
 
     // QML engine + expose C++ backends to QML by name
     QQmlApplicationEngine engine;
@@ -46,6 +48,7 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("commandsender", &commandsender);
     engine.rootContext()->setContextProperty("alarmreceiver", &alarmreceiver);
     engine.rootContext()->setContextProperty("sensorData", &sensorData);
+    engine.rootContext()->setContextProperty("presetManager", &presetManager);
 
     // If QML fails to load, quit with error code
     QObject::connect(

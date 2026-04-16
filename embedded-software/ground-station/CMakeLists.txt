@@ -51,6 +51,7 @@ set(SRC_FILES
     "${SRC_DIR}/CommandSender.cpp"
     "${SRC_DIR}/AlarmReceiver.cpp"
     "${SRC_DIR}/SensorDataModel.cpp"
+    "${SRC_DIR}/PresetManager.cpp"
 )
 
 set(HDR_FILES
@@ -58,6 +59,7 @@ set(HDR_FILES
     "${HEAD_DIR}/CommandSender.h"
     "${HEAD_DIR}/AlarmReceiver.h"
     "${HEAD_DIR}/SensorDataModel.h"
+    "${HEAD_DIR}/PresetManager.h"
 )
 
 # ----------------------------------------------------------------------
@@ -73,6 +75,12 @@ qt_add_executable(ulysses_ground_control
 if(UNIX AND NOT APPLE)
     set_target_properties(ulysses_ground_control PROPERTIES OUTPUT_NAME ulysses_gcs)
 endif()
+
+# Preset JSON lives in the repo so the whole team shares the same presets.
+# PresetManager reads this macro at runtime.
+target_compile_definitions(ulysses_ground_control PRIVATE
+    ULYSSES_PRESETS_PATH="${CMAKE_CURRENT_SOURCE_DIR}/presets/pid_presets.json"
+)
 
 # ----------------------------------------------------------------------
 # QML module
@@ -100,11 +108,17 @@ qt_add_qml_module(ulysses_ground_control
         "${QML_DIR}/Panels/Panel_Rocket_Visualization.qml"
         "${QML_DIR}/Panels/Panel_System_Alert.qml"
         "${QML_DIR}/Panels/Panel_System_Health.qml"
+        "${QML_DIR}/Modes/Mode_Flight.qml"
+        "${QML_DIR}/Modes/Mode_Tuning.qml"
+        "${QML_DIR}/Modes/Mode_Map.qml"
+        "${QML_DIR}/Modes/Mode_Diagnostics.qml"
         "${QML_DIR}/Items/BaseHeader.qml"
         "${QML_DIR}/Items/BasePanel.qml"
         "${QML_DIR}/Items/CommandCard.qml"
         "${QML_DIR}/Items/DataBox.qml"
         "${QML_DIR}/Items/DataBoxList.qml"
+        "${QML_DIR}/Items/ModeBar.qml"
+        "${QML_DIR}/Items/NumberField.qml"
         "${QML_DIR}/Items/PrimaryButton.qml"
         "${QML_DIR}/Items/Theme.qml"
         "${QML_DIR}/Items/ThemedCheckBox.qml"

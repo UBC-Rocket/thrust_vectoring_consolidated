@@ -9,7 +9,9 @@ Rectangle {
     property int size
     property int boxHeight: 50
     property list<string> dataNames
-    property list<double> dataValues
+    // `var` (not `double`) so callers can pass NaN / null to indicate "no data"
+    // without hitting list<double> coercion. DataBox.formatDataValue renders "—".
+    property var dataValues: []
 
 
     Repeater {

@@ -9,7 +9,7 @@ Rectangle {
     function formatDataValue(value) {
         const numericValue = Number(value)
         if (!Number.isFinite(numericValue)) {
-            return String(value)
+            return "—"
         }
         return numericValue.toFixed(2)
     }
