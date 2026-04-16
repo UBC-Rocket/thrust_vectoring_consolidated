@@ -9,22 +9,18 @@ BasePanel {
     property double posY: sensorData.posY
     property double altitude: sensorData.altitude
 
-    // Telemetry
+    // Telemetry — velocity magnitude in m/s
     property double velocity: sensorData.velocity
 
-    // Link stats
-    property double radioRx: sensorData.radioRxCount
-    property double radioTx: sensorData.radioTxCount
-
     BaseHeader {
-        id:header
+        id: header
         headerText: "State & Position Data"
     }
 
     Rectangle {
         id: position_xy
         color: "transparent"
-        height: (parent.height-header.height)/3
+        height: (parent.height - header.height) / 2
         anchors {
             top: parent.top
             left: parent.left
@@ -34,7 +30,7 @@ BasePanel {
 
         DataBoxList {
             anchors.top: position_xy.top
-            width: panel_State_And_Position.width;
+            width: panel_State_And_Position.width
 
             size: 2
             boxHeight: 56
@@ -46,7 +42,7 @@ BasePanel {
     Rectangle {
         id: altitude_and_velocity
         color: "transparent"
-        height: (parent.height-header.height)/3
+        height: (parent.height - header.height) / 2
         anchors {
             top: position_xy.bottom
             left: parent.left
@@ -55,33 +51,12 @@ BasePanel {
 
         DataBoxList {
             anchors.top: altitude_and_velocity.top
-            width: panel_State_And_Position.width;
+            width: panel_State_And_Position.width
 
             size: 2
             boxHeight: 56
-            dataNames: ["ALTITUDE (m)", "VELOCITY (km/h)"]
+            dataNames: ["ALTITUDE (m)", "VELOCITY (m/s)"]
             dataValues: [altitude, velocity]
-        }
-    }
-
-    Rectangle {
-        id: radio_stats
-        color: "transparent"
-        height: (parent.height-header.height)/3
-        anchors {
-            top: altitude_and_velocity.bottom
-            left: parent.left
-            leftMargin: header.anchors.leftMargin
-        }
-
-        DataBoxList {
-            anchors.top: radio_stats.top
-            width: panel_State_And_Position.width;
-
-            size: 2
-            boxHeight: 56
-            dataNames: ["RADIO TX", "RADIO RX"]
-            dataValues: [radioTx, radioRx]
         }
     }
 }

@@ -303,6 +303,20 @@ bool CommandSender::sendReferenceValues(int which, const QVariantList& reference
 
 }
 
+bool CommandSender::sendProbeLayout(const QVariantList& probes) {
+    // TODO(ulysses): tvr_SetProbeLayout / tvr_Vec2 / tvr_FlightCommand_set_probe_layout_tag
+    // are not defined in libs/rocket-protocol yet. Restore the probe-layout uplink path
+    // once the .proto is updated and regenerated (tracked on the dynamic-probes feature).
+    Q_UNUSED(probes);
+    if (!m_bridge) {
+        emit errorOccurred("No bridge");
+        return false;
+    }
+    emit errorOccurred("SetProbeLayout: protocol schema not yet regenerated");
+    return false;
+}
+
+
 bool CommandSender::sendConfigValues(int which, const QVariantList& configValues) {
 
     if (!validWhich(which)) {

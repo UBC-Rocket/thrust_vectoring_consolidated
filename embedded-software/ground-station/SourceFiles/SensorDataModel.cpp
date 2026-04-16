@@ -4,7 +4,11 @@ extern "C" {
     #include "rp/codec.h"
     #include "downlink.pb.h"
 }
+#include <QDateTime>
 #include <QDebug>
+#include <QDir>
+#include <QFileInfo>
+#include <QStandardPaths>
 #include <QtMath>
 #include <cmath>
 
@@ -31,6 +35,20 @@ void quatToEulerRad(float w, float x, float y, float z,
 float radToDeg(float rad) {
     return static_cast<float>(rad * 180.0 / M_PI);
 }
+
+// CSV column order (kept in one place so the header and row writers agree).
+const char* const kCsvHeader =
+    "wall_ms,type,timestamp_ms,flight_state,"
+    "pos_x,pos_y,pos_z,"
+    "vel_x,vel_y,vel_z,"
+    "att_w,att_x,att_y,att_z,"
+    "gyro_x,gyro_y,gyro_z,"
+    "thrust_cmd,gimbal_x,gimbal_y,"
+    "uptime_ms,accel_ok,gyro_ok,baro1_ok,baro2_ok,"
+    "gps_connected,radio_rx_count,radio_tx_count,cmd_rx_count";
+
+QString fmt(double v) { return QString::number(v, 'g', 9); }
+QString fmtBool(bool v) { return v ? QStringLiteral("1") : QStringLiteral("0"); }
 } // namespace
 
 SensorDataModel::SensorDataModel(SerialBridge* bridge, QObject* parent)
@@ -54,10 +72,70 @@ SensorDataModel::SensorDataModel(SerialBridge* bridge, QObject* parent)
         });
 }
 
+SensorDataModel::~SensorDataModel()
+{
+    stopCsvRecording();
+}
+
 void SensorDataModel::clearRawPacketLog()
 {
     m_rawPacketLog.clear();
     emit rawPacketLogChanged();
+}
+
+QString SensorDataModel::defaultCsvPath() const
+{
+    const QString dir = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)
+                        + QStringLiteral("/ulysses_logs");
+    const QString stamp = QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_hhmmss"));
+    return dir + QStringLiteral("/ulysses_") + stamp + QStringLiteral(".csv");
+}
+
+bool SensorDataModel::startCsvRecording(const QString& path)
+{
+    if (isRecording())
+        stopCsvRecording();
+
+    QString target = path.isEmpty() ? defaultCsvPath() : path;
+    QFileInfo info(target);
+    QDir dir = info.absoluteDir();
+    if (!dir.exists() && !dir.mkpath(QStringLiteral("."))) {
+        qWarning() << "CSV: cannot create directory" << dir.absolutePath();
+        return false;
+    }
+
+    auto* file = new QFile(target);
+    if (!file->open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
+        qWarning() << "CSV: cannot open" << target << file->errorString();
+        delete file;
+        return false;
+    }
+
+    m_csvFile   = file;
+    m_csvStream = new QTextStream(m_csvFile);
+    (*m_csvStream) << kCsvHeader << '\n';
+    m_csvStream->flush();
+    m_csvPath = info.absoluteFilePath();
+    emit recordingStateChanged();
+    return true;
+}
+
+void SensorDataModel::stopCsvRecording()
+{
+    if (m_csvStream) {
+        m_csvStream->flush();
+        delete m_csvStream;
+        m_csvStream = nullptr;
+    }
+    if (m_csvFile) {
+        m_csvFile->close();
+        m_csvFile->deleteLater();
+        m_csvFile = nullptr;
+    }
+    if (!m_csvPath.isEmpty()) {
+        m_csvPath.clear();
+        emit recordingStateChanged();
+    }
 }
 
 void SensorDataModel::onBinaryPacketReceived(int which, const QByteArray& packet)
@@ -72,7 +150,7 @@ void SensorDataModel::onBinaryPacketReceived(int which, const QByteArray& packet
     rp_packet_decode_result_t result =
         rp_packet_decode(data, size, &tvr_Downlink_msg, &downlink);
 
-   
+
     if (result.status != RP_CODEC_OK) {
         m_rawPacketLog += QStringLiteral("[decode error %1]\n").arg(result.status);
         emit rawPacketLogChanged();
@@ -128,6 +206,7 @@ void SensorDataModel::onBinaryPacketReceived(int which, const QByteArray& packet
     }
     emit rawPacketLogChanged();
 
+    writeCsvRow(&downlink);
     applyDownlink(which, &downlink);
 }
 
@@ -185,12 +264,12 @@ void SensorDataModel::applyDownlink(int which, const void* downlinkStruct)
                      << "flight_state=" << t->flight_state;
         }
 
-        // Velocity magnitude [m/s] → km/h
+        // Velocity magnitude in m/s (matches altitude unit).
         double vel = m_velocity;
         if (t->has_velocity) {
             const tvr_Vec3* v = &t->velocity;
             double vx = static_cast<double>(v->x), vy = static_cast<double>(v->y), vz = static_cast<double>(v->z);
-            vel = std::sqrt(vx * vx + vy * vy + vz * vz) * 3.6;
+            vel = std::sqrt(vx * vx + vy * vy + vz * vz);
         }
 
         // Filtered Euler angles (deg) from attitude quaternion.
@@ -211,8 +290,6 @@ void SensorDataModel::applyDownlink(int which, const void* downlinkStruct)
             rawY = radToDeg(t->angular_rate.y);
             rawZ = radToDeg(t->angular_rate.z);
         }
-
-        // Raw angular rates (rad/s) → deg/s for display alongside Euler angles.
 
         // Position [m]: altitude from z, horizontal from x/y.
         double alt = m_altitude, px = m_posX, py = m_posY;
@@ -258,7 +335,73 @@ void SensorDataModel::applyDownlink(int which, const void* downlinkStruct)
         m_radioRxCount = s->radio_rx_count;
         m_radioTxCount = s->radio_tx_count;
         m_cmdRxCount   = s->cmd_rx_count;
+        m_lastStatusMs = QDateTime::currentMSecsSinceEpoch();
 
         emit statusReceived();
     }
+}
+
+void SensorDataModel::writeCsvRow(const void* downlinkStruct)
+{
+    if (!m_csvStream)
+        return;
+
+    const tvr_Downlink* d = static_cast<const tvr_Downlink*>(downlinkStruct);
+    const qint64 wallMs = QDateTime::currentMSecsSinceEpoch();
+
+    if (d->which_payload == tvr_Downlink_telemetry_tag) {
+        const tvr_TelemetryState* t = &d->payload.telemetry;
+        (*m_csvStream) << wallMs << ",TELEM," << t->timestamp_ms << ',' << t->flight_state << ',';
+
+        // position
+        if (t->has_position) {
+            (*m_csvStream) << fmt(t->position.x) << ',' << fmt(t->position.y) << ',' << fmt(t->position.z) << ',';
+        } else {
+            (*m_csvStream) << ",,,";
+        }
+        // velocity
+        if (t->has_velocity) {
+            (*m_csvStream) << fmt(t->velocity.x) << ',' << fmt(t->velocity.y) << ',' << fmt(t->velocity.z) << ',';
+        } else {
+            (*m_csvStream) << ",,,";
+        }
+        // attitude quaternion
+        if (t->has_attitude) {
+            (*m_csvStream) << fmt(t->attitude.w) << ',' << fmt(t->attitude.x) << ','
+                           << fmt(t->attitude.y) << ',' << fmt(t->attitude.z) << ',';
+        } else {
+            (*m_csvStream) << ",,,,";
+        }
+        // gyro / angular rate
+        if (t->has_angular_rate) {
+            (*m_csvStream) << fmt(t->angular_rate.x) << ',' << fmt(t->angular_rate.y) << ','
+                           << fmt(t->angular_rate.z) << ',';
+        } else {
+            (*m_csvStream) << ",,,";
+        }
+        // engine
+        (*m_csvStream) << fmt(t->thrust_cmd) << ',' << fmt(t->gimbal_x) << ',' << fmt(t->gimbal_y) << ',';
+        // status columns empty
+        (*m_csvStream) << ",,,,,,,," << '\n';
+    } else if (d->which_payload == tvr_Downlink_status_tag) {
+        const tvr_SystemStatus* s = &d->payload.status;
+        (*m_csvStream) << wallMs << ",STATUS," << s->timestamp_ms << ',' << s->flight_state << ',';
+        // empty telemetry columns (pos, vel, att, gyro, engine)
+        (*m_csvStream) << ",,,"     // pos
+                       << ",,,"     // vel
+                       << ",,,,"    // att
+                       << ",,,"     // gyro
+                       << ",,,";    // engine
+        (*m_csvStream) << s->uptime_ms << ','
+                       << fmtBool(s->accel_ok) << ','
+                       << fmtBool(s->gyro_ok) << ','
+                       << fmtBool(s->baro1_ok) << ','
+                       << fmtBool(s->baro2_ok) << ','
+                       << fmtBool(s->gps_connected) << ','
+                       << s->radio_rx_count << ','
+                       << s->radio_tx_count << ','
+                       << s->cmd_rx_count
+                       << '\n';
+    }
+    m_csvStream->flush();
 }
