@@ -1,100 +1,92 @@
 #include "commutation.h"
 #include "main.h"
-
 #include "tim.h"
+#include "motor.h" 
 
-//our arr is 999. ARR = (Timer freq / target freq) - 1 = (170MHz/170KHz) - 1
-#define PWM_DUTY_CYCLE  900U   /* example: 71/94 counts = 75.5% at 170.2 kHz          */
+#include <stdio.h>      //printf 
+#include <stdint.h>
+
+#define TIM_A_CCR   (TIM1->CCR2)
+#define TIM_B_CCR   (TIM1->CCR1)
+#define TIM_C_CCR   (TIM1->CCR3)
+
+#define TIM1_ARR 999U   //never changing, for 170KHz PWM signal
+
+#define PHASE_HIGH(ccr)  ((ccr) = (uint32_t)(STARTUP_DUTY_CYCLE * TIM1_ARR))
+#define PHASE_LOW(ccr)   ((ccr) = 0U)
+
+#define FLOAT_A()   (TIM1->CCER &= ~(TIM_CCER_CC2E  | TIM_CCER_CC2NE))
+#define FLOAT_B()   (TIM1->CCER &= ~(TIM_CCER_CC1E  | TIM_CCER_CC1NE))
+#define FLOAT_C()   (TIM1->CCER &= ~(TIM_CCER_CC3E  | TIM_CCER_CC3NE))
+
+#define ENABLE_A()  (TIM1->CCER |=  (TIM_CCER_CC2E  | TIM_CCER_CC2NE))
+#define ENABLE_B()  (TIM1->CCER |=  (TIM_CCER_CC1E  | TIM_CCER_CC1NE))
+#define ENABLE_C()  (TIM1->CCER |=  (TIM_CCER_CC3E  | TIM_CCER_CC3NE))
+
+void commutation_init(void) {
+    HAL_TIM_Base_Start(&htim1); 
+
+    HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+    HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+    HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+
+    HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1);
+    HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_2);
+    HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_3);
+}
 
 /*
- * Channel mapping (from MSP):
- *   CH1 / CH1N  =  PA8  / PA11  =  HinB / LinB Phase B
- *   CH2 / CH2N  =  PA9  / PB0   =  HinA / LinA Phase A
- *   CH3 / CH3N  =  PA10 / PB15  =  HinC / LinC Phase C
- *
- *   PHASE A    CH2 / CH2N  =  PA9  / PB0   =  HinA / LinA
- *   PHASE B    CH1 / CH1N  =  PA8  / PA11  =  HinB / LinB
- *   PHASE C    CH3 / CH3N  =  PA10 / PB15  =  HinC / LinC
- *
- * High side (Hin = PWM): CHx started,  Pulse = PWM_DUTY_CYCLE
- * Low  side (Lin = ON) : CHxN started, Pulse = 0
- *                        (OC ref permanently LOW -> N output permanently HIGH)
- * Floating             : both stopped
+ * Trapezoidal commutation table
+ *   Step    A       B       C
+ *      0    HIGH    LOW     FLOAT
+ *      1    HIGH    FLOAT   LOW
+ *      2    FLOAT   HIGH    LOW
+ *      3    LOW     HIGH    FLOAT
+ *      4    LOW     FLOAT   HIGH
+ *      5    FLOAT   LOW     HIGH
  */
-void Set_Commutation_Step(uint8_t step) {
-    /* Disable every output first — no shoot-through during transition */
-    htim1.Instance->CCER = 0;
-
+void commutate_step(uint8_t step) {
     switch (step) {
-        case 0: /* Step 1 — HinA = PWM,  LinB = ON */
-            htim1.Instance->CCR2 = PWM_DUTY_CYCLE;                  // HinA
-            htim1.Instance->CCR1 = 0;                               // LinB
-            htim1.Instance->CCR3 = 0;
-
-            htim1.Instance->CCER = (TIM_CCER_CC2E | TIM_CCER_CC1NE);// Set ccr for HinA and LinB, ignore C
+        case 0: /* A=HIGH, B=LOW, C=FLOAT */
+            FLOAT_C();
+            PHASE_HIGH(TIM_A_CCR); ENABLE_A();
+            PHASE_LOW(TIM_B_CCR);  ENABLE_B();
             break;
 
-        case 1: /* Step 2 — HinA = PWM,  LinC = ON */
-            htim1.Instance->CCR2 = PWM_DUTY_CYCLE;                  /* HinA */
-            htim1.Instance->CCR1 = 0;
-            htim1.Instance->CCR3 = 0;                               /* LinC */
-
-            htim1.Instance->CCER = (TIM_CCER_CC2E | TIM_CCER_CC3NE);
+        case 1: /* A=HIGH, B=FLOAT, C=LOW */
+            FLOAT_B();
+            PHASE_HIGH(TIM_A_CCR); ENABLE_A();
+            PHASE_LOW(TIM_C_CCR);  ENABLE_C();
             break;
 
-        case 2: /* Step 3 — HinB = PWM,  LinC = ON */
-            htim1.Instance->CCR2 = 0;
-            htim1.Instance->CCR1 = PWM_DUTY_CYCLE;                  /* HinB */
-            htim1.Instance->CCR3 = 0;                               /* LinC */
-
-            htim1.Instance->CCER = (TIM_CCER_CC1E | TIM_CCER_CC3NE);
+        case 2: /* A=FLOAT, B=HIGH, C=LOW */
+            FLOAT_A();
+            PHASE_HIGH(TIM_B_CCR); ENABLE_B();
+            PHASE_LOW(TIM_C_CCR);  ENABLE_C();
             break;
 
-        case 3: /* Step 4 — HinB = PWM,  LinA = ON */
-            // __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, PWM_DUTY_CYCLE);
-            // __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 0U);
-            // HAL_TIM_PWM_Start   (&htim1, TIM_CHANNEL_3);        /* HinB */
-
-            // HAL_TIM_PWM_Start   (&htim1, TIM_CHANNEL_2);
-            // HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_2);        /* LinA */
-            htim1.Instance->CCR2 = 0;
-            htim1.Instance->CCR1 = PWM_DUTY_CYCLE;
-            htim1.Instance->CCR3 = 0;
-
-            htim1.Instance->CCER = (TIM_CCER_CC1E | TIM_CCER_CC2NE);
+        case 3: /* A=LOW, B=HIGH, C=FLOAT */
+            FLOAT_C();
+            PHASE_HIGH(TIM_B_CCR); ENABLE_B();
+            PHASE_LOW(TIM_A_CCR);  ENABLE_A();
             break;
 
-        case 4: /* Step 5 — HinC = PWM,  LinA = ON */
-            // __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, PWM_DUTY_CYCLE);
-            // __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 0U);
-            // HAL_TIM_PWM_Start   (&htim1, TIM_CHANNEL_1);        /* HinC */
-
-            // HAL_TIM_PWM_Start   (&htim1, TIM_CHANNEL_2);
-            // HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_2);        /* LinA */
-            htim1.Instance->CCR2 = 0;                               /* HinB */
-            htim1.Instance->CCR1 = 0;
-            htim1.Instance->CCR3 = PWM_DUTY_CYCLE;                  /* HinC */
-
-            htim1.Instance->CCER = (TIM_CCER_CC3E | TIM_CCER_CC2NE);
+        case 4: /* A=LOW, B=FLOAT, C=HIGH */
+            FLOAT_B();
+            PHASE_HIGH(TIM_C_CCR); ENABLE_C();
+            PHASE_LOW(TIM_A_CCR);  ENABLE_A();
             break;
 
-        case 5: /* Step 6 — HinC = PWM,  LinB = ON */
-            // __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, PWM_DUTY_CYCLE);
-            // __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, 0U);
-            // HAL_TIM_PWM_Start   (&htim1, TIM_CHANNEL_1);        /* HinC */
-
-            // HAL_TIM_PWM_Start   (&htim1, TIM_CHANNEL_3);
-            // HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_3);        /* LinB */
-            htim1.Instance->CCR2 = 0;
-            htim1.Instance->CCR1 = 0;
-            htim1.Instance->CCR3 = PWM_DUTY_CYCLE;
-
-            htim1.Instance->CCER = (TIM_CCER_CC3E | TIM_CCER_CC1NE);
+        case 5: /* A=FLOAT, B=LOW, C=HIGH */
+            FLOAT_A();
+            PHASE_HIGH(TIM_C_CCR); ENABLE_C();
+            PHASE_LOW(TIM_B_CCR);  ENABLE_B();
             break;
 
-        default: break;
+        default: /* Fault — float everything immediately */
+            FLOAT_A();
+            FLOAT_B();
+            FLOAT_C();
+            break;
     }
-
-    /* TIM1 is an advanced-control timer: re-assert MOE after any Stop call  */
-    __HAL_TIM_MOE_ENABLE(&htim1);
 }

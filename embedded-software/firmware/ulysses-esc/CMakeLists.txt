@@ -46,8 +46,10 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
     Core/Src/custom/app.c
+    Core/Src/custom/blanking.c
     Core/Src/custom/commutation.c
-    Core/Src/custom/openloop.c
+    Core/Src/custom/motor.c    
+    Core/Src/custom/startup.c
 )
 
 # Add include paths
