@@ -408,23 +408,6 @@ GenerateClassCluster=0
 DocumentUniqueId=NEBLBWOI
 
 [Document22]
-DocumentPath=RS-485.SchDoc
-AnnotationEnabled=1
-AnnotateStartValue=1
-AnnotationIndexControlEnabled=0
-AnnotateSuffix=
-AnnotateScope=All
-AnnotateOrder=11
-DoLibraryUpdate=1
-DoDatabaseUpdate=1
-ClassGenCCAutoEnabled=1
-ClassGenCCAutoRoomEnabled=0
-ClassGenNCAutoScope=None
-DItemRevisionGUID=
-GenerateClassCluster=0
-DocumentUniqueId=AMDHNTLW
-
-[Document23]
 DocumentPath=Ethernet Phy.SchDoc
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -441,7 +424,7 @@ DItemRevisionGUID=
 GenerateClassCluster=0
 DocumentUniqueId=VQKFJACS
 
-[Document24]
+[Document23]
 DocumentPath=Ethernet Phy.Harness
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -458,16 +441,32 @@ DItemRevisionGUID=
 GenerateClassCluster=0
 DocumentUniqueId=
 
+[Document24]
+DocumentPath=TTL.SchDoc
+AnnotationEnabled=1
+AnnotateStartValue=1
+AnnotationIndexControlEnabled=0
+AnnotateSuffix=
+AnnotateScope=All
+AnnotateOrder=13
+DoLibraryUpdate=1
+DoDatabaseUpdate=1
+ClassGenCCAutoEnabled=1
+ClassGenCCAutoRoomEnabled=0
+ClassGenNCAutoScope=None
+DItemRevisionGUID=
+GenerateClassCluster=0
+DocumentUniqueId=BEALOEPP
+
 [ProjectVariant1]
 UniqueId=118e5998-9d35-4ed1-b17b-245e30316e9f
 Description=Var 1A
 AllowFabrication=0
 ParameterCount=0
-VariationCount=4
-Variation1=Designator=FB3|UniqueId=\YNIGVDLB\SEUEOALX|Kind=1|AlternatePart=
-Variation2=Designator=R30|UniqueId=\YNIGVDLB\UFILZSVW|Kind=1|AlternatePart=
-Variation3=Designator=R34|UniqueId=\YNIGVDLB\YQKQNJOL|Kind=1|AlternatePart=
-Variation4=Designator=R35|UniqueId=\YNIGVDLB\CFTHJKHU|Kind=1|AlternatePart=
+VariationCount=3
+Variation1=Designator=R30|UniqueId=\YNIGVDLB\UFILZSVW|Kind=1|AlternatePart=
+Variation2=Designator=R34|UniqueId=\YNIGVDLB\YQKQNJOL|Kind=1|AlternatePart=
+Variation3=Designator=R35|UniqueId=\YNIGVDLB\CFTHJKHU|Kind=1|AlternatePart=
 ParamVariationCount=0
 
 [Configuration1]
@@ -839,6 +838,11 @@ OutputName9=Report Single Pin Nets
 OutputDocumentPath9=
 OutputVariantName9=[No Variations]
 OutputDefault9=0
+OutputType10=BOM_ReportManufacturing
+OutputName10=Manufacturing Data
+OutputDocumentPath10=
+OutputVariantName10=[No Variations]
+OutputDefault10=0
 
 [OutputGroup7]
 Name=Other Outputs
@@ -1133,6 +1137,8 @@ Type156=1
 Type157=1
 Type158=1
 Type159=1
+Type160=1
+Type161=1
 
 [Difference Levels]
 Type1=1
@@ -1222,6 +1228,7 @@ Type84=1
 Type85=1
 Type86=1
 Type87=1
+Type88=1
 
 [Electrical Rules Check]
 Type1=1
@@ -1387,6 +1394,8 @@ Type160=0
 Type161=0
 Type162=1
 Type163=1
+Type164=1
+Type165=2
 
 [ERC Connection Matrix]
 L1=NNNNNNNNNNNWNNNWW
