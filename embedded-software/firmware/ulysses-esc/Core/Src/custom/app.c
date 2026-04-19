@@ -11,6 +11,7 @@
 #include "usart.h"
 #include "startup.h" 
 #include "blanking.h"
+#include "adcread.h"
 
 #include <stdio.h>
 
@@ -152,38 +153,21 @@ void app(void) {
     startup_begin();
 
     while (1) {
-
-        // if(motor_get_state() == STATE_CLOSED_LOOP && zero_crossing_detected){
-        //     zero_crossing_detected = 0; 
-            
-        //     comm_step = (comm_step + 1) % 6;
-        //     Set_Commutation_Step(comm_step);
-        //     //blanking_start(); 
-        // }
+        printf("COM: %4u    A: %4u      B: %4u      C: %4u", BEMF_COM, BEMF_A, BEMF_B, BEMF_C); 
+        HAL_Delay(100); 
     }
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     if (htim->Instance == TIM15) {
-        MotorState motor_state = *motor_get_state();
-        if(motor_state == STATE_OPEN_LOOP){
             CommutationISR();
-        }
     }
-    //if in sensorless mode, it dont do nothing 
 }
 
-// void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc){
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc){
 
-//     //updating the ring buffers with latest samples from dma buffer
-//     if(hadc-> Instance == ADC1){
-//         update_ring_buffer(&phase_A, adc_dma_buffer[0]);
-//         update_ring_buffer(&phase_B, adc_dma_buffer[1]);
-//         update_ring_buffer(&phase_C, adc_dma_buffer[2]);
-
-//         //check if floating pyhase voltage crossed midpoint
-//         if(detect_zero_crossing(comm_step)){
-//             zero_crossing_detected = 1;
-//         }
-//     }
-// }
+    //check for 
+    if(hadc-> Instance == ADC1){
+        
+    }
+}
