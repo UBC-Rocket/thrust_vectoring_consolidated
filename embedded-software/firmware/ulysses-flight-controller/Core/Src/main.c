@@ -55,19 +55,16 @@ static bool sd_card_is_inserted(void)
 
 /* Private variables ---------------------------------------------------------*/
 
-DCACHE_HandleTypeDef hdcache1;
-
-SD_HandleTypeDef hsd1;
 
 SPI_HandleTypeDef hspi1;
 SPI_HandleTypeDef hspi2;
 SPI_HandleTypeDef hspi4;
-DMA_HandleTypeDef handle_GPDMA1_Channel5;
-DMA_HandleTypeDef handle_GPDMA1_Channel4;
-DMA_HandleTypeDef handle_GPDMA1_Channel1;
-DMA_HandleTypeDef handle_GPDMA1_Channel0;
-DMA_HandleTypeDef handle_GPDMA1_Channel3;
-DMA_HandleTypeDef handle_GPDMA1_Channel2;
+DMA_HandleTypeDef handle_DMA1_Channel5;
+DMA_HandleTypeDef handle_DMA1_Channel4;
+DMA_HandleTypeDef handle_DMA1_Channel1;
+DMA_HandleTypeDef handle_DMA1_Channel0;
+DMA_HandleTypeDef handle_DMA1_Channel3;
+DMA_HandleTypeDef handle_DMA1_Channel2;
 
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
@@ -77,13 +74,13 @@ TIM_HandleTypeDef htim4;
 UART_HandleTypeDef huart4;
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
-DMA_HandleTypeDef handle_GPDMA2_Channel5;
-DMA_HandleTypeDef handle_GPDMA2_Channel4;
-DMA_HandleTypeDef handle_GPDMA2_Channel0;
-DMA_HandleTypeDef handle_GPDMA2_Channel3;
-DMA_HandleTypeDef handle_GPDMA2_Channel2;
-
-PCD_HandleTypeDef hpcd_USB_DRD_FS;
+DMA_HandleTypeDef hdma_uart4_rx;
+SD_HandleTypeDef hsd1;
+DMA_HandleTypeDef handle_DMA2_Channel5;
+DMA_HandleTypeDef handle_DMA2_Channel4;
+DMA_HandleTypeDef handle_DMA2_Channel0;
+DMA_HandleTypeDef handle_DMA2_Channel3;
+DMA_HandleTypeDef handle_DMA2_Channel2;
 
 /* USER CODE BEGIN PV */
 bool g_sd_card_initialized = false;
@@ -111,7 +108,7 @@ static void MX_TIM4_Init(void);
 static void MX_DCACHE1_Init(void);
 static void MX_ICACHE_Init(void);
 /* USER CODE BEGIN PFP */
-static HAL_StatusTypeDef sd_enable_internal_dma(SD_HandleTypeDef *hsd);
+static HAL_StatusTypeDef sd_enable_internal_dma(void *hsd);
 
 /* USER CODE END PFP */
 
@@ -243,7 +240,7 @@ int main(void)
 #endif // ULYSSES_ENABLE_DEBUG_LOGGING
 
   if (g_sd_card_initialized) {
-    if (sd_enable_internal_dma(&hsd1) != HAL_OK) {
+    if (sd_enable_internal_dma(NULL) != HAL_OK) {
       Error_Handler();
     }
   }
@@ -320,52 +317,38 @@ void SystemClock_Config(void)
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
-  /** Configure the main internal regulator output voltage
-  */
-  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE0);
+  /** STM32L476 @ 80 MHz from HSI via PLL */
+  if (HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1) != HAL_OK)
+  {
+    Error_Handler();
+  }
 
-  while(!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
-
-  /** Initializes the RCC Oscillators according to the specified parameters
-  * in the RCC_OscInitTypeDef structure.
-  */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48|RCC_OSCILLATORTYPE_HSE;
-  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-  RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLL1_SOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = 2;
-  RCC_OscInitStruct.PLL.PLLN = 40;
-  RCC_OscInitStruct.PLL.PLLP = 2;
-  RCC_OscInitStruct.PLL.PLLQ = 4;
-  RCC_OscInitStruct.PLL.PLLR = 2;
-  RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1_VCIRANGE_3;
-  RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1_VCORANGE_WIDE;
-  RCC_OscInitStruct.PLL.PLLFRACN = 0;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLM = 1;
+  RCC_OscInitStruct.PLL.PLLN = 10;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV7;
+  RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
+  RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
   }
 
-  /** Initializes the CPU, AHB and APB buses clocks
-  */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2
-                              |RCC_CLOCKTYPE_PCLK3;
+                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
-  RCC_ClkInitStruct.APB3CLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
   {
     Error_Handler();
   }
-
-  /** Configure the programming delay
-  */
-  __HAL_FLASH_SET_PROGRAM_DELAY(FLASH_PROGRAMMING_DELAY_2);
 }
 
 /**
@@ -375,24 +358,7 @@ void SystemClock_Config(void)
   */
 static void MX_DCACHE1_Init(void)
 {
-
-  /* USER CODE BEGIN DCACHE1_Init 0 */
-
-  /* USER CODE END DCACHE1_Init 0 */
-
-  /* USER CODE BEGIN DCACHE1_Init 1 */
-
-  /* USER CODE END DCACHE1_Init 1 */
-  hdcache1.Instance = DCACHE1;
-  hdcache1.Init.ReadBurstType = DCACHE_READ_BURST_WRAP;
-  if (HAL_DCACHE_Init(&hdcache1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN DCACHE1_Init 2 */
-
-  /* USER CODE END DCACHE1_Init 2 */
-
+  /* L476 has no data cache — nothing to do */
 }
 
 /**
@@ -402,35 +368,20 @@ static void MX_DCACHE1_Init(void)
   */
 static void MX_GPDMA1_Init(void)
 {
+  /* L476 uses DMA1 (not GPDMA). Clock and IRQs for SPI channels are
+     enabled in HAL_SPI_MspInit via stm32l4xx_hal_msp.c. */
+  __HAL_RCC_DMA1_CLK_ENABLE();
 
-  /* USER CODE BEGIN GPDMA1_Init 0 */
-
-  /* USER CODE END GPDMA1_Init 0 */
-
-  /* Peripheral clock enable */
-  __HAL_RCC_GPDMA1_CLK_ENABLE();
-
-  /* GPDMA1 interrupt Init */
-    HAL_NVIC_SetPriority(GPDMA1_Channel0_IRQn, 5, 0);
-    HAL_NVIC_EnableIRQ(GPDMA1_Channel0_IRQn);
-    HAL_NVIC_SetPriority(GPDMA1_Channel1_IRQn, 5, 0);
-    HAL_NVIC_EnableIRQ(GPDMA1_Channel1_IRQn);
-    HAL_NVIC_SetPriority(GPDMA1_Channel2_IRQn, 5, 0);
-    HAL_NVIC_EnableIRQ(GPDMA1_Channel2_IRQn);
-    HAL_NVIC_SetPriority(GPDMA1_Channel3_IRQn, 5, 0);
-    HAL_NVIC_EnableIRQ(GPDMA1_Channel3_IRQn);
-    HAL_NVIC_SetPriority(GPDMA1_Channel4_IRQn, 5, 0);
-    HAL_NVIC_EnableIRQ(GPDMA1_Channel4_IRQn);
-    HAL_NVIC_SetPriority(GPDMA1_Channel5_IRQn, 5, 0);
-    HAL_NVIC_EnableIRQ(GPDMA1_Channel5_IRQn);
-
-  /* USER CODE BEGIN GPDMA1_Init 1 */
-
-  /* USER CODE END GPDMA1_Init 1 */
-  /* USER CODE BEGIN GPDMA1_Init 2 */
-
-  /* USER CODE END GPDMA1_Init 2 */
-
+  HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
+  HAL_NVIC_SetPriority(DMA1_Channel2_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel2_IRQn);
+  HAL_NVIC_SetPriority(DMA1_Channel3_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel3_IRQn);
+  HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn);
+  HAL_NVIC_SetPriority(DMA1_Channel5_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel5_IRQn);
 }
 
 /**
@@ -440,35 +391,12 @@ static void MX_GPDMA1_Init(void)
   */
 static void MX_GPDMA2_Init(void)
 {
+  /* L476 uses DMA2 for UART4 RX (DMA2_Channel5). Clock and channel
+     configuration happen in HAL_UART_MspInit via stm32l4xx_hal_msp.c. */
+  __HAL_RCC_DMA2_CLK_ENABLE();
 
-  /* USER CODE BEGIN GPDMA2_Init 0 */
-
-  /* USER CODE END GPDMA2_Init 0 */
-
-  /* Peripheral clock enable */
-  __HAL_RCC_GPDMA2_CLK_ENABLE();
-
-  /* GPDMA2 interrupt Init */
-    HAL_NVIC_SetPriority(GPDMA2_Channel0_IRQn, 5, 0);
-    HAL_NVIC_EnableIRQ(GPDMA2_Channel0_IRQn);
-    HAL_NVIC_SetPriority(GPDMA2_Channel2_IRQn, 5, 0);
-    HAL_NVIC_EnableIRQ(GPDMA2_Channel2_IRQn);
-    HAL_NVIC_SetPriority(GPDMA2_Channel3_IRQn, 5, 0);
-    HAL_NVIC_EnableIRQ(GPDMA2_Channel3_IRQn);
-    HAL_NVIC_SetPriority(GPDMA2_Channel4_IRQn, 5, 0);
-    HAL_NVIC_EnableIRQ(GPDMA2_Channel4_IRQn);
-    HAL_NVIC_SetPriority(GPDMA2_Channel5_IRQn, 5, 0);
-    HAL_NVIC_EnableIRQ(GPDMA2_Channel5_IRQn);
-
-  /* USER CODE BEGIN GPDMA2_Init 1 */
-#ifndef ULYSSES_ENABLE_DEBUG_LOGGING
-  HAL_NVIC_DisableIRQ(GPDMA2_Channel0_IRQn);
-#endif
-  /* USER CODE END GPDMA2_Init 1 */
-  /* USER CODE BEGIN GPDMA2_Init 2 */
-
-  /* USER CODE END GPDMA2_Init 2 */
-
+  HAL_NVIC_SetPriority(DMA2_Channel5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Channel5_IRQn);
 }
 
 /**
@@ -487,12 +415,7 @@ static void MX_ICACHE_Init(void)
 
   /* USER CODE END ICACHE_Init 1 */
 
-  /** Enable instruction cache (default 2-ways set associative cache)
-  */
-  if (HAL_ICACHE_Enable() != HAL_OK)
-  {
-    Error_Handler();
-  }
+  /* L476 has no dedicated ICACHE peripheral — nothing to do */
   /* USER CODE BEGIN ICACHE_Init 2 */
 
   /* USER CODE END ICACHE_Init 2 */
@@ -500,50 +423,11 @@ static void MX_ICACHE_Init(void)
 }
 
 /**
-  * @brief SDMMC1 Initialization Function
-  * @param None
-  * @retval None
+  * @brief SDMMC1 Initialization Function — disabled on L476 test board
   */
 static void MX_SDMMC1_SD_Init(void)
 {
-
-  /* USER CODE BEGIN SDMMC1_Init 0 */
-
   g_sd_card_initialized = false;
-
-  if (!sd_card_is_inserted()) {
-    return;
-  }
-
-  /* USER CODE END SDMMC1_Init 0 */
-
-  /* USER CODE BEGIN SDMMC1_Init 1 */
-
-  // HACK: Ignore error from the SD card HAL initialization.
-  // If it fails to initialize then do not use the SD card,
-  // no need to lock up the flight controller.
-  #define Error_Handler() return
-
-  /* USER CODE END SDMMC1_Init 1 */
-  hsd1.Instance = SDMMC1;
-  hsd1.Init.ClockEdge = SDMMC_CLOCK_EDGE_RISING;
-  hsd1.Init.ClockPowerSave = SDMMC_CLOCK_POWER_SAVE_DISABLE;
-  hsd1.Init.BusWide = SDMMC_BUS_WIDE_4B;
-  hsd1.Init.HardwareFlowControl = SDMMC_HARDWARE_FLOW_CONTROL_DISABLE;
-  hsd1.Init.ClockDiv = 4;
-  if (HAL_SD_Init(&hsd1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN SDMMC1_Init 2 */
-
-  // HACK: Ignore error from the SD card HAL initialization.
-  #undef Error_Handler
-
-  g_sd_card_initialized = true;
-
-  /* USER CODE END SDMMC1_Init 2 */
-
 }
 
 /**
@@ -575,15 +459,6 @@ static void MX_SPI1_Init(void)
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
   hspi1.Init.CRCPolynomial = 0x7;
   hspi1.Init.NSSPMode = SPI_NSS_PULSE_ENABLE;
-  hspi1.Init.NSSPolarity = SPI_NSS_POLARITY_LOW;
-  hspi1.Init.FifoThreshold = SPI_FIFO_THRESHOLD_01DATA;
-  hspi1.Init.MasterSSIdleness = SPI_MASTER_SS_IDLENESS_00CYCLE;
-  hspi1.Init.MasterInterDataIdleness = SPI_MASTER_INTERDATA_IDLENESS_00CYCLE;
-  hspi1.Init.MasterReceiverAutoSusp = SPI_MASTER_RX_AUTOSUSP_DISABLE;
-  hspi1.Init.MasterKeepIOState = SPI_MASTER_KEEP_IO_STATE_DISABLE;
-  hspi1.Init.IOSwap = SPI_IO_SWAP_DISABLE;
-  hspi1.Init.ReadyMasterManagement = SPI_RDY_MASTER_MANAGEMENT_INTERNALLY;
-  hspi1.Init.ReadyPolarity = SPI_RDY_POLARITY_HIGH;
   if (HAL_SPI_Init(&hspi1) != HAL_OK)
   {
     Error_Handler();
@@ -629,15 +504,6 @@ static void MX_SPI2_Init(void)
   hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
   hspi2.Init.CRCPolynomial = 0x7;
   hspi2.Init.NSSPMode = SPI_NSS_PULSE_ENABLE;
-  hspi2.Init.NSSPolarity = SPI_NSS_POLARITY_LOW;
-  hspi2.Init.FifoThreshold = SPI_FIFO_THRESHOLD_01DATA;
-  hspi2.Init.MasterSSIdleness = SPI_MASTER_SS_IDLENESS_00CYCLE;
-  hspi2.Init.MasterInterDataIdleness = SPI_MASTER_INTERDATA_IDLENESS_00CYCLE;
-  hspi2.Init.MasterReceiverAutoSusp = SPI_MASTER_RX_AUTOSUSP_DISABLE;
-  hspi2.Init.MasterKeepIOState = SPI_MASTER_KEEP_IO_STATE_DISABLE;
-  hspi2.Init.IOSwap = SPI_IO_SWAP_DISABLE;
-  hspi2.Init.ReadyMasterManagement = SPI_RDY_MASTER_MANAGEMENT_INTERNALLY;
-  hspi2.Init.ReadyPolarity = SPI_RDY_POLARITY_HIGH;
   if (HAL_SPI_Init(&hspi2) != HAL_OK)
   {
     Error_Handler();
@@ -663,33 +529,7 @@ static void MX_SPI4_Init(void)
   /* USER CODE BEGIN SPI4_Init 1 */
 
   /* USER CODE END SPI4_Init 1 */
-  /* SPI4 parameter configuration*/
-  hspi4.Instance = SPI4;
-  hspi4.Init.Mode = SPI_MODE_MASTER;
-  hspi4.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi4.Init.DataSize = SPI_DATASIZE_8BIT;
-  hspi4.Init.CLKPolarity = SPI_POLARITY_LOW;
-  hspi4.Init.CLKPhase = SPI_PHASE_1EDGE;
-  hspi4.Init.NSS = SPI_NSS_SOFT;
-  hspi4.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
-  hspi4.Init.FirstBit = SPI_FIRSTBIT_MSB;
-  hspi4.Init.TIMode = SPI_TIMODE_DISABLE;
-  hspi4.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-  hspi4.Init.CRCPolynomial = 0x7;
-  hspi4.Init.NSSPMode = SPI_NSS_PULSE_ENABLE;
-  hspi4.Init.NSSPolarity = SPI_NSS_POLARITY_LOW;
-  hspi4.Init.FifoThreshold = SPI_FIFO_THRESHOLD_01DATA;
-  hspi4.Init.MasterSSIdleness = SPI_MASTER_SS_IDLENESS_00CYCLE;
-  hspi4.Init.MasterInterDataIdleness = SPI_MASTER_INTERDATA_IDLENESS_00CYCLE;
-  hspi4.Init.MasterReceiverAutoSusp = SPI_MASTER_RX_AUTOSUSP_DISABLE;
-  hspi4.Init.MasterKeepIOState = SPI_MASTER_KEEP_IO_STATE_DISABLE;
-  hspi4.Init.IOSwap = SPI_IO_SWAP_DISABLE;
-  hspi4.Init.ReadyMasterManagement = SPI_RDY_MASTER_MANAGEMENT_INTERNALLY;
-  hspi4.Init.ReadyPolarity = SPI_RDY_POLARITY_HIGH;
-  if (HAL_SPI_Init(&hspi4) != HAL_OK)
-  {
-    Error_Handler();
-  }
+  /* SPI4 does not exist on STM32L476 — stubbed out */
   /* USER CODE BEGIN SPI4_Init 2 */
 
   /* USER CODE END SPI4_Init 2 */
@@ -761,11 +601,9 @@ static void MX_TIM1_Init(void)
   sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
   sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
   sBreakDeadTimeConfig.BreakFilter = 0;
-  sBreakDeadTimeConfig.BreakAFMode = TIM_BREAK_AFMODE_INPUT;
   sBreakDeadTimeConfig.Break2State = TIM_BREAK2_DISABLE;
   sBreakDeadTimeConfig.Break2Polarity = TIM_BREAK2POLARITY_HIGH;
   sBreakDeadTimeConfig.Break2Filter = 0;
-  sBreakDeadTimeConfig.Break2AFMode = TIM_BREAK_AFMODE_INPUT;
   sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
   if (HAL_TIMEx_ConfigBreakDeadTime(&htim1, &sBreakDeadTimeConfig) != HAL_OK)
   {
@@ -986,21 +824,8 @@ static void MX_UART4_Init(void)
   huart4.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   huart4.Init.OverSampling = UART_OVERSAMPLING_16;
   huart4.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  huart4.Init.ClockPrescaler = UART_PRESCALER_DIV1;
   huart4.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
   if (HAL_UART_Init(&huart4) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_UARTEx_SetTxFifoThreshold(&huart4, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_UARTEx_SetRxFifoThreshold(&huart4, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_UARTEx_DisableFifoMode(&huart4) != HAL_OK)
   {
     Error_Handler();
   }
@@ -1036,21 +861,8 @@ static void MX_USART1_UART_Init(void)
   huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   huart1.Init.OverSampling = UART_OVERSAMPLING_16;
   huart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  huart1.Init.ClockPrescaler = UART_PRESCALER_DIV1;
   huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
   if (HAL_UART_Init(&huart1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_UARTEx_SetTxFifoThreshold(&huart1, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_UARTEx_SetRxFifoThreshold(&huart1, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_UARTEx_DisableFifoMode(&huart1) != HAL_OK)
   {
     Error_Handler();
   }
@@ -1084,21 +896,8 @@ static void MX_USART2_UART_Init(void)
   huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   huart2.Init.OverSampling = UART_OVERSAMPLING_16;
   huart2.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  huart2.Init.ClockPrescaler = UART_PRESCALER_DIV1;
   huart2.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
   if (HAL_UART_Init(&huart2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_UARTEx_SetTxFifoThreshold(&huart2, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_UARTEx_SetRxFifoThreshold(&huart2, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_UARTEx_DisableFifoMode(&huart2) != HAL_OK)
   {
     Error_Handler();
   }
@@ -1127,21 +926,7 @@ static void MX_USB_PCD_Init(void)
   /* USER CODE BEGIN USB_Init 1 */
 
   /* USER CODE END USB_Init 1 */
-  hpcd_USB_DRD_FS.Instance = USB_DRD_FS;
-  hpcd_USB_DRD_FS.Init.dev_endpoints = 8;
-  hpcd_USB_DRD_FS.Init.speed = USBD_FS_SPEED;
-  hpcd_USB_DRD_FS.Init.phy_itface = PCD_PHY_EMBEDDED;
-  hpcd_USB_DRD_FS.Init.Sof_enable = DISABLE;
-  hpcd_USB_DRD_FS.Init.low_power_enable = DISABLE;
-  hpcd_USB_DRD_FS.Init.lpm_enable = DISABLE;
-  hpcd_USB_DRD_FS.Init.battery_charging_enable = DISABLE;
-  hpcd_USB_DRD_FS.Init.vbus_sensing_enable = DISABLE;
-  hpcd_USB_DRD_FS.Init.bulk_doublebuffer_enable = DISABLE;
-  hpcd_USB_DRD_FS.Init.iso_singlebuffer_enable = DISABLE;
-  if (HAL_PCD_Init(&hpcd_USB_DRD_FS) != HAL_OK)
-  {
-    Error_Handler();
-  }
+  /* USB not supported on this board configuration */
   /* USER CODE BEGIN USB_Init 2 */
 
   /* USER CODE END USB_Init 2 */
@@ -1247,33 +1032,15 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(BNO_INT_GPIO_Port, &GPIO_InitStruct);
 
-  /* EXTI interrupt init*/
+  /* EXTI interrupt init — L4 bundles lines 5-9 and 10-15 */
   HAL_NVIC_SetPriority(EXTI4_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(EXTI4_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI7_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(EXTI7_IRQn);
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI8_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(EXTI8_IRQn);
-
-  HAL_NVIC_SetPriority(EXTI9_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(EXTI9_IRQn);
-
-  HAL_NVIC_SetPriority(EXTI10_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(EXTI10_IRQn);
-
-  HAL_NVIC_SetPriority(EXTI11_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(EXTI11_IRQn);
-
-  HAL_NVIC_SetPriority(EXTI12_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(EXTI12_IRQn);
-
-  HAL_NVIC_SetPriority(EXTI13_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(EXTI13_IRQn);
-
-  HAL_NVIC_SetPriority(EXTI14_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(EXTI14_IRQn);
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
@@ -1281,15 +1048,10 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-static HAL_StatusTypeDef sd_enable_internal_dma(SD_HandleTypeDef *hsd)
+static HAL_StatusTypeDef sd_enable_internal_dma(void *hsd)
 {
-#if defined(SDMMC_ENABLE_IDMA_SINGLE_BUFF)
-  hsd->Instance->IDMACTRL = SDMMC_ENABLE_IDMA_SINGLE_BUFF;
-  return HAL_OK;
-#else
   (void)hsd;
   return HAL_ERROR;
-#endif
 }
 
 /* USER CODE END 4 */

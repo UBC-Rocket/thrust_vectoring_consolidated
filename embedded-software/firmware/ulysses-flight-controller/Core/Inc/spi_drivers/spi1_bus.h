@@ -16,7 +16,7 @@
 #ifndef SPI1_BUS_H
 #define SPI1_BUS_H
 
-#include "stm32h5xx_hal.h"
+#include "stm32l4xx_hal.h"
 #include "SPI_queue.h"
 #include "sync.h"
 #include <stdbool.h>

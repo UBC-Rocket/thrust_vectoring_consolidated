@@ -12,7 +12,7 @@
 #include "spi_drivers/ms5611_poller.h"
 #include "spi_drivers/ms5607_poller.h"
 #include "sensors_init.h"
-#include "stm32h5xx_hal.h"
+#include "stm32l4xx_hal.h"
 #include "main.h"
 #include "state_estimation/ekf.h"
 #include "state_estimation/body.h"

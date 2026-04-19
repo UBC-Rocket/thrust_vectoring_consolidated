@@ -20,7 +20,7 @@
 #ifndef SENSORS_INIT_H
 #define SENSORS_INIT_H
 
-#include "stm32h5xx_hal.h"
+#include "stm32l4xx_hal.h"
 #include "spi_drivers/ms5611_poller.h"
 #include "spi_drivers/ms5607_poller.h"
 #include "sensors/sensor_config.h"

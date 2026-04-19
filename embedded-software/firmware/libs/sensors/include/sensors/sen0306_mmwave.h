@@ -17,7 +17,7 @@
 #ifndef SEN0306_MMWAVE_H
 #define SEN0306_MMWAVE_H
 
-#include "stm32h5xx_hal.h"
+#include "stm32l4xx_hal.h"
 #include "sensors/spsc_queue.h"
 #include <stdbool.h>
 #include <stdint.h>

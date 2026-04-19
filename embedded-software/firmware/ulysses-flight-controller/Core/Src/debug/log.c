@@ -6,7 +6,7 @@
 #include "printf/printf.h"
 #include "FreeRTOS.h"
 #include "task.h"
-#include "stm32h5xx.h"
+#include "stm32l4xx.h"
 #include "cmsis_os2.h"
 #include "stream_buffer.h"
 

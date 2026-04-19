@@ -1,4 +1,4 @@
-#include "stm32h5xx_hal.h"
+#include "stm32l4xx_hal.h"
 #include "SPI_queue.h"
 #include "sensors/bmi088_accel.h"
 #include "main.h"

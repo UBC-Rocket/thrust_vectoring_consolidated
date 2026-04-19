@@ -53,7 +53,7 @@
 extern uint32_t SystemCoreClock;
 #endif
 #ifndef CMSIS_device_header
-#define CMSIS_device_header "stm32h5xx.h"
+#define CMSIS_device_header "stm32l4xx.h"
 #endif /* CMSIS_device_header */
 
 /*-------------------- STM32H5 specific defines -------------------*/

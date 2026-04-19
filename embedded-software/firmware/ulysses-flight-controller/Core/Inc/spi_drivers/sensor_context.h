@@ -23,7 +23,7 @@
 #ifndef SENSOR_CONTEXT_H
 #define SENSOR_CONTEXT_H
 
-#include "stm32h5xx_hal.h"
+#include "stm32l4xx_hal.h"
 #include "SPI_queue.h"
 #include "sensors/bmi088_accel.h"
 #include "sensors/bmi088_gyro.h"

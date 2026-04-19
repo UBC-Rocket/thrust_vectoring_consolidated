@@ -1,7 +1,7 @@
 #ifndef DEBUG_LOG_H
 #define DEBUG_LOG_H
 
-#include "stm32h5xx_hal.h"
+#include "stm32l4xx_hal.h"
 
 #ifndef DEBUG_LOG_MAX_MESSAGE_BUFFER_SIZE
     #define DEBUG_LOG_MAX_MESSAGE_BUFFER_SIZE (512)

@@ -15,7 +15,7 @@
 #ifndef SYNC_H
 #define SYNC_H
 
-#include "stm32h5xx_hal.h"
+#include "stm32l4xx_hal.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include <stdbool.h>

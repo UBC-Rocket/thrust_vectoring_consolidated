@@ -2,7 +2,7 @@
 #include "SPI_device_interactions.h"
 #include "spi1_bus.h"
 #include "sync.h"
-#include "stm32h5xx_hal.h"
+#include "stm32l4xx_hal.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "main.h"

@@ -14,7 +14,7 @@
 #include "main.h"
 #include "FreeRTOS.h"
 #include "task.h"
-#include "stm32h5xx_hal.h"
+#include "stm32l4xx_hal.h"
 #include "state_estimation/state.h"
 #include "mission_manager/mission_manager.h"
 #include "controls/flight_controller.h"

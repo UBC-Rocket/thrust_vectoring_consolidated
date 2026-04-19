@@ -25,7 +25,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "stm32h5xx.h"
+#include "stm32l4xx.h"
 
 /* -------------------------------------------------------------------------- */
 /* Configuration                                                              */
