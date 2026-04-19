@@ -7,13 +7,12 @@
 #define MOTOR_POLE_PAIRS        7U
 #define SUPPLY_VOLTAGE_V        20U
 #define COMMUTATION_STEP_COUNT  6
-#define STARTUP_DUTY_CYCLE      0.5 //duty cycle for the startup sequence, determines the max speed 
+#define STARTUP_DUTY_CYCLE      0.2 //duty cycle for the startup sequence, determines the max speed 
 #define TARGET_RPM              (MOTOR_KV * SUPPLY_VOLTAGE_V * STARTUP_DUTY_CYCLE)
 
-#define STARTUP_RAMP_TIME_MS    2000           // how long initalization speed takes (milliseconds) reccomended max, may end shorter
+#define STARTUP_RAMP_TIME_MS    5000           // how long initalization speed takes (milliseconds) reccomended max, may end shorter
 #define STARTUP_MIN_FREQ_HZ     100             // min freq we run at 
-#define STARTUP_MAX_FREQ_HZ     3000U
-                                //(TARGET_RPM * MOTOR_POLE_PAIRS * COMMUTATION_STEP_COUNT) / 60  /* Electrical commutation cycles/sec — adjust  */
+#define STARTUP_MAX_FREQ_HZ     (TARGET_RPM * MOTOR_POLE_PAIRS * COMMUTATION_STEP_COUNT) / 60  /* Electrical commutation cycles/sec — adjust  */
 
 #define SYSCLOCK_HZ             170000000U
 #define TIM15_PRSCLR            170 - 1
