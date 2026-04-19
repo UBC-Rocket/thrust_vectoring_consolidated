@@ -6,6 +6,7 @@ add_library(controls STATIC
     src/pid.c
     src/flight_controller.c
     src/pwm.c
+    src/control_loop.c
 )
 
 target_include_directories(controls
