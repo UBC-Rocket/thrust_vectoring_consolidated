@@ -2,7 +2,6 @@
 #include "stm32g4xx_hal.h"
 #include "stm32g4xx_hal_tim.h"
 #include "tim.h"
-#include "main.h"
 #include "blanking.h"
 #include <stdint.h>
 

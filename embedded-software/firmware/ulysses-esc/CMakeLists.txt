@@ -45,11 +45,14 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
+    Core/Src/custom/adcread.c
     Core/Src/custom/app.c
+    Core/Src/custom/bemfstep.c
     Core/Src/custom/blanking.c
     Core/Src/custom/commutation.c
     Core/Src/custom/motor.c    
     Core/Src/custom/startup.c
+    Core/Src/custom/zerocrossing.c
 )
 
 # Add include paths

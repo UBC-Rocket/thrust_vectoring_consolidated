@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#define NUM_STEPS_PER_INCREMENTS    300U  ///making this number bigger makes the arr swich in smaller steps, aka smoother startup 
+#define NUM_STEPS_PER_INCREMENTS    500U  ///making this number bigger makes the arr swich in smaller steps, aka smoother startup 
 #define AVG_FREQ_HZ                 ((STARTUP_MIN_FREQ_HZ + STARTUP_MAX_FREQ_HZ) / 2)
 #define TOTAL_RAMP_STEPS            (AVG_FREQ_HZ * STARTUP_RAMP_TIME_MS / 1000)
 #define STEPS_PER_INCREMENT         ((TOTAL_RAMP_STEPS  + NUM_STEPS_PER_INCREMENTS - 1) / NUM_STEPS_PER_INCREMENTS)
@@ -45,10 +45,9 @@ void startup_begin( void ) {
  * @brief updating the startup freq ramping up from min to max freqs that we set in motor.h
  * 
  */
-void startup_update( void ){
-    MotorState* motor_state = motor_get_state();
+void startup_update(MotorState motor_state) {;
 
-    if(*motor_state == STATE_CLOSED_LOOP){
+    if(motor_state == STATE_CLOSED_LOOP){
         return; //do nothing if we are not in startup anymore 
     }
 
@@ -63,16 +62,21 @@ void startup_update( void ){
 
     current_freq += FREQ_INCREMENT; 
 
-    if(current_freq >= STARTUP_MAX_FREQ_HZ){
-        *motor_state = STATE_CLOSED_LOOP;
-        return; 
-    }
-
     // update tim15 freq 
     uint32_t new_ARR = (TIM15_CLCK_HZ / current_freq) - 1; 
     TIM15->ARR = new_ARR;
     TIM15->CNT = 0; 
 
+    if(current_freq >= STARTUP_MAX_FREQ_HZ){
+        motor_set_state(STATE_CLOSED_LOOP);
+        return; 
+    }
     //printf("ARR: %lu\r\n", new_ARR);
 } 
+
+
+void startup_fixed_step( void ){
+    commutation_step = (commutation_step >= 5) ? 0U : commutation_step + 1; 
+    commutate_step(commutation_step);
+}
 

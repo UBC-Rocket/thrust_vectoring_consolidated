@@ -1,8 +1,6 @@
 #include "commutation.h"
-#include "main.h"
 #include "tim.h"
 #include "motor.h" 
-
 #include <stdio.h>      //printf 
 #include <stdint.h>
 

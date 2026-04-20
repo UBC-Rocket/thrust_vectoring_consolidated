@@ -1,5 +1,4 @@
 #include "startup.h"
-#include "main.h"
 #include "tim.h"
 #include "motor.h"
 
@@ -24,7 +23,9 @@ void motor_set_state(MotorState new_state) {
 
 void CommutationISR() {
     if(motor_state == STATE_OPEN_LOOP){
-        startup_update(); 
+        startup_update(motor_state); 
+    } else {
+        startup_fixed_step();
     }
 
     // here we go into closed loop mode and let the adc do its work 
