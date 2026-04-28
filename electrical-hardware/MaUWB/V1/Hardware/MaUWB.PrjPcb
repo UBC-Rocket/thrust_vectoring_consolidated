@@ -47,6 +47,7 @@ CrossRefPorts=3
 CrossRefCrossSheets=1
 CrossRefSheetEntries=0
 CrossRefFollowFromMainSettings=1
+CurrentVariant=Variant of MaUWB
 
 [Preferences]
 PrefsVaultGUID=
@@ -255,6 +256,16 @@ ClassGenNCAutoScope=None
 DItemRevisionGUID=
 GenerateClassCluster=0
 DocumentUniqueId=WZBTFIUD
+
+[ProjectVariant1]
+UniqueId=31aaf101-736c-448f-9323-6360c2e387a6
+Description=Variant of MaUWB
+AllowFabrication=0
+ParameterCount=0
+VariationCount=2
+Variation1=Designator=J1|UniqueId=\PAHZSNEP|Kind=1|AlternatePart=
+Variation2=Designator=J7|UniqueId=\FTMKIVJY|Kind=1|AlternatePart=
+ParamVariationCount=0
 
 [GeneratedDocument1]
 DocumentPath=Project Outputs for MaUWB\Design Rule Check - PCB.html
