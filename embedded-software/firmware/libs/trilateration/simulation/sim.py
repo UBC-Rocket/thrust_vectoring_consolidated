@@ -33,14 +33,15 @@ class Tag:
 
     def __init__(self, pos: Sequence[float], distance: float | None = None, errorFunction=(lambda: 0)):
         self.truePos = pos
-        self.pos = pos
-
-        for i in range(3):
-            self.pos[i] += errorFunction()
+        self.pos = (pos[0] + errorFunction(), pos[1] + errorFunction(), pos[2] + errorFunction())
 
         if distance is not None:
             distance = float(distance)
         self.distance = distance
+        
+    def set_error_function(self, errorFunction):
+        self.pos = (self.pos[0] + errorFunction(), self.pos[1] + errorFunction(), self.pos[2] + errorFunction())
+
 
 
 class Simulation:
@@ -48,12 +49,16 @@ class Simulation:
         self,
         tags: Iterable[Tag],
         target_pos: Sequence[float] | None = None,
-        distance_function=_distance_between
+        distance_function=_distance_between,
+        error_function=(lambda: 0)
     ) -> None:
         self.tags = list(tags)
         self.num_tags = len(self.tags)
         self.target_pos = None if target_pos is None else _coerce_vec3(target_pos)
         self.distance_function=distance_function
+
+        for tag in self.tags:
+            tag.set_error_function(error_function)
 
 
 class _CTag(ctypes.Structure):
@@ -142,7 +147,7 @@ def _resolve_tag_distance(tag: Tag, sim: Simulation) -> float:
             "Each tag needs a distance, or Simulation.target_pos must be set."
         )
 
-    return sim.distance_function(tag.pos, sim.target_pos)
+    return sim.distance_function(tag.truePos, sim.target_pos)
 
 
 def run_c_code(sim: Simulation) -> tuple[float, float, float]:
@@ -174,7 +179,9 @@ def wrong_distance_function(a: Sequence[float], b: Sequence[float]) -> float:
     )
 
 if __name__ == "__main__":
+
     # Calibration call
+
     sim = Simulation(
         tags=[
             Tag((0.0, 0.0, 0.0)),
@@ -198,7 +205,8 @@ if __name__ == "__main__":
             Tag((0.0, 0.0, 14.0)),
         ],
         target_pos=(1.0, 1.0, 1.0),
-        distance_function=wrong_distance_function
+        distance_function=wrong_distance_function,
+        error_function=(lambda: random.uniform(-10, 10))
     )
 
     print("Off estimated position:", run_c_code(sim))
