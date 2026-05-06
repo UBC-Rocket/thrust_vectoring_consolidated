@@ -1,14 +1,15 @@
 #include "motor_drivers/servo_driver.h"
+#include "clamp.h";
 
 #include <stddef.h>
 
-static float clamp_f(float x, float lo, float hi);
-static uint16_t clamp_u16(uint16_t x, uint16_t lo, uint16_t hi);
 static uint16_t degree_to_us(const servo_t *servo, float degree);
 static void servo_init_with_cal(servo_t *servo, const pwm_output_t *pwm,
                                 uint16_t us_min, uint16_t us_mid, uint16_t us_max);
 
-/* Written by task (set_servo_pair_degrees); read by ISR (apply_servo_pair_degrees). */
+/* Written by task (set_servo_
+static uint16_t degree_to_us(const servo_t *servo, float degree);
+static void servo_init_with_cal(servo_t *servo, const pwm_output_t pair_degrees); read by ISR (apply_servo_pair_degrees). */
 static servo_pair_t servos;
 static volatile bool g_servo_pair_ready = false;
 
@@ -128,23 +129,11 @@ void servo_pair_enable(bool enable) {
 
 /* ---- Static helpers ---------------------------------------------------- */
 
-static float clamp_f(float x, float lo, float hi) {
-    if (x < lo) return lo;
-    if (x > hi) return hi;
-    return x;
-}
-
-static uint16_t clamp_u16(uint16_t x, uint16_t lo, uint16_t hi) {
-    if (x < lo) return lo;
-    if (x > hi) return hi;
-    return x;
-}
-
 static uint16_t degree_to_us(const servo_t *servo, float degree) {
     float half_range = servo->deg_range * 0.5f;
     float min_deg = servo->mid_pt - half_range;
     float max_deg = servo->mid_pt + half_range;
-    float d = clamp_f(degree, min_deg, max_deg);
+    float d = clamp_float(degree, min_deg, max_deg);
 
     float us_f;
     if (d < servo->mid_pt) {

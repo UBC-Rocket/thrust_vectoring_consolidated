@@ -7,9 +7,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "controls/pid.h"
-
-/* Private function prototypes -----------------------------------------------*/
-static float clamp(float value, float min_val, float max_val);
+#include "clamp.h"
 
 /* Exported functions --------------------------------------------------------*/
 
@@ -70,7 +68,7 @@ float pid_compute(pid_controller_t *pid,
   /* Apply anti-windup: clamp integral to prevent overflow */
   /* This prevents the integral from growing unbounded when output is saturated */
   pid->integral_sum =
-      clamp(pid->integral_sum, -pid->integral_limit, pid->integral_limit);
+      clamp_float(pid->integral_sum, -pid->integral_limit, pid->integral_limit);
 
   /* Calculate integral contribution */
   integral = pid->ki * pid->integral_sum;
@@ -90,7 +88,7 @@ float pid_compute(pid_controller_t *pid,
   output = proportional + integral + derivative;
 
   /* Apply output limits to ensure actuators stay within safe range */
-  output = clamp(output, pid->output_min, pid->output_max);
+  output = clamp_float(output, pid->output_min, pid->output_max);
 
   return output;
 }
@@ -131,7 +129,7 @@ void pid_set_limits(pid_controller_t *pid,
   pid->output_max = output_max;
 
   /* Clamp existing integral to new limits */
-  pid->integral_sum = clamp(pid->integral_sum, -integral_limit, integral_limit);
+  pid->integral_sum = clamp_float(pid->integral_sum, -integral_limit, integral_limit);
 }
 
 /**
@@ -150,7 +148,7 @@ float pid_get_integral(pid_controller_t *pid) {
  * @param  max_val: Maximum allowed value
  * @retval Clamped value
  */
-static float clamp(float value, float min_val, float max_val) {
+static float clamp_float(float value, float min_val, float max_val) {
   if (value > max_val) {
     return max_val;
   } else if (value < min_val) {

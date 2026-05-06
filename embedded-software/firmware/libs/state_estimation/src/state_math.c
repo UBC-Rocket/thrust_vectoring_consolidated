@@ -119,6 +119,20 @@ float vec3_dot(const float a[3], const float b[3])
 }
 
 /**
+ * @brief 3-vector sum.
+ * @param a First vector [3].
+ * @param b Second vector [3].
+ * @return a + b
+ */
+void vec3_sum(const float a[3], const float b[3], float out[3])
+{
+    if (!a || !b || !out) return;
+    out[0] = a[0] + b[0];
+    out[1] = a[1] + b[1];
+    out[2] = a[2] + b[2];
+}
+
+/**
  * @brief 3x3 matrix times 3-vector: out = M * v (row-major M).
  * @param M   Matrix [3][3].
  * @param v   Vector [3].

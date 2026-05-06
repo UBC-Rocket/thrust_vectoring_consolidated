@@ -18,13 +18,23 @@ extern "C" {
 /** Attitude gains and inertia (Section 3). */
 typedef struct {
     float Kp[3][3];  /**< Proportional gain: attitude error -> torque [N·m/rad] */
+    float Ki[3][3];
     float Kd[3][3];  /**< Derivative gain: angular rate -> torque [N·m·s/rad] */
     float I[3][3];   /**< Inertia matrix body frame [kg·m²] */
+    // float x_integral_limit;
+    // float y_integral_limit;
+    // float z_integral_limit;
+    // float x_torque_min;
+    // float x_torque_max;
+    // float y_torque_min;
+    // float y_torque_max;
+    // float z_torque_min;
+    // float z_torque_max;
 } flight_controller_attitude_config_t;
 
 /** Allocation: unit thrust direction in body frame (Section 4). */
 typedef struct {
-    float t_hat[3];  /**< Unit thrust direction (e.g. [0,0,-1] for z-up) */
+    float thrust_dir[3];  /**< Unit thrust direction (e.g. [0,0,-1] for z-up) */
 } flight_controller_allocation_config_t;
 
 /** Gimbal geometry and angle limits (Section 5). */
@@ -83,6 +93,13 @@ typedef struct {
  */
 void flight_controller_init(const flight_controller_config_t *config);
 
+// /**
+//  * @brief Set flight controller internal state. 
+//  * Call to update config (e.g. thrust gains) 
+//  * @param config Controller config (thrust gains used for z-PID).
+//  */
+// void flight_controller_set_config(const flight_controller_config_t *config);
+
 /**
  * @brief Run one step: torque → allocation → thrust PID → gimbal angles.
  * @param state  Current estimated state (from state_exchange).
@@ -96,6 +113,12 @@ void flight_controller_run(const state_t *state,
                            const flight_controller_config_t *config,
                            control_output_t *out,
                            float dt_s);
+
+/**
+ * @brief Reset flight controller internal state (e.g. z-PID integral).
+ * 
+ */
+void flight_controller_reset(void)
 
 #ifdef __cplusplus
 }
