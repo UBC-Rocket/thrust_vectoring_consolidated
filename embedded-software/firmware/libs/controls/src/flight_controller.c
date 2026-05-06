@@ -1,12 +1,14 @@
-#include "clamp.h"
 #include "controls/flight_controller.h"
 #include "controls/pid.h"
 #include "state_estimation/state.h"
+#include "utilities/clamp.h"
 #include <math.h>
 #include <float.h>
 #include <string.h>
 
 #define AXIS_ERR_EPSILON 1e-9f
+
+#define EMA_ALPHA 0.7f
 
 #define PHI_SETPOINT_X 0.0f
 #define PHI_SETPOINT_Y 0.0f
@@ -18,21 +20,22 @@
 
 // ====
 
-static pid_controller_t torque_x_pid;
-static pid_controller_t torque_y_pid;
-static pid_controller_t torque_z_pid;
-static pid_controller_t z_pid;
+static pid_controller_t s_torque_x_pid;
+static pid_controller_t s_torque_y_pid;
+static pid_controller_t s_torque_z_pid;
 
-static bool is_initialized = false;
-static float thrust_dir[3] = {0.0f, 0.0f, -1.0f}; // Thrust direction
-static float thrust_mag = 0.0f;
+static pid_controller_t s_z_pid;
+
+static bool s_is_initialized = false;
+
+static float s_thrust_dir[3]; // Thrust direction
+static float s_thrust_mag;
 
 // ====
 
-// Equation 1: Axis-Angle Error Calcuation
-static inline void compute_axis_angle_err(const quaternion_t *q_ref,
-                                          const quaternion_t *q_meas,
-                                          float phi[3])
+static void compute_axis_angle_err(const quaternion_t *q_ref,
+                                   const quaternion_t *q_meas,
+                                   float phi[3])
 {
     // Quaternion error calculation
     quaternion_t q_err;
@@ -50,44 +53,43 @@ static inline void compute_axis_angle_err(const quaternion_t *q_ref,
         q_err.z = -q_err.z;
     }
 
-    // Axis-angle error calculation
-    float v_x = q_err.x, v_y = q_err.y, v_z = q_err.z;
-    float v_mag = sqrtf(v_x * v_x + v_y * v_y + v_z * v_z);
+    phi[0] = 2.0f * q_err.x;
+    phi[1] = 2.0f * q_err.y;
+    phi[2] = 2.0f * q_err.z;
 
-    if (v_mag < AXIS_ERR_EPSILON)
-    {
-        // If the error is very small, set phi to zero to avoid numerical issues
-        phi[0] = 0.0f;
-        phi[1] = 0.0f;
-        phi[2] = 0.0f;
-        return;
-    }
+    // // Axis-angle error calculation
+    // float v_x = q_err.x, v_y = q_err.y, v_z = q_err.z;
+    // float v_mag = sqrtf(v_x * v_x + v_y * v_y + v_z * v_z);
 
-    float angle = 2.0f * atan2f(v_mag, q_err.w);
-    float scale = angle / v_mag;
+    // if (v_mag < AXIS_ERR_EPSILON)
+    // {
+    //     // If the error is very small, set phi to zero to avoid numerical issues
+    //     phi[0] = 0.0f;
+    //     phi[1] = 0.0f;
+    //     phi[2] = 0.0f;
+    //     return;
+    // }
 
-    phi[0] = scale * v_x;
-    phi[1] = scale * v_y;
-    phi[2] = scale * v_z;
+    // float angle = 2.0f * atan2f(v_mag, q_err.w);
+    // float scale = angle / v_mag;
+
+    // phi[0] = scale * v_x;
+    // phi[1] = scale * v_y;
+    // phi[2] = scale * v_z;
 }
 
-// Equation 2: Torque Command Calculation
-static inline void update_and_get_torque_pid(const quaternion_t *q_ref,
-                                             const quaternion_t *q_meas,
-                                             const float dt_s,
-                                             float torque_cmd[3])
+static void update_torque_pid(const float phi[3],
+                              const float dt_s,
+                              float torque_cmd[3])
 {
-    float phi[3];
-    compute_axis_angle_err(q_ref, q_meas, phi);
-
     // Compute torque commands using PID controllers
-    torque_cmd[0] = pid_compute(&torque_x_pid, PHI_SETPOINT_X, phi[0], dt_s);
-    torque_cmd[1] = pid_compute(&torque_y_pid, PHI_SETPOINT_Y, phi[1], dt_s);
-    torque_cmd[2] = pid_compute(&torque_z_pid, PHI_SETPOINT_Z, phi[2], dt_s);
+    torque_cmd[0] = pid_compute(&s_torque_x_pid, PHI_SETPOINT_X, phi[0], dt_s);
+    torque_cmd[1] = pid_compute(&s_torque_y_pid, PHI_SETPOINT_Y, phi[1], dt_s);
+    torque_cmd[2] = pid_compute(&s_torque_z_pid, PHI_SETPOINT_Z, phi[2], dt_s);
 }
 
 // Equation 3: Torque Decomposiition into Thrust and Gimbal Commands
-static inline void decompose_torque(const float torque_cmd[3], float torque_gimbal[3], float* torque_thrust_mag)
+static void decompose_torque(const float torque_cmd[3], const float thrust_dir[3], float torque_gimbal[3], float* torque_thrust_mag)
 {
     *torque_thrust_mag = clamp_float(
         vec3_dot(torque_cmd, thrust_dir),
@@ -103,18 +105,61 @@ static inline void decompose_torque(const float torque_cmd[3], float torque_gimb
     torque_gimbal[2] = torque_cmd[2] - torque_thrust[2];
 }
 
-static inline void compute_gimbal_control() 
+static void compute_thrust_dir(const flight_controller_gimbal_config_t* gcfg, const float torque_cmd[3], const float thrust_dir[3], const float thrust_mag, float new_thrust_dir[3]) 
 {
+    // perpendicular torque
+    float t_x = torque_cmd[1] / gcfg->L;
+    float t_y = torque_cmd[0] / gcfg->L;
 
+    float t_perp_mag = sqrtf(t_perp[0] * t_perp[0] + t_perp[1] * t_perp[1]);
+
+    // parallel torque
+    float t_z = sqrtf(thrust_mag * thrust_mag - t_perp_mag * t_perp_mag);
+
+    float t_mag = sqrtf(t_x * t_x + t_y * t_y + t_z * t_z);
+    
+    *new_thrust_dir = [
+        t_x / t_mag,
+        t_y / t_mag,
+        t_z / t_mag
+    ];
 }
 
-
-static void compute_thrust_control(const state_t *state,
-                                   const flight_controller_ref_t *ref,
-                                   const flight_controller_config_t *config,
-                                   control_output_t *out,
-                                   float dt_s)
+static void compute_gimbal_angles(const flight_controller_gimbal_config_t* gcfg, 
+                                  const float thrust_dir[3], 
+                                  float* theta_x_cmd, float* theta_y_cmd)
 {
+    // Compute gimbal angles from gimbal torque commands
+    // *theta_x_cmd = clamp_float(
+    //     asinf(thrust_dir[0]),
+    //     gcfg->theta_min, gcfg->theta_max);
+
+    // *theta_y_cmd = clamp_float(
+    //     -atan2f(thrust_dir[1], thrust_dir[2]), 
+    //     gcfg->theta_min, gcfg->theta_max);
+
+    *theta_x_cmd = clamp_float(
+        -thrust_dir[1],
+        gcfg->theta_min, gcfg->theta_max);
+
+    *theta_y_cmd = clamp_float(
+        thrust_dir[0],
+        gcfg->theta_min, gcfg->theta_max);
+}
+
+static void update_thrust_pid(const flight_controller_thrust_config_t* tcfg, 
+                              const float z_ref, const float vz_ref, 
+                              const float z_meas, const float vz_meas, 
+                              const float dt_s, 
+                              float* T_cmd)
+{
+    a_z_cmd = clamp_float(
+        pid_compute_pv(&s_z_pid, z_ref, vz_ref, z_meas vz_meas, dt_s), 
+        tcfg->a_z_min, tcfg->a_z_max);
+
+    *T_cmd = clamp_float(
+        tcfg->m * (tcfg->g + a_z_cmd), 
+        tcfg->T_min, tcfg->T_max);
 }
 
 // ====
@@ -126,32 +171,41 @@ void flight_controller_init(const flight_controller_config_t *config)
 
     // initialize thrust pid
     const flight_controller_thrust_config_t *tcfg = &config->thrust;
-    pid_init(&z_pid,
+    pid_init(&s_z_pid,
              tcfg->kp, tcfg->ki, tcfg->kd,
              tcfg->integral_limit,
              tcfg->a_z_min, tcfg->a_z_max);
 
     // initialize torque pids
     const flight_controller_attitude_config_t *acfg = &config->attitude;
-    pid_init(&torque_x_pid,
+    pid_init(&s_torque_x_pid,
              acfg->Kp[0][0], 0, acfg->Kd[0][0],
              FLT_MAX, -FLT_MIN, FLT_MAX);
-    pid_init(&torque_y_pid,
+    pid_init(&s_torque_y_pid,
              acfg->Kp[1][1], 0, acfg->Kd[1][1],
              FLT_MAX, -FLT_MIN, FLT_MAX);
-    pid_init(&torque_z_pid,
+    pid_init(&s_torque_z_pid,
              acfg->Kp[2][2], 0, acfg->Kd[2][2],
              FLT_MAX, -FLT_MIN, FLT_MAX);
 
-    is_initialized = true;
+    s_is_initialized = true;
 
     // Set thrust direction from config
-    thrust_dir[0] = config->allocation.thrust_dir[0];
-    thrust_dir[1] = config->allocation.thrust_dir[1];
-    thrust_dir[2] = config->allocation.thrust_dir[2];
+    s_thrust_dir[0] = config->allocation.thrust_dir[0];
+    s_thrust_dir[1] = config->allocation.thrust_dir[1];
+    s_thrust_dir[2] = config->allocation.thrust_dir[2];
 
-    thrust_mag = 0.0f;
+    s_thrust_dir = 0.0f;
 }
+
+void flight_controller_reset(void)
+{
+    pid_reset(&s_torque_x_pid);
+    pid_reset(&s_torque_y_pid);
+    pid_reset(&s_torque_z_pid);
+    pid_reset(&s_z_pid);
+}
+
 
 void flight_controller_run(const state_t *state,
                            const flight_controller_ref_t *ref,
@@ -165,26 +219,48 @@ void flight_controller_run(const state_t *state,
     const flight_controller_thrust_config_t *tcfg = &config->thrust;
     const flight_controller_gimbal_config_t *gcfg = &config->gimbal;
 
-    // Module 1: Torque
+    float phi[3];
+    compute_axis_angle_err(&ref->attitude, &state->attitude, phi);
+
     float torque_cmd[3];
-    update_and_get_torque_pid(&ref->attitude, &state->attitude, dt_s, torque_cmd);
+    update_torque_pid(phi, dt_s, torque_cmd);
 
-    float torque_thrust_mag;
-    float torque_gimbal[3];
-    decompose_torque(torque_cmd, torque_gimbal, &torque_thrust_mag);
+    // decompose torque into gimbal and thrust components
+    float tau_gim[3];
+    float tau_thrust;
+    decompose_torque(torque_cmd, s_thrust_dir, tau_gim, &tau_thrust);
 
+    float new_thrust_dir[3];
+    compute_thrust_dir(gcfg, torque_cmd, s_thrust_dir, s_thrust_mag, new_thrust_dir);
+
+    // update thrust dir state using ema filter
+    s_thrust_dir[0] = new_thrust_dir[0] * EMA_ALPHA + s_thrust_dir[0] * (1 - EMA_ALPHA);
+    s_thrust_dir[1] = new_thrust_dir[1] * EMA_ALPHA + s_thrust_dir[1] * (1 - EMA_ALPHA);
+    s_thrust_dir[2] = new_thrust_dir[2] * EMA_ALPHA + s_thrust_dir[2] * (1 - EMA_ALPHA);
+
+    float theta_x_cmd, theta_y_cmd;
+    compute_gimbal_angles(gcfg, s_thrust_dir, &theta_x_cmd, &theta_y_cmd);
+
+    float T_cmd;
+    update_thrust_pid(tcfg, ref->z_ref, ref->vz_ref, state->pos[2], state->vel[2], dt_s, &T_cmd);
     
+    // update thrust magnitude state 
+    s_thrust_mag = T_cmd;
 
-    // TODO: rewrite the functions first
-    
+    // populate output struct
+    out->tau_gim[0] = tau_gim[0];
+    out->tau_gim[1] = tau_gim[1];
+    out->tau_gim[2] = tau_gim[2];
+    out->tau_thrust = tau_thrust;
 
-    // TODO: rewrite the functions first
+    out->phi_x = phi[0];
+    out->phi_y = phi[1];
+    out->phi_z = phi[2];
+
+    out->theta_x_cmd = theta_x_cmd;
+    out->theta_y_cmd = theta_y_cmd;
+
+    out->T_cmd = T_cmd;
+    out->z_pid_integral = s_z_pid.integral_sum;
 }
 
-void flight_controller_reset(void)
-{
-    pid_reset(&torque_x_pid);
-    pid_reset(&torque_y_pid);
-    pid_reset(&torque_z_pid);
-    pid_reset(&z_pid);
-}

@@ -114,6 +114,14 @@ float pid_compute(pid_controller_t *pid,
                   float measurement,
                   float dt);
 
+float pid_compute_pv(pid_controller_t *pid,
+    float x_ref,
+    float v_ref,
+    float x,
+    float v,
+    float dt
+);
+
 /**
  * @brief  Reset PID controller state
  * @param  pid: Pointer to PID controller structure
