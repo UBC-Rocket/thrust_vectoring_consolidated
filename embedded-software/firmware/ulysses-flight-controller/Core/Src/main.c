@@ -24,6 +24,7 @@
 /* USER CODE BEGIN Includes */
 #include "debug/log.h"
 #include "sensors_init.h"
+#include "stm32h5xx_hal_tim.h"
 #include "timestamp.h"
 #include "spi1_bus.h"
 #include "gnss_radio_master.h"
@@ -74,6 +75,7 @@ TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
 DMA_HandleTypeDef handle_GPDMA2_Channel7;
+DMA_HandleTypeDef handle_GPDMA2_Channel6;
 
 UART_HandleTypeDef huart4;
 UART_HandleTypeDef huart1;
@@ -406,6 +408,8 @@ static void MX_GPDMA2_Init(void)
     HAL_NVIC_EnableIRQ(GPDMA2_Channel4_IRQn);
     HAL_NVIC_SetPriority(GPDMA2_Channel5_IRQn, 5, 0);
     HAL_NVIC_EnableIRQ(GPDMA2_Channel5_IRQn);
+    HAL_NVIC_SetPriority(GPDMA2_Channel6_IRQn, 5, 0);
+    HAL_NVIC_EnableIRQ(GPDMA2_Channel6_IRQn);
     HAL_NVIC_SetPriority(GPDMA2_Channel7_IRQn, 5, 0);
     HAL_NVIC_EnableIRQ(GPDMA2_Channel7_IRQn);
 

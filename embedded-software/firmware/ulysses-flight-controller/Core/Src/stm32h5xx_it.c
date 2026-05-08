@@ -73,6 +73,7 @@ extern SPI_HandleTypeDef hspi1;
 extern SPI_HandleTypeDef hspi2;
 extern SPI_HandleTypeDef hspi4;
 extern DMA_HandleTypeDef handle_GPDMA2_Channel7;
+extern DMA_HandleTypeDef handle_GPDMA2_Channel6;
 extern TIM_HandleTypeDef htim4;
 extern DMA_HandleTypeDef handle_GPDMA2_Channel5;
 extern DMA_HandleTypeDef handle_GPDMA2_Channel4;
@@ -622,6 +623,20 @@ void GPDMA2_Channel5_IRQHandler(void)
   /* USER CODE BEGIN GPDMA2_Channel5_IRQn 1 */
 
   /* USER CODE END GPDMA2_Channel5_IRQn 1 */
+}
+
+/**
+  * @brief This function handles GPDMA2 Channel 6 global interrupt.
+  */
+void GPDMA2_Channel6_IRQHandler(void)
+{
+  /* USER CODE BEGIN GPDMA2_Channel6_IRQn 0 */
+
+  /* USER CODE END GPDMA2_Channel6_IRQn 0 */
+  HAL_DMA_IRQHandler(&handle_GPDMA2_Channel6);
+  /* USER CODE BEGIN GPDMA2_Channel6_IRQn 1 */
+
+  /* USER CODE END GPDMA2_Channel6_IRQn 1 */
 }
 
 /**
