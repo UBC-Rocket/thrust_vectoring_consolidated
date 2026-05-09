@@ -42,9 +42,11 @@ static const uint8_t GCR_DECODE_TABLE[32] = {
     0xFF, 0x00, 0x08, 0x01, 0xFF, 0x04, 0x0C, 0xFF, /* 0x18-0x1F */
 };
 
+// Timers associated with all initialized motors
 static bdshot_dma_timers_t dma_timers[BDSHOT_MOTOR_COUNT];
 static size_t dma_timers_count = 0;
 
+// Configuration of motors
 static bdshot_dma_motor_t motors[BDSHOT_MOTOR_COUNT];
 
 static uint32_t bdshot_dma_tx_buffer[BDSHOT_MOTOR_COUNT][BDSHOT_DMA_TX_FRAME_SIZE];
@@ -464,6 +466,7 @@ bool bdshot_dma_motor_init(bdshot_motor_index_t motor, bdshot_dma_motor_config_t
 
     HAL_DMA_RegisterCallback(config->dma, HAL_DMA_XFER_CPLT_CB_ID, dma_xfer_complete_callback);
 
+    // Keep track of active timers and timer channels associated with initialized motors
     for (size_t i = 0; i < BDSHOT_MOTOR_COUNT; i++) {
         bdshot_dma_timers_t *dma_timer = &dma_timers[i];
 
@@ -548,7 +551,7 @@ bool bdshot_dma_set_armed(bool is_armed)
 
 bool bdshot_dma_apply()
 {
-    // Start DMA transfer
+    // Starts the DMA controller to begin transfers
     for (size_t i = 0; i < BDSHOT_MOTOR_COUNT; i++) {
         size_t motor_index = i;
         bdshot_dma_motor_t *motor = &motors[motor_index];
@@ -575,6 +578,9 @@ bool bdshot_dma_apply()
                          (uint32_t)ccrx, sizeof(bdshot_dma_tx_buffer[motor_index]));
     }
 
+    // Enable DMA transfers from the timers.
+    // Do this separately from the DMA controller configuration
+    // to ensure that motors on the same TIM instance is synchronized.
     for (size_t i = 0; i < dma_timers_count; i++) {
         bdshot_dma_timers_t *timer = &dma_timers[i];
 
