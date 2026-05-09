@@ -115,6 +115,8 @@ static uint32_t tim_channel_convert_hal_to_ll(uint32_t hal_channel)
     }
 }
 
+#if DEBUG_RESET_PIN_ON_TIMER_SWITCH
+
 static uint32_t gpio_pin_convert_hal_to_ll(uint32_t hal_pin)
 {
     switch (hal_pin) {
@@ -154,6 +156,8 @@ static uint32_t gpio_pin_convert_hal_to_ll(uint32_t hal_pin)
         return SIZE_MAX;
     }
 }
+
+#endif // DEBUG_RESET_PIN_ON_TIMER_SWITCH
 
 static size_t find_motor_index_from_dma(DMA_HandleTypeDef *dma)
 {
@@ -200,9 +204,12 @@ static void bdshot_switch_to_rx(bdshot_dma_motor_t *motor)
     TIM_HandleTypeDef *tim = motor->config.tim;
     uint32_t tim_channel = motor->config.tim_channel;
     uint32_t ll_tim_channel = tim_channel_convert_hal_to_ll(tim_channel);
+
+#if DEBUG_RESET_PIN_ON_TIMER_SWITCH
     GPIO_TypeDef *gpio = motor->config.gpio;
     uint32_t gpio_pin = motor->config.gpio_pin;
     uint32_t ll_gpio_pin = gpio_pin_convert_hal_to_ll(gpio_pin);
+#endif // DEBUG_RESET_PIN_ON_TIMER_SWITCH
 
     // Disable DMA since since we are re-configuring channel to do transfers
     // from peripheral to memory
@@ -214,6 +221,7 @@ static void bdshot_switch_to_rx(bdshot_dma_motor_t *motor)
     LL_TIM_EnableARRPreload(tim->Instance);
     LL_TIM_SetAutoReload(tim->Instance, 0xFFFFFFFF);
 
+#if DEBUG_RESET_PIN_ON_TIMER_SWITCH
     uint32_t alternate_function;
 
     if (ll_tim_channel <= LL_GPIO_PIN_7) {
@@ -222,12 +230,11 @@ static void bdshot_switch_to_rx(bdshot_dma_motor_t *motor)
         alternate_function = LL_GPIO_GetAFPin_8_15(gpio, ll_gpio_pin);
     }
 
-#if DEBUG_RESET_PIN_ON_TIMER_SWITCH
     LL_GPIO_SetPinMode(gpio, ll_gpio_pin, LL_GPIO_MODE_OUTPUT);
     LL_GPIO_SetPinSpeed(gpio, ll_gpio_pin, LL_GPIO_SPEED_FREQ_LOW);
     LL_GPIO_SetPinPull(gpio, ll_gpio_pin, LL_GPIO_PULL_NO);
     LL_GPIO_SetPinOutputType(gpio, ll_gpio_pin, LL_GPIO_OUTPUT_PUSHPULL);
-#endif
+#endif // DEBUG_RESET_PIN_ON_TIMER_SWITCH
 
     TIM_CCxChannelCmd(tim->Instance, tim_channel, TIM_CCx_DISABLE);
 
@@ -245,7 +252,7 @@ static void bdshot_switch_to_rx(bdshot_dma_motor_t *motor)
     } else {
         LL_GPIO_SetAFPin_8_15(gpio, ll_gpio_pin, alternate_function);
     }
-#endif
+#endif // DEBUG_RESET_PIN_ON_TIMER_SWITCH
 
     // TODO: replace direct register access with LL
     dma->Instance->CTR1 &= ~(DMA_CTR1_SINC | DMA_CTR1_DINC);
@@ -316,7 +323,7 @@ static void dma_xfer_complete_callback(DMA_HandleTypeDef *const dma)
         tim_channel_dma_set_enable(tim, tim_channel, true);
 
         motor->direction = BDSHOT_DMA_DIRECTION_INPUT;
-        } else {
+    } else {
         tim_channel_dma_set_enable(tim, tim_channel, false);
 
         bdshot_motor_telemetry_t telemetry;
