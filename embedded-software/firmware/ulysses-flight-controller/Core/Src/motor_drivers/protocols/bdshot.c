@@ -35,7 +35,7 @@ uint8_t bdshot_frame_checksum(bdshot_frame_t frame)
 
 static bool to_bdshot_throttle(uint16_t *bdshot_throttle, uint16_t throttle)
 {
-    if (throttle > (BDSHOT_MAX_THROTTLE - BDSHOT_MIN_THROTTLE + 1)) {
+    if (throttle >= (BDSHOT_MAX_THROTTLE - BDSHOT_MIN_THROTTLE + 1)) {
         return false;
     }
 
