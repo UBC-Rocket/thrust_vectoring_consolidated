@@ -32,12 +32,11 @@ typedef struct bdshot_dma_motor_config {
 } bdshot_dma_motor_config_t;
 
 bool bdshot_dma_init();
+bool bdshot_dma_set_armed(bool is_armed);
+bool bdshot_dma_apply();
 
 bool bdshot_dma_motor_init(bdshot_motor_index_t motor, bdshot_dma_motor_config_t *config);
 bool bdshot_dma_motor_set_throttle(bdshot_motor_index_t motor, uint16_t throttle);
 bool bdshot_dma_motor_get_telemetry(bdshot_motor_index_t motor, bdshot_motor_telemetry_t *telemtry);
-
-bool bdshot_dma_set_armed(bool is_armed);
-bool bdshot_dma_apply();
 
 #endif // ULYSSES_MOTOR_DRIVER_PROTOCOLS_BDSHOT_DMA_H
