@@ -25,7 +25,7 @@ typedef struct bdshot_dma_motor_config {
 
     DMA_HandleTypeDef *dma;
 
-    GPIO_TypeDef *gpio_port;
+    GPIO_TypeDef *gpio;
     uint32_t gpio_pin;
 
     uint8_t pole_count;

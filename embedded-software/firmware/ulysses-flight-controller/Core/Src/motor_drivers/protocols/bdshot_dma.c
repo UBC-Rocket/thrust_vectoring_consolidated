@@ -1,10 +1,14 @@
 #include "motor_drivers/protocols/bdshot_dma.h"
 
 #include "motor_drivers/protocols/bdshot.h"
+#include "stm32h5xx.h"
 #include "stm32h563xx.h"
 #include "stm32h5xx_hal_def.h"
 #include "stm32h5xx_hal_dma.h"
+#include "stm32h5xx_hal_gpio.h"
 #include "stm32h5xx_hal_tim.h"
+#include "stm32h5xx_ll_gpio.h"
+#include "stm32h5xx_ll_tim.h"
 #include <stdint.h>
 #include <string.h>
 
@@ -31,20 +35,6 @@ typedef struct bdshot_dma_timers {
     uint32_t active_dma_sources;
 } bdshot_dma_timers_t;
 
-static const TIM_IC_InitTypeDef TIM_IC_CONFIG = {
-    .ICPrescaler = TIM_ICPSC_DIV1,
-    .ICSelection = TIM_ICSELECTION_DIRECTTI,
-    .ICPolarity = TIM_ICPOLARITY_BOTHEDGE,
-    .ICFilter = 2,
-};
-
-static const TIM_OC_InitTypeDef TIM_PWM_OC_CONFIG = {
-    .OCMode = TIM_OCMODE_PWM2,
-    .Pulse = 0,
-    .OCPolarity = TIM_OCPOLARITY_HIGH,
-    .OCFastMode = TIM_OCFAST_DISABLE,
-};
-
 static const uint8_t GCR_DECODE_TABLE[32] = {
     0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, /* 0x00-0x07 */
     0xFF, 0x09, 0x0A, 0x0B, 0xFF, 0x0D, 0x0E, 0x0F, /* 0x08-0x0F */
@@ -62,12 +52,10 @@ static uint32_t bdshot_dma_rx_buffer[BDSHOT_MOTOR_COUNT][BDSHOT_DMA_RX_FRAME_SIZ
 
 static volatile uint32_t *get_timer_channel_ccrx_reg(TIM_HandleTypeDef *tim, uint32_t channel);
 static volatile uint32_t get_timer_channel_dma_src(TIM_HandleTypeDef *tim, uint32_t channel);
+static uint32_t tim_channel_convert_hal_to_ll(uint32_t hal_channel);
+static uint32_t gpio_pin_convert_hal_to_ll(uint32_t hal_pin);
 static size_t find_motor_index_from_dma(DMA_HandleTypeDef *dma);
 static bool tim_channel_dma_set_enable(TIM_HandleTypeDef *tim, uint32_t tim_channel, bool enable);
-static void tim_arr_preload_set_enable(TIM_HandleTypeDef *tim, bool enable);
-static void tim_channel_input_capture_init(TIM_TypeDef *TIMx, uint32_t channel,
-                                           uint32_t TIM_ICPolarity, uint32_t TIM_ICSelection,
-                                           uint32_t TIM_ICFilter);
 static void bdshot_switch_to_rx(bdshot_dma_motor_t *motor);
 static void bdshot_switch_to_tx(bdshot_dma_motor_t *motor);
 static void dma_xfer_complete_callback(DMA_HandleTypeDef *const dma);
@@ -107,6 +95,62 @@ static volatile uint32_t get_timer_channel_dma_src(TIM_HandleTypeDef *tim, uint3
     }
 }
 
+static uint32_t tim_channel_convert_hal_to_ll(uint32_t hal_channel)
+{
+    switch (hal_channel) {
+    case TIM_CHANNEL_1:
+        return LL_TIM_CHANNEL_CH1;
+    case TIM_CHANNEL_2:
+        return LL_TIM_CHANNEL_CH2;
+    case TIM_CHANNEL_3:
+        return LL_TIM_CHANNEL_CH3;
+    case TIM_CHANNEL_4:
+        return LL_TIM_CHANNEL_CH4;
+    default:
+        return SIZE_MAX;
+    }
+}
+
+static uint32_t gpio_pin_convert_hal_to_ll(uint32_t hal_pin)
+{
+    switch (hal_pin) {
+    case GPIO_PIN_0:
+        return LL_GPIO_PIN_0;
+    case GPIO_PIN_1:
+        return LL_GPIO_PIN_1;
+    case GPIO_PIN_2:
+        return LL_GPIO_PIN_2;
+    case GPIO_PIN_3:
+        return LL_GPIO_PIN_3;
+    case GPIO_PIN_4:
+        return LL_GPIO_PIN_4;
+    case GPIO_PIN_5:
+        return LL_GPIO_PIN_5;
+    case GPIO_PIN_6:
+        return LL_GPIO_PIN_6;
+    case GPIO_PIN_7:
+        return LL_GPIO_PIN_7;
+    case GPIO_PIN_8:
+        return LL_GPIO_PIN_8;
+    case GPIO_PIN_9:
+        return LL_GPIO_PIN_9;
+    case GPIO_PIN_10:
+        return LL_GPIO_PIN_10;
+    case GPIO_PIN_11:
+        return LL_GPIO_PIN_11;
+    case GPIO_PIN_12:
+        return LL_GPIO_PIN_12;
+    case GPIO_PIN_13:
+        return LL_GPIO_PIN_13;
+    case GPIO_PIN_14:
+        return LL_GPIO_PIN_14;
+    case GPIO_PIN_15:
+        return LL_GPIO_PIN_15;
+    default:
+        return SIZE_MAX;
+    }
+}
+
 static size_t find_motor_index_from_dma(DMA_HandleTypeDef *dma)
 {
     for (size_t index = 0; index < BDSHOT_MOTOR_COUNT; index++) {
@@ -124,150 +168,26 @@ static size_t find_motor_index_from_dma(DMA_HandleTypeDef *dma)
     return SIZE_MAX;
 }
 
-static bool tim_channel_dma_set_enable(TIM_HandleTypeDef *tim, uint32_t tim_channel, bool enable)
+static bool tim_channel_dma_set_enable(TIM_HandleTypeDef *tim, uint32_t channel, bool enable)
 {
-    uint32_t dma_src = get_timer_channel_dma_src(tim, tim_channel);
-
-    if (dma_src == 0) {
+    switch (channel) {
+    case TIM_CHANNEL_1:
+        LL_TIM_DisableDMAReq_CC1(tim->Instance);
+        break;
+    case TIM_CHANNEL_2:
+        LL_TIM_DisableDMAReq_CC2(tim->Instance);
+        break;
+    case TIM_CHANNEL_3:
+        LL_TIM_DisableDMAReq_CC3(tim->Instance);
+        break;
+    case TIM_CHANNEL_4:
+        LL_TIM_DisableDMAReq_CC4(tim->Instance);
+        break;
+    default:
         return false;
     }
 
-    if (enable) {
-        __HAL_TIM_ENABLE_DMA(tim, dma_src);
-    } else {
-        __HAL_TIM_DISABLE_DMA(tim, dma_src);
-    }
-
     return true;
-}
-
-static void tim_arr_preload_set_enable(TIM_HandleTypeDef *tim, bool enable)
-{
-    if (enable) {
-        tim->Instance->CR1 |= TIM_CR1_ARPE;
-    } else {
-        tim->Instance->CR1 &= ~TIM_CR1_ARPE;
-    }
-}
-
-static void tim_channel_input_capture_init(TIM_TypeDef *TIMx, uint32_t channel,
-                                           uint32_t TIM_ICPolarity, uint32_t TIM_ICSelection,
-                                           uint32_t TIM_ICFilter)
-{
-    uint32_t tmpccmrx;
-    uint32_t tmpccer;
-
-    /* Disable the Channel: Reset the CCxE Bit */
-    tmpccer = TIMx->CCER;
-
-    switch (channel) {
-    case TIM_CHANNEL_1:
-        TIMx->CCER &= ~TIM_CCER_CC1E;
-        break;
-    case TIM_CHANNEL_2:
-        TIMx->CCER &= ~TIM_CCER_CC2E;
-        break;
-    case TIM_CHANNEL_3:
-        TIMx->CCER &= ~TIM_CCER_CC3E;
-        break;
-    case TIM_CHANNEL_4:
-        TIMx->CCER &= ~TIM_CCER_CC4E;
-        break;
-    }
-
-    switch (channel) {
-    case TIM_CHANNEL_1:
-    case TIM_CHANNEL_2:
-        tmpccmrx = TIMx->CCMR1;
-        break;
-    case TIM_CHANNEL_3:
-    case TIM_CHANNEL_4:
-        tmpccmrx = TIMx->CCMR2;
-        break;
-    }
-
-    /* Select the Input */
-    switch (channel) {
-    case TIM_CHANNEL_1:
-        tmpccmrx &= ~TIM_CCMR1_CC1S;
-        break;
-    case TIM_CHANNEL_2:
-        tmpccmrx &= ~TIM_CCMR1_CC2S;
-        break;
-    case TIM_CHANNEL_3:
-        tmpccmrx &= ~TIM_CCMR2_CC3S;
-        break;
-    case TIM_CHANNEL_4:
-        tmpccmrx &= ~TIM_CCMR2_CC4S;
-        break;
-    }
-
-    switch (channel) {
-    case TIM_CHANNEL_1:
-    case TIM_CHANNEL_3:
-        tmpccmrx = TIMx->CCMR1;
-        tmpccmrx |= TIM_ICSelection;
-        break;
-    case TIM_CHANNEL_2:
-    case TIM_CHANNEL_4:
-        tmpccmrx = TIMx->CCMR2;
-        tmpccmrx |= (TIM_ICSelection << 8U);
-        break;
-    }
-
-    /* Set the filter */
-    switch (channel) {
-    case TIM_CHANNEL_1:
-        tmpccmrx &= ~TIM_CCMR1_IC1F;
-        tmpccmrx |= ((TIM_ICFilter << 4U) & TIM_CCMR1_IC1F);
-        break;
-    case TIM_CHANNEL_2:
-        tmpccmrx &= ~TIM_CCMR1_IC2F;
-        tmpccmrx |= ((TIM_ICFilter << 12U) & TIM_CCMR1_IC2F);
-        break;
-    case TIM_CHANNEL_3:
-        tmpccmrx &= ~TIM_CCMR2_IC3F;
-        tmpccmrx |= ((TIM_ICFilter << 4U) & TIM_CCMR2_IC3F);
-        break;
-    case TIM_CHANNEL_4:
-        tmpccmrx &= ~TIM_CCMR2_IC4F;
-        tmpccmrx |= ((TIM_ICFilter << 12U) & TIM_CCMR2_IC4F);
-        break;
-    }
-
-    /* Select the Polarity and set the CCxE Bit */
-    switch (channel) {
-    case TIM_CHANNEL_1:
-        tmpccer &= ~(TIM_CCER_CC1P | TIM_CCER_CC1NP);
-        tmpccer |= (TIM_ICPolarity & (TIM_CCER_CC1P | TIM_CCER_CC1NP));
-        break;
-    case TIM_CHANNEL_2:
-        tmpccer &= ~(TIM_CCER_CC2P | TIM_CCER_CC2NP);
-        tmpccer |= ((TIM_ICPolarity << 4U) & (TIM_CCER_CC2P | TIM_CCER_CC2NP));
-        break;
-    case TIM_CHANNEL_3:
-        tmpccer &= ~(TIM_CCER_CC3P | TIM_CCER_CC3NP);
-        tmpccer |= ((TIM_ICPolarity << 8U) & (TIM_CCER_CC3P | TIM_CCER_CC3NP));
-        break;
-    case TIM_CHANNEL_4:
-        tmpccer &= ~(TIM_CCER_CC4P | TIM_CCER_CC4NP);
-        tmpccer |= ((TIM_ICPolarity << 12U) & (TIM_CCER_CC4P | TIM_CCER_CC4NP));
-        break;
-    }
-
-    /* Write to TIMx CCMRx and CCER registers */
-    switch (channel) {
-    case TIM_CHANNEL_1:
-    case TIM_CHANNEL_2:
-        TIMx->CCMR1 = tmpccmrx;
-        break;
-    case TIM_CHANNEL_3:
-    case TIM_CHANNEL_4:
-        TIMx->CCMR2 = tmpccmrx;
-        break;
-    }
-
-    TIMx->CCER = tmpccer;
 }
 
 static void bdshot_switch_to_rx(bdshot_dma_motor_t *motor)
@@ -275,6 +195,10 @@ static void bdshot_switch_to_rx(bdshot_dma_motor_t *motor)
     DMA_HandleTypeDef *dma = motor->config.dma;
     TIM_HandleTypeDef *tim = motor->config.tim;
     uint32_t tim_channel = motor->config.tim_channel;
+    uint32_t ll_tim_channel = tim_channel_convert_hal_to_ll(tim_channel);
+    GPIO_TypeDef *gpio = motor->config.gpio;
+    uint32_t gpio_pin = motor->config.gpio_pin;
+    uint32_t ll_gpio_pin = gpio_pin_convert_hal_to_ll(gpio_pin);
 
     // Disable DMA since since we are re-configuring channel to do transfers
     // from peripheral to memory
@@ -283,15 +207,39 @@ static void bdshot_switch_to_rx(bdshot_dma_motor_t *motor)
     // Set free running timer for input capture.
     // We want to have ARR preload enabled here since we want to ensure
     // all other motors in the same TIM has finished transferring the last byte.
-    tim_arr_preload_set_enable(tim, true);
-    __HAL_TIM_SET_AUTORELOAD(tim, 0xFFFFFFFF);
+    LL_TIM_EnableARRPreload(tim->Instance);
+    LL_TIM_SetAutoReload(tim->Instance, 0xFFFFFFFF);
+
+    uint32_t alternate_function;
+
+    if (ll_tim_channel <= LL_GPIO_PIN_7) {
+        alternate_function = LL_GPIO_GetAFPin_0_7(gpio, ll_gpio_pin);
+    } else {
+        alternate_function = LL_GPIO_GetAFPin_8_15(gpio, ll_gpio_pin);
+    }
+
+    LL_GPIO_SetPinMode(gpio, ll_gpio_pin, LL_GPIO_MODE_OUTPUT);
+    LL_GPIO_SetPinSpeed(gpio, ll_gpio_pin, LL_GPIO_SPEED_FREQ_LOW);
+    LL_GPIO_SetPinPull(gpio, ll_gpio_pin, LL_GPIO_PULL_NO);
+    LL_GPIO_SetPinOutputType(gpio, ll_gpio_pin, LL_GPIO_OUTPUT_PUSHPULL);
 
     TIM_CCxChannelCmd(tim->Instance, tim_channel, TIM_CCx_DISABLE);
 
-    HAL_TIM_IC_ConfigChannel(tim, &TIM_IC_CONFIG, tim_channel);
+    LL_TIM_IC_Config(tim->Instance, ll_tim_channel,
+                     LL_TIM_ACTIVEINPUT_DIRECTTI | LL_TIM_ICPSC_DIV1 | LL_TIM_IC_FILTER_FDIV1_N2 |
+                         LL_TIM_IC_POLARITY_BOTHEDGE);
 
     TIM_CCxChannelCmd(tim->Instance, tim_channel, TIM_CCx_ENABLE);
 
+    LL_GPIO_SetPinMode(gpio, ll_gpio_pin, LL_GPIO_MODE_ALTERNATE);
+
+    if (ll_tim_channel <= LL_GPIO_PIN_7) {
+        LL_GPIO_SetAFPin_0_7(gpio, ll_gpio_pin, alternate_function);
+    } else {
+        LL_GPIO_SetAFPin_8_15(gpio, ll_gpio_pin, alternate_function);
+    }
+
+    // TODO: replace direct register access with LL
     dma->Instance->CTR1 &= ~(DMA_CTR1_SINC | DMA_CTR1_DINC);
     dma->Instance->CTR1 |= DMA_DINC_INCREMENTED;
     dma->Instance->CTR2 &= ~DMA_CTR2_DREQ;
@@ -304,6 +252,7 @@ static void bdshot_switch_to_tx(bdshot_dma_motor_t *motor)
     DMA_HandleTypeDef *dma = motor->config.dma;
     TIM_HandleTypeDef *tim = motor->config.tim;
     uint32_t tim_channel = motor->config.tim_channel;
+    uint32_t ll_tim_channel = tim_channel_convert_hal_to_ll(tim_channel);
 
     // Disable DMA since since we are re-configuring channel to do transfers
     // from memory to peripheral
@@ -311,10 +260,16 @@ static void bdshot_switch_to_tx(bdshot_dma_motor_t *motor)
 
     TIM_CCxChannelCmd(tim->Instance, tim_channel, TIM_CCx_DISABLE);
 
-    HAL_TIM_PWM_ConfigChannel(tim, &TIM_PWM_OC_CONFIG, tim_channel);
+    LL_TIM_OC_SetMode(tim->Instance, ll_tim_channel, LL_TIM_OCMODE_PWM2);
+    LL_TIM_OC_ConfigOutput(tim->Instance, ll_tim_channel, LL_TIM_OCPOLARITY_HIGH);
+
+    LL_TIM_OC_DisablePreload(tim->Instance, ll_tim_channel);
+    __HAL_TIM_SET_COMPARE(tim, tim_channel, 0);
+    LL_TIM_OC_EnablePreload(tim->Instance, ll_tim_channel);
 
     TIM_CCxChannelCmd(tim->Instance, tim_channel, TIM_CCx_ENABLE);
 
+    // TODO: replace direct register access with LL
     dma->Instance->CTR1 &= ~(DMA_CTR1_SINC | DMA_CTR1_DINC);
     dma->Instance->CTR1 |= DMA_SINC_INCREMENTED;
     dma->Instance->CTR2 |= DMA_CTR2_DREQ;
@@ -626,11 +581,11 @@ bool bdshot_dma_apply()
         // Restore the free running timer ARR used for telemetry RX to a value for TX.
         // Must disable ARR preload here since the free running timer use for RX will
         // never have a UEV.
-        tim_arr_preload_set_enable(timer->tim, false);
-        __HAL_TIM_SET_AUTORELOAD(timer->tim, (BDSHOT_DMA_BIT_TICKS - 1));
-        tim_arr_preload_set_enable(timer->tim, true);
+        LL_TIM_EnableARRPreload(timer->tim->Instance);
+        LL_TIM_SetAutoReload(timer->tim->Instance, BDSHOT_DMA_BIT_TICKS - 1);
+        LL_TIM_DisableARRPreload(timer->tim->Instance);
 
-        __HAL_TIM_SET_COUNTER(timer->tim, 0);
+        LL_TIM_SetCounter(timer->tim->Instance, 0);
 
         // Enable DMA requests from the timer peripheral
         __HAL_TIM_ENABLE_DMA(timer->tim, timer->active_dma_sources);
