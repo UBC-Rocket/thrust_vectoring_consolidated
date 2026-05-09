@@ -77,6 +77,8 @@ extern void state_estimation_task_start(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
+/* Hook prototypes */
+void vApplicationTickHook(void);
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
 

@@ -24,6 +24,7 @@
 /* USER CODE BEGIN Includes */
 #include "debug/log.h"
 #include "sensors_init.h"
+#include "stm32h5xx_hal_tim.h"
 #include "timestamp.h"
 #include "spi1_bus.h"
 #include "gnss_radio_master.h"
@@ -73,6 +74,8 @@ TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
+DMA_HandleTypeDef handle_GPDMA2_Channel7;
+DMA_HandleTypeDef handle_GPDMA2_Channel6;
 
 UART_HandleTypeDef huart4;
 UART_HandleTypeDef huart1;
@@ -405,6 +408,10 @@ static void MX_GPDMA2_Init(void)
     HAL_NVIC_EnableIRQ(GPDMA2_Channel4_IRQn);
     HAL_NVIC_SetPriority(GPDMA2_Channel5_IRQn, 5, 0);
     HAL_NVIC_EnableIRQ(GPDMA2_Channel5_IRQn);
+    HAL_NVIC_SetPriority(GPDMA2_Channel6_IRQn, 5, 0);
+    HAL_NVIC_EnableIRQ(GPDMA2_Channel6_IRQn);
+    HAL_NVIC_SetPriority(GPDMA2_Channel7_IRQn, 5, 0);
+    HAL_NVIC_EnableIRQ(GPDMA2_Channel7_IRQn);
 
   /* USER CODE BEGIN GPDMA2_Init 1 */
 #ifndef ULYSSES_ENABLE_DEBUG_LOGGING
@@ -744,9 +751,9 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 249;
+  htim2.Init.Prescaler = 0;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 2499;
+  htim2.Init.Period = 415;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -768,7 +775,7 @@ static void MX_TIM2_Init(void)
   {
     Error_Handler();
   }
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.OCMode = TIM_OCMODE_PWM2;
   sConfigOC.Pulse = 0;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
@@ -1256,9 +1263,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   if (htim->Instance == TIM6)
   {
     HAL_IncTick();
-    timestamp_update();
   }
   /* USER CODE BEGIN Callback 1 */
+
+  if (htim->Instance == TIM6)
+  {
+    timestamp_update();
+  }
 
   /* USER CODE END Callback 1 */
 }

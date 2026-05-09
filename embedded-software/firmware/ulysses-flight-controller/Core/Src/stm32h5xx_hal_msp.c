@@ -35,6 +35,10 @@ extern DMA_HandleTypeDef handle_GPDMA1_Channel3;
 
 extern DMA_HandleTypeDef handle_GPDMA1_Channel2;
 
+extern DMA_HandleTypeDef handle_GPDMA2_Channel7;
+
+extern DMA_HandleTypeDef handle_GPDMA2_Channel6;
+
 extern DMA_HandleTypeDef handle_GPDMA2_Channel5;
 
 extern DMA_HandleTypeDef handle_GPDMA2_Channel4;
@@ -660,6 +664,62 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* htim_base)
     /* USER CODE END TIM2_MspInit 0 */
     /* Peripheral clock enable */
     __HAL_RCC_TIM2_CLK_ENABLE();
+
+    /* TIM2 DMA Init */
+    /* GPDMA2_REQUEST_TIM2_CH4 Init */
+    handle_GPDMA2_Channel7.Instance = GPDMA2_Channel7;
+    handle_GPDMA2_Channel7.Init.Request = GPDMA2_REQUEST_TIM2_CH4;
+    handle_GPDMA2_Channel7.Init.BlkHWRequest = DMA_BREQ_SINGLE_BURST;
+    handle_GPDMA2_Channel7.Init.Direction = DMA_MEMORY_TO_PERIPH;
+    handle_GPDMA2_Channel7.Init.SrcInc = DMA_SINC_INCREMENTED;
+    handle_GPDMA2_Channel7.Init.DestInc = DMA_DINC_FIXED;
+    handle_GPDMA2_Channel7.Init.SrcDataWidth = DMA_SRC_DATAWIDTH_WORD;
+    handle_GPDMA2_Channel7.Init.DestDataWidth = DMA_DEST_DATAWIDTH_WORD;
+    handle_GPDMA2_Channel7.Init.Priority = DMA_LOW_PRIORITY_LOW_WEIGHT;
+    handle_GPDMA2_Channel7.Init.SrcBurstLength = 1;
+    handle_GPDMA2_Channel7.Init.DestBurstLength = 1;
+    handle_GPDMA2_Channel7.Init.TransferAllocatedPort = DMA_SRC_ALLOCATED_PORT0|DMA_DEST_ALLOCATED_PORT0;
+    handle_GPDMA2_Channel7.Init.TransferEventMode = DMA_TCEM_BLOCK_TRANSFER;
+    handle_GPDMA2_Channel7.Init.Mode = DMA_NORMAL;
+    if (HAL_DMA_Init(&handle_GPDMA2_Channel7) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+    __HAL_LINKDMA(htim_base, hdma[TIM_DMA_ID_CC4], handle_GPDMA2_Channel7);
+
+    if (HAL_DMA_ConfigChannelAttributes(&handle_GPDMA2_Channel7, DMA_CHANNEL_NPRIV) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+    /* GPDMA2_REQUEST_TIM2_CH2 Init */
+    handle_GPDMA2_Channel6.Instance = GPDMA2_Channel6;
+    handle_GPDMA2_Channel6.Init.Request = GPDMA2_REQUEST_TIM2_CH2;
+    handle_GPDMA2_Channel6.Init.BlkHWRequest = DMA_BREQ_SINGLE_BURST;
+    handle_GPDMA2_Channel6.Init.Direction = DMA_MEMORY_TO_PERIPH;
+    handle_GPDMA2_Channel6.Init.SrcInc = DMA_SINC_INCREMENTED;
+    handle_GPDMA2_Channel6.Init.DestInc = DMA_DINC_FIXED;
+    handle_GPDMA2_Channel6.Init.SrcDataWidth = DMA_SRC_DATAWIDTH_WORD;
+    handle_GPDMA2_Channel6.Init.DestDataWidth = DMA_DEST_DATAWIDTH_WORD;
+    handle_GPDMA2_Channel6.Init.Priority = DMA_LOW_PRIORITY_LOW_WEIGHT;
+    handle_GPDMA2_Channel6.Init.SrcBurstLength = 1;
+    handle_GPDMA2_Channel6.Init.DestBurstLength = 1;
+    handle_GPDMA2_Channel6.Init.TransferAllocatedPort = DMA_SRC_ALLOCATED_PORT0|DMA_DEST_ALLOCATED_PORT0;
+    handle_GPDMA2_Channel6.Init.TransferEventMode = DMA_TCEM_BLOCK_TRANSFER;
+    handle_GPDMA2_Channel6.Init.Mode = DMA_NORMAL;
+    if (HAL_DMA_Init(&handle_GPDMA2_Channel6) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+    __HAL_LINKDMA(htim_base, hdma[TIM_DMA_ID_CC2], handle_GPDMA2_Channel6);
+
+    if (HAL_DMA_ConfigChannelAttributes(&handle_GPDMA2_Channel6, DMA_CHANNEL_NPRIV) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
     /* USER CODE BEGIN TIM2_MspInit 1 */
 
     /* USER CODE END TIM2_MspInit 1 */
@@ -786,6 +846,10 @@ void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef* htim_base)
     /* USER CODE END TIM2_MspDeInit 0 */
     /* Peripheral clock disable */
     __HAL_RCC_TIM2_CLK_DISABLE();
+
+    /* TIM2 DMA DeInit */
+    HAL_DMA_DeInit(htim_base->hdma[TIM_DMA_ID_CC4]);
+    HAL_DMA_DeInit(htim_base->hdma[TIM_DMA_ID_CC2]);
     /* USER CODE BEGIN TIM2_MspDeInit 1 */
 
     /* USER CODE END TIM2_MspDeInit 1 */

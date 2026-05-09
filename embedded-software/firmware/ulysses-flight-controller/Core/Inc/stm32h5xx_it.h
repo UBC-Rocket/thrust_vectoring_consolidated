@@ -81,6 +81,8 @@ void GPDMA2_Channel2_IRQHandler(void);
 void GPDMA2_Channel3_IRQHandler(void);
 void GPDMA2_Channel4_IRQHandler(void);
 void GPDMA2_Channel5_IRQHandler(void);
+void GPDMA2_Channel6_IRQHandler(void);
+void GPDMA2_Channel7_IRQHandler(void);
 /* USER CODE BEGIN EFP */
 
 /* USER CODE END EFP */
