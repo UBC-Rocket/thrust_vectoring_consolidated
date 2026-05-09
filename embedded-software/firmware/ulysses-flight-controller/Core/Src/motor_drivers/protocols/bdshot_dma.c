@@ -322,7 +322,6 @@ static void dma_xfer_complete_callback(DMA_HandleTypeDef *const dma)
             motor->telemetry = telemetry;
         }
 
-        __HAL_TIM_DISABLE_OCxPRELOAD(tim, tim_channel);
         bdshot_switch_to_tx(motor);
 
         motor->direction = BDSHOT_DMA_DIRECTION_OUTPUT;
