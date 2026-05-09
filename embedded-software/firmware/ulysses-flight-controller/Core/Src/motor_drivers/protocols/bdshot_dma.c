@@ -12,6 +12,8 @@
 #include <stdint.h>
 #include <string.h>
 
+#define DEBUG_RESET_PIN_ON_TIMER_SWITCH (false)
+
 typedef enum bdshot_dma_direction {
     BDSHOT_DMA_DIRECTION_OUTPUT,
     BDSHOT_DMA_DIRECTION_INPUT,
@@ -220,10 +222,12 @@ static void bdshot_switch_to_rx(bdshot_dma_motor_t *motor)
         alternate_function = LL_GPIO_GetAFPin_8_15(gpio, ll_gpio_pin);
     }
 
+#if DEBUG_RESET_PIN_ON_TIMER_SWITCH
     LL_GPIO_SetPinMode(gpio, ll_gpio_pin, LL_GPIO_MODE_OUTPUT);
     LL_GPIO_SetPinSpeed(gpio, ll_gpio_pin, LL_GPIO_SPEED_FREQ_LOW);
     LL_GPIO_SetPinPull(gpio, ll_gpio_pin, LL_GPIO_PULL_NO);
     LL_GPIO_SetPinOutputType(gpio, ll_gpio_pin, LL_GPIO_OUTPUT_PUSHPULL);
+#endif
 
     TIM_CCxChannelCmd(tim->Instance, tim_channel, TIM_CCx_DISABLE);
 
@@ -233,6 +237,7 @@ static void bdshot_switch_to_rx(bdshot_dma_motor_t *motor)
 
     TIM_CCxChannelCmd(tim->Instance, tim_channel, TIM_CCx_ENABLE);
 
+#if DEBUG_RESET_PIN_ON_TIMER_SWITCH
     LL_GPIO_SetPinMode(gpio, ll_gpio_pin, LL_GPIO_MODE_ALTERNATE);
 
     if (ll_tim_channel <= LL_GPIO_PIN_7) {
@@ -240,6 +245,7 @@ static void bdshot_switch_to_rx(bdshot_dma_motor_t *motor)
     } else {
         LL_GPIO_SetAFPin_8_15(gpio, ll_gpio_pin, alternate_function);
     }
+#endif
 
     // TODO: replace direct register access with LL
     dma->Instance->CTR1 &= ~(DMA_CTR1_SINC | DMA_CTR1_DINC);
@@ -310,7 +316,7 @@ static void dma_xfer_complete_callback(DMA_HandleTypeDef *const dma)
         tim_channel_dma_set_enable(tim, tim_channel, true);
 
         motor->direction = BDSHOT_DMA_DIRECTION_INPUT;
-    } else {
+        } else {
         tim_channel_dma_set_enable(tim, tim_channel, false);
 
         bdshot_motor_telemetry_t telemetry;
