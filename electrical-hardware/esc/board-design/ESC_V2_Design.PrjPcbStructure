@@ -1,0 +1,5 @@
+Record=TopLevelDocument|FileName=Root.SchDoc|SheetNumber=1
+Record=SheetSymbol|SourceDocument=Root.SchDoc|Designator=U_BEMF|SchDesignator=U_BEMF|FileName=BEMF.SchDoc|SheetNumber=5|SymbolType=Normal|RawFileName=BEMF.SchDoc|DesignItemId= |SourceLibraryName= |ObjectKind=Sheet Symbol|RevisionGUID= |ItemGUID= |VaultGUID= 
+Record=SheetSymbol|SourceDocument=Root.SchDoc|Designator=U_MCU|SchDesignator=U_MCU|FileName=MCU.SchDoc|SheetNumber=2|SymbolType=Normal|RawFileName=MCU.SchDoc|DesignItemId= |SourceLibraryName= |ObjectKind=Sheet Symbol|RevisionGUID= |ItemGUID= |VaultGUID= 
+Record=SheetSymbol|SourceDocument=Root.SchDoc|Designator=U_Motor_Driver|SchDesignator=U_Motor_Driver|FileName=Motor_Driver.SchDoc|SheetNumber=3|SymbolType=Normal|RawFileName=Motor_Driver.SchDoc|DesignItemId= |SourceLibraryName= |ObjectKind=Sheet Symbol|RevisionGUID= |ItemGUID= |VaultGUID= 
+Record=SheetSymbol|SourceDocument=Root.SchDoc|Designator=U_Power_V2|SchDesignator=U_Power_V2|FileName=Power_V2.SchDoc|SheetNumber=4|SymbolType=Normal|RawFileName=Power_V2.SchDoc|DesignItemId= |SourceLibraryName= |ObjectKind=Sheet Symbol|RevisionGUID= |ItemGUID= |VaultGUID= 
