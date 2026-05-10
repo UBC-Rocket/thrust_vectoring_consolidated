@@ -72,8 +72,9 @@ static bool parse_line(const char *buf, uint16_t len, uwb_measurement_t *out)
         if ((p[0] != 'A') || (p[1] != 'N')) { p++; continue; }
         p += 2U;
 
-        /* Skip anchor-index digit(s) */
-        while ((p < end) && (*p >= '0') && (*p <= '9')) { p++; }
+        /* Parse anchor index digit(s) and record the ID */
+        int32_t anchor_id = parse_decimal(&p, end);
+        if (anchor_id < 0) break;
 
         /* Expect ':' */
         if ((p >= end) || (*p != ':')) break;
@@ -88,7 +89,8 @@ static bool parse_line(const char *buf, uint16_t len, uwb_measurement_t *out)
             return false;
         }
 
-        out->distance_m[count++] = (float)val * 0.01f;
+        out->anchor_ids[count]    = (uint8_t)anchor_id;
+        out->distance_m[count++]  = (float)val * 0.01f;
 
         /* Skip ',' separator */
         if ((p < end) && (*p == ',')) { p++; }

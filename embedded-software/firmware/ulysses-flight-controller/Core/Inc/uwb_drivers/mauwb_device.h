@@ -44,10 +44,15 @@ typedef struct {
  * @brief One complete UWB ranging measurement, produced once per '\n'.
  *
  * The MaUWB TAG outputs:  AN0:DDDD,AN1:DDDD,...\r\n  (values in centimetres).
- * distance_m[i] holds the converted metre value; anchor_count valid entries.
+ * distance_m[i] and anchor_ids[i] are paired: anchor_ids[i] is the anchor ID
+ * from the line (e.g. 1 for "AN1:"), and distance_m[i] is its distance in
+ * metres. anchor_count valid entries. Anchors that did not respond are absent
+ * from the line entirely, so anchor_ids must be used to match distances to
+ * known anchor positions rather than assuming index == ID.
  */
 typedef struct {
     float    distance_m[UWB_MAX_ANCHORS]; /**< Distance to each anchor (m)     */
+    uint8_t  anchor_ids[UWB_MAX_ANCHORS]; /**< Anchor ID for each distance      */
     uint8_t  anchor_count;                /**< Number of valid entries          */
     uint32_t timestamp_ms;                /**< HAL_GetTick() at parse time      */
 } uwb_measurement_t;
