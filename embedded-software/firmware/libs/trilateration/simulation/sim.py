@@ -11,14 +11,14 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Iterable, Sequence
 
-
+# some bullshit type guarentee bullshit
 def _coerce_vec3(values: Sequence[float]) -> tuple[float, float, float]:
     if len(values) != 3:
         raise ValueError(f"Expected 3 values, got {len(values)}")
 
     return (float(values[0]), float(values[1]), float(values[2]))
 
-
+# no error introducecs
 def _distance_between(a: Sequence[float], b: Sequence[float]) -> float:
     return math.sqrt(
         (a[0] - b[0]) ** 2 +
@@ -26,21 +26,44 @@ def _distance_between(a: Sequence[float], b: Sequence[float]) -> float:
         (a[2] - b[2]) ** 2
     )
 
-
+# represents a tag with a position and a recorded distance to the rocket
 class Tag:
     pos: tuple[float, float, float]
-    distance: float | None = None
 
     def __init__(self, pos: Sequence[float], distance: float | None = None, errorFunction=(lambda: 0)):
         self.truePos = pos
-        self.pos = (pos[0] + errorFunction(), pos[1] + errorFunction(), pos[2] + errorFunction())
+        self.pos = (pos[0], pos[1], pos[2])
+        self.errorFunction = errorFunction
 
         if distance is not None:
             distance = float(distance)
         self.distance = distance
         
     def set_error_function(self, errorFunction):
-        self.pos = (self.pos[0] + errorFunction(), self.pos[1] + errorFunction(), self.pos[2] + errorFunction())
+        self.errorFunction = errorFunction
+
+    def get_position(self) -> tuple[float, float, float]:
+        return self.pos
+    
+    def get_distance(
+        self,
+        comparison: Sequence[float] | None = None,
+        distance_function=_distance_between,
+    ) -> float:
+        if self.distance is not None:
+            return self.distance
+
+        if comparison is None:
+            raise ValueError("A comparison position is required when no distance is set.")
+
+        noisy_pos = (
+            self.pos[0] + self.errorFunction(),
+            self.pos[1] + self.errorFunction(),
+            self.pos[2] + self.errorFunction(),
+        )
+
+        return distance_function(noisy_pos, comparison)
+        
 
 
 
@@ -139,15 +162,12 @@ def _load_solver():
 
 
 def _resolve_tag_distance(tag: Tag, sim: Simulation) -> float:
-    if tag.distance is not None:
-        return tag.distance
-
-    if sim.target_pos is None:
+    try:
+        return tag.get_distance(sim.target_pos, sim.distance_function)
+    except ValueError as exc:
         raise ValueError(
             "Each tag needs a distance, or Simulation.target_pos must be set."
-        )
-
-    return sim.distance_function(tag.truePos, sim.target_pos)
+        ) from exc
 
 
 def run_c_code(sim: Simulation) -> tuple[float, float, float]:
@@ -158,7 +178,7 @@ def run_c_code(sim: Simulation) -> tuple[float, float, float]:
     for index, tag in enumerate(sim.tags):
         distance = _resolve_tag_distance(tag, sim)
         c_tags[index] = _CTag(
-            (ctypes.c_float * 3)(*tag.pos),
+            (ctypes.c_float * 3)(*tag.get_position()),
             ctypes.c_float(distance),
         )
 
@@ -170,13 +190,6 @@ def run_c_code(sim: Simulation) -> tuple[float, float, float]:
         )
 
     return tuple(float(output_pos[axis]) for axis in range(3))
-
-def wrong_distance_function(a: Sequence[float], b: Sequence[float]) -> float:
-    return math.sqrt(
-        (a[0] - b[0]) ** 2 +
-        (a[1] - b[1]) ** 2 +
-        (a[2] - b[2]) ** 2
-    )
 
 if __name__ == "__main__":
 
@@ -205,8 +218,8 @@ if __name__ == "__main__":
             Tag((0.0, 0.0, 14.0)),
         ],
         target_pos=(1.0, 1.0, 1.0),
-        distance_function=wrong_distance_function,
-        error_function=(lambda: random.uniform(-10, 10))
+        distance_function=_distance_between,
+        error_function=(lambda: random.uniform(-0.1, 0.1))
     )
 
     print("Off estimated position:", run_c_code(sim))
