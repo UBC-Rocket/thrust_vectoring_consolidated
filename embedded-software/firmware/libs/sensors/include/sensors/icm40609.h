@@ -88,7 +88,7 @@
 
 #define ICM40609_SAMPLE_Q_SIZE      32
 
-/* INTF_CONFIG0 (0x4C). Per DS-000330 §14.15:
+/* INTF_CONFIG0 (0x4C). Per DS-000330 §13.27:
  *   bit 7: FIFO_HOLD_LAST_DATA_EN     (0 = empty on read out, default)
  *   bit 6: FIFO_COUNT_REC             (0 = bytes, 1 = records)
  *   bit 5: FIFO_COUNT_ENDIAN          (1 = big-endian)
@@ -103,6 +103,21 @@
 #define ICM40609_INTF_CONFIG0_COUNT_BIG_ENDIAN  (1u << 5)
 #define ICM40609_INTF_CONFIG0_COUNT_RECORDS     (1u << 6)
 #define ICM40609_INTF_CONFIG0_DEFAULT           0x30
+
+/* INT_CONFIG1 (0x64). Per DS-000330 §13.42:
+ *   bit 6: INT_TPULSE_DURATION    (0 = 100us for ODR<4kHz, default; 1 = 8us)
+ *   bit 5: INT_TDEASSERT_DISABLE  (0 = 100us min de-assert; 1 = disabled;
+ *                                  required for ODR>=4kHz)
+ *   bit 4: INT_ASYNC_RESET        (MUST be cleared from default 1 to 0 for
+ *                                  proper INT pin operation — InvenSense
+ *                                  erratum shared across ICM-426xx/40609)
+ *   bits 3:0: Reserved
+ *
+ * ICM40609_INT_CONFIG1_DEFAULT (0x00) clears INT_ASYNC_RESET and leaves the
+ * pulse/de-assert fields at their use-case defaults; correct for ODR<4kHz.
+ * For ODR>=4kHz use ICM40609_INT_CONFIG1_HIGH_ODR (0x60). */
+#define ICM40609_INT_CONFIG1_DEFAULT            0x00
+#define ICM40609_INT_CONFIG1_HIGH_ODR           0x60
 
 /* INT_STATUS register bit masks */
 #define ICM40609_INT_STATUS_DATA_RDY    (1u << 3)
@@ -405,17 +420,37 @@ size_t icm40609_build_drive_config(uint8_t spi_slew_rate, uint8_t *tx_buf);
 size_t icm40609_build_intf_config1(uint8_t clksel, uint8_t *tx_buf);
 
 /**
- * @brief Build command to configure INTF_CONFIG0 (endianness, INT mode).
+ * @brief Build command to configure INTF_CONFIG0 (endianness, FIFO format).
  *
  * Writes @p value verbatim. Pass @c ICM40609_INTF_CONFIG0_DEFAULT to keep
- * the documented defaults (big-endian, 100µs INT pulse) that the parsers
- * in this driver depend on.
+ * the documented defaults (big-endian sensor data, big-endian FIFO count,
+ * FIFO count in bytes) that the parsers in this driver depend on.
+ *
+ * Note: this register does NOT control INT pulse duration — that lives in
+ * INT_CONFIG1; see icm40609_build_int_config1().
  *
  * @param value Raw register value to write.
  * @param[out] tx_buf Buffer for SPI command.
  * @return Number of bytes to send.
  */
 size_t icm40609_build_intf_config0(uint8_t value, uint8_t *tx_buf);
+
+/**
+ * @brief Build command to configure INT_CONFIG1 (INT pulse / de-assert / async reset).
+ *
+ * This register MUST be written during init: per DS-000330 §13.42 the reset
+ * value has INT_ASYNC_RESET = 1, which the datasheet explicitly says must
+ * be cleared for proper INT pin operation (the InvenSense ICM-426xx/40609
+ * "INT lines don't work out of reset" erratum).
+ *
+ * Pass @c ICM40609_INT_CONFIG1_DEFAULT (0x00) for any ODR < 4 kHz, or
+ * @c ICM40609_INT_CONFIG1_HIGH_ODR (0x60) for ODR >= 4 kHz.
+ *
+ * @param value Raw register value to write.
+ * @param[out] tx_buf Buffer for SPI command.
+ * @return Number of bytes to send.
+ */
+size_t icm40609_build_int_config1(uint8_t value, uint8_t *tx_buf);
 
 /**
  * @brief Build burst read command for temp + accel + gyro data registers.

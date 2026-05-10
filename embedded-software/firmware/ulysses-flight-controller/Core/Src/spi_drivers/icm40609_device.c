@@ -67,6 +67,7 @@ static HAL_StatusTypeDef icm40609_spi_read(SPI_HandleTypeDef *hspi,
  *   8  - INT_CONFIG readback mismatch
  *   9  - INT_SOURCE0 readback mismatch
  *  10  - NULL pointer argument
+ *  11  - INT_CONFIG1 readback mismatch (INT_ASYNC_RESET not cleared)
  */
 
 #define ICM40609_CHECK_SPI(st) do { if ((st) != HAL_OK) return 5; } while (0)
@@ -109,7 +110,7 @@ uint8_t icm40609_init_with_config(SPI_HandleTypeDef *hspi,
     ICM40609_CHECK_SPI(st);
     if (rx[1] != ICM40609_WHO_AM_I_VALUE) return 1;
 
-    /* --- 5. Lock the parser-side assumptions: big-endian + 100us INT pulse --- */
+    /* --- 5. Lock parser-side assumptions: big-endian sensor data + byte FIFO count --- */
     n = icm40609_build_intf_config0(ICM40609_INTF_CONFIG0_DEFAULT, tx);
     st = icm40609_spi_write(hspi, cs_port, cs_pin, tx, n);
     ICM40609_CHECK_SPI(st);
@@ -120,6 +121,38 @@ uint8_t icm40609_init_with_config(SPI_HandleTypeDef *hspi,
     st = icm40609_spi_write(hspi, cs_port, cs_pin, tx, n);
     ICM40609_CHECK_SPI(st);
     delay_us(100);
+
+    /* --- 6a. INT_CONFIG1: clear INT_ASYNC_RESET (reset value 0x10) ---
+     * DS-000330 §13.42 explicitly requires bit 4 to be cleared from its
+     * reset value of 1 for proper INT1/INT2 pin operation. Done before
+     * INT_CONFIG / INT_SOURCE0 so the routing config below latches into
+     * a properly-initialized INT block.
+     *
+     * Pulse/de-assert mode depends on ODR: at ODR >= 4 kHz the 100µs
+     * defaults exceed the sample interval and would jam the interrupt
+     * line, so we switch to 8µs pulse + de-assert disabled (§13.42). */
+    {
+        const bool high_odr = (config->accel_odr == ICM40609_ODR_32KHZ
+                            || config->accel_odr == ICM40609_ODR_16KHZ
+                            || config->accel_odr == ICM40609_ODR_8KHZ
+                            || config->accel_odr == ICM40609_ODR_4KHZ
+                            || config->gyro_odr  == ICM40609_ODR_32KHZ
+                            || config->gyro_odr  == ICM40609_ODR_16KHZ
+                            || config->gyro_odr  == ICM40609_ODR_8KHZ
+                            || config->gyro_odr  == ICM40609_ODR_4KHZ);
+        const uint8_t int_cfg1_val = high_odr ? ICM40609_INT_CONFIG1_HIGH_ODR
+                                              : ICM40609_INT_CONFIG1_DEFAULT;
+        n = icm40609_build_int_config1(int_cfg1_val, tx);
+        st = icm40609_spi_write(hspi, cs_port, cs_pin, tx, n);
+        ICM40609_CHECK_SPI(st);
+        delay_us(100);
+
+        n = icm40609_build_read_reg(ICM40609_REG_INT_CONFIG1, tx);
+        st = icm40609_spi_read(hspi, cs_port, cs_pin, tx, rx, n);
+        ICM40609_CHECK_SPI(st);
+        /* Verify the three driver-controlled bits (6:4); reserved bits are masked. */
+        if ((rx[1] & 0x70) != (int_cfg1_val & 0x70)) return 11;
+    }
 
     /* --- 7. Configure accelerometer FSR and ODR, then verify --- */
     uint8_t accel_cfg_expected = ((uint8_t)(config->accel_fs & 0x07) << 5)
@@ -299,5 +332,7 @@ void icm40609_data_ready_interrupt(void)
     job.sensor   = SENSOR_ID_ACCEL;
     job.task_notification_flag = ICM40609_SAMPLE_FLAG;
 
-    spi_submit_job(job, &jobq_spi_2);
+    /* New board wiring: ICM-40609 lives on SPI3, separate from the legacy
+     * BMI088 IMU on SPI2. */
+    spi_submit_job(job, &jobq_spi_3);
 }

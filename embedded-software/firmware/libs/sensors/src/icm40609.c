@@ -199,7 +199,7 @@ size_t icm40609_build_int_config(icm40609_int_polarity_t int1_polarity,
                                   uint8_t *tx_buf)
 {
     /*
-     * INT_CONFIG (0x14), reset value 0x00 per DS-000330 §14.2.
+     * INT_CONFIG (0x14), reset value 0x00 per DS-000330 §13.3.
      *   bit 5: INT2_MODE
      *   bit 4: INT2_DRIVE_CIRCUIT
      *   bit 3: INT2_POLARITY
@@ -272,7 +272,7 @@ size_t icm40609_build_drive_config(uint8_t spi_slew_rate, uint8_t *tx_buf)
 size_t icm40609_build_intf_config1(uint8_t clksel, uint8_t *tx_buf)
 {
     /*
-     * INTF_CONFIG1 (0x4D), reset value 0x91 per DS-000330 §14.16:
+     * INTF_CONFIG1 (0x4D), reset value 0x91 per DS-000330 §13.28:
      *   bits 7:6: EN_TEST_MODE (must be 01 for normal operation)
      *   bits 5:4: Reserved (reset value: 01 — preserve)
      *   bit  3:   ACCEL_LP_CLK_SEL (0 = Wake Up oscillator, default)
@@ -292,12 +292,12 @@ size_t icm40609_build_intf_config1(uint8_t clksel, uint8_t *tx_buf)
 }
 
 /* -------------------------------------------------------------------------- */
-/* Interface configuration (endianness, INT pulse mode)                       */
+/* Interface configuration (endianness, FIFO format)                          */
 /* -------------------------------------------------------------------------- */
 size_t icm40609_build_intf_config0(uint8_t value, uint8_t *tx_buf)
 {
     /*
-     * INTF_CONFIG0 (0x4C), reset value 0x30 per DS-000330 §14.15.
+     * INTF_CONFIG0 (0x4C), reset value 0x30 per DS-000330 §13.27.
      *   bit 7: FIFO_HOLD_LAST_DATA_EN
      *   bit 6: FIFO_COUNT_REC      (0 = bytes, 1 = records)
      *   bit 5: FIFO_COUNT_ENDIAN   (1 = big-endian)
@@ -311,8 +311,37 @@ size_t icm40609_build_intf_config0(uint8_t value, uint8_t *tx_buf)
      *   - FIFO count in bytes           (bit 6 = 0)
      * Callers should pass ICM40609_INTF_CONFIG0_DEFAULT (0x30) unless they
      * really mean to deviate from any of those.
+     *
+     * INT pulse duration lives in INT_CONFIG1, not here — see
+     * icm40609_build_int_config1().
      */
     tx_buf[0] = SPI_WR(ICM40609_REG_INTF_CONFIG0);
+    tx_buf[1] = value;
+    return 2;
+}
+
+/* -------------------------------------------------------------------------- */
+/* INT_CONFIG1 (INT pulse / de-assert / async reset)                          */
+/* -------------------------------------------------------------------------- */
+size_t icm40609_build_int_config1(uint8_t value, uint8_t *tx_buf)
+{
+    /*
+     * INT_CONFIG1 (0x64), reset value 0x10 per DS-000330 §13.42.
+     *   bit 7:   Reserved
+     *   bit 6:   INT_TPULSE_DURATION   (0 = 100µs for ODR<4kHz, default;
+     *                                   1 = 8µs, required for ODR>=4kHz)
+     *   bit 5:   INT_TDEASSERT_DISABLE (0 = 100µs min de-assert, default;
+     *                                   1 = disabled, required for ODR>=4kHz)
+     *   bit 4:   INT_ASYNC_RESET       (reset = 1; per the datasheet, "User
+     *                                   should change setting to 0 from
+     *                                   default setting of 1, for proper
+     *                                   INT1 and INT2 pin operation")
+     *   bits 3:0: Reserved
+     *
+     * Pass ICM40609_INT_CONFIG1_DEFAULT (0x00) for ODR < 4 kHz, or
+     * ICM40609_INT_CONFIG1_HIGH_ODR (0x60) for ODR >= 4 kHz.
+     */
+    tx_buf[0] = SPI_WR(ICM40609_REG_INT_CONFIG1);
     tx_buf[1] = value;
     return 2;
 }
