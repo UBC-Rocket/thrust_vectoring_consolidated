@@ -18,6 +18,7 @@
 // change to whatever you want the EKF yaw to output
 // RADIANS
 #define FIXED_YAW 0.0f
+#define FIX_YAW false
 
 /* ========================================================================
  * Helpers
@@ -670,7 +671,7 @@ void eskf_get_state(const eskf_t *eskf, float quat[4], float pos[3],
                     float vel[3])
 {
     memcpy(quat, eskf->orientation.q_nom, sizeof(float) * 4);
-    set_quat_yaw(quat, FIXED_YAW);
+    if (FIX_YAW) set_quat_yaw(quat, FIXED_YAW);
     memcpy(pos, eskf->body.position, sizeof(float) * 3);
     memcpy(vel, eskf->body.velocity, sizeof(float) * 3);
 }

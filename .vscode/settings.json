@@ -1,0 +1,12 @@
+{
+  // Mirror firmware workspace defaults when opening repo root.
+  "cmake.sourceDirectory": "${workspaceFolder}/embedded-software/firmware/ulysses-flight-controller",
+  "cmake.useCMakePresets": "always",
+
+  // Keep IntelliSense in sync with the active CMake configuration.
+  "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+  // Fallback when configuration provider has not initialized yet.
+  "C_Cpp.default.compileCommands": "${workspaceFolder}/embedded-software/firmware/ulysses-flight-controller/build/debug/compile_commands.json",
+
+  "cortex-debug.variableUseNaturalFormat": true
+}
