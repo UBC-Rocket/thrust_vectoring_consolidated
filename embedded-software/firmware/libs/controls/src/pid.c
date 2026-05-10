@@ -74,7 +74,7 @@ float pid_compute(pid_controller_t *pid,
   integral = pid->ki * pid->integral_sum;
 
   /* --- DERIVATIVE TERM --- */
-  derivative = pid->kd * v_err;
+  derivative = -pid->kd * (measurement - pid->prev_measurement) / dt;
 
   /* Store current measurement for next iteration */
   pid->prev_measurement = measurement;
@@ -92,8 +92,8 @@ float pid_compute(pid_controller_t *pid,
 float pid_compute_pv(pid_controller_t *pid,
     float x_ref,
     float v_ref,
-    float x,
-    float v,
+    float x_meas,
+    float v_meas,
     float dt) 
 {
   float x_err, v_err;
@@ -106,8 +106,8 @@ float pid_compute_pv(pid_controller_t *pid,
   pid->dt = dt;
 
   /* Calculate error: how far we are from desired setpoint */
-  x_err = x_ref - x;
-  v_err = v_ref - v;
+  x_err = x_ref - x_meas;
+  v_err = v_ref - v_meas;
 
   /* --- PROPORTIONAL TERM --- */
   /* Responds immediately to current error */
@@ -131,10 +131,10 @@ float pid_compute_pv(pid_controller_t *pid,
   /* When setpoint changes suddenly, derivative of error would spike */
   /* Using derivative of measurement avoids this problem */
   /* Note: Negative sign because we want to oppose rapid changes in measurement */
-  derivative = -pid->kd * (measurement - pid->prev_measurement) / dt;
+  derivative = pid->kd * v_err;
 
   /* Store current measurement for next iteration */
-  pid->prev_measurement = measurement;
+  pid->prev_measurement = x_meas;
 
   /* --- COMPUTE OUTPUT --- */
   /* Combine all three terms */

@@ -5,6 +5,7 @@
 #include <math.h>
 #include <float.h>
 #include <string.h>
+#include <stdbool.h>
 
 #define AXIS_ERR_EPSILON 1e-9f
 
@@ -98,6 +99,7 @@ static void decompose_torque(const float torque_cmd[3],
         TORQUE_THRUST_MIN,
         TORQUE_THRUST_MAX);
 
+    float torque_thrust[3];
     torque_thrust[0] = *torque_thrust_mag * thrust_dir[0];
     torque_thrust[1] = *torque_thrust_mag * thrust_dir[1];
     torque_thrust[2] = *torque_thrust_mag * thrust_dir[2];
@@ -123,13 +125,11 @@ static void compute_thrust_dir(const flight_controller_gimbal_config_t* gcfg,
     // parallel torque
     float thrust_z = sqrtf(thrust_mag * thrust_mag - thrust_perp_mag * thrust_perp_mag);
 
-    float thrust_mag = sqrtf(thrust_x * thrust_x + thrust_y * thrust_y + thrust_z * thrust_z);
+    float total_thrust_mag = sqrtf(thrust_x * thrust_x + thrust_y * thrust_y + thrust_z * thrust_z);
     
-    *new_thrust_dir = {
-        thrust_x / thrust_mag,
-        thrust_y / thrust_mag,
-        thrust_z / thrust_mag
-    };
+    new_thrust_dir[0] = thrust_x / total_thrust_mag;
+    new_thrust_dir[1] = thrust_y / total_thrust_mag;
+    new_thrust_dir[2] = thrust_z / total_thrust_mag;
 }
 
 // Equation 5: Compute gimbal angles from thrust direction
@@ -167,7 +167,7 @@ static void update_thrust_pid(const flight_controller_thrust_config_t* tcfg,
                               const float dt_s, 
                               float* T_cmd)
 {
-    a_z_cmd = clamp_float(
+    float a_z_cmd = clamp_float(
         pid_compute_pv(&s_z_pid, z_ref, vz_ref, z_meas, vz_meas, dt_s), 
         tcfg->a_z_min, tcfg->a_z_max);
 
@@ -234,7 +234,7 @@ void flight_controller_run(const state_t *state,
     const flight_controller_gimbal_config_t *gcfg = &config->gimbal;
 
     float phi[3];
-    compute_axis_angle_err(&ref->attitude, &state->attitude, phi);
+    compute_axis_angle_err(&ref->q_ref, &state->q_bn, phi);
 
     float torque_cmd[3];
     update_torque_pid(phi, dt_s, torque_cmd);
