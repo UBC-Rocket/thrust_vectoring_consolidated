@@ -89,7 +89,7 @@ float pid_compute(pid_controller_t *pid,
   return output;
 }
 
-float pid_compute(pid_controller_t *pid,
+float pid_compute_pv(pid_controller_t *pid,
     float x_ref,
     float v_ref,
     float x,

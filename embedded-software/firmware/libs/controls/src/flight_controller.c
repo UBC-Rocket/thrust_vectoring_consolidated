@@ -23,7 +23,6 @@
 static pid_controller_t s_torque_x_pid;
 static pid_controller_t s_torque_y_pid;
 static pid_controller_t s_torque_z_pid;
-
 static pid_controller_t s_z_pid;
 
 static bool s_is_initialized = false;
@@ -88,8 +87,11 @@ static void update_torque_pid(const float phi[3],
     torque_cmd[2] = pid_compute(&s_torque_z_pid, PHI_SETPOINT_Z, phi[2], dt_s);
 }
 
-// Equation 3: Torque Decomposiition into Thrust and Gimbal Commands
-static void decompose_torque(const float torque_cmd[3], const float thrust_dir[3], float torque_gimbal[3], float* torque_thrust_mag)
+// Equation 3: Torque Decomposition into Thrust and Gimbal Commands
+static void decompose_torque(const float torque_cmd[3], 
+                             const float thrust_dir[3], 
+                             float torque_gimbal[3], 
+                             float* torque_thrust_mag)
 {
     *torque_thrust_mag = clamp_float(
         vec3_dot(torque_cmd, thrust_dir),
@@ -105,29 +107,38 @@ static void decompose_torque(const float torque_cmd[3], const float thrust_dir[3
     torque_gimbal[2] = torque_cmd[2] - torque_thrust[2];
 }
 
-static void compute_thrust_dir(const flight_controller_gimbal_config_t* gcfg, const float torque_cmd[3], const float thrust_dir[3], const float thrust_mag, float new_thrust_dir[3]) 
+// Equation 4: Compute new thrust direction from gimbal torque commands
+static void compute_thrust_dir(const flight_controller_gimbal_config_t* gcfg, 
+                               const float torque_cmd[3], 
+                               const float thrust_dir[3], 
+                               const float thrust_mag, 
+                               float new_thrust_dir[3]) 
 {
     // perpendicular torque
-    float t_x = torque_cmd[1] / gcfg->L;
-    float t_y = torque_cmd[0] / gcfg->L;
+    float thrust_x = torque_cmd[1] / gcfg->L;
+    float thrust_y = torque_cmd[0] / gcfg->L;
 
-    float t_perp_mag = sqrtf(t_perp[0] * t_perp[0] + t_perp[1] * t_perp[1]);
+    float thrust_perp_mag = sqrtf(thrust_x * thrust_x + thrust_y * thrust_y);
 
     // parallel torque
-    float t_z = sqrtf(thrust_mag * thrust_mag - t_perp_mag * t_perp_mag);
+    float thrust_z = sqrtf(thrust_mag * thrust_mag - thrust_perp_mag * thrust_perp_mag);
 
-    float t_mag = sqrtf(t_x * t_x + t_y * t_y + t_z * t_z);
+    float thrust_mag = sqrtf(thrust_x * thrust_x + thrust_y * thrust_y + thrust_z * thrust_z);
     
-    *new_thrust_dir = [
-        t_x / t_mag,
-        t_y / t_mag,
-        t_z / t_mag
-    ];
+    *new_thrust_dir = {
+        thrust_x / thrust_mag,
+        thrust_y / thrust_mag,
+        thrust_z / thrust_mag
+    };
 }
 
+// Equation 5: Compute gimbal angles from thrust direction
+// Note: this assumes small angles and that the gimbal can only generate torque in x and y (not z)
+// Angles returned in radians 
 static void compute_gimbal_angles(const flight_controller_gimbal_config_t* gcfg, 
                                   const float thrust_dir[3], 
-                                  float* theta_x_cmd, float* theta_y_cmd)
+                                  float* theta_x_cmd, 
+                                  float* theta_y_cmd)
 {
     // Compute gimbal angles from gimbal torque commands
     // *theta_x_cmd = clamp_float(
@@ -147,14 +158,17 @@ static void compute_gimbal_angles(const flight_controller_gimbal_config_t* gcfg,
         gcfg->theta_min, gcfg->theta_max);
 }
 
+// Equation 6: Compute thrust command 
 static void update_thrust_pid(const flight_controller_thrust_config_t* tcfg, 
-                              const float z_ref, const float vz_ref, 
-                              const float z_meas, const float vz_meas, 
+                              const float z_ref, 
+                              const float vz_ref, 
+                              const float z_meas, 
+                              const float vz_meas, 
                               const float dt_s, 
                               float* T_cmd)
 {
     a_z_cmd = clamp_float(
-        pid_compute_pv(&s_z_pid, z_ref, vz_ref, z_meas vz_meas, dt_s), 
+        pid_compute_pv(&s_z_pid, z_ref, vz_ref, z_meas, vz_meas, dt_s), 
         tcfg->a_z_min, tcfg->a_z_max);
 
     *T_cmd = clamp_float(
@@ -180,13 +194,13 @@ void flight_controller_init(const flight_controller_config_t *config)
     const flight_controller_attitude_config_t *acfg = &config->attitude;
     pid_init(&s_torque_x_pid,
              acfg->Kp[0][0], 0, acfg->Kd[0][0],
-             FLT_MAX, -FLT_MIN, FLT_MAX);
+             FLT_MAX, -FLT_MAX, FLT_MAX);
     pid_init(&s_torque_y_pid,
              acfg->Kp[1][1], 0, acfg->Kd[1][1],
-             FLT_MAX, -FLT_MIN, FLT_MAX);
+             FLT_MAX, -FLT_MAX, FLT_MAX);
     pid_init(&s_torque_z_pid,
              acfg->Kp[2][2], 0, acfg->Kd[2][2],
-             FLT_MAX, -FLT_MIN, FLT_MAX);
+             FLT_MAX, -FLT_MAX, FLT_MAX);
 
     s_is_initialized = true;
 
@@ -195,7 +209,7 @@ void flight_controller_init(const flight_controller_config_t *config)
     s_thrust_dir[1] = config->allocation.thrust_dir[1];
     s_thrust_dir[2] = config->allocation.thrust_dir[2];
 
-    s_thrust_dir = 0.0f;
+    s_thrust_mag = 0.0f;
 }
 
 void flight_controller_reset(void)
