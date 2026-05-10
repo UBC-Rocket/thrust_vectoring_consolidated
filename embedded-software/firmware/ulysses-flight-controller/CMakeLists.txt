@@ -92,6 +92,7 @@ set(SPI_DRIVER_SRC
 set(TVR_LIBS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../libs)
 set(FW_LIBS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../libs)
 add_subdirectory(${TVR_LIBS_DIR}/rocket-protocol ${CMAKE_BINARY_DIR}/rocket-protocol)
+add_subdirectory(${FW_LIBS_DIR}/collections ${CMAKE_BINARY_DIR}/collections)
 add_subdirectory(${FW_LIBS_DIR}/state_estimation ${CMAKE_BINARY_DIR}/state_estimation)
 add_subdirectory(${FW_LIBS_DIR}/controls ${CMAKE_BINARY_DIR}/controls)
 add_subdirectory(${FW_LIBS_DIR}/sensors ${CMAKE_BINARY_DIR}/sensors)
@@ -123,6 +124,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/trace/trace_flush_task.c
     ${DEBUG_MODULE_SRC}
     ${ALGO_SRC}
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/uwb_drivers/mauwb_device.c
 
     ${PWM_OUTPUT_SRC}
     ${SERVO_SRC}
@@ -160,6 +163,7 @@ list(REMOVE_ITEM CMAKE_C_IMPLICIT_LINK_LIBRARIES ob)
 target_link_libraries(${CMAKE_PROJECT_NAME}
     stm32cubemx
     rocket-protocol
+    collections
     state_estimation
     controls
     sensors
