@@ -1,5 +1,5 @@
 #include "controls/pwm.h"
-#include "clamp.h"
+#include "utilities/clamp.h"
 
 #include <math.h>
 

@@ -25,7 +25,7 @@
 #include "debug/log.h"
 #include "SD_logging/log_service.h"
 #include "timestamp.h"
-#include "clamp.h"
+#include "utilities/clamp.h"
 
 #define RAD_TO_DEG (180.0f / 3.14159265f)
 

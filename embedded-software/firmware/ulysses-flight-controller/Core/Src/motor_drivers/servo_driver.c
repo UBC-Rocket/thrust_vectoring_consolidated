@@ -1,5 +1,5 @@
 #include "motor_drivers/servo_driver.h"
-#include "clamp.h";
+#include "utilities/clamp.h";
 
 #include <stddef.h>
 

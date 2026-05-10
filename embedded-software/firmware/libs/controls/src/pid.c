@@ -7,7 +7,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "controls/pid.h"
-#include "clamp.h"
+#include "utilities/clamp.h"
 
 /* Exported functions --------------------------------------------------------*/
 

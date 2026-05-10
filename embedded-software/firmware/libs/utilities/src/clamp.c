@@ -1,4 +1,4 @@
-#include "clamp.h"
+#include "utilities/clamp.h"
 
 int clamp_int(int value, int min, int max) {
     if (value < min) return min;
