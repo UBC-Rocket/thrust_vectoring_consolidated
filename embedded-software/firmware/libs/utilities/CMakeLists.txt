@@ -2,8 +2,10 @@ cmake_minimum_required(VERSION 3.22)
 
 project(utilities LANGUAGES C)
 
+add_library(utilities INTERFACE)
+
 target_include_directories(utilities
-    PUBLIC
+    INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 

@@ -27,7 +27,7 @@ inline uint8_t clamp_u8(uint8_t value, uint8_t min, uint8_t max) {
     return value;
 }
 
-inline uiint16_t clamp_u16(uint16_t value, uint16_t min, uint16_t max) {
+inline uint16_t clamp_u16(uint16_t value, uint16_t min, uint16_t max) {
     if (value < min) return min;
     if (value > max) return max;
     return value;
