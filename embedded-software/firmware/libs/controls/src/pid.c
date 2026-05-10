@@ -192,20 +192,3 @@ float pid_get_integral(pid_controller_t *pid) {
   return pid->integral_sum;
 }
 
-/* Private functions ---------------------------------------------------------*/
-
-/**
- * @brief  Clamp a value between min and max
- * @param  value: Value to clamp
- * @param  min_val: Minimum allowed value
- * @param  max_val: Maximum allowed value
- * @retval Clamped value
- */
-static float clamp_float(float value, float min_val, float max_val) {
-  if (value > max_val) {
-    return max_val;
-  } else if (value < min_val) {
-    return min_val;
-  }
-  return value;
-}
