@@ -50,7 +50,7 @@ PrefsVaultGUID=
 PrefsRevisionGUID=
 
 [Document1]
-DocumentPath=Root.SchDoc
+DocumentPath=Top Level.SchDoc
 AnnotationEnabled=1
 AnnotateStartValue=1
 AnnotationIndexControlEnabled=0
@@ -67,7 +67,7 @@ GenerateClassCluster=0
 DocumentUniqueId=SOIEYGXO
 
 [Document2]
-DocumentPath=MCU.SchDoc
+DocumentPath=STM32G431CBU6.SchDoc
 AnnotationEnabled=1
 AnnotateStartValue=1
 AnnotationIndexControlEnabled=0
@@ -84,7 +84,7 @@ GenerateClassCluster=0
 DocumentUniqueId=WERUQVQX
 
 [Document3]
-DocumentPath=Motor_Driver.SchDoc
+DocumentPath=DRV8323RSRGZR.SchDoc
 AnnotationEnabled=1
 AnnotateStartValue=1
 AnnotationIndexControlEnabled=0
@@ -101,23 +101,6 @@ GenerateClassCluster=0
 DocumentUniqueId=VWTBHFWR
 
 [Document4]
-DocumentPath=Power_V2.SchDoc
-AnnotationEnabled=1
-AnnotateStartValue=1
-AnnotationIndexControlEnabled=0
-AnnotateSuffix=
-AnnotateScope=All
-AnnotateOrder=-1
-DoLibraryUpdate=1
-DoDatabaseUpdate=1
-ClassGenCCAutoEnabled=1
-ClassGenCCAutoRoomEnabled=0
-ClassGenNCAutoScope=None
-DItemRevisionGUID=
-GenerateClassCluster=0
-DocumentUniqueId=NKWREHXA
-
-[Document5]
 DocumentPath=BEMF.SchDoc
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -134,8 +117,8 @@ DItemRevisionGUID=
 GenerateClassCluster=0
 DocumentUniqueId=CUSVHRED
 
-[Document6]
-DocumentPath=Motor_Driver.Harness
+[Document5]
+DocumentPath=DRV8323RSRGZR.Harness
 AnnotationEnabled=1
 AnnotateStartValue=1
 AnnotationIndexControlEnabled=0
@@ -151,8 +134,8 @@ DItemRevisionGUID=
 GenerateClassCluster=0
 DocumentUniqueId=
 
-[Document7]
-DocumentPath=Mosfets.SchDoc
+[Document6]
+DocumentPath=STL130N6F7.SchDoc
 AnnotationEnabled=1
 AnnotateStartValue=1
 AnnotationIndexControlEnabled=0
@@ -168,8 +151,8 @@ DItemRevisionGUID=
 GenerateClassCluster=0
 DocumentUniqueId=CAIURPKN
 
-[Document8]
-DocumentPath=Mosfets.Harness
+[Document7]
+DocumentPath=STL130N6F7.Harness
 AnnotationEnabled=1
 AnnotateStartValue=1
 AnnotationIndexControlEnabled=0
@@ -185,8 +168,8 @@ DItemRevisionGUID=
 GenerateClassCluster=0
 DocumentUniqueId=
 
-[Document9]
-DocumentPath=MCU.Harness
+[Document8]
+DocumentPath=STM32G431CBU6.Harness
 AnnotationEnabled=1
 AnnotateStartValue=1
 AnnotationIndexControlEnabled=0
