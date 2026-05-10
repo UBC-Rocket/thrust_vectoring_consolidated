@@ -118,7 +118,7 @@ void flight_controller_run(const state_t *state,
  * @brief Reset flight controller internal state (e.g. z-PID integral).
  * 
  */
-void flight_controller_reset(void)
+void flight_controller_reset(void);
 
 #ifdef __cplusplus
 }
