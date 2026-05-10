@@ -96,6 +96,7 @@ add_subdirectory(${FW_LIBS_DIR}/state_estimation ${CMAKE_BINARY_DIR}/state_estim
 add_subdirectory(${FW_LIBS_DIR}/controls ${CMAKE_BINARY_DIR}/controls)
 add_subdirectory(${FW_LIBS_DIR}/sensors ${CMAKE_BINARY_DIR}/sensors)
 add_subdirectory(${FW_LIBS_DIR}/log_records ${CMAKE_BINARY_DIR}/log_records)
+add_subdirectory(${FW_LIBS_DIR}/utilities ${CMAKE_BINARY_DIR}/utilities)
 
 # Enable ARM hardware memory barrier for sensor ring buffers (static inline in headers)
 target_compile_definitions(sensors INTERFACE SENSORS_USE_ARM_BARRIER)
