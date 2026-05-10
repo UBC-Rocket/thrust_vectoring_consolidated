@@ -37,11 +37,14 @@
 /* Data types                                                                  */
 /* -------------------------------------------------------------------------- */
 
+/** distance_cm value when the sensor sees no target. */
+#define SEN0306_NO_DETECTION 0xFFFFU
+
 /**
  * @brief A single parsed radar sample.
  */
 typedef struct {
-    uint16_t distance_cm;   ///< Target distance in centimetres (0–2000)
+    uint16_t distance_cm;   ///< Target distance in cm, or SEN0306_NO_DETECTION
     uint32_t timestamp_ms;  ///< HAL_GetTick() value at time of reception (ms)
 } sen0306_sample_t;
 

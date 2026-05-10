@@ -142,20 +142,9 @@ void debug_log_processing_start()
             continue;
         }
 
-        osStatus_t status = osSemaphoreAcquire(logger.tx_busy_sem_id, osWaitForever);
-
-        if (status != osOK)
-        {
-            continue;
-        }
-
-        HAL_StatusTypeDef tx_status = HAL_UART_Transmit_DMA(logger.output_uart,
-                                                            logger.tx_buffer,
-                                                            bytes_available);
-
-        if (tx_status != HAL_OK)
-        {
-            (void)osSemaphoreRelease(logger.tx_busy_sem_id);
-        }
+        (void)HAL_UART_Transmit(logger.output_uart,
+                                logger.tx_buffer,
+                                bytes_available,
+                                1000);
     }
 }

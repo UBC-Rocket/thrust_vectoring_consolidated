@@ -7,16 +7,16 @@
         {
             "name": "Ulysses - Debug",
             "cwd": "${workspaceFolder}",
-            "executable": "${config:cmake.buildDirectory}/debug/ulysses.elf",
+            "executable": "${workspaceFolder}/build/debug/ulysses.elf",
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "openocd",
             "serverpath": "${env:STM32_OPENOCD_PATH}",
             "configFiles": [
                 "interface/stlink-dap.cfg",
-                "target/stm32h5x.cfg"
+                "target/stm32l4x.cfg"
             ],
-            "svdFile": "${workspaceFolder}/platform/svd/STM32H563.svd",
+            "svdFile": "${workspaceFolder}/platform/svd/STM32L476.svd",
             "searchDir": [
                 "${env:STM32_OPENOCD_SCRIPTS_PATH}"
             ],
@@ -26,16 +26,16 @@
         {
             "name": "Ulysses - Release",
             "cwd": "${workspaceFolder}",
-            "executable": "${config:cmake.buildDirectory}/release/ulysses.elf",
+            "executable": "${workspaceFolder}/build/release/ulysses.elf",
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "openocd",
             "serverpath": "${env:STM32_OPENOCD_PATH}",
             "configFiles": [
                 "interface/stlink-dap.cfg",
-                "target/stm32h5x.cfg"
+                "target/stm32l4x.cfg"
             ],
-            "svdFile": "${workspaceFolder}/platform/svd/STM32H563.svd",
+            "svdFile": "${workspaceFolder}/platform/svd/STM32L476.svd",
             "searchDir": [
                 "${env:STM32_OPENOCD_SCRIPTS_PATH}"
             ],

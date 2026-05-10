@@ -23,6 +23,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "state_exchange.h"
+#include "stm32l4xx_hal.h"
+#include "task.h"
 
 /* USER CODE END Includes */
 
@@ -110,11 +112,9 @@ void MX_FREERTOS_Init(void) {
   /* creation of MissionManager */
   MissionManagerHandle = osThreadNew(mission_manager_task_start, NULL, &MissionManager_attributes);
 
-  /* creation of Controls */
-  ControlsHandle = osThreadNew(controls_task_start, NULL, &Controls_attributes);
-
-  /* creation of StateEstimation */
-  StateEstimationHandle = osThreadNew(state_estimation_task_start, NULL, &StateEstimation_attributes);
+  /* Controls and StateEstimation disabled — SPI sensors not connected on test board */
+  ControlsHandle = NULL;
+  StateEstimationHandle = NULL;
 
   /* USER CODE BEGIN RTOS_THREADS */
 
@@ -132,6 +132,29 @@ void MX_FREERTOS_Init(void) {
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
+
+extern UART_HandleTypeDef huart2;
+
+void vApplicationMallocFailedHook(void)
+{
+    static const char msg[] = "MALLOC_FAILED\r\n";
+    HAL_UART_Transmit(&huart2, (uint8_t *)msg, sizeof(msg) - 1, 200);
+    taskDISABLE_INTERRUPTS();
+    for (;;) {}
+}
+
+void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
+{
+    (void)xTask;
+    HAL_UART_Transmit(&huart2, (uint8_t *)"STACK_OVF:", 10, 100);
+    /* pcTaskName is a null-terminated string up to configMAX_TASK_NAME_LEN */
+    int len = 0;
+    while (pcTaskName[len] && len < 16) len++;
+    HAL_UART_Transmit(&huart2, (uint8_t *)pcTaskName, len, 100);
+    HAL_UART_Transmit(&huart2, (uint8_t *)"\r\n", 2, 100);
+    taskDISABLE_INTERRUPTS();
+    for (;;) {}
+}
 
 /* USER CODE END Application */
 

@@ -13,6 +13,10 @@
 #include "state_exchange.h"
 #include "spi_drivers/gnss_radio_master.h"
 #include "sensors_init.h"
+#include "sensors/sen0306_mmwave.h"
+extern volatile uint32_t uart4_raw_bytes;
+extern uint8_t uart4_snap[32];
+extern uint8_t uart4_snap_len;
 #include "command.pb.h"
 #include "telemetry.pb.h"
 #include "downlink.pb.h"
@@ -147,6 +151,32 @@ void mission_manager_task_start(void *argument) {
         if ((now - last_status_tick) >= pdMS_TO_TICKS(STATUS_INTERVAL_MS)) {
             last_status_tick = now;
             send_status(flight_state);
+            /* Drain stale samples; producer runs at 5 Hz, consumer at 1 Hz. */
+            while (sen0306_queue_count() > 1) {
+                sen0306_ctx.queue.tail = (sen0306_ctx.queue.tail + 1) % SEN0306_QUEUE_LEN;
+            }
+            const sen0306_sample_t *mmw = sen0306_get_latest();
+            if (mmw) {
+                DLOG_PRINT("[MMW] dist=%u cm rx=%lu err=%lu ovf=%lu\r\n",
+                    (unsigned)mmw->distance_cm,
+                    (unsigned long)sen0306_ctx.samples_received,
+                    (unsigned long)sen0306_ctx.parse_errors,
+                    (unsigned long)sen0306_ctx.queue_overflows);
+            } else {
+                DLOG_PRINT("[MMW] no frames rx=%lu err=%lu raw=%lu\r\n",
+                    (unsigned long)sen0306_ctx.samples_received,
+                    (unsigned long)sen0306_ctx.parse_errors,
+                    (unsigned long)uart4_raw_bytes);
+                static bool snap_printed = false;
+                if (!snap_printed && uart4_snap_len > 0) {
+                    snap_printed = true;
+                    DLOG_PRINT("[MMW] snap[%u]:", (unsigned)uart4_snap_len);
+                    for (uint8_t i = 0; i < uart4_snap_len; i++) {
+                        DLOG_PRINT(" %02X", (unsigned)uart4_snap[i]);
+                    }
+                    DLOG_PRINT("\r\n");
+                }
+            }
         }
 
         /* ── Periodic GNSS stats (debug) ── */

@@ -123,9 +123,22 @@ static HAL_StatusTypeDef sd_enable_internal_dma(void *hsd);
  * immediately after handing the received bytes to the driver.  Size is the
  * number of bytes written into dma_buf[0..Size-1] during this burst.
  */
+/* Raw byte counter + rolling 32-byte snapshot — visible to mission_manager */
+volatile uint32_t uart4_raw_bytes = 0;
+uint8_t  uart4_snap[32];
+uint8_t  uart4_snap_len = 0;
+
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
     if (huart->Instance == UART4) {
+        uart4_raw_bytes += Size;
+        /* Accumulate bytes into snap until we have 32 */
+        if (uart4_snap_len < 32 && Size > 0) {
+            uint8_t room = 32 - uart4_snap_len;
+            uint8_t n = (Size < room) ? (uint8_t)Size : room;
+            for (uint8_t i = 0; i < n; i++) uart4_snap[uart4_snap_len + i] = sen0306_ctx.dma_buf[i];
+            uart4_snap_len += n;
+        }
         sen0306_irq_handler(huart, Size);
         /* DMA_NORMAL stops after each burst — re-arm for next reception */
         HAL_UARTEx_ReceiveToIdle_DMA(huart, sen0306_ctx.dma_buf, SEN0306_DMA_BUF_SIZE);
@@ -177,28 +190,28 @@ int main(void)
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
+#define DBG_TX(msg) HAL_UART_Transmit(&huart2, (uint8_t *)(msg), sizeof(msg)-1, 100)
   MX_GPIO_Init();
+  MX_USART2_UART_Init(); DBG_TX("A\r\n");
   MX_GPDMA2_Init();
   MX_GPDMA1_Init();
-  MX_SDMMC1_SD_Init();
-  MX_SPI1_Init();
-  MX_SPI2_Init();
+  MX_SDMMC1_SD_Init();   DBG_TX("B\r\n");
+  MX_SPI1_Init();        DBG_TX("C\r\n");
+  MX_SPI2_Init();        DBG_TX("D\r\n");
   MX_SPI4_Init();
-  MX_UART4_Init();
-  MX_USART2_UART_Init();
+  MX_UART4_Init();       DBG_TX("E\r\n");
   MX_USART1_UART_Init();
-  MX_USB_PCD_Init();
+  MX_USB_PCD_Init();     DBG_TX("F\r\n");
   MX_TIM3_Init();
   MX_TIM1_Init();
   MX_TIM2_Init();
-  MX_TIM4_Init();
+  MX_TIM4_Init();        DBG_TX("G\r\n");
   MX_DCACHE1_Init();
   MX_ICACHE_Init();
   /* USER CODE BEGIN 2 */
 
-  /* --- TIM4 interrupt channels ------------------------------------ */
-  HAL_TIM_OC_Start_IT(&htim4, TIM_CHANNEL_2);   /* 800Hz -> controls notify */
-  HAL_TIM_OC_Start_IT(&htim4, TIM_CHANNEL_4);   /* 800Hz -> servo/ESC apply */
+  /* TIM4 (controls/servo tick) disabled — Controls task not running on test board */
+  DBG_TX("H\r\n");
 
   /* --- Servo pair: TIM1 CH2 (servo1), TIM3 CH3 (servo2) - 200Hz -- */
   {
@@ -235,9 +248,6 @@ int main(void)
     ESC_pair_init(&pwm1, &pwm2);
   }
 
-#ifdef ULYSSES_ENABLE_DEBUG_LOGGING
-  debug_log_init(&huart1);
-#endif // ULYSSES_ENABLE_DEBUG_LOGGING
 
   if (g_sd_card_initialized) {
     if (sd_enable_internal_dma(NULL) != HAL_OK) {
@@ -250,17 +260,11 @@ int main(void)
    * This avoids long blocking operations inside tasks with interrupts disabled.
    * The sensor init takes ~700ms due to device reset delays.
    */
-  sensors_init_status_t sensor_status = sensors_init();
-
-  /* Optional: Check sensor status and handle failures */
-  if (!sensors_init_critical_ok(&sensor_status)) {
-    /* IMU initialization failed - system may not be flight-ready */
-#ifdef ULYSSES_ENABLE_DEBUG_LOGGING
-    /* Log the error codes for debugging */
-    (void)sensor_status;  /* Avoid unused warning in release builds */
-#endif
-    /* Continue anyway - tasks will check ready flags */
-  }
+  DBG_TX("I\r\n");
+  /* Skip full sensors_init on Nucleo test — SPI4 (baro2) not present.
+     Initialize only what is needed for mmwave testing. */
+  sen0306_init(&huart4);
+  DBG_TX("J\r\n");
 
   /* SEN0306 startup sequence:
    *   1. Send the 7-byte hex-mode command so the sensor switches from ASCII
@@ -275,24 +279,35 @@ int main(void)
   {
     static const uint8_t hex_mode_cmd[] = {0x55, 0xAA, 0x02, 0x00, 0x01, 0x00, 0x03};
     HAL_UART_Transmit(&huart4, (uint8_t *)hex_mode_cmd, sizeof(hex_mode_cmd), 100);
-    for (volatile uint32_t i = 0; i < 500000; i++) {}  /* sensor settle delay */
+    for (volatile uint32_t i = 0; i < 500000; i++) {}
     __HAL_UART_CLEAR_FLAG(&huart4, UART_CLEAR_OREF | UART_CLEAR_NEF |
                                    UART_CLEAR_FEF | UART_CLEAR_PEF);
     __HAL_UART_SEND_REQ(&huart4, UART_RXDATA_FLUSH_REQUEST);
     if (HAL_UARTEx_ReceiveToIdle_DMA(&huart4,
             sen0306_ctx.dma_buf, SEN0306_DMA_BUF_SIZE) != HAL_OK) {
+        DBG_TX("DMA_FAIL\r\n");
         Error_Handler();
     }
   }
+  DBG_TX("K\r\n");
 
   /* USER CODE END 2 */
 
   /* Init scheduler */
   osKernelInitialize();
+
+#ifdef ULYSSES_ENABLE_DEBUG_LOGGING
+  debug_log_init(&huart2);
+#endif
+
   /* Call init function for freertos objects (in app_freertos.c) */
   MX_FREERTOS_Init();
 
   /* Start scheduler */
+  {
+    static const char boot_msg[] = "BOOT\r\n";
+    HAL_UART_Transmit(&huart2, (uint8_t *)boot_msg, sizeof(boot_msg) - 1, 100);
+  }
   osKernelStart();
 
   /* We should never get here as control is now taken by the scheduler */
@@ -368,20 +383,10 @@ static void MX_DCACHE1_Init(void)
   */
 static void MX_GPDMA1_Init(void)
 {
-  /* L476 uses DMA1 (not GPDMA). Clock and IRQs for SPI channels are
-     enabled in HAL_SPI_MspInit via stm32l4xx_hal_msp.c. */
+  /* DMA1 clock enabled for HAL compatibility; IRQs intentionally NOT armed —
+     DMA1_Channel*_IRQHandler is undefined (SPI not connected on test board)
+     and enabling them would trap into Default_Handler's infinite loop. */
   __HAL_RCC_DMA1_CLK_ENABLE();
-
-  HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
-  HAL_NVIC_SetPriority(DMA1_Channel2_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Channel2_IRQn);
-  HAL_NVIC_SetPriority(DMA1_Channel3_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Channel3_IRQn);
-  HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn);
-  HAL_NVIC_SetPriority(DMA1_Channel5_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Channel5_IRQn);
 }
 
 /**
@@ -395,7 +400,8 @@ static void MX_GPDMA2_Init(void)
      configuration happen in HAL_UART_MspInit via stm32l4xx_hal_msp.c. */
   __HAL_RCC_DMA2_CLK_ENABLE();
 
-  HAL_NVIC_SetPriority(DMA2_Channel5_IRQn, 0, 0);
+  /* Priority must be >= configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY (5) */
+  HAL_NVIC_SetPriority(DMA2_Channel5_IRQn, 6, 0);
   HAL_NVIC_EnableIRQ(DMA2_Channel5_IRQn);
 }
 
@@ -468,8 +474,9 @@ static void MX_SPI1_Init(void)
   /* Initialize SPI1 priority bus driver */
   spi1_bus_init(&hspi1);
 
-  /* Initialize GNSS Radio push mode driver */
-  gnss_radio_init();
+  /* GNSS Radio not present on Nucleo test board — skip init so gnss_radio_send
+     returns false immediately instead of triggering SPI1 DMA (unconfigured). */
+  /* gnss_radio_init(); */
 
   /* USER CODE END SPI1_Init 2 */
 
@@ -816,7 +823,7 @@ static void MX_UART4_Init(void)
 
   /* USER CODE END UART4_Init 1 */
   huart4.Instance = UART4;
-  huart4.Init.BaudRate = 115200;
+  huart4.Init.BaudRate = 57600;
   huart4.Init.WordLength = UART_WORDLENGTH_8B;
   huart4.Init.StopBits = UART_STOPBITS_1;
   huart4.Init.Parity = UART_PARITY_NONE;

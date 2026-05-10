@@ -1,6 +1,23 @@
 {
     "configurations": [
         {
+            "name": "FC - Debug",
+            "cwd": "${workspaceFolder}/embedded-software/firmware/ulysses-flight-controller",
+            "executable": "${workspaceFolder}/embedded-software/firmware/ulysses-flight-controller/build/debug/ulysses.elf",
+            "request": "launch",
+            "type": "cortex-debug",
+            "servertype": "openocd",
+            "serverpath": "${env:STM32_OPENOCD_PATH}",
+            "configFiles": [
+                "interface/stlink-dap.cfg",
+                "target/stm32l4x.cfg"
+            ],
+            "svdFile": "${workspaceFolder}/embedded-software/firmware/ulysses-flight-controller/platform/svd/STM32L476.svd",
+            "searchDir": ["${env:STM32_OPENOCD_SCRIPTS_PATH}"],
+            "runToEntryPoint": "main",
+            "showDevDebugOutput": "raw"
+        },
+        {
             "name": "C/C++: clang build and debug active file",
             "type": "cppdbg",
             "request": "launch",

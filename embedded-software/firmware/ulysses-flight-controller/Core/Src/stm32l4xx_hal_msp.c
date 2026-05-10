@@ -136,7 +136,11 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
     __HAL_LINKDMA(huart,hdmarx,hdma_uart4_rx);
 
     /* USER CODE BEGIN UART4_MspInit 1 */
-
+    /* UART4 IRQ: needed for IDLE line detection (HAL_UARTEx_ReceiveToIdle_DMA)
+       and error recovery (HAL_UART_ErrorCallback). Must be below FreeRTOS
+       syscall priority (< configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY = 5). */
+    HAL_NVIC_SetPriority(UART4_IRQn, 6, 0);
+    HAL_NVIC_EnableIRQ(UART4_IRQn);
     /* USER CODE END UART4_MspInit 1 */
   }
   else if(huart->Instance==USART2)

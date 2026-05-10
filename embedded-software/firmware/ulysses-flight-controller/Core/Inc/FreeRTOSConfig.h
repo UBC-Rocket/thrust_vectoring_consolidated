@@ -70,7 +70,7 @@ extern uint32_t SystemCoreClock;
 #define configTICK_RATE_HZ                       ((TickType_t)1000)
 #define configMAX_PRIORITIES                     ( 56 )
 #define configMINIMAL_STACK_SIZE                 ((uint16_t)128)
-#define configTOTAL_HEAP_SIZE                    ((size_t)8192)
+#define configTOTAL_HEAP_SIZE                    ((size_t)24576)
 #define configSTACK_ALLOCATION_FROM_SEPARATE_HEAP 0
 #define configMAX_TASK_NAME_LEN                  ( 16 )
 #define configUSE_TRACE_FACILITY                 1
@@ -82,6 +82,8 @@ extern uint32_t SystemCoreClock;
 #define configUSE_PORT_OPTIMISED_TASK_SELECTION  0
 #define configUSE_TASK_NOTIFICATIONS             1
 #define configHEAP_CLEAR_MEMORY_ON_FREE          0
+#define configUSE_MALLOC_FAILED_HOOK             1
+#define configCHECK_FOR_STACK_OVERFLOW           2
 #define configUSE_MINI_LIST_ITEM                 1
 #define configUSE_SB_COMPLETED_CALLBACK          0
 /* USER CODE BEGIN MESSAGE_BUFFER_LENGTH_TYPE */
@@ -158,7 +160,9 @@ header file. */
 #define configASSERT( x ) if ((x) == 0) {taskDISABLE_INTERRUPTS(); for( ;; );}
 /* USER CODE END 1 */
 
-#define SysTick_Handler xPortSysTickHandler
+#define SysTick_Handler    xPortSysTickHandler
+#define vPortSVCHandler    SVC_Handler
+#define xPortPendSVHandler PendSV_Handler
 
 /* USER CODE BEGIN Defines */
 /* Section where parameter definitions can be added (for instance, to override default ones in FreeRTOS.h) */

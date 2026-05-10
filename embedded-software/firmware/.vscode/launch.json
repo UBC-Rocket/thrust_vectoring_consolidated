@@ -12,9 +12,9 @@
       "serverpath": "${env:STM32_OPENOCD_PATH}",
       "configFiles": [
         "interface/stlink-dap.cfg",
-        "target/stm32h5x.cfg"
+        "target/stm32l4x.cfg"
       ],
-      "svdFile": "${workspaceFolder}/ulysses-flight-controller/platform/svd/STM32H563.svd",
+      "svdFile": "${workspaceFolder}/ulysses-flight-controller/platform/svd/STM32L476.svd",
       "searchDir": ["${env:STM32_OPENOCD_SCRIPTS_PATH}"],
       "runToEntryPoint": "main",
       "showDevDebugOutput": "raw",
@@ -30,9 +30,9 @@
       "serverpath": "${env:STM32_OPENOCD_PATH}",
       "configFiles": [
         "interface/stlink-dap.cfg",
-        "target/stm32h5x.cfg"
+        "target/stm32l4x.cfg"
       ],
-      "svdFile": "${workspaceFolder}/ulysses-flight-controller/platform/svd/STM32H563.svd",
+      "svdFile": "${workspaceFolder}/ulysses-flight-controller/platform/svd/STM32L476.svd",
       "searchDir": ["${env:STM32_OPENOCD_SCRIPTS_PATH}"],
       "runToEntryPoint": "main",
       "showDevDebugOutput": "raw",

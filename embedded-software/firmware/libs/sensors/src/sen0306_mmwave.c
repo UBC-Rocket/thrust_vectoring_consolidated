@@ -44,15 +44,13 @@ void sen0306_init(UART_HandleTypeDef *huart) {
  * Called exclusively from sen0306_irq_handler (ISR context).
  */
 static void process_byte(uint8_t byte) {
-    // Guard against stale index (should never fire given parser reset below).
     if (sen0306_ctx.parser_idx >= SEN0306_FRAME_SIZE) {
         sen0306_ctx.parser_idx = 0;
     }
 
     sen0306_ctx.parser_buf[sen0306_ctx.parser_idx++] = byte;
 
-    // After collecting 3 bytes, verify the 0xFF 0xFF 0xFF header.
-    // If the header is wrong, shift the window left by one and keep searching.
+    // Align to 0xFF 0xFF 0xFF header; shift left if mismatch.
     if (sen0306_ctx.parser_idx >= 3) {
         if (sen0306_ctx.parser_buf[0] != 0xFF ||
             sen0306_ctx.parser_buf[1] != 0xFF ||
@@ -64,37 +62,30 @@ static void process_byte(uint8_t byte) {
         }
     }
 
-    // Full 8-byte frame received — validate the three trailing zero bytes.
     if (sen0306_ctx.parser_idx == SEN0306_FRAME_SIZE) {
         if (sen0306_ctx.parser_buf[5] == 0x00 &&
             sen0306_ctx.parser_buf[6] == 0x00 &&
             sen0306_ctx.parser_buf[7] == 0x00) {
 
-            // Distance is big-endian uint16 at bytes 3–4, in centimetres.
             uint16_t dist = ((uint16_t)sen0306_ctx.parser_buf[3] << 8) |
                              sen0306_ctx.parser_buf[4];
 
             uint8_t next_head = (sen0306_ctx.queue.head + 1) % SEN0306_QUEUE_LEN;
-
-            // If the queue is full, advance the tail to drop the oldest sample.
-            if (next_head == sen0306_ctx.queue.tail) {
-                sen0306_ctx.queue.tail =
-                    (sen0306_ctx.queue.tail + 1) % SEN0306_QUEUE_LEN;
-                sen0306_ctx.queue_overflows++;
-            }
-
-            // Write the sample, issue a memory barrier, then advance the head.
-            // The barrier ensures the consumer sees a fully written sample before
-            // the head update becomes visible (SPSC ordering guarantee).
             sen0306_ctx.queue.samples[sen0306_ctx.queue.head].distance_cm = dist;
             sen0306_ctx.queue.samples[sen0306_ctx.queue.head].timestamp_ms =
                 HAL_GetTick();
-            SENSORS_MEMORY_BARRIER();
-            sen0306_ctx.queue.head = next_head;
-            sen0306_ctx.samples_received++;
 
+            if (next_head != sen0306_ctx.queue.tail) {
+                sen0306_ctx.queue.head = next_head;
+            } else {
+                sen0306_ctx.queue.tail =
+                    (sen0306_ctx.queue.tail + 1) % SEN0306_QUEUE_LEN;
+                sen0306_ctx.queue.head = next_head;
+                sen0306_ctx.queue_overflows++;
+            }
+
+            sen0306_ctx.samples_received++;
         } else {
-            // Tail bytes invalid — frame is corrupt or we are mid-stream.
             sen0306_ctx.parse_errors++;
         }
 

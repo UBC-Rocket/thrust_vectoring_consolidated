@@ -1,4 +1,5 @@
 #include "stm32l4xx_hal.h"
+#include "stm32l4xx.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "app_freertos.h"
@@ -10,10 +11,12 @@ static uint8_t servo_div = 0;
 void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
     if (htim->Instance == TIM4) {
         if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2) {
-            /* 800Hz — notify controls task */
-            BaseType_t woken = pdFALSE;
-            vTaskNotifyGiveFromISR((TaskHandle_t)ControlsHandle, &woken);
-            portYIELD_FROM_ISR(woken);
+            /* 800Hz — notify controls task (guard: task may not exist yet) */
+            if (ControlsHandle != NULL) {
+                BaseType_t woken = pdFALSE;
+                vTaskNotifyGiveFromISR((TaskHandle_t)ControlsHandle, &woken);
+                portYIELD_FROM_ISR(woken);
+            }
         }
         else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_4) {
             /* ESC: called at 800Hz, internal divider makes 400Hz effective */
