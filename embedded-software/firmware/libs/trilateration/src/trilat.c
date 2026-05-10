@@ -18,6 +18,8 @@
 #define TRILAT_WEAK_AXIS_RATIO 0.05f
 #define TRILAT_WEAK_AXIS_REGULARIZATION 1.0e-2f
 
+// HELPERS
+
 static float squaref(float value)
 {
     return value * value;
@@ -447,6 +449,8 @@ static int refine_from_initial_position(const tag arr[], size_t num_tags,
 
     return 1;
 }
+
+// ACTUALLY USEFUL FUNCTIONS
 
 int trilaterate_n_tags_with_guess(const tag arr[], size_t num_tags,
                                   const float initial_pos[3],
