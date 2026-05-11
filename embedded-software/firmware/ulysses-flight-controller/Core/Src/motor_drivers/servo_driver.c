@@ -1,5 +1,5 @@
 #include "motor_drivers/servo_driver.h"
-#include "utilities/clamp.h";
+#include "utilities/clamp.h"
 
 #include <stddef.h>
 
@@ -7,9 +7,7 @@ static uint16_t degree_to_us(const servo_t *servo, float degree);
 static void servo_init_with_cal(servo_t *servo, const pwm_output_t *pwm,
                                 uint16_t us_min, uint16_t us_mid, uint16_t us_max);
 
-/* Written by task (set_servo_
-static uint16_t degree_to_us(const servo_t *servo, float degree);
-static void servo_init_with_cal(servo_t *servo, const pwm_output_t pair_degrees); read by ISR (apply_servo_pair_degrees). */
+/* Written by task (set_servo_pair_degrees / set_gimbal_degrees); read by ISR (apply_servo_pair_degrees). */
 static servo_pair_t servos;
 static volatile bool g_servo_pair_ready = false;
 
@@ -34,6 +32,17 @@ void set_servo_pair_degrees(float degree1, float degree2) {
     set_servo_degree(&servos.servo2, degree2);
 }
 
+void set_gimbal_degrees(float x_deg, float y_deg) {
+    if (!g_servo_pair_ready) {
+        return;
+    }
+    /* servo1 = Y-axis (pitch); servo2 = X-axis (roll).
+     * Negate both: positive command tilts toward positive axis per right-hand convention,
+     * but servo mechanical direction is inverted relative to body frame. */
+    set_servo_degree(&servos.servo1, -y_deg);
+    set_servo_degree(&servos.servo2, -x_deg);
+}
+
 /* ---- ISR-level API ----------------------------------------------------- */
 
 void apply_servo_pair_degrees(void) {
@@ -56,7 +65,7 @@ static void servo_init_with_cal(servo_t *servo, const pwm_output_t *pwm,
     servo->us_min = us_min;
     servo->us_mid = us_mid;
     servo->us_max = us_max;
-    servo->deg_range = 180.0f;
+    servo->deg_range = SERVO_GIMBAL_RANGE_DEG;
     servo->mid_pt = 0.0f;   /* 0° command = center PWM (straight down) */
     servo->enabled = false;
     servo->us_last = us_mid;
