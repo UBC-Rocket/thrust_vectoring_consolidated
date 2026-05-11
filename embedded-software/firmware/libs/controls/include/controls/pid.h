@@ -117,8 +117,8 @@ float pid_compute(pid_controller_t *pid,
 float pid_compute_pv(pid_controller_t *pid,
     float x_ref,
     float v_ref,
-    float x,
-    float v,
+    float x_meas,
+    float v_meas,
     float dt
 );
 

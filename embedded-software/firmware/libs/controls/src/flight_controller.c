@@ -33,7 +33,7 @@ static float s_thrust_mag;
 
 // ====
 
-static void compute_axis_angle_err(const quaternion_t *q_ref,
+void compute_axis_angle_err(const quaternion_t *q_ref,
                                    const quaternion_t *q_meas,
                                    float phi[3])
 {
@@ -78,7 +78,7 @@ static void compute_axis_angle_err(const quaternion_t *q_ref,
     // phi[2] = scale * v_z;
 }
 
-static void update_torque_pid(const float phi[3],
+void update_torque_pid(const float phi[3],
                               const float dt_s,
                               float torque_cmd[3])
 {
@@ -89,7 +89,7 @@ static void update_torque_pid(const float phi[3],
 }
 
 // Equation 3: Torque Decomposition into Thrust and Gimbal Commands
-static void decompose_torque(const float torque_cmd[3], 
+void decompose_torque(const float torque_cmd[3], 
                              const float thrust_dir[3], 
                              float torque_gimbal[3], 
                              float* torque_thrust_mag)
@@ -110,9 +110,8 @@ static void decompose_torque(const float torque_cmd[3],
 }
 
 // Equation 4: Compute new thrust direction from gimbal torque commands
-static void compute_thrust_dir(const flight_controller_gimbal_config_t* gcfg, 
-                               const float torque_cmd[3], 
-                               const float thrust_dir[3], 
+void compute_thrust_dir(const flight_controller_gimbal_config_t* gcfg, 
+                               const float torque_cmd[3],
                                const float thrust_mag, 
                                float new_thrust_dir[3]) 
 {
@@ -135,7 +134,7 @@ static void compute_thrust_dir(const flight_controller_gimbal_config_t* gcfg,
 // Equation 5: Compute gimbal angles from thrust direction
 // Note: this assumes small angles and that the gimbal can only generate torque in x and y (not z)
 // Angles returned in radians 
-static void compute_gimbal_angles(const flight_controller_gimbal_config_t* gcfg, 
+void compute_gimbal_angles(const flight_controller_gimbal_config_t* gcfg, 
                                   const float thrust_dir[3], 
                                   float* theta_x_cmd, 
                                   float* theta_y_cmd)
@@ -159,7 +158,7 @@ static void compute_gimbal_angles(const flight_controller_gimbal_config_t* gcfg,
 }
 
 // Equation 6: Compute thrust command 
-static void update_thrust_pid(const flight_controller_thrust_config_t* tcfg, 
+void update_thrust_pid(const flight_controller_thrust_config_t* tcfg, 
                               const float z_ref, 
                               const float vz_ref, 
                               const float z_meas, 
@@ -245,7 +244,7 @@ void flight_controller_run(const state_t *state,
     decompose_torque(torque_cmd, s_thrust_dir, tau_gim, &tau_thrust);
 
     float new_thrust_dir[3];
-    compute_thrust_dir(gcfg, torque_cmd, s_thrust_dir, s_thrust_mag, new_thrust_dir);
+    compute_thrust_dir(gcfg, torque_cmd, s_thrust_mag, new_thrust_dir);
 
     // update thrust dir state using ema filter
     s_thrust_dir[0] = new_thrust_dir[0] * EMA_ALPHA + s_thrust_dir[0] * (1 - EMA_ALPHA);
