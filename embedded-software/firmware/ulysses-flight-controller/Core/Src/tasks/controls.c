@@ -50,8 +50,8 @@
 #define ESC_ARM_TIME_MS      (3000) /**< Delay before PWM output */
 
 /* Empirical values for a safe operational range of the gimbal */
-#define SERVO_MAX_DEGREES (25)
-#define SERVO_MIN_DEGREES (-25)
+#define SERVO_MAX_DEGREES (30.0f)
+#define SERVO_MIN_DEGREES (-30.0f)
 
 static quaternion_t pb_to_fc_quaternion(tvr_Quaternion quaternion);
 
@@ -192,7 +192,7 @@ void controls_task_start(void *argument)
                 flight_controller_init(&config);
             }
 
-            set_servo_pair_degrees(0, 0);
+            set_gimbal_degrees(0.0f, 0.0f);
             servo_pair_enable(armed);
 
             esc_pair_set_force(0, 0);
@@ -240,14 +240,12 @@ void controls_task_start(void *argument)
             }
 
             if (flight_state == RISE) {
-                // FIXME: artificially limit the operational range of the gimbal since the propellers
-                // could hit the landing legs in the current design
-                float theta_x_cmd_safe =
-                    clamp_float(control_output.theta_x_cmd, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
-                float theta_y_cmd_safe =
-                    clamp_float(control_output.theta_y_cmd, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
+                float theta_x_deg =
+                    clamp_float(control_output.theta_x_cmd * RAD_TO_DEG, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
+                float theta_y_deg =
+                    clamp_float(control_output.theta_y_cmd * RAD_TO_DEG, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
 
-                set_servo_pair_degrees(-theta_y_cmd_safe, -theta_x_cmd_safe);
+                set_gimbal_degrees(theta_x_deg, theta_y_deg);
                 esc_pair_set_force(control_output.T_cmd, control_output.tau_thrust);
             }
         }
