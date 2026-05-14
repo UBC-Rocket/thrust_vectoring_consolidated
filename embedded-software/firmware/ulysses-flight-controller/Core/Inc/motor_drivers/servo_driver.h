@@ -9,15 +9,17 @@ typedef struct {
 
     /* Calibration parameters */
     uint16_t us_min;
-    uint16_t us_mid;
     uint16_t us_max;
-
-    float deg_range;
-    float mid_pt;
+    float deg_range_max;
+    
+    float deg_min;
+    float deg_max;
+    float deg_bias;
 
     volatile uint32_t compare_val;
 
     uint16_t us_last;
+    bool reversed;
     bool enabled;
 } servo_t;
 
@@ -33,18 +35,22 @@ typedef struct {
  */
 
 /* Servo 1 (Y-axis / pitch): TIM1 CH2 / PE11 */
-#define SERVO1_US_MIN   900
-#define SERVO1_US_MID  1125
-#define SERVO1_US_MAX  1450
+#define SERVO1_US_MIN  1000
+#define SERVO1_US_MAX  2000
+#define SERVO1_DEG_BIAS 3.0f    // Calibrated to center gimbal at 0° when both servos are at 1500µs
+#define SERVO1_DEG_RANGE_MAX 120.0f
+#define SERVO1_REVERSED false
 
 /* Servo 2 (X-axis / roll): TIM3 CH3 / PB0 */
-#define SERVO2_US_MIN  1575
-#define SERVO2_US_MID  1860
-#define SERVO2_US_MAX  2200
+#define SERVO2_US_MIN  1000
+#define SERVO2_US_MAX  2000
+#define SERVO2_DEG_BIAS -2.0f   // Calibrated to center gimbal at 0° when both servos are at 1500µs
+#define SERVO2_DEG_RANGE_MAX 120.0f
+#define SERVO2_REVERSED false
 
 /* ── Gimbal angular limits ───────────────────────────────────────────── */
-#define SERVO_GIMBAL_RANGE_DEG      60.0f  /**< Full range: ±30 ° each side */
-#define SERVO_GIMBAL_HALF_RANGE_DEG 30.0f  /**< Clamp limit applied to both axes */
+#define SERVO_GIMBAL_DEG_MIN -30.0f 
+#define SERVO_GIMBAL_DEG_MAX  30.0f
 
 typedef struct {
     servo_t servo1;  /**< Y-axis (pitch) servo */
@@ -52,13 +58,10 @@ typedef struct {
 } servo_pair_t;
 
 void servo_init(servo_t *servo, const pwm_output_t *pwm);
-void servo_init_with_deg_range(servo_t *servo, const pwm_output_t *pwm, float deg_range, float mid_pt);
 void servo_enable(servo_t *servo, bool enable);
-void servo_set_deg_range(servo_t *servo, float deg_range, float mid_pt);
 
 /* Task-level: store desired angle (called from controls task). */
 void set_servo_degree(servo_t *servo, float degree);
-void set_servo_pair_degrees(float s1, float s2);
 
 /**
  * @brief Command gimbal angles by physical axis.
