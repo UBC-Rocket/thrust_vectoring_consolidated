@@ -25,6 +25,7 @@
 #include "debug/log.h"
 #include "SD_logging/log_service.h"
 #include "timestamp.h"
+#include "utilities/clamp.h"
 
 #define RAD_TO_DEG (180.0f / 3.14159265f)
 
@@ -49,11 +50,10 @@
 #define ESC_ARM_TIME_MS      (3000) /**< Delay before PWM output */
 
 /* Empirical values for a safe operational range of the gimbal */
-#define SERVO_MAX_DEGREES (25)
-#define SERVO_MIN_DEGREES (-25)
+#define SERVO_MAX_DEGREES (30.0f)
+#define SERVO_MIN_DEGREES (-30.0f)
 
 static quaternion_t pb_to_fc_quaternion(tvr_Quaternion quaternion);
-static inline float clampf(float value, float minimum, float maximum);
 
 /** Fill config with default gains and limits (tune in use). */
 static void init_default_config(flight_controller_config_t *cfg)
@@ -70,9 +70,9 @@ static void init_default_config(flight_controller_config_t *cfg)
     cfg->attitude.I[1][1] = 0.01f;
     cfg->attitude.I[2][2] = 0.01f;
     /* Allocation: thrust along -z body (z-up) */
-    cfg->allocation.t_hat[0] = 0.0f;
-    cfg->allocation.t_hat[1] = 0.0f;
-    cfg->allocation.t_hat[2] = -1.0f;
+    cfg->allocation.thrust_dir[0] = 0.0f;
+    cfg->allocation.thrust_dir[1] = 0.0f;
+    cfg->allocation.thrust_dir[2] = -1.0f;
     /* Gimbal */
     cfg->gimbal.L = 0.2f;
     cfg->gimbal.theta_min = -0.05f;
@@ -192,7 +192,7 @@ void controls_task_start(void *argument)
                 flight_controller_init(&config);
             }
 
-            set_servo_pair_degrees(0, 0);
+            set_gimbal_degrees(0.0f, 0.0f);
             servo_pair_enable(armed);
 
             esc_pair_set_force(0, 0);
@@ -213,6 +213,7 @@ void controls_task_start(void *argument)
         state_exchange_get_flight_state(&flight_state);
 
         if (armed && state_seq != 0) {
+
             flight_controller_run(&current_state, &ref, &config, &control_output, CONTROLS_DT_S);
 
             state_exchange_publish_control_output(&control_output);
@@ -239,14 +240,12 @@ void controls_task_start(void *argument)
             }
 
             if (flight_state == RISE) {
-                // FIXME: artificially limit the operational range of the gimbal since the propellers
-                // could hit the landing legs in the current design
-                float theta_x_cmd_safe =
-                    clampf(control_output.theta_x_cmd, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
-                float theta_y_cmd_safe =
-                    clampf(control_output.theta_y_cmd, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
+                float theta_x_deg =
+                    clamp_float(control_output.theta_x_cmd * RAD_TO_DEG, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
+                float theta_y_deg =
+                    clamp_float(control_output.theta_y_cmd * RAD_TO_DEG, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
 
-                set_servo_pair_degrees(-theta_y_cmd_safe, -theta_x_cmd_safe);
+                set_gimbal_degrees(theta_x_deg, theta_y_deg);
                 esc_pair_set_force(control_output.T_cmd, control_output.tau_thrust);
             }
         }
@@ -267,9 +266,4 @@ static quaternion_t pb_to_fc_quaternion(tvr_Quaternion quaternion)
         .y = quaternion.y,
         .z = quaternion.z,
     };
-}
-
-static inline float clampf(float value, float minimum, float maximum)
-{
-    return fminf(fmaxf(value, minimum), maximum);
 }

@@ -7,9 +7,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "controls/pid.h"
-
-/* Private function prototypes -----------------------------------------------*/
-static float clamp(float value, float min_val, float max_val);
+#include "utilities/clamp.h"
 
 /* Exported functions --------------------------------------------------------*/
 
@@ -70,16 +68,12 @@ float pid_compute(pid_controller_t *pid,
   /* Apply anti-windup: clamp integral to prevent overflow */
   /* This prevents the integral from growing unbounded when output is saturated */
   pid->integral_sum =
-      clamp(pid->integral_sum, -pid->integral_limit, pid->integral_limit);
+      clamp_float(pid->integral_sum, -pid->integral_limit, pid->integral_limit);
 
   /* Calculate integral contribution */
   integral = pid->ki * pid->integral_sum;
 
   /* --- DERIVATIVE TERM --- */
-  /* Derivative on measurement (not error) to prevent derivative kick */
-  /* When setpoint changes suddenly, derivative of error would spike */
-  /* Using derivative of measurement avoids this problem */
-  /* Note: Negative sign because we want to oppose rapid changes in measurement */
   derivative = -pid->kd * (measurement - pid->prev_measurement) / dt;
 
   /* Store current measurement for next iteration */
@@ -90,7 +84,64 @@ float pid_compute(pid_controller_t *pid,
   output = proportional + integral + derivative;
 
   /* Apply output limits to ensure actuators stay within safe range */
-  output = clamp(output, pid->output_min, pid->output_max);
+  output = clamp_float(output, pid->output_min, pid->output_max);
+
+  return output;
+}
+
+float pid_compute_pv(pid_controller_t *pid,
+    float x_ref,
+    float v_ref,
+    float x_meas,
+    float v_meas,
+    float dt) 
+{
+  float x_err, v_err;
+  float proportional;
+  float integral;
+  float derivative;
+  float output;
+
+  /* Store dt for reference */
+  pid->dt = dt;
+
+  /* Calculate error: how far we are from desired setpoint */
+  x_err = x_ref - x_meas;
+  v_err = v_ref - v_meas;
+
+  /* --- PROPORTIONAL TERM --- */
+  /* Responds immediately to current error */
+  proportional = pid->kp * x_err;
+
+  /* --- INTEGRAL TERM --- */
+  /* Accumulates error over time to eliminate steady-state error */
+  /* Integrate: sum up error over time */
+  pid->integral_sum += x_err * dt;
+
+  /* Apply anti-windup: clamp integral to prevent overflow */
+  /* This prevents the integral from growing unbounded when output is saturated */
+  pid->integral_sum =
+      clamp_float(pid->integral_sum, -pid->integral_limit, pid->integral_limit);
+
+  /* Calculate integral contribution */
+  integral = pid->ki * pid->integral_sum;
+
+  /* --- DERIVATIVE TERM --- */
+  /* Derivative on measurement (not error) to prevent derivative kick */
+  /* When setpoint changes suddenly, derivative of error would spike */
+  /* Using derivative of measurement avoids this problem */
+  /* Note: Negative sign because we want to oppose rapid changes in measurement */
+  derivative = pid->kd * v_err;
+
+  /* Store current measurement for next iteration */
+  pid->prev_measurement = x_meas;
+
+  /* --- COMPUTE OUTPUT --- */
+  /* Combine all three terms */
+  output = proportional + integral + derivative;
+
+  /* Apply output limits to ensure actuators stay within safe range */
+  output = clamp_float(output, pid->output_min, pid->output_max);
 
   return output;
 }
@@ -131,7 +182,7 @@ void pid_set_limits(pid_controller_t *pid,
   pid->output_max = output_max;
 
   /* Clamp existing integral to new limits */
-  pid->integral_sum = clamp(pid->integral_sum, -integral_limit, integral_limit);
+  pid->integral_sum = clamp_float(pid->integral_sum, -integral_limit, integral_limit);
 }
 
 /**
@@ -141,20 +192,3 @@ float pid_get_integral(pid_controller_t *pid) {
   return pid->integral_sum;
 }
 
-/* Private functions ---------------------------------------------------------*/
-
-/**
- * @brief  Clamp a value between min and max
- * @param  value: Value to clamp
- * @param  min_val: Minimum allowed value
- * @param  max_val: Maximum allowed value
- * @retval Clamped value
- */
-static float clamp(float value, float min_val, float max_val) {
-  if (value > max_val) {
-    return max_val;
-  } else if (value < min_val) {
-    return min_val;
-  }
-  return value;
-}

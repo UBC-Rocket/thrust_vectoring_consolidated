@@ -16,6 +16,7 @@ target_include_directories(controls
 target_link_libraries(controls
     PUBLIC
         state_estimation
+        utilities
     PRIVATE
         m
 )

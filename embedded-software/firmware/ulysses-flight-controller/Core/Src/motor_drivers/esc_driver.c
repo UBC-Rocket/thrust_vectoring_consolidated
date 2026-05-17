@@ -1,10 +1,9 @@
-#include "motor_drivers/esc_driver.h"
-
 #include <stddef.h>
 #include <stdint.h>
 
 #include "controls/pwm.h"
 #include "motor_drivers/pwm_output.h"
+#include "motor_drivers/esc_driver.h"
 
 static esc_pair_t g_esc_pair;
 

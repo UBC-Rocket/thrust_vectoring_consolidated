@@ -1,4 +1,5 @@
 #include "controls/pwm.h"
+#include "utilities/clamp.h"
 
 #include <math.h>
 
@@ -23,11 +24,6 @@ static const float inverse_mtx[2][2] = {
     {63669.6665675616, -2520051.1606805213},
 };
 
-static inline float clampf(float value, float minimum, float maximum)
-{
-    return fminf(fmaxf(value, minimum), maximum);
-}
-
 /**
  * Computes the PWM setpoint necessary to generate the thrust and torque
  * setpoints desired.
@@ -45,8 +41,8 @@ pwm_setpoint_t pwm_setpoint_from_forces(float thrust, float torque)
     float upper_period = sqrtf(upper_normalized) + PWM_MIN_PERIOD_US;
 
     pwm_setpoint_t setpoint = {
-        .lower_motor_us = clampf(roundf(lower_period), PWM_MIN_PERIOD_US, PWM_MAX_PERIOD_US),
-        .upper_motor_us = clampf(roundf(upper_period), PWM_MIN_PERIOD_US, PWM_MAX_PERIOD_US),
+        .lower_motor_us = clamp_float(roundf(lower_period), PWM_MIN_PERIOD_US, PWM_MAX_PERIOD_US),
+        .upper_motor_us = clamp_float(roundf(upper_period), PWM_MIN_PERIOD_US, PWM_MAX_PERIOD_US),
     };
 
     return setpoint;

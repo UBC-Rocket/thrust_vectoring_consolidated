@@ -1,4 +1,5 @@
 #include "motor_drivers/pwm_output.h"
+#include "utilities/clamp.h"
 
 #include <stddef.h>
 
@@ -7,22 +8,21 @@ uint32_t pwm_us_to_ticks(const pwm_output_t *pwm, uint16_t us) {
         return 0U;
     }
 
-    uint64_t ticks = (uint64_t)us * (uint64_t)pwm->timer_hz;
-    ticks /= 1000000ULL;
-    if (ticks > 0xFFFFFFFFULL) {
-        ticks = 0xFFFFFFFFULL;
+    uint64_t ticks = ((uint64_t)us * (uint64_t)pwm->timer_hz) / 1000000ULL;
+
+    if (ticks > UINT32_MAX) {
+        return UINT32_MAX;
     }
+
     return (uint32_t)ticks;
 }
 
 uint32_t pwm_clamp_ticks(const pwm_output_t *pwm, uint32_t ticks) {
     if (pwm == NULL || pwm->period_ticks == 0U) {
-        return ticks;
+        return 0U;
     }
-    if (ticks >= pwm->period_ticks) {
-        return pwm->period_ticks - 1U;
-    }
-    return ticks;
+
+    return clamp_u32(ticks, 0U, pwm->period_ticks - 1U);
 }
 
 void pwm_set_compare(const pwm_output_t *pwm, uint32_t ticks) {
