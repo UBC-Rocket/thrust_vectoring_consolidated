@@ -34,7 +34,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "io_sys/io_init.h"
+#include "app/app_init.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -146,7 +147,15 @@ int main(void)
   MX_WWDG2_Init();
   MX_TIM13_Init();
   /* USER CODE BEGIN 2 */
-
+  /* Bring up the four-layer stack on CM4 in order:
+   *   IO  — start TIM13 timestamp, attach intercore HSEM, init SPI/SD/...
+   *   DEV — instantiate every sensor / comms driver singleton
+   *   APP — create FreeRTOS tasks and wire notify targets
+   * The scheduler is then started by CubeMX's osKernelStart() below;
+   * our tasks coexist with the (idle) defaultTask. */
+  io_init_cm4();
+  dev_init_cm4();
+  app_init_cm4();
   /* USER CODE END 2 */
 
   /* Init scheduler */

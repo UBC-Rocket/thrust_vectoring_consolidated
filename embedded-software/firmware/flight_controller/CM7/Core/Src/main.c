@@ -31,7 +31,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "io_sys/io_init.h"
+#include "app/app_init.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -162,7 +163,14 @@ Error_Handler();
   MX_TIM4_Init();
   MX_WWDG1_Init();
   /* USER CODE BEGIN 2 */
-
+  /* Bring up the four-layer stack on CM7:
+   *   IO  — attach to shared TIM13 timestamp, init HSEM + DShot
+   *   DEV — instantiate actuator drivers (servo bus, ESCs)
+   *   APP — create the controls task
+   * CubeMX's osKernelStart() below hands control to the scheduler. */
+  io_init_cm7();
+  dev_init_cm7();
+  app_init_cm7();
   /* USER CODE END 2 */
 
   /* Init scheduler */
