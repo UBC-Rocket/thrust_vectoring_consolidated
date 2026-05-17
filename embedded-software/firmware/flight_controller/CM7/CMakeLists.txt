@@ -75,7 +75,9 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
     SENSORS_USE_ARM_BARRIER
 )
 
-target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
+# mx-generated.cmake uses the plain target_link_libraries signature on this
+# target, so we must too (CMake forbids mixing keyword + plain on one target).
+target_link_libraries(${CMAKE_PROJECT_NAME}
     io
     io_sys
     io_intercore_slot

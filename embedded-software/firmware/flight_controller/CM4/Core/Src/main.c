@@ -35,6 +35,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "io_sys/io_init.h"
+#include "io_sys/io_timestamp.h"
 #include "app/app_init.h"
 /* USER CODE END Includes */
 
@@ -218,7 +219,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
-
+  /* TIM13 wraps roll the shared 48-bit timestamp upper word. */
+  io_timestamp_on_tim_period_elapsed(htim);
   /* USER CODE END Callback 1 */
 }
 

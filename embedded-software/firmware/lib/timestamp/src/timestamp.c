@@ -21,11 +21,16 @@
  *   - DWT->CYCCNT, DWT->CTRL, DWT_CTRL_CYCCNTENA_Msk
  *   - SystemCoreClock (extern uint32_t)
  */
-#if defined(STM32H5)
+/* CubeMX sets a device-specific macro (e.g. STM32H745xx). Catch the common
+ * H5 / H7 / F4 families plus a few of the H7 variants we actually build. */
+#if defined(STM32H5) || defined(STM32H563xx) || defined(STM32H573xx)
   #include "stm32h5xx.h"
-#elif defined(STM32H7)
+#elif defined(STM32H7)     || defined(STM32H743xx) || defined(STM32H745xx) || \
+      defined(STM32H747xx) || defined(STM32H750xx) || defined(STM32H753xx) || \
+      defined(STM32H755xx) || defined(STM32H757xx)
   #include "stm32h7xx.h"
-#elif defined(STM32F4)
+#elif defined(STM32F4) || defined(STM32F405xx) || defined(STM32F407xx) || \
+      defined(STM32F411xx) || defined(STM32F429xx)
   #include "stm32f4xx.h"
 #else
   /* Fallback: consumer must provide CMSIS headers via include paths */

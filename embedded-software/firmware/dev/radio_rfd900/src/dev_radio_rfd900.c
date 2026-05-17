@@ -59,7 +59,7 @@ static void on_frame(const uint8_t *data, size_t len, void *user) {
     f->t_us = io_timestamp_us();
     f->len  = (uint16_t)len;
     memcpy(f->payload, data, len);
-    __DMB();
+    __atomic_thread_fence(__ATOMIC_SEQ_CST);
     d->head = (d->head + 1) % RADIO_RING_SIZE;
     notify_isr(d);
 }
@@ -78,7 +78,7 @@ radio_rfd900_t *radio_rfd900_get(void) {
 size_t radio_rfd900_drain_frames(radio_rfd900_t *d, radio_frame_t *out, size_t max) {
     size_t n = 0;
     while (n < max && d->head != d->tail) {
-        __DMB();
+        __atomic_thread_fence(__ATOMIC_SEQ_CST);
         out[n++] = d->ring[d->tail];
         d->tail = (d->tail + 1) % RADIO_RING_SIZE;
     }

@@ -44,6 +44,16 @@ static inline uint32_t io_timestamp_ms(void) {
     return (uint32_t)(io_timestamp_us() / 1000ULL);
 }
 
+/**
+ * @brief IRQ hook called from main.c's HAL_TIM_PeriodElapsedCallback
+ *        dispatcher (USER CODE block) on every TIM period-elapsed event.
+ *        Filters internally for the timestamp TIM (TIM13 on H747).
+ *
+ * The htim parameter is opaque to keep this header free of STM32 types;
+ * the per-target impl casts back to `TIM_HandleTypeDef *`.
+ */
+void io_timestamp_on_tim_period_elapsed(void *htim);
+
 #ifdef __cplusplus
 }
 #endif

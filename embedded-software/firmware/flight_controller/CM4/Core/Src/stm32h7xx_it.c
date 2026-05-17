@@ -22,6 +22,7 @@
 #include "stm32h7xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "io/io_uart.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -375,7 +376,13 @@ void SPI3_IRQHandler(void)
 void UART4_IRQHandler(void)
 {
   /* USER CODE BEGIN UART4_IRQn 0 */
-
+  /* IO_UART_MMWAVE: character-match → frame boundary. Handle before
+   * HAL_UART_IRQHandler so we own the CMF flag; HAL_UART_IRQHandler
+   * does not service CMF on this part. */
+  if (__HAL_UART_GET_FLAG(&huart4, UART_FLAG_CMF)) {
+    __HAL_UART_CLEAR_FLAG(&huart4, UART_CLEAR_CMF);
+    io_uart_on_match_isr(&huart4);
+  }
   /* USER CODE END UART4_IRQn 0 */
   HAL_UART_IRQHandler(&huart4);
   /* USER CODE BEGIN UART4_IRQn 1 */
@@ -389,7 +396,11 @@ void UART4_IRQHandler(void)
 void UART5_IRQHandler(void)
 {
   /* USER CODE BEGIN UART5_IRQn 0 */
-
+  /* IO_UART_GPS: '\n' = NMEA line boundary. See UART4 note. */
+  if (__HAL_UART_GET_FLAG(&huart5, UART_FLAG_CMF)) {
+    __HAL_UART_CLEAR_FLAG(&huart5, UART_CLEAR_CMF);
+    io_uart_on_match_isr(&huart5);
+  }
   /* USER CODE END UART5_IRQn 0 */
   HAL_UART_IRQHandler(&huart5);
   /* USER CODE BEGIN UART5_IRQn 1 */
@@ -515,7 +526,11 @@ void DMA2_Stream7_IRQHandler(void)
 void UART7_IRQHandler(void)
 {
   /* USER CODE BEGIN UART7_IRQn 0 */
-
+  /* IO_UART_RADIO: 0x00 = rocket-protocol frame boundary. See UART4 note. */
+  if (__HAL_UART_GET_FLAG(&huart7, UART_FLAG_CMF)) {
+    __HAL_UART_CLEAR_FLAG(&huart7, UART_CLEAR_CMF);
+    io_uart_on_match_isr(&huart7);
+  }
   /* USER CODE END UART7_IRQn 0 */
   HAL_UART_IRQHandler(&huart7);
   /* USER CODE BEGIN UART7_IRQn 1 */
@@ -594,5 +609,20 @@ void LPUART1_IRQHandler(void)
 }
 
 /* USER CODE BEGIN 1 */
+
+/**
+ * @brief HSEM common interrupt — CM4 receive line.
+ *
+ * HSEM has two NVIC lines per peripheral on the H747: HSEM1_IRQn fires
+ * on CPU1 (CM7), HSEM2_IRQn fires on CPU2 (CM4). The intercore module
+ * (io/h747/CM4/io_intercore.c) enables HSEM2_IRQn and relies on
+ * HAL_HSEM_FreeCallback being invoked — which only happens if we
+ * forward the IRQ into HAL_HSEM_IRQHandler. HAL_HSEM_IRQHandler is
+ * parameterless and picks the right CPU MISR by CPUID.
+ */
+void HSEM2_IRQHandler(void)
+{
+  HAL_HSEM_IRQHandler();
+}
 
 /* USER CODE END 1 */

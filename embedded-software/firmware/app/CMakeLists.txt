@@ -8,6 +8,7 @@ add_library(app_shared STATIC
     shared/state_exchange.c
     shared/log_service.c
     shared/crash_dump.c
+    shared/shared_memory.c
 )
 target_include_directories(app_shared
     PUBLIC
@@ -53,6 +54,10 @@ if(TARGET dev_imu_bmi088 AND TARGET dev_imu_icm40609 AND TARGET dev_baro_ms5611
             dev_gps_nmea
             dev_radio_rfd900
     )
+    # FreeRTOS + CMSIS includes for xTaskCreate / osDelay etc.
+    if(TARGET stm32cubemx)
+        target_link_libraries(app_cm4 PRIVATE stm32cubemx)
+    endif()
     set_target_properties(app_cm4 PROPERTIES
         C_STANDARD 11
         C_STANDARD_REQUIRED ON
@@ -79,6 +84,9 @@ if(TARGET dev_servo_feetech AND TARGET dev_esc_dshot)
             dev_servo_feetech
             dev_esc_dshot
     )
+    if(TARGET stm32cubemx)
+        target_link_libraries(app_cm7 PRIVATE stm32cubemx)
+    endif()
     set_target_properties(app_cm7 PROPERTIES
         C_STANDARD 11
         C_STANDARD_REQUIRED ON

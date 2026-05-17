@@ -85,18 +85,20 @@ static const io_uart_t * const s_streaming_uarts[] = {
     &IO_UART_GPS, &IO_UART_RADIO, &IO_UART_MMWAVE,
 };
 
-void io_uart_on_match_isr(UART_HandleTypeDef *huart) {
+void io_uart_on_match_isr(void *huart) {
+    UART_HandleTypeDef *h = (UART_HandleTypeDef *)huart;
     for (unsigned i = 0; i < (sizeof(s_streaming_uarts)/sizeof(s_streaming_uarts[0])); ++i) {
-        if (s_streaming_uarts[i]->huart == huart) {
+        if (s_streaming_uarts[i]->huart == h) {
             io_uart_dma_cm_on_match_isr(s_streaming_uarts[i]->runtime);
             return;
         }
     }
 }
 
-void io_uart_on_error_isr(UART_HandleTypeDef *huart) {
+void io_uart_on_error_isr(void *huart) {
+    UART_HandleTypeDef *h = (UART_HandleTypeDef *)huart;
     for (unsigned i = 0; i < (sizeof(s_streaming_uarts)/sizeof(s_streaming_uarts[0])); ++i) {
-        if (s_streaming_uarts[i]->huart == huart) {
+        if (s_streaming_uarts[i]->huart == h) {
             io_uart_dma_cm_on_error_isr(s_streaming_uarts[i]->runtime);
             return;
         }

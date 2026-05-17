@@ -20,9 +20,13 @@
 /* Shared software upper word. Lives in SRAM4 so CM7 can also read. */
 static volatile uint32_t *s_upper;
 
-/* HAL update-period callback — TIM13 wraps every 6.5536 ms at 10 MHz. */
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
-    if (htim->Instance == TIM13) {
+/* Called from the CubeMX HAL_TIM_PeriodElapsedCallback dispatcher in
+ * Core/Src/main.c (USER CODE BEGIN Callback 1). We can't override the
+ * weak symbol directly because main.c already defines it for the HAL
+ * timebase (TIM5). TIM13 wraps every 6.5536 ms at 10 MHz. */
+void io_timestamp_on_tim_period_elapsed(void *htim) {
+    TIM_HandleTypeDef *t = (TIM_HandleTypeDef *)htim;
+    if (t->Instance == TIM13) {
         if (s_upper) (*s_upper)++;
     }
 }

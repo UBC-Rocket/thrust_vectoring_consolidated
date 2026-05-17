@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.22)
 project(io_intercore_slot LANGUAGES C)
 
 add_library(io_intercore_slot STATIC
-    src/intercore.c
+    src/io_intercore_slot.c
 )
 
 target_include_directories(io_intercore_slot

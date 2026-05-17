@@ -31,6 +31,16 @@ extern const io_uart_t IO_UART_RADIO;
 extern const io_uart_t IO_UART_MMWAVE;
 extern const io_uart_t IO_UART_SERVO_BUS;
 
+/**
+ * @brief IRQ hooks. Called from stm32h7xx_it.c's UART IRQHandlers
+ *        (USER CODE BEGIN UARTx_IRQn 0 / 1 blocks). The argument is a
+ *        HAL `UART_HandleTypeDef *` — declared void* here so this
+ *        header stays HAL-independent. The hook walks the streaming
+ *        UART table and routes to io_uart_dma_cm_on_*_isr.
+ */
+void io_uart_on_match_isr(void *huart);
+void io_uart_on_error_isr(void *huart);
+
 #ifdef __cplusplus
 }
 #endif

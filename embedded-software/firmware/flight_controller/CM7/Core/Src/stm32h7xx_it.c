@@ -175,4 +175,19 @@ void TIM6_DAC_IRQHandler(void)
 
 /* USER CODE BEGIN 1 */
 
+/**
+ * @brief HSEM common interrupt — CM7 receive line.
+ *
+ * HSEM has two NVIC lines per peripheral on the H747: HSEM1_IRQn fires
+ * on CPU1 (CM7), HSEM2_IRQn fires on CPU2 (CM4). The intercore module
+ * (io/h747/CM7/io_intercore.c) enables HSEM1_IRQn and relies on
+ * HAL_HSEM_FreeCallback being invoked — which only happens if we
+ * forward the IRQ into HAL_HSEM_IRQHandler. HAL_HSEM_IRQHandler is
+ * parameterless and picks the right CPU MISR by CPUID.
+ */
+void HSEM1_IRQHandler(void)
+{
+  HAL_HSEM_IRQHandler();
+}
+
 /* USER CODE END 1 */

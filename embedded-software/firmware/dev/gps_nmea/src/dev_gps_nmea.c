@@ -69,7 +69,7 @@ static void on_sentence(const uint8_t *data, size_t len, void *user) {
     f->fix_type         = d->gps.fix;
     f->sats_used        = d->gps.sats_in_use;
     f->valid            = d->gps.is_valid;
-    __DMB();
+    __atomic_thread_fence(__ATOMIC_SEQ_CST);
     d->head = (d->head + 1) % GPS_FIX_RING_SIZE;
     notify_isr(d);
 }
@@ -89,7 +89,7 @@ gps_nmea_t *gps_nmea_get(void) {
 size_t gps_nmea_drain_fixes(gps_nmea_t *d, gps_fix_t *out, size_t max) {
     size_t n = 0;
     while (n < max && d->head != d->tail) {
-        __DMB();
+        __atomic_thread_fence(__ATOMIC_SEQ_CST);
         out[n++] = d->ring[d->tail];
         d->tail = (d->tail + 1) % GPS_FIX_RING_SIZE;
     }

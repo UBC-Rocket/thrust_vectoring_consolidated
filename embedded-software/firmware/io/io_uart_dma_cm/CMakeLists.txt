@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.22)
 project(io_uart_dma_cm LANGUAGES C)
 
 add_library(io_uart_dma_cm STATIC
-    src/uart_dma_cm.c
+    src/io_uart_dma_cm.c
 )
 
 target_include_directories(io_uart_dma_cm

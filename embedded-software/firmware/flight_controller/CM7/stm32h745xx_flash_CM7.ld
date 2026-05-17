@@ -41,6 +41,11 @@ MEMORY
 FLASH (rx)      : ORIGIN = 0x08000000, LENGTH = 1024K
 RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 128K
 ITCMRAM (xrw)      : ORIGIN = 0x00000000, LENGTH = 64K
+/* SRAM4 in the D3 domain. Both cores see this at the same physical address,
+ * and it's outside the D1/D2 cache hierarchy, so no clean/invalidate dance
+ * is needed for cross-core sharing. Used for the .shared section
+ * (__shared_region_start__ and the intercore seqlock slots). */
+SRAM4 (xrw)    : ORIGIN = 0x38000000, LENGTH = 64K
 }
 /* Highest address of the user mode stack */
 _estack = 0x20020000;    /* end of RAM */
@@ -218,6 +223,19 @@ SECTIONS
     . = . + _Min_Stack_Size;
     . = ALIGN(8);
   } >RAM
+
+  /* Cross-core shared region in SRAM4. Both CM7 and CM4 link with an
+   * identical SRAM4 entry and an identical .shared section, so symbols
+   * tagged with __attribute__((section(".shared"))) land at the same
+   * physical address on both cores. NOLOAD: contents are not part of
+   * the image — the producing core writes at runtime. */
+  .shared (NOLOAD) :
+  {
+    . = ALIGN(8);
+    KEEP(*(.shared))
+    KEEP(*(.shared.*))
+    . = ALIGN(8);
+  } >SRAM4
 
   
 
