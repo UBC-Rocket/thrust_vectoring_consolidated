@@ -381,7 +381,8 @@ void SensorDataModel::applyDownlink(int which, const void* downlinkStruct)
         chipForSensor("Baro1",   m_prevBaro1Ok, s->baro1_ok,      !m_haveLastStatus);
         chipForSensor("Baro2",   m_prevBaro2Ok, s->baro2_ok,      !m_haveLastStatus);
         if (!m_haveLastStatus) {
-            emit alarmSuccess(QStringLiteral("GPS %1").arg(s->gps_connected ? "connected" : "not connected"));
+            if (s->gps_connected) emit alarmSuccess(QStringLiteral("GPS connected"));
+            else                  emit alarmWarning(QStringLiteral("GPS not connected"));
         } else if (m_prevGpsConn != s->gps_connected) {
             if (s->gps_connected) emit alarmSuccess(QStringLiteral("GPS connected"));
             else                  emit alarmWarning(QStringLiteral("GPS lost"));

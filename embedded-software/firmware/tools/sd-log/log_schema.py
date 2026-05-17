@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import struct
 
-LOG_SCHEMA_VERSION = 6
+LOG_SCHEMA_VERSION = 5
 
 TYPE_FORMATS = {'bool': 'B', 'uint8_t': 'B', 'int8_t': 'b', 'uint16_t': 'H', 'int16_t': 'h', 'uint32_t': 'I', 'int32_t': 'i', 'uint64_t': 'Q', 'int64_t': 'q', 'float': 'f', 'double': 'd'}
 
@@ -264,27 +264,6 @@ RECORDS = {
         ],
         "format": "<IIIIIIBBBBBBH",
         "struct": struct.Struct("<IIIIIIBBBBBBH"),
-    },
-    "probe_layout": {
-        "id": 15,
-        "enum": "LOG_RECORD_TYPE_probe_layout",
-        "fields": [
-            ("uint32_t", "timestamp_us"),
-            ("bool", "has_anchor_0"),
-            ("float", "anchor_0_x"),
-            ("float", "anchor_0_y"),
-            ("bool", "has_anchor_1"),
-            ("float", "anchor_1_x"),
-            ("float", "anchor_1_y"),
-            ("bool", "has_anchor_2"),
-            ("float", "anchor_2_x"),
-            ("float", "anchor_2_y"),
-            ("bool", "has_anchor_3"),
-            ("float", "anchor_3_x"),
-            ("float", "anchor_3_y"),
-        ],
-        "format": "<IBffBffBffBff",
-        "struct": struct.Struct("<IBffBffBffBff"),
     },
     "trace_batch": {
         "id": 32,

@@ -34,12 +34,6 @@ static void handle_state_command(const tvr_StateCommand *cmd,
 static void handle_pid_gains(const tvr_SetPidGains *pid);
 static void handle_reference(const tvr_SetReference *reference);
 static void handle_configuration(const tvr_SetConfig *configuration);
-static void handle_probe_layout(const tvr_SetProbeLayout *layout);
-
-/* Latest UWB anchor layout received from ground. The trilateration consumer
- * (not yet implemented — tracked with the MaUWB driver work) reads these.
- * Static-storage default = all zeros + all has_* flags false. */
-static tvr_SetProbeLayout g_probe_layout = tvr_SetProbeLayout_init_zero;
 static void send_telemetry(const state_t *st, const control_output_t *ctrl,
                            flight_state_t flight_state);
 static void send_status(flight_state_t flight_state);
@@ -114,15 +108,7 @@ void mission_manager_task_start(void *argument) {
                                 &decoded.payload.set_config);
                             break;
 
-                        case tvr_FlightCommand_set_probe_layout_tag:
-                            cmd_rx_count++;
-                            handle_probe_layout(
-                                &decoded.payload.set_probe_layout);
-                            break;
-
                         default:
-                            DLOG_PRINT("[RADIO] Unknown FlightCommand payload tag: %d\r\n",
-                                       (int)decoded.which_payload);
                             break;
                     }
                 }
@@ -221,44 +207,6 @@ static void handle_configuration(const tvr_SetConfig *configuration) {
     });
 
     state_exchange_publish_vehicle_config(*configuration);
-}
-
-/* GCS sent the 4 ground UWB anchor positions. Store in RAM for the
- * trilateration consumer (not yet wired — see embedded-software/uwb_driver/stage
- * MaUWB driver, which still needs the RX path completed before it can produce
- * ranging frames) and persist to the SD log so post-flight analysis can
- * correlate trilateration output against the layout in use at the time.
- *
- * NOTE: boot recovery is NOT implemented. After any reboot the operator must
- * re-send SetProbeLayout from GCS before ARM. This matches PID/Reference/
- * Config behavior — the log is for post-flight analysis, not boot restore. */
-static void handle_probe_layout(const tvr_SetProbeLayout *layout) {
-    if (layout == NULL) {
-        return;
-    }
-    g_probe_layout = *layout;
-
-    log_service_log_probe_layout(&(log_record_probe_layout_t){
-        .timestamp_us  = timestamp_us(),
-        .has_anchor_0  = layout->has_anchor_0,
-        .anchor_0_x    = layout->has_anchor_0 ? layout->anchor_0.x : 0.0f,
-        .anchor_0_y    = layout->has_anchor_0 ? layout->anchor_0.y : 0.0f,
-        .has_anchor_1  = layout->has_anchor_1,
-        .anchor_1_x    = layout->has_anchor_1 ? layout->anchor_1.x : 0.0f,
-        .anchor_1_y    = layout->has_anchor_1 ? layout->anchor_1.y : 0.0f,
-        .has_anchor_2  = layout->has_anchor_2,
-        .anchor_2_x    = layout->has_anchor_2 ? layout->anchor_2.x : 0.0f,
-        .anchor_2_y    = layout->has_anchor_2 ? layout->anchor_2.y : 0.0f,
-        .has_anchor_3  = layout->has_anchor_3,
-        .anchor_3_x    = layout->has_anchor_3 ? layout->anchor_3.x : 0.0f,
-        .anchor_3_y    = layout->has_anchor_3 ? layout->anchor_3.y : 0.0f,
-    });
-
-    DLOG_PRINT("[MM] SetProbeLayout received (%c%c%c%c)\r\n",
-               layout->has_anchor_0 ? '0' : '-',
-               layout->has_anchor_1 ? '1' : '-',
-               layout->has_anchor_2 ? '2' : '-',
-               layout->has_anchor_3 ? '3' : '-');
 }
 
 static void handle_state_command(const tvr_StateCommand *cmd,

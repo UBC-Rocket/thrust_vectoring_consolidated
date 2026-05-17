@@ -218,7 +218,7 @@ Rectangle {
             id: sendBtn
             text: "Send"
             padding: 8
-            enabled: panel.poles.length > 0
+            enabled: panel.poles.length === 4
             onClicked: {
                 console.log("probe layout:", JSON.stringify(panel.poles))
                 if (typeof commandsender !== "undefined" && commandsender
@@ -664,7 +664,7 @@ Rectangle {
                 property int hitSize: 20
                 width: hitSize
                 height: hitSize
-                visible: panel.poles.length >= 5
+                visible: panel.poles.length === 4
                 z: 10
 
                 Rectangle {

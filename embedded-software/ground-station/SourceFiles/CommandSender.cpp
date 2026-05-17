@@ -348,8 +348,11 @@ bool CommandSender::sendProbeLayout(const QVariantList& probes) {
         return false;
     }
 
+    // Use the operator's currently selected TX channel (matches D4 — PID/Reference/
+    // Config now also bind to bridge.txTo via Panel_PID_Controller.which).
+    const int which = m_bridge->txTo();
     QByteArray data(reinterpret_cast<const char*>(packet), result.written);
-    if (!m_bridge->sendBinary(1, data)) {
+    if (!m_bridge->sendBinary(which, data)) {
         emit errorOccurred("Failed to send probe layout packet");
         return false;
     }
