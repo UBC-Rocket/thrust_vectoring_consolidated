@@ -54,18 +54,6 @@ add_subdirectory(cmake/stm32cubemx)
 # Add dependencies
 include(dependencies)
 
-set(PWM_OUTPUT_SRC
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/motor_drivers/pwm_output.c
-)
-
-set(SERVO_SRC
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/motor_drivers/servo_driver.c
-)
-
-set(ESC_SRC
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/motor_drivers/esc_driver.c
-)
-
 set(DEBUG_MODULE_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/debug/log.c
 )
@@ -75,6 +63,14 @@ set(RTOS_TASKS_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/tasks/mission_manager.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/tasks/state_estimation.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/tasks/debug_logging.c
+)
+
+set(MOTOR_DRIVERS_SRC
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/motor_drivers/pwm_output.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/motor_drivers/servo_driver.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/motor_drivers/esc_driver.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/motor_drivers/protocols/bdshot.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/motor_drivers/protocols/bdshot_dma.c
 )
 
 set(SPI_DRIVER_SRC
@@ -123,10 +119,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/trace/trace_flush_task.c
     ${DEBUG_MODULE_SRC}
     ${ALGO_SRC}
-
-    ${PWM_OUTPUT_SRC}
-    ${SERVO_SRC}
-    ${ESC_SRC}
+    ${MOTOR_DRIVERS_SRC}
 )
 
 # Add include paths
