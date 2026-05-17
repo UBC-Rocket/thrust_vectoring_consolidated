@@ -30,6 +30,14 @@ typedef struct _tvr_TelemetryState {
     float thrust_cmd; /* [N] */
     float gimbal_x; /* [rad] */
     float gimbal_y; /* [rad] */
+    /* On-board UWB tag positions in nav-frame meters, computed by the flight
+ controller via trilateration against the 4 ground anchors set by
+ SetProbeLayout. Two tags on the rocket; both optional (present only when
+ the UWB ranging frame for that tag was usable this tick). */
+    bool has_uwb_tag_0;
+    tvr_Vec2 uwb_tag_0;
+    bool has_uwb_tag_1;
+    tvr_Vec2 uwb_tag_1;
 } tvr_TelemetryState;
 
 
@@ -38,8 +46,8 @@ extern "C" {
 #endif
 
 /* Initializer values for message structs */
-#define tvr_TelemetryState_init_default          {0, false, tvr_Vec3_init_default, false, tvr_Vec3_init_default, false, tvr_Quaternion_init_default, false, tvr_Vec3_init_default, _tvr_FlightState_MIN, 0, 0, 0}
-#define tvr_TelemetryState_init_zero             {0, false, tvr_Vec3_init_zero, false, tvr_Vec3_init_zero, false, tvr_Quaternion_init_zero, false, tvr_Vec3_init_zero, _tvr_FlightState_MIN, 0, 0, 0}
+#define tvr_TelemetryState_init_default          {0, false, tvr_Vec3_init_default, false, tvr_Vec3_init_default, false, tvr_Quaternion_init_default, false, tvr_Vec3_init_default, _tvr_FlightState_MIN, 0, 0, 0, false, tvr_Vec2_init_default, false, tvr_Vec2_init_default}
+#define tvr_TelemetryState_init_zero             {0, false, tvr_Vec3_init_zero, false, tvr_Vec3_init_zero, false, tvr_Quaternion_init_zero, false, tvr_Vec3_init_zero, _tvr_FlightState_MIN, 0, 0, 0, false, tvr_Vec2_init_zero, false, tvr_Vec2_init_zero}
 
 /* Field tags (for use in manual encoding/decoding) */
 #define tvr_TelemetryState_timestamp_ms_tag      1
@@ -51,6 +59,8 @@ extern "C" {
 #define tvr_TelemetryState_thrust_cmd_tag        7
 #define tvr_TelemetryState_gimbal_x_tag          8
 #define tvr_TelemetryState_gimbal_y_tag          9
+#define tvr_TelemetryState_uwb_tag_0_tag         10
+#define tvr_TelemetryState_uwb_tag_1_tag         11
 
 /* Struct field encoding specification for nanopb */
 #define tvr_TelemetryState_FIELDLIST(X, a) \
@@ -62,13 +72,17 @@ X(a, STATIC,   OPTIONAL, MESSAGE,  angular_rate,      5) \
 X(a, STATIC,   SINGULAR, UENUM,    flight_state,      6) \
 X(a, STATIC,   SINGULAR, FLOAT,    thrust_cmd,        7) \
 X(a, STATIC,   SINGULAR, FLOAT,    gimbal_x,          8) \
-X(a, STATIC,   SINGULAR, FLOAT,    gimbal_y,          9)
+X(a, STATIC,   SINGULAR, FLOAT,    gimbal_y,          9) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  uwb_tag_0,        10) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  uwb_tag_1,        11)
 #define tvr_TelemetryState_CALLBACK NULL
 #define tvr_TelemetryState_DEFAULT NULL
 #define tvr_TelemetryState_position_MSGTYPE tvr_Vec3
 #define tvr_TelemetryState_velocity_MSGTYPE tvr_Vec3
 #define tvr_TelemetryState_attitude_MSGTYPE tvr_Quaternion
 #define tvr_TelemetryState_angular_rate_MSGTYPE tvr_Vec3
+#define tvr_TelemetryState_uwb_tag_0_MSGTYPE tvr_Vec2
+#define tvr_TelemetryState_uwb_tag_1_MSGTYPE tvr_Vec2
 
 extern const pb_msgdesc_t tvr_TelemetryState_msg;
 
@@ -77,7 +91,7 @@ extern const pb_msgdesc_t tvr_TelemetryState_msg;
 
 /* Maximum encoded size of messages (where known) */
 #define TVR_TELEMETRY_PB_H_MAX_SIZE              tvr_TelemetryState_size
-#define tvr_TelemetryState_size                  96
+#define tvr_TelemetryState_size                  120
 
 #ifdef __cplusplus
 } /* extern "C" */

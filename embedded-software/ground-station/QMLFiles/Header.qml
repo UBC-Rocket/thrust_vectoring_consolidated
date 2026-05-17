@@ -2,16 +2,16 @@ import QtQuick
 import "Items"
 
 Rectangle {
-    //Initializing the Header
     id: header
+
+    property alias modeBar: modeBarInstance
+
     anchors.top: parent.top
     anchors.left: parent.left
     anchors.right: parent.right
-    height: 70
+    height: 64
     color: Theme.background
 
-    // Map FlightState enum integer to display string and color.
-    // 0=IDLE, 1=ESTOP, 2=RISE, 3=HOVER, 4=LOWER
     function flightStateLabel(state) {
         switch (state) {
             case 0: return "IDLE"
@@ -25,46 +25,46 @@ Rectangle {
 
     function flightStateColor(state) {
         switch (state) {
-            case 1: return Theme.danger    // ESTOP — red
-            case 2: return Theme.success   // RISE  — green
-            case 3: return Theme.success   // HOVER — green
-            case 4: return Theme.warn      // LOWER — amber
-            default: return Theme.textTertiary  // IDLE / UNKNOWN — grey
+            case 1: return Theme.danger
+            case 2: return Theme.success
+            case 3: return Theme.success
+            case 4: return Theme.warn
+            default: return Theme.textTertiary
         }
     }
 
-    Text {
-        id: title
-
-        //Position
+    // ── Title block (top-left) ──────────────────────────────────────────
+    Column {
+        id: titleBlock
         anchors.left: parent.left
-        y: parent.height/14
         anchors.leftMargin: 20
+        anchors.verticalCenter: parent.verticalCenter
+        spacing: 0
 
-        //Text
-        text: "Rocket Ground Control"
-        font.family: Theme.fontFamily
-        font.pixelSize: 24
-        font.bold: true
-        color: Theme.accent
+        Text {
+            text: "Rocket Ground Control"
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontH1
+            font.bold: true
+            color: Theme.accent
+        }
+        Text {
+            text: "Ulysses"
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontCaption
+            color: Theme.textSecondary
+        }
     }
 
-    Text {
-        id: subtitle
-
-        //Position
-        anchors.left: title.left
-        y: title.y + title.height
-        anchors.leftMargin: title.leftMargin
-
-        //Text
-        text: "Ulysses"
-        font.family: Theme.fontFamily
-        font.pixelSize: 18
-        color: Theme.textSecondary
+    // ── Mode tab bar (center) ───────────────────────────────────────────
+    ModeBar {
+        id: modeBarInstance
+        anchors.verticalCenter: parent.verticalCenter
+        anchors.horizontalCenter: parent.horizontalCenter
+        labels: ["Flight", "Tuning", "Map", "Diagnostics"]
     }
 
-    // Flight state badge — top-right of header
+    // ── Flight-state badge (top-right) ──────────────────────────────────
     Rectangle {
         id: flightStateBadge
         anchors.right: parent.right
@@ -88,7 +88,6 @@ Rectangle {
 
     Rectangle {
         id: line
-
         anchors.bottom: parent.bottom
         color: Theme.divider
         width: parent.width

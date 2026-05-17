@@ -16,6 +16,7 @@ BasePanel {
 
     Item {
         id: visualization
+        focus: true
 
         anchors{
                    top: header.bottom
@@ -35,6 +36,45 @@ BasePanel {
            property real angle_z: sensorData.filteredAngleZ
            property real length: 200        // shaft length
            property real thickness: 0.15       // shaft thickness
+
+        // Arrow-key camera orbit. Rotates cam.position around the origin (where the
+        // rocket frame sits) in spherical coordinates. Composes with WasdController:
+        // each keypress re-derives spherical coords from the current position, so any
+        // WASD translation in between is carried forward.
+        readonly property real azimStep: 3 * Math.PI / 180
+        readonly property real elevStep: 3 * Math.PI / 180
+        readonly property real elevClamp: Math.PI / 2 - 0.03
+
+        function orbit(dAzim, dElev) {
+            const px = cam.position.x, py = cam.position.y, pz = cam.position.z
+            const r = Math.sqrt(px*px + py*py + pz*pz)
+            if (r < 1e-6) return
+            let azim = Math.atan2(px, pz)
+            let elev = Math.asin(py / r)
+            azim += dAzim
+            elev = Math.max(-elevClamp, Math.min(elevClamp, elev + dElev))
+            const cosE = Math.cos(elev)
+            cam.position = Qt.vector3d(r * cosE * Math.sin(azim),
+                                       r * Math.sin(elev),
+                                       r * cosE * Math.cos(azim))
+        }
+
+        Keys.onPressed: (event) => {
+            switch (event.key) {
+                case Qt.Key_Left:  orbit(-azimStep, 0);        event.accepted = true; break
+                case Qt.Key_Right: orbit( azimStep, 0);        event.accepted = true; break
+                case Qt.Key_Up:    orbit(0,          elevStep);  event.accepted = true; break
+                case Qt.Key_Down:  orbit(0,         -elevStep); event.accepted = true; break
+            }
+        }
+
+        // Click the 3D view to claim keyboard focus (arrows + WASD).
+        // accepted=false lets the click fall through to WasdController.
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.LeftButton
+            onPressed: (mouse) => { visualization.forceActiveFocus(); mouse.accepted = false }
+        }
 
         // //FAKE DATA
         //    Timer {

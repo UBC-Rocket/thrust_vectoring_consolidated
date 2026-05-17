@@ -19,6 +19,11 @@ public:
     explicit SerialBridge(QObject* parent = nullptr);
 
     Q_PROPERTY(QStringList ports READ ports NOTIFY portsChanged)
+    /// Active TX channel index (1 or 2). Single source of truth for any QML
+    /// panel that needs to know where to send commands.
+    Q_PROPERTY(int txTo READ txTo NOTIFY txToChanged)
+    /// Active RX channel index (1 or 2). Mirrors txTo for symmetry.
+    Q_PROPERTY(int rxFrom READ rxFrom NOTIFY rxFromChanged)
 
     // -----------------------
     // QML-callable API
@@ -67,6 +72,11 @@ public:
         return (which == 1) ? m_p1.baudRate() : m_p2.baudRate();
     }
 
+    /// Active TX channel index.
+    int txTo() const { return m_txTo; }
+    /// Active RX channel index.
+    int rxFrom() const { return m_rxFrom; }
+
 signals:
     // -----------------------
     // Property/Model change notifications (for QML bindings)
@@ -95,9 +105,6 @@ signals:
     // -----------------------
     // App-level signals
     // -----------------------
-
-    /// Emitted when a full line of text has been received from the given port.
-    void textReceivedFrom(int which, const QString &line);
 
     /// Emitted when a complete binary (COBS) packet has been received (0x00-delimited).
     void binaryPacketReceived(int which, const QByteArray &packet);
@@ -157,9 +164,6 @@ private:
         if (!m_rxPaused) return false;
         return m_rxPauseTimer.isValid() && (m_rxPauseTimer.elapsed() < m_rxPauseMs);
     }
-
-    /// Split accumulated RX buffer into complete lines and emit textReceivedFrom().
-    void parseBufferedLines(int which);
 
     /// Split RX buffer on COBS delimiter (0x00), emit binaryPacketReceived() for each packet.
     void parseBufferedBinary(int which);

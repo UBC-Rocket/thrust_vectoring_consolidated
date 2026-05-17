@@ -53,6 +53,10 @@ public:
     // Send config values as: [mass, T_min, T_max, theta_min, theta_max].
     Q_INVOKABLE bool sendConfigValues(int which, const QVariantList& configValues);
 
+    // Send UWB probe layout. probes is a QVariantList of objects with {x: float, y: float}.
+    // Up to 15 probes. Always sends on port 1.
+    Q_INVOKABLE bool sendProbeLayout(const QVariantList& probes);
+
 signals:
     // -----------------------
     // App-level signals

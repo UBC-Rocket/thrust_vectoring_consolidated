@@ -19,6 +19,11 @@ typedef enum _tvr_FlightState {
 } tvr_FlightState;
 
 /* Struct definitions */
+typedef struct _tvr_Vec2 {
+    float x;
+    float y;
+} tvr_Vec2;
+
 typedef struct _tvr_Vec3 {
     float x;
     float y;
@@ -45,13 +50,18 @@ extern "C" {
 
 
 
+
 /* Initializer values for message structs */
+#define tvr_Vec2_init_default                    {0, 0}
 #define tvr_Vec3_init_default                    {0, 0, 0}
 #define tvr_Quaternion_init_default              {0, 0, 0, 0}
+#define tvr_Vec2_init_zero                       {0, 0}
 #define tvr_Vec3_init_zero                       {0, 0, 0}
 #define tvr_Quaternion_init_zero                 {0, 0, 0, 0}
 
 /* Field tags (for use in manual encoding/decoding) */
+#define tvr_Vec2_x_tag                           1
+#define tvr_Vec2_y_tag                           2
 #define tvr_Vec3_x_tag                           1
 #define tvr_Vec3_y_tag                           2
 #define tvr_Vec3_z_tag                           3
@@ -61,6 +71,12 @@ extern "C" {
 #define tvr_Quaternion_z_tag                     4
 
 /* Struct field encoding specification for nanopb */
+#define tvr_Vec2_FIELDLIST(X, a) \
+X(a, STATIC,   SINGULAR, FLOAT,    x,                 1) \
+X(a, STATIC,   SINGULAR, FLOAT,    y,                 2)
+#define tvr_Vec2_CALLBACK NULL
+#define tvr_Vec2_DEFAULT NULL
+
 #define tvr_Vec3_FIELDLIST(X, a) \
 X(a, STATIC,   SINGULAR, FLOAT,    x,                 1) \
 X(a, STATIC,   SINGULAR, FLOAT,    y,                 2) \
@@ -76,16 +92,19 @@ X(a, STATIC,   SINGULAR, FLOAT,    z,                 4)
 #define tvr_Quaternion_CALLBACK NULL
 #define tvr_Quaternion_DEFAULT NULL
 
+extern const pb_msgdesc_t tvr_Vec2_msg;
 extern const pb_msgdesc_t tvr_Vec3_msg;
 extern const pb_msgdesc_t tvr_Quaternion_msg;
 
 /* Defines for backwards compatibility with code written before nanopb-0.4.0 */
+#define tvr_Vec2_fields &tvr_Vec2_msg
 #define tvr_Vec3_fields &tvr_Vec3_msg
 #define tvr_Quaternion_fields &tvr_Quaternion_msg
 
 /* Maximum encoded size of messages (where known) */
 #define TVR_COMMON_PB_H_MAX_SIZE                 tvr_Quaternion_size
 #define tvr_Quaternion_size                      20
+#define tvr_Vec2_size                            10
 #define tvr_Vec3_size                            15
 
 #ifdef __cplusplus

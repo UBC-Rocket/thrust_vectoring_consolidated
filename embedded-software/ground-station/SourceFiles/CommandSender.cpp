@@ -28,10 +28,10 @@ CommandSender::CommandSender(SerialBridge* bridge, QObject* parent)
     connect(&m_ch2.timer, &QTimer::timeout, this, [this]() {
         if (!m_bridge) { emit errorOccurred("No Bridge"); return; }
         if (!m_ch2.payload.isEmpty()) {
-            if (m_bridge->sendText(1, m_ch2.payload))
+            if (m_bridge->sendText(2, m_ch2.payload))
                 emit messageSent(m_ch2.payload);
             else
-                emit errorOccurred("Periodic send failed (P1)");
+                emit errorOccurred("Periodic send failed (P2)");
         }
     });
 }
@@ -302,6 +302,65 @@ bool CommandSender::sendReferenceValues(int which, const QVariantList& reference
 
 
 }
+
+bool CommandSender::sendProbeLayout(const QVariantList& probes) {
+    if (!m_bridge) {
+        emit errorOccurred("No bridge");
+        return false;
+    }
+
+    // Layout is fixed at exactly 4 ground anchors forming a rectangle.
+    // Caller (Panel_Probe_Map) hands us the 4 corner positions as
+    // {x, y} maps in nav-frame meters.
+    if (probes.size() != 4) {
+        emit errorOccurred(
+            QStringLiteral("SetProbeLayout expects 4 anchors, got %1").arg(probes.size()));
+        return false;
+    }
+
+    tvr_SetProbeLayout layout = tvr_SetProbeLayout_init_zero;
+    bool* hasArr[4]    = { &layout.has_anchor_0, &layout.has_anchor_1,
+                           &layout.has_anchor_2, &layout.has_anchor_3 };
+    tvr_Vec2* probeArr[4] = { &layout.anchor_0, &layout.anchor_1,
+                              &layout.anchor_2, &layout.anchor_3 };
+
+    for (int i = 0; i < 4; ++i) {
+        const QVariantMap entry = probes[i].toMap();
+        *hasArr[i] = true;
+        probeArr[i]->x = static_cast<float>(entry.value("x").toDouble());
+        probeArr[i]->y = static_cast<float>(entry.value("y").toDouble());
+    }
+
+    tvr_FlightCommand cmd = tvr_FlightCommand_init_zero;
+    cmd.which_payload = tvr_FlightCommand_set_probe_layout_tag;
+    cmd.payload.set_probe_layout = layout;
+
+    uint8_t packet[300];
+    rp_packet_encode_result_t result = rp_packet_encode(
+        packet,
+        sizeof(packet),
+        tvr_FlightCommand_fields,
+        &cmd
+    );
+
+    if (result.status != RP_CODEC_OK) {
+        emit errorOccurred("Failed to encode probe layout packet");
+        return false;
+    }
+
+    // Use the operator's currently selected TX channel (matches D4 — PID/Reference/
+    // Config now also bind to bridge.txTo via Panel_PID_Controller.which).
+    const int which = m_bridge->txTo();
+    QByteArray data(reinterpret_cast<const char*>(packet), result.written);
+    if (!m_bridge->sendBinary(which, data)) {
+        emit errorOccurred("Failed to send probe layout packet");
+        return false;
+    }
+
+    emit messageSent(QStringLiteral("SetProbeLayout sent (4 anchors)"));
+    return true;
+}
+
 
 bool CommandSender::sendConfigValues(int which, const QVariantList& configValues) {
 
