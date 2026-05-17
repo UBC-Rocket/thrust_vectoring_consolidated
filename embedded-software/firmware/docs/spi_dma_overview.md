@@ -1,5 +1,11 @@
 # SPI + DMA Sensor Bus Overview
 
+> **Heads-up.** This document describes the deprecated H5 implementation
+> (paths under `depracated/ulysses-flight-controller/`). The current H747
+> firmware uses the same patterns but in the new `io/io_spi_queue/` +
+> `io/h747/CM4/io_spi.c` layout. See
+> [architecture_layers.md](architecture_layers.md) for the new layering.
+
 This note explains how the flight computer shares a single SPI bus among multiple sensors by combining a DMA-powered transfer engine with a small job queue. It is written for a general audience, so every term is defined as it appears.
 
 ## Why this architecture exists

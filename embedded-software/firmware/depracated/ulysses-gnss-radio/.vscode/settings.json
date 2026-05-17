@@ -1,0 +1,6 @@
+{
+  "cmake.useCMakePresets": "always",
+  "cmake.buildDirectory": "${workspaceFolder}/build",
+
+  "cortex-debug.variableUseNaturalFormat": true
+}

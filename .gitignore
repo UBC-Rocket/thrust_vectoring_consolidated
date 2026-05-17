@@ -85,7 +85,10 @@ __pycache__/
 *.pyc
 .venv/
 
-# Tools output
+# Tools output (current paths)
+embedded-software/firmware/tools/sd-log/logs/
+embedded-software/firmware/tools/serial/logs/
+# Also match the legacy paths if anyone is on an old branch
 firmware/tools/sd-log/logs/
 firmware/tools/serial/logs/
 

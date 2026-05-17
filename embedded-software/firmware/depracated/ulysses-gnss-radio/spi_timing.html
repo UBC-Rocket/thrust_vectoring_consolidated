@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPI Slave Protocol — Timing Diagrams</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --bg: #fafaf8;
+    --fg: #1a1a1a;
+    --muted: #666;
+    --border: #d0d0d0;
+    --accent: #0055aa;
+    --accent2: #aa2200;
+    --signal-high: #1a1a1a;
+    --signal-low: #1a1a1a;
+    --fill-cmd: #ddeeff;
+    --fill-dummy: #f0f0e8;
+    --fill-data: #e0f0e0;
+    --fill-status: #fff0d0;
+    --grid: #e8e8e4;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.5;
+    padding: 40px 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    margin-bottom: 4px;
+  }
+
+  h2 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 40px 0 8px 0;
+    padding-bottom: 4px;
+    border-bottom: 2px solid var(--fg);
+    display: inline-block;
+  }
+
+  h3 {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--muted);
+    margin: 24px 0 12px 0;
+  }
+
+  .subtitle {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .doc-id {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 30px;
+  }
+
+  .diagram-container {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 20px;
+    margin: 16px 0;
+    overflow-x: auto;
+  }
+
+  .diagram-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .diagram-caption {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  svg {
+    display: block;
+  }
+
+  svg text {
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .signal-label {
+    font-size: 11px;
+    font-weight: 600;
+    fill: var(--fg);
+  }
+
+  .signal-sublabel {
+    font-size: 9px;
+    fill: var(--muted);
+  }
+
+  .data-label {
+    font-size: 9px;
+    font-weight: 500;
+    fill: var(--fg);
+    text-anchor: middle;
+  }
+
+  .data-label-small {
+    font-size: 8px;
+    fill: var(--muted);
+    text-anchor: middle;
+  }
+
+  .timing-note {
+    font-size: 8.5px;
+    fill: var(--accent);
+    text-anchor: middle;
+  }
+
+  .phase-label {
+    font-size: 10px;
+    font-weight: 600;
+    fill: var(--accent);
+    text-anchor: middle;
+  }
+
+  .note-box {
+    background: #f8f8f4;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    padding: 12px 16px;
+    margin: 12px 0;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .note-box code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    background: #eee;
+    padding: 1px 4px;
+    border-radius: 2px;
+  }
+
+  .warn-box {
+    background: #fff8f0;
+    border: 1px solid #e0c0a0;
+    border-left: 3px solid var(--accent2);
+    padding: 12px 16px;
+    margin: 12px 0;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  table.reg-table {
+    border-collapse: collapse;
+    font-size: 12px;
+    margin: 12px 0;
+    width: 100%;
+    max-width: 700px;
+  }
+
+  table.reg-table th {
+    background: #f0f0ec;
+    font-weight: 600;
+    text-align: left;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+  }
+
+  table.reg-table td {
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+  }
+
+  table.reg-table td:first-child {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  @media (max-width: 800px) {
+    .two-col { grid-template-columns: 1fr; }
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 30px 0;
+  }
+
+  .page-break { margin: 50px 0; }
+</style>
+</head>
+<body>
+
+<h1>GNSS/Radio Slave — SPI Communication Protocol</h1>
+<div class="subtitle">Flight Controller ↔ GNSS/Radio Board — Timing Specification &amp; Protocol Definition</div>
+<div class="doc-id">REV 0.2 — Feb 2026</div>
+
+<!-- ============================================================ -->
+<!-- ACCURACY NOTE -->
+<!-- ============================================================ -->
+<div style="background: #fff8e6; border: 3px solid #cc8800; padding: 20px; margin: 20px 0; border-radius: 4px;">
+  <h2 style="color: #cc8800; margin-top: 0;">Note on Diagram Accuracy</h2>
+  <p style="font-size: 14px; line-height: 1.6; margin-bottom: 0;">
+    <strong>Tables and captions reflect the correct implementation.</strong>
+    Timing diagram waveforms have minor visual simplifications:<br/><br/>
+    • Diagrams show 2 dummy bytes for visual clarity (actual is 4 — captions note this)<br/>
+    • IRQ waveforms show active-low style (actual is <strong>active high</strong> on PB2)<br/><br/>
+    <strong>Authoritative references:</strong><br/>
+    <code>Core/Inc/protocol_config.h</code> — Protocol definitions and constants<br/>
+    <code>Core/Src/spi_slave.c</code> — Actual implementation<br/>
+    <code>README.md</code> — Up-to-date documentation
+  </p>
+</div>
+
+<!-- ============================================================ -->
+<h2>1. Signal Definitions</h2>
+
+<table class="reg-table">
+  <tr><th>Signal</th><th>Direction</th><th>Description</th></tr>
+  <tr><td>SCK</td><td>Master → Slave</td><td>SPI Clock (CPOL=0, CPHA=0 — Mode 0)</td></tr>
+  <tr><td>MOSI</td><td>Master → Slave</td><td>Master Out, Slave In</td></tr>
+  <tr><td>MISO</td><td>Master ← Slave</td><td>Master In, Slave Out (Hi-Z when CS̄ high)</td></tr>
+  <tr><td>CS̄</td><td>Master → Slave</td><td>Chip Select, active low</td></tr>
+  <tr><td>IRQ</td><td>Master ← Slave</td><td>Interrupt Request, <strong>active high</strong> on PB2 (push mode only)</td></tr>
+</table>
+
+<div class="note-box">
+  <strong>Bus topology:</strong> CS̄ is directly connected to the GNSS/Radio slave. Other SPI devices share the bus (SCK, MOSI, MISO). The slave must tri-state MISO whenever CS̄ is deasserted. IRQ̄ is directly connected from the slave to a GPIO/EXTI input on the flight controller.
+</div>
+
+<!-- ============================================================ -->
+<h2>2. Command Byte Encoding</h2>
+
+<table class="reg-table">
+  <tr><th>Code</th><th>Mnemonic</th><th>Direction</th><th>Payload</th><th>Total Size*</th><th>Description</th></tr>
+  <tr><td>0x01</td><td>RADIO_RX_LIFO</td><td>Slave → Master</td><td>256 B</td><td><strong>261 B</strong></td><td>Most recent radio message (LIFO)</td></tr>
+  <tr><td>0x02</td><td>RADIO_RX_FIFO</td><td>Slave → Master</td><td>256 B</td><td><strong>261 B</strong></td><td>Oldest radio message (FIFO)</td></tr>
+  <tr><td>0x03</td><td>RADIO_RXBUF_LEN</td><td>Slave → Master</td><td>1 B</td><td><strong>6 B</strong></td><td>Number of buffered radio messages (0–255)</td></tr>
+  <tr><td>0x04</td><td>RADIO_TX</td><td>Master → Slave</td><td>256 B</td><td><strong>261 B</strong></td><td>Transmit radio message</td></tr>
+  <tr><td>0x05</td><td>GPS_RX</td><td>Slave → Master</td><td>87 B</td><td><strong>92 B</strong></td><td>Most recent raw NMEA sentence (pull mode only)</td></tr>
+</table>
+
+<div class="note-box">
+  <strong>*Total Size = 1 cmd + 4 dummy + N payload bytes</strong> (Actual implementation uses 4 dummy bytes, not 2 as shown in diagrams below)
+</div>
+
+<div class="note-box">
+  <strong>Startup configuration frame (✓ IMPLEMENTED):</strong> On power-up, the slave waits for an 8-byte SPI configuration word. Byte 0 selects mode: <code>0x00</code> = Pull, <code>0x01</code> = Push. Remaining bytes configure GPS parameters (rate, constellation mask, reserved). The mode selection also determines GPS data handling:
+  <br/><br/>
+  <strong>Pull mode:</strong> GPS data is <em>raw NMEA pass-through</em> — the slave buffers the most recent NMEA sentence and serves it unmodified (up to 87 bytes).<br/>
+  <strong>Push mode:</strong> GPS data is <em>parsed on the slave</em> — the slave decodes NMEA internally and pushes a packed <code>gps_fix_t</code> struct (<strong>48 bytes</strong>, not TBD). The struct layout is defined in <code>protocol_config.h</code>.
+</div>
+
+<!-- ============================================================ -->
+<h2>3. Pull Mode — Timing Diagrams</h2>
+
+<h3>3.1 — Read Radio Message (LIFO/FIFO) — 0x01 / 0x02</h3>
+
+<div class="diagram-container">
+  <div class="diagram-title">Figure 3.1 — Pull Mode: Radio Read (cmd 0x01 shown)</div>
+  <div class="diagram-caption">Master-initiated read. 1 cmd byte + <strong>4</strong> dummy bytes + 256 data bytes = <strong>261 bytes total</strong> on bus. (Diagram shows only 2 dummy bytes for visual clarity)</div>
+  <svg viewBox="0 0 1100 260" width="1100" height="260">
+    <!-- Grid lines -->
+    <defs>
+      <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+        <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#f0f0ec" stroke-width="0.5"/>
+      </pattern>
+    </defs>
+
+    <!-- Signal labels column -->
+    <text x="8" y="44" class="signal-label">CS̄</text>
+    <text x="8" y="94" class="signal-label">SCK</text>
+    <text x="8" y="144" class="signal-label">MOSI</text>
+    <text x="55" y="154" class="signal-sublabel">(master)</text>
+    <text x="8" y="194" class="signal-label">MISO</text>
+    <text x="55" y="204" class="signal-sublabel">(slave)</text>
+
+    <!-- CS line -->
+    <polyline points="100,30 140,30 140,50 850,50 850,30 1060,30" fill="none" stroke="var(--signal-high)" stroke-width="2"/>
+    <!-- Active low label -->
+    <line x1="140" y1="52" x2="850" y2="52" stroke="var(--accent)" stroke-width="1" stroke-dasharray="2,2"/>
+
+    <!-- SCK bursts (stylized) -->
+    <!-- cmd byte region -->
+    <g transform="translate(160,75)">
+      <polyline points="0,20 0,0 10,0 10,20 20,20 20,0 30,0 30,20 40,20 40,0 50,0 50,20 60,20 60,0 70,0 70,20 80,20 80,0 90,0 90,20 100,20 100,0 110,0 110,20" fill="none" stroke="var(--signal-high)" stroke-width="1.5"/>
+    </g>
+    <!-- dummy byte region -->
+    <g transform="translate(310,75)">
+      <polyline points="0,20 0,0 7,0 7,20 14,20 14,0 21,0 21,20 28,20 28,0 35,0 35,20 42,20 42,0 49,0 49,20 56,20 56,0 63,0 63,20 70,20 70,0 77,0 77,20 84,20 84,0 91,0 91,20 98,20 98,0 105,0 105,20 112,20 112,0 119,0 119,20 126,20" fill="none" stroke="var(--signal-high)" stroke-width="1.5"/>
+    </g>
+    <!-- data region (compressed representation) -->
+    <g transform="translate(500,75)">
+      <polyline points="0,20 0,0 7,0 7,20 14,20 14,0 21,0 21,20 28,20 28,0 35,0 35,20" fill="none" stroke="var(--signal-high)" stroke-width="1.5"/>
+    </g>
+    <text x="565" y="90" font-size="14" fill="var(--muted)" font-family="IBM Plex Mono">···</text>
+    <g transform="translate(600,75)">
+      <polyline points="0,20 0,0 7,0 7,20 14,20 14,0 21,0 21,20 28,20 28,0 35,0 35,20" fill="none" stroke="var(--signal-high)" stroke-width="1.5"/>
+    </g>
+    <!-- more clock at end -->
+    <text x="665" y="90" font-size="14" fill="var(--muted)" font-family="IBM Plex Mono">···</text>
+    <g transform="translate(700,75)">
+      <polyline points="0,20 0,0 7,0 7,20 14,20 14,0 21,0 21,20 28,20 28,0 35,0 35,20 42,20 42,0 49,0 49,20" fill="none" stroke="var(--signal-high)" stroke-width="1.5"/>
+    </g>
+
+    <!-- MOSI (master out) -->
+    <!-- Command byte -->
+    <rect x="155" y="125" width="120" height="24" rx="1" fill="var(--fill-cmd)" stroke="var(--fg)" stroke-width="1"/>
+    <text x="215" y="140" class="data-label">0x01</text>
+    <text x="215" y="152" class="data-label-small">CMD</text>
+    <!-- Dummy bytes -->
+    <rect x="290" y="125" width="80" height="24" rx="1" fill="var(--fill-dummy)" stroke="var(--fg)" stroke-width="1" stroke-dasharray="3,2"/>
+    <text x="330" y="140" class="data-label">0xFF</text>
+    <text x="330" y="152" class="data-label-small">DUMMY</text>
+    <rect x="380" y="125" width="80" height="24" rx="1" fill="var(--fill-dummy)" stroke="var(--fg)" stroke-width="1" stroke-dasharray="3,2"/>
+    <text x="420" y="140" class="data-label">0xFF</text>
+    <text x="420" y="152" class="data-label-small">DUMMY</text>
+    <!-- Don't care during read -->
+    <line x1="480" y1="137" x2="830" y2="137" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4,3"/>
+    <text x="650" y="134" class="data-label-small" fill="var(--muted)">don't care</text>
+
+    <!-- MISO (slave out) -->
+    <!-- Hi-Z / not ready during CMD -->
+    <line x1="155" y1="187" x2="290" y2="187" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4,3"/>
+    <text x="220" y="184" class="data-label-small" fill="var(--muted)">Hi-Z / X</text>
+    <!-- Slave preparing during dummy -->
+    <rect x="290" y="175" width="170" height="24" rx="1" fill="var(--fill-status)" stroke="var(--fg)" stroke-width="1" stroke-dasharray="3,2"/>
+    <text x="375" y="190" class="data-label">STATUS/X</text>
+    <text x="375" y="202" class="data-label-small">slave prepares DMA</text>
+    <!-- Data payload -->
+    <rect x="480" y="175" width="350" height="24" rx="1" fill="var(--fill-data)" stroke="var(--fg)" stroke-width="1.5"/>
+    <text x="655" y="190" class="data-label">DATA[0] ... DATA[255]</text>
+    <text x="655" y="202" class="data-label-small">256 bytes — radio message payload</text>
+
+    <!-- Phase bracket labels -->
+    <!-- CMD phase -->
+    <line x1="155" y1="230" x2="275" y2="230" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="155" y1="226" x2="155" y2="234" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="275" y1="226" x2="275" y2="234" stroke="var(--accent)" stroke-width="1"/>
+    <text x="215" y="245" class="phase-label">CMD</text>
+    <text x="215" y="254" class="data-label-small" fill="var(--accent)">1 byte</text>
+
+    <!-- DUMMY phase -->
+    <line x1="290" y1="230" x2="460" y2="230" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="290" y1="226" x2="290" y2="234" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="460" y1="226" x2="460" y2="234" stroke="var(--accent)" stroke-width="1"/>
+    <text x="375" y="245" class="phase-label">DUMMY</text>
+    <text x="375" y="254" class="data-label-small" fill="var(--accent)">4 bytes</text>
+
+    <!-- DATA phase -->
+    <line x1="480" y1="230" x2="830" y2="230" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="480" y1="226" x2="480" y2="234" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="830" y1="226" x2="830" y2="234" stroke="var(--accent)" stroke-width="1"/>
+    <text x="655" y="245" class="phase-label">PAYLOAD</text>
+    <text x="655" y="254" class="data-label-small" fill="var(--accent)">256 bytes</text>
+  </svg>
+</div>
+
+<h3>3.2 — Read GPS Fix — 0x05</h3>
+
+<div class="diagram-container">
+  <div class="diagram-title">Figure 3.2 — Pull Mode: GPS Read (cmd 0x05)</div>
+  <div class="diagram-caption">Same framing as radio read. Raw NMEA pass-through (not parsed). 1 cmd + <strong>4</strong> dummy + 87 data = <strong>92 bytes total</strong>. (Diagram shows only 2 dummy bytes for visual clarity)</div>
+  <svg viewBox="0 0 900 260" width="900" height="260">
+    <text x="8" y="44" class="signal-label">CS̄</text>
+    <text x="8" y="94" class="signal-label">SCK</text>
+    <text x="8" y="144" class="signal-label">MOSI</text>
+    <text x="8" y="194" class="signal-label">MISO</text>
+
+    <!-- CS -->
+    <polyline points="100,30 140,30 140,50 680,50 680,30 860,30" fill="none" stroke="var(--signal-high)" stroke-width="2"/>
+
+    <!-- SCK stylized -->
+    <g transform="translate(160,75)">
+      <polyline points="0,20 0,0 10,0 10,20 20,20 20,0 30,0 30,20 40,20 40,0 50,0 50,20 60,20 60,0 70,0 70,20 80,20 80,0 90,0 90,20 100,20 100,0 110,0 110,20" fill="none" stroke="var(--signal-high)" stroke-width="1.5"/>
+    </g>
+    <g transform="translate(310,75)">
+      <polyline points="0,20 0,0 7,0 7,20 14,20 14,0 21,0 21,20 28,20 28,0 35,0 35,20 42,20 42,0 49,0 49,20 56,20 56,0 63,0 63,20 70,20 70,0 77,0 77,20 84,20 84,0 91,0 91,20 98,20 98,0 105,0 105,20" fill="none" stroke="var(--signal-high)" stroke-width="1.5"/>
+    </g>
+    <g transform="translate(460,75)">
+      <polyline points="0,20 0,0 7,0 7,20 14,20 14,0 21,0 21,20 28,20" fill="none" stroke="var(--signal-high)" stroke-width="1.5"/>
+    </g>
+    <text x="510" y="90" font-size="14" fill="var(--muted)" font-family="IBM Plex Mono">···</text>
+    <g transform="translate(540,75)">
+      <polyline points="0,20 0,0 7,0 7,20 14,20 14,0 21,0 21,20 28,20 28,0 35,0 35,20 42,20 42,0 49,0 49,20" fill="none" stroke="var(--signal-high)" stroke-width="1.5"/>
+    </g>
+
+    <!-- MOSI -->
+    <rect x="155" y="125" width="120" height="24" rx="1" fill="var(--fill-cmd)" stroke="var(--fg)" stroke-width="1"/>
+    <text x="215" y="140" class="data-label">0x05</text>
+    <text x="215" y="152" class="data-label-small">CMD</text>
+    <rect x="290" y="125" width="60" height="24" rx="1" fill="var(--fill-dummy)" stroke="var(--fg)" stroke-width="1" stroke-dasharray="3,2"/>
+    <text x="320" y="140" class="data-label">0xFF</text>
+    <rect x="360" y="125" width="60" height="24" rx="1" fill="var(--fill-dummy)" stroke="var(--fg)" stroke-width="1" stroke-dasharray="3,2"/>
+    <text x="390" y="140" class="data-label">0xFF</text>
+    <line x1="440" y1="137" x2="660" y2="137" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4,3"/>
+
+    <!-- MISO -->
+    <line x1="155" y1="187" x2="290" y2="187" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4,3"/>
+    <rect x="290" y="175" width="130" height="24" rx="1" fill="var(--fill-status)" stroke="var(--fg)" stroke-width="1" stroke-dasharray="3,2"/>
+    <text x="355" y="190" class="data-label">STATUS</text>
+    <rect x="440" y="175" width="220" height="24" rx="1" fill="var(--fill-data)" stroke="var(--fg)" stroke-width="1.5"/>
+    <text x="550" y="190" class="data-label">DATA[0] ... DATA[86]</text>
+    <text x="550" y="202" class="data-label-small">87 bytes — raw NMEA sentence (unparsed)</text>
+
+    <!-- Phase brackets -->
+    <line x1="155" y1="230" x2="275" y2="230" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="155" y1="226" x2="155" y2="234" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="275" y1="226" x2="275" y2="234" stroke="var(--accent)" stroke-width="1"/>
+    <text x="215" y="245" class="phase-label">CMD</text>
+
+    <line x1="290" y1="230" x2="420" y2="230" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="290" y1="226" x2="290" y2="234" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="420" y1="226" x2="420" y2="234" stroke="var(--accent)" stroke-width="1"/>
+    <text x="355" y="245" class="phase-label">DUMMY</text>
+
+    <line x1="440" y1="230" x2="660" y2="230" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="440" y1="226" x2="440" y2="234" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="660" y1="226" x2="660" y2="234" stroke="var(--accent)" stroke-width="1"/>
+    <text x="550" y="245" class="phase-label">PAYLOAD</text>
+    <text x="550" y="254" class="data-label-small" fill="var(--accent)">87 bytes</text>
+  </svg>
+</div>
+
+<h3>3.3 — Read Radio Buffer Length — 0x03</h3>
+
+<div class="diagram-container">
+  <div class="diagram-title">Figure 3.3 — Pull Mode: Radio Buffer Length Query (cmd 0x03)</div>
+  <div class="diagram-caption">Shortest transaction. 1 cmd + <strong>4</strong> dummy + 1 data = <strong>6 bytes total</strong>. (Diagram shows only 2 dummy bytes for visual clarity)</div>
+  <svg viewBox="0 0 650 260" width="650" height="260">
+    <text x="8" y="44" class="signal-label">CS̄</text>
+    <text x="8" y="94" class="signal-label">SCK</text>
+    <text x="8" y="144" class="signal-label">MOSI</text>
+    <text x="8" y="194" class="signal-label">MISO</text>
+
+    <!-- CS -->
+    <polyline points="100,30 140,30 140,50 500,50 500,30 610,30" fill="none" stroke="var(--signal-high)" stroke-width="2"/>
+
+    <!-- SCK -->
+    <g transform="translate(160,75)">
+      <polyline points="0,20 0,0 10,0 10,20 20,20 20,0 30,0 30,20 40,20 40,0 50,0 50,20 60,20 60,0 70,0 70,20 80,20 80,0 90,0 90,20 100,20 100,0 110,0 110,20" fill="none" stroke="var(--signal-high)" stroke-width="1.5"/>
+    </g>
+    <g transform="translate(300,75)">
+      <polyline points="0,20 0,0 10,0 10,20 20,20 20,0 30,0 30,20 40,20 40,0 50,0 50,20 60,20 60,0 70,0 70,20 80,20 80,0 90,0 90,20 100,20 100,0 110,0 110,20 120,20 120,0 130,0 130,20 140,20 140,0 150,0 150,20 160,20 160,0 170,0 170,20" fill="none" stroke="var(--signal-high)" stroke-width="1.5"/>
+    </g>
+
+    <!-- MOSI -->
+    <rect x="155" y="125" width="120" height="24" rx="1" fill="var(--fill-cmd)" stroke="var(--fg)" stroke-width="1"/>
+    <text x="215" y="140" class="data-label">0x03</text>
+    <text x="215" y="152" class="data-label-small">CMD</text>
+    <rect x="290" y="125" width="80" height="24" rx="1" fill="var(--fill-dummy)" stroke="var(--fg)" stroke-width="1" stroke-dasharray="3,2"/>
+    <text x="330" y="140" class="data-label">0xFF 0xFF</text>
+    <line x1="390" y1="137" x2="490" y2="137" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4,3"/>
+
+    <!-- MISO -->
+    <line x1="155" y1="187" x2="290" y2="187" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4,3"/>
+    <rect x="290" y="175" width="80" height="24" rx="1" fill="var(--fill-status)" stroke="var(--fg)" stroke-width="1" stroke-dasharray="3,2"/>
+    <text x="330" y="190" class="data-label">X</text>
+    <rect x="400" y="175" width="80" height="24" rx="1" fill="var(--fill-data)" stroke="var(--fg)" stroke-width="1.5"/>
+    <text x="440" y="190" class="data-label">COUNT</text>
+    <text x="440" y="202" class="data-label-small">1 byte (0–255)</text>
+
+    <!-- Brackets -->
+    <line x1="155" y1="230" x2="275" y2="230" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="155" y1="226" x2="155" y2="234" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="275" y1="226" x2="275" y2="234" stroke="var(--accent)" stroke-width="1"/>
+    <text x="215" y="245" class="phase-label">CMD</text>
+
+    <line x1="290" y1="230" x2="380" y2="230" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="290" y1="226" x2="290" y2="234" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="380" y1="226" x2="380" y2="234" stroke="var(--accent)" stroke-width="1"/>
+    <text x="335" y="245" class="phase-label">DUMMY</text>
+
+    <line x1="400" y1="230" x2="480" y2="230" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="400" y1="226" x2="400" y2="234" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="480" y1="226" x2="480" y2="234" stroke="var(--accent)" stroke-width="1"/>
+    <text x="440" y="245" class="phase-label">DATA</text>
+    <text x="440" y="254" class="data-label-small" fill="var(--accent)">1 byte</text>
+  </svg>
+</div>
+
+
+<h3>3.4 — Transmit Radio Message — 0x04</h3>
+
+<div class="diagram-container">
+  <div class="diagram-title">Figure 3.4 — Pull Mode: Radio TX (cmd 0x04)</div>
+  <div class="diagram-caption">Master writes command then payload. 1 cmd + <strong>4</strong> dummy + 256 data = <strong>261 bytes</strong>. MISO ignored. (Diagram shows only 2 dummy bytes for visual clarity)
+  <svg viewBox="0 0 1100 260" width="1100" height="260">
+    <text x="8" y="44" class="signal-label">CS̄</text>
+    <text x="8" y="94" class="signal-label">SCK</text>
+    <text x="8" y="144" class="signal-label">MOSI</text>
+    <text x="8" y="194" class="signal-label">MISO</text>
+
+    <!-- CS -->
+    <polyline points="100,30 140,30 140,50 850,50 850,30 1060,30" fill="none" stroke="var(--signal-high)" stroke-width="2"/>
+
+    <!-- SCK stylized -->
+    <g transform="translate(160,75)">
+      <polyline points="0,20 0,0 10,0 10,20 20,20 20,0 30,0 30,20 40,20 40,0 50,0 50,20 60,20 60,0 70,0 70,20 80,20 80,0 90,0 90,20 100,20 100,0 110,0 110,20" fill="none" stroke="var(--signal-high)" stroke-width="1.5"/>
+    </g>
+    <g transform="translate(310,75)">
+      <polyline points="0,20 0,0 7,0 7,20 14,20 14,0 21,0 21,20 28,20 28,0 35,0 35,20 42,20 42,0 49,0 49,20 56,20 56,0 63,0 63,20 70,20 70,0 77,0 77,20 84,20 84,0 91,0 91,20 98,20 98,0 105,0 105,20 112,20 112,0 119,0 119,20 126,20" fill="none" stroke="var(--signal-high)" stroke-width="1.5"/>
+    </g>
+    <g transform="translate(500,75)">
+      <polyline points="0,20 0,0 7,0 7,20 14,20 14,0 21,0 21,20 28,20 28,0 35,0 35,20" fill="none" stroke="var(--signal-high)" stroke-width="1.5"/>
+    </g>
+    <text x="565" y="90" font-size="14" fill="var(--muted)" font-family="IBM Plex Mono">···</text>
+    <g transform="translate(600,75)">
+      <polyline points="0,20 0,0 7,0 7,20 14,20 14,0 21,0 21,20 28,20 28,0 35,0 35,20" fill="none" stroke="var(--signal-high)" stroke-width="1.5"/>
+    </g>
+    <text x="665" y="90" font-size="14" fill="var(--muted)" font-family="IBM Plex Mono">···</text>
+    <g transform="translate(700,75)">
+      <polyline points="0,20 0,0 7,0 7,20 14,20 14,0 21,0 21,20 28,20 28,0 35,0 35,20 42,20 42,0 49,0 49,20" fill="none" stroke="var(--signal-high)" stroke-width="1.5"/>
+    </g>
+
+    <!-- MOSI — command -->
+    <rect x="155" y="125" width="120" height="24" rx="1" fill="var(--fill-cmd)" stroke="var(--fg)" stroke-width="1"/>
+    <text x="215" y="140" class="data-label">0x04</text>
+    <text x="215" y="152" class="data-label-small">CMD</text>
+    <!-- dummy -->
+    <rect x="290" y="125" width="80" height="24" rx="1" fill="var(--fill-dummy)" stroke="var(--fg)" stroke-width="1" stroke-dasharray="3,2"/>
+    <text x="330" y="140" class="data-label">0xFF</text>
+    <rect x="380" y="125" width="80" height="24" rx="1" fill="var(--fill-dummy)" stroke="var(--fg)" stroke-width="1" stroke-dasharray="3,2"/>
+    <text x="420" y="140" class="data-label">0xFF</text>
+    <!-- TX payload on MOSI -->
+    <rect x="480" y="125" width="350" height="24" rx="1" fill="#fce4e4" stroke="var(--accent2)" stroke-width="1.5"/>
+    <text x="655" y="140" class="data-label">DATA[0] ... DATA[255]</text>
+    <text x="655" y="152" class="data-label-small">256 bytes — outgoing radio message</text>
+
+    <!-- MISO — don't care for TX -->
+    <line x1="155" y1="187" x2="830" y2="187" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4,3"/>
+    <text x="490" y="183" class="data-label-small" fill="var(--muted)">slave MISO ignored (don't care)</text>
+
+    <!-- Brackets -->
+    <line x1="155" y1="230" x2="275" y2="230" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="155" y1="226" x2="155" y2="234" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="275" y1="226" x2="275" y2="234" stroke="var(--accent)" stroke-width="1"/>
+    <text x="215" y="245" class="phase-label">CMD</text>
+
+    <line x1="290" y1="230" x2="460" y2="230" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="290" y1="226" x2="290" y2="234" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="460" y1="226" x2="460" y2="234" stroke="var(--accent)" stroke-width="1"/>
+    <text x="375" y="245" class="phase-label">DUMMY</text>
+
+    <line x1="480" y1="230" x2="830" y2="230" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="480" y1="226" x2="480" y2="234" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="830" y1="226" x2="830" y2="234" stroke="var(--accent)" stroke-width="1"/>
+    <text x="655" y="245" class="phase-label">PAYLOAD</text>
+    <text x="655" y="254" class="data-label-small" fill="var(--accent)">256 bytes (master → slave)</text>
+  </svg>
+</div>
+
+
+<!-- ============================================================ -->
+<h2>4. Push Mode — Timing Diagrams</h2>
+
+<h3>4.1 — Slave-Initiated Data Ready (GPS or Radio RX)</h3>
+
+<div class="diagram-container">
+  <div class="diagram-title">Figure 4.1 — Push Mode: Slave asserts IRQ̄, master reads type + payload</div>
+  <div class="diagram-caption">Two-phase transaction: (1) master reads 1 status byte to learn message type, (2) master reads N payload bytes. For GPS, the slave parses NMEA internally and sends a packed <tspan style="font-family: IBM Plex Mono">gps_fix_t</tspan> struct. Slave sees this as one continuous DMA transfer of 1+N bytes.</div>
+  <svg viewBox="0 0 1200 310" width="1200" height="310">
+    <text x="8" y="44" class="signal-label">IRQ̄</text>
+    <text x="55" y="54" class="signal-sublabel">(slave)</text>
+    <text x="8" y="94" class="signal-label">CS̄</text>
+    <text x="8" y="144" class="signal-label">SCK</text>
+    <text x="8" y="194" class="signal-label">MOSI</text>
+    <text x="8" y="244" class="signal-label">MISO</text>
+
+    <!-- IRQ line -->
+    <polyline points="100,30 200,30 200,50 700,50 700,30 1150,30" fill="none" stroke="var(--accent2)" stroke-width="2"/>
+    <text x="210" y="46" font-size="8" fill="var(--accent2)" font-family="IBM Plex Mono">slave has data</text>
+    <text x="710" y="46" font-size="8" fill="var(--accent2)" font-family="IBM Plex Mono">slave deasserts after CS̄↑</text>
+
+    <!-- CS — Phase 1: status read -->
+    <polyline points="100,80 240,80 240,100 400,100 400,80 440,80" fill="none" stroke="var(--signal-high)" stroke-width="2"/>
+    <!-- CS — Phase 2: payload read -->
+    <polyline points="440,80 470,80 470,100 920,100 920,80 1150,80" fill="none" stroke="var(--signal-high)" stroke-width="2"/>
+
+    <!-- Timing arrows -->
+    <!-- IRQ to CS1 -->
+    <line x1="205" y1="56" x2="242" y2="76" stroke="var(--accent)" stroke-width="1" marker-end="url(#arrowhead)"/>
+    <defs>
+      <marker id="arrowhead" markerWidth="6" markerHeight="4" refX="6" refY="2" orient="auto">
+        <polygon points="0 0, 6 2, 0 4" fill="var(--accent)"/>
+      </marker>
+    </defs>
+    <text x="235" y="66" class="timing-note">t_react</text>
+
+    <!-- CS gap label -->
+    <line x1="400" y1="72" x2="470" y2="72" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="400" y1="68" x2="400" y2="76" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="470" y1="68" x2="470" y2="76" stroke="var(--accent)" stroke-width="1"/>
+    <text x="435" y="66" class="timing-note">t_gap</text>
+
+    <!-- SCK phase 1 -->
+    <g transform="translate(260,125)">
+      <polyline points="0,20 0,0 10,0 10,20 20,20 20,0 30,0 30,20 40,20 40,0 50,0 50,20 60,20 60,0 70,0 70,20 80,20 80,0 90,0 90,20 100,20 100,0 110,0 110,20" fill="none" stroke="var(--signal-high)" stroke-width="1.5"/>
+    </g>
+    <!-- SCK phase 2 -->
+    <g transform="translate(490,125)">
+      <polyline points="0,20 0,0 7,0 7,20 14,20 14,0 21,0 21,20 28,20 28,0 35,0 35,20" fill="none" stroke="var(--signal-high)" stroke-width="1.5"/>
+    </g>
+    <text x="558" y="140" font-size="14" fill="var(--muted)" font-family="IBM Plex Mono">···</text>
+    <g transform="translate(590,125)">
+      <polyline points="0,20 0,0 7,0 7,20 14,20 14,0 21,0 21,20 28,20 28,0 35,0 35,20" fill="none" stroke="var(--signal-high)" stroke-width="1.5"/>
+    </g>
+    <text x="658" y="140" font-size="14" fill="var(--muted)" font-family="IBM Plex Mono">···</text>
+    <g transform="translate(690,125)">
+      <polyline points="0,20 0,0 7,0 7,20 14,20 14,0 21,0 21,20 28,20 28,0 35,0 35,20 42,20 42,0 49,0 49,20" fill="none" stroke="var(--signal-high)" stroke-width="1.5"/>
+    </g>
+
+    <!-- MOSI — don't care for reads -->
+    <line x1="260" y1="187" x2="390" y2="187" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4,3"/>
+    <line x1="490" y1="187" x2="900" y2="187" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4,3"/>
+    <text x="320" y="183" class="data-label-small" fill="var(--muted)">0xFF</text>
+    <text x="700" y="183" class="data-label-small" fill="var(--muted)">0xFF (don't care)</text>
+
+    <!-- MISO — Phase 1: type byte -->
+    <rect x="255" y="225" width="130" height="24" rx="1" fill="var(--fill-status)" stroke="var(--fg)" stroke-width="1.5"/>
+    <text x="320" y="240" class="data-label">MSG_TYPE</text>
+    <text x="320" y="252" class="data-label-small">0x01=Radio, 0x05=GPS</text>
+
+    <!-- MISO — Phase 2: payload -->
+    <rect x="485" y="225" width="420" height="24" rx="1" fill="var(--fill-data)" stroke="var(--fg)" stroke-width="1.5"/>
+    <text x="695" y="240" class="data-label">DATA[0] ... DATA[N-1]</text>
+    <text x="695" y="252" class="data-label-small">N = 256 (radio) or sizeof(gps_fix_t) (GPS, parsed struct)</text>
+
+    <!-- Phase brackets -->
+    <line x1="255" y1="280" x2="390" y2="280" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="255" y1="276" x2="255" y2="284" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="390" y1="276" x2="390" y2="284" stroke="var(--accent)" stroke-width="1"/>
+    <text x="322" y="295" class="phase-label">Phase 1</text>
+    <text x="322" y="304" class="data-label-small" fill="var(--accent)">1 byte — identify</text>
+
+    <line x1="485" y1="280" x2="905" y2="280" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="485" y1="276" x2="485" y2="284" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="905" y1="276" x2="905" y2="284" stroke="var(--accent)" stroke-width="1"/>
+    <text x="695" y="295" class="phase-label">Phase 2</text>
+    <text x="695" y="304" class="data-label-small" fill="var(--accent)">N bytes — payload read</text>
+  </svg>
+</div>
+
+<div class="note-box">
+  <strong>Slave DMA perspective:</strong> The slave pre-loads a DMA TX buffer of <code>1 + max(256, sizeof(gps_fix_t))</code> bytes (257 in practice, since radio is largest). Byte 0 is the message type tag. Bytes 1–N are the payload. The slave starts the DMA transfer when CS̄ goes low (via EXTI or hardware NSS). The master performs two separate SPI transactions (1 byte, then N bytes), but from the slave's perspective, if NSS is managed in software and CS̄ stays low, this can be one continuous DMA transfer. However, the spec above shows a CS̄ gap (<code>t_gap</code>) between phase 1 and phase 2 — this is because the master needs to parse the type byte to know how many bytes to read next.
+</div>
+
+
+<h3>4.2 — Master-Initiated Radio TX (Push Mode)</h3>
+
+<div class="diagram-container">
+  <div class="diagram-title">Figure 4.2 — Push Mode: Master transmits radio message (unsolicited)</div>
+  <div class="diagram-caption">The flight controller can send a radio message at any time by asserting CS̄ and writing 256 bytes. No command byte — the slave interprets any unsolicited CS̄ assertion as an incoming radio TX.</div>
+  <svg viewBox="0 0 1000 260" width="1000" height="260">
+    <text x="8" y="44" class="signal-label">IRQ̄</text>
+    <text x="8" y="94" class="signal-label">CS̄</text>
+    <text x="8" y="144" class="signal-label">SCK</text>
+    <text x="8" y="194" class="signal-label">MOSI</text>
+
+    <!-- IRQ stays high (not involved) -->
+    <polyline points="100,30 960,30" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="6,3"/>
+    <text x="530" y="26" class="data-label-small" fill="var(--muted)">IRQ̄ not involved</text>
+
+    <!-- CS -->
+    <polyline points="100,80 160,80 160,100 780,100 780,80 960,80" fill="none" stroke="var(--signal-high)" stroke-width="2"/>
+
+    <!-- SCK -->
+    <g transform="translate(180,125)">
+      <polyline points="0,20 0,0 7,0 7,20 14,20 14,0 21,0 21,20 28,20 28,0 35,0 35,20" fill="none" stroke="var(--signal-high)" stroke-width="1.5"/>
+    </g>
+    <text x="248" y="140" font-size="14" fill="var(--muted)" font-family="IBM Plex Mono">···</text>
+    <g transform="translate(280,125)">
+      <polyline points="0,20 0,0 7,0 7,20 14,20 14,0 21,0 21,20 28,20 28,0 35,0 35,20" fill="none" stroke="var(--signal-high)" stroke-width="1.5"/>
+    </g>
+    <text x="348" y="140" font-size="14" fill="var(--muted)" font-family="IBM Plex Mono">···</text>
+    <g transform="translate(380,125)">
+      <polyline points="0,20 0,0 7,0 7,20 14,20 14,0 21,0 21,20 28,20 28,0 35,0 35,20" fill="none" stroke="var(--signal-high)" stroke-width="1.5"/>
+    </g>
+    <text x="448" y="140" font-size="14" fill="var(--muted)" font-family="IBM Plex Mono">···</text>
+    <g transform="translate(480,125)">
+      <polyline points="0,20 0,0 7,0 7,20 14,20 14,0 21,0 21,20 28,20 28,0 35,0 35,20 42,20 42,0 49,0 49,20" fill="none" stroke="var(--signal-high)" stroke-width="1.5"/>
+    </g>
+
+    <!-- MOSI — 256 bytes payload directly -->
+    <rect x="175" y="175" width="590" height="24" rx="1" fill="#fce4e4" stroke="var(--accent2)" stroke-width="1.5"/>
+    <text x="470" y="190" class="data-label">DATA[0] ... DATA[255]</text>
+    <text x="470" y="202" class="data-label-small">256 bytes — outgoing radio message (no cmd prefix)</text>
+
+    <!-- Bracket -->
+    <line x1="175" y1="230" x2="765" y2="230" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="175" y1="226" x2="175" y2="234" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="765" y1="226" x2="765" y2="234" stroke="var(--accent)" stroke-width="1"/>
+    <text x="470" y="245" class="phase-label">RADIO TX PAYLOAD</text>
+    <text x="470" y="254" class="data-label-small" fill="var(--accent)">256 bytes — slave distinguishes by absence of IRQ̄ assertion</text>
+  </svg>
+</div>
+
+
+<!-- ============================================================ -->
+<h2>5. Collision Scenario — Push Mode</h2>
+
+<div class="diagram-container">
+  <div class="diagram-title">Figure 5.1 — Race Condition: FC TX vs. Slave IRQ̄ assertion</div>
+  <div class="diagram-caption">The slave asserts IRQ̄ at nearly the same time as the master asserts CS̄ to send a radio TX. The slave must detect that CS̄ went low <em>before or simultaneously with</em> its IRQ̄ assertion, and treat the incoming data as a radio TX (not a status read).</div>
+  <svg viewBox="0 0 1200 360" width="1200" height="360">
+    <text x="8" y="44" class="signal-label">IRQ̄</text>
+    <text x="55" y="54" class="signal-sublabel">(slave)</text>
+    <text x="8" y="94" class="signal-label">CS̄</text>
+    <text x="55" y="104" class="signal-sublabel">(master)</text>
+    <text x="8" y="164" class="signal-label">SCK</text>
+    <text x="8" y="214" class="signal-label">MOSI</text>
+    <text x="8" y="264" class="signal-label">MISO</text>
+
+    <!-- IRQ — slave tries to assert -->
+    <polyline points="100,30 210,30 210,50 400,50" fill="none" stroke="var(--accent2)" stroke-width="2"/>
+    <!-- IRQ — slave sees CS already low, retracts -->
+    <polyline points="400,50 400,30 600,30" fill="none" stroke="var(--accent2)" stroke-width="2" stroke-dasharray="6,3"/>
+    <!-- IRQ re-asserts after TX completes -->
+    <polyline points="600,30 800,30 800,50 1050,50 1050,30 1150,30" fill="none" stroke="var(--accent2)" stroke-width="2"/>
+    <text x="500" y="26" class="timing-note" fill="var(--accent2)">slave backs off — deasserts IRQ̄</text>
+    <text x="920" y="46" font-size="8" fill="var(--accent2)" font-family="IBM Plex Mono">re-assert after TX complete</text>
+
+    <!-- CS — master starts radio TX -->
+    <polyline points="100,80 200,80 200,100 700,100 700,80 760,80" fill="none" stroke="var(--signal-high)" stroke-width="2"/>
+    <!-- CS — master later handles IRQ -->
+    <polyline points="760,80 810,80 810,100 1020,100 1020,80 1150,80" fill="none" stroke="var(--signal-high)" stroke-width="2"/>
+
+    <!-- Collision zone highlight -->
+    <rect x="195" y="15" width="30" height="100" rx="2" fill="#ff000010" stroke="var(--accent2)" stroke-width="1" stroke-dasharray="3,2"/>
+    <text x="210" y="128" class="timing-note" fill="var(--accent2)">RACE</text>
+
+    <!-- SCK — TX phase -->
+    <g transform="translate(220,145)">
+      <polyline points="0,20 0,0 7,0 7,20 14,20 14,0 21,0 21,20 28,20 28,0 35,0 35,20" fill="none" stroke="var(--signal-high)" stroke-width="1.5"/>
+    </g>
+    <text x="288" y="160" font-size="14" fill="var(--muted)" font-family="IBM Plex Mono">···</text>
+    <g transform="translate(320,145)">
+      <polyline points="0,20 0,0 7,0 7,20 14,20 14,0 21,0 21,20 28,20 28,0 35,0 35,20" fill="none" stroke="var(--signal-high)" stroke-width="1.5"/>
+    </g>
+    <text x="388" y="160" font-size="14" fill="var(--muted)" font-family="IBM Plex Mono">···</text>
+    <g transform="translate(420,145)">
+      <polyline points="0,20 0,0 7,0 7,20 14,20 14,0 21,0 21,20 28,20 28,0 35,0 35,20 42,20 42,0 49,0 49,20" fill="none" stroke="var(--signal-high)" stroke-width="1.5"/>
+    </g>
+
+    <!-- SCK — later status read -->
+    <g transform="translate(830,145)">
+      <polyline points="0,20 0,0 10,0 10,20 20,20 20,0 30,0 30,20 40,20 40,0 50,0 50,20 60,20 60,0 70,0 70,20 80,20 80,0 90,0 90,20 100,20 100,0 110,0 110,20" fill="none" stroke="var(--signal-high)" stroke-width="1.5"/>
+    </g>
+
+    <!-- MOSI — radio TX payload -->
+    <rect x="215" y="195" width="475" height="24" rx="1" fill="#fce4e4" stroke="var(--accent2)" stroke-width="1.5"/>
+    <text x="452" y="210" class="data-label">DATA[0] ... DATA[255]</text>
+    <text x="452" y="222" class="data-label-small">256 bytes — radio TX</text>
+
+    <!-- MOSI — later dummy -->
+    <line x1="830" y1="207" x2="1010" y2="207" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4,3"/>
+    <text x="920" y="203" class="data-label-small" fill="var(--muted)">0xFF</text>
+
+    <!-- MISO — junk during TX -->
+    <line x1="215" y1="257" x2="690" y2="257" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4,3"/>
+    <text x="450" y="253" class="data-label-small" fill="var(--muted)">ignored</text>
+
+    <!-- MISO — type byte for re-asserted IRQ -->
+    <rect x="825" y="245" width="130" height="24" rx="1" fill="var(--fill-status)" stroke="var(--fg)" stroke-width="1.5"/>
+    <text x="890" y="260" class="data-label">MSG_TYPE</text>
+
+    <!-- Phase brackets -->
+    <line x1="215" y1="300" x2="690" y2="300" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="215" y1="296" x2="215" y2="304" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="690" y1="296" x2="690" y2="304" stroke="var(--accent)" stroke-width="1"/>
+    <text x="452" y="315" class="phase-label">Master TX wins — slave absorbs radio message</text>
+
+    <line x1="810" y1="300" x2="1020" y2="300" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="810" y1="296" x2="810" y2="304" stroke="var(--accent)" stroke-width="1"/>
+    <line x1="1020" y1="296" x2="1020" y2="304" stroke="var(--accent)" stroke-width="1"/>
+    <text x="915" y="315" class="phase-label">Slave re-asserts → normal push read</text>
+
+    <!-- Timeline labels -->
+    <text x="210" y="345" class="timing-note">t₀: CS̄↓ + IRQ̄↓ near-simultaneous</text>
+    <text x="700" y="345" class="timing-note">t₁: CS̄↑ (TX done)</text>
+    <text x="920" y="345" class="timing-note">t₂: slave re-asserts IRQ̄</text>
+  </svg>
+</div>
+
+<div class="warn-box">
+  <strong>⚠ Collision resolution rule (slave firmware):</strong> On CS̄ falling edge, the slave checks whether it was the one that initiated (IRQ̄ already asserted). If CS̄ goes low and the slave had <em>not</em> yet asserted IRQ̄, the incoming data is unconditionally treated as a radio TX (256 bytes RX DMA). If the slave had already asserted IRQ̄ but sees CS̄ go low before the master could have reacted to the IRQ̄ (within <code>t_race</code> window), the slave must <strong>back off</strong>: deassert IRQ̄, switch to RX mode (absorb 256 bytes), and re-assert IRQ̄ after CS̄ rises. See §6 for firmware state machine.
+</div>
+
+<div class="note-box">
+  <strong>Why the master always wins:</strong> The master controls SCK and CS̄. In a race, the master has no way to know the slave was about to push data. The simplest resolution is: unsolicited CS̄ assertion = radio TX. The slave can always re-assert IRQ̄ after the transaction completes. No data is lost — the GPS/radio data remains in the slave's buffer.
+</div>
+
+
+<!-- ============================================================ -->
+<h2>6. Slave Firmware State Machine</h2>
+
+<div class="diagram-container">
+  <div class="diagram-title">Figure 6.1 — SPI Slave State Machine (Push Mode)</div>
+  <svg viewBox="0 0 1000 520" width="1000" height="520">
+    <!-- States -->
+    <!-- IDLE -->
+    <rect x="380" y="20" width="180" height="50" rx="6" fill="#f0f0ec" stroke="var(--fg)" stroke-width="2"/>
+    <text x="470" y="45" text-anchor="middle" font-size="12" font-weight="600" fill="var(--fg)" font-family="IBM Plex Mono">IDLE</text>
+    <text x="470" y="58" text-anchor="middle" font-size="8" fill="var(--muted)" font-family="IBM Plex Mono">DMA RX armed (1 byte)</text>
+
+    <!-- HAVE_DATA -->
+    <rect x="50" y="140" width="200" height="50" rx="6" fill="var(--fill-status)" stroke="var(--fg)" stroke-width="2"/>
+    <text x="150" y="165" text-anchor="middle" font-size="12" font-weight="600" fill="var(--fg)" font-family="IBM Plex Mono">HAVE_DATA</text>
+    <text x="150" y="178" text-anchor="middle" font-size="8" fill="var(--muted)" font-family="IBM Plex Mono">IRQ̄ asserted, TX DMA loaded</text>
+
+    <!-- RX_RADIO -->
+    <rect x="680" y="140" width="200" height="50" rx="6" fill="#fce4e4" stroke="var(--accent2)" stroke-width="2"/>
+    <text x="780" y="165" text-anchor="middle" font-size="12" font-weight="600" fill="var(--fg)" font-family="IBM Plex Mono">RX_RADIO</text>
+    <text x="780" y="178" text-anchor="middle" font-size="8" fill="var(--muted)" font-family="IBM Plex Mono">DMA RX 256 bytes</text>
+
+    <!-- PUSH_TYPE -->
+    <rect x="50" y="290" width="200" height="50" rx="6" fill="var(--fill-cmd)" stroke="var(--fg)" stroke-width="2"/>
+    <text x="150" y="315" text-anchor="middle" font-size="12" font-weight="600" fill="var(--fg)" font-family="IBM Plex Mono">PUSH_SENDING</text>
+    <text x="150" y="328" text-anchor="middle" font-size="8" fill="var(--muted)" font-family="IBM Plex Mono">TX DMA: type + payload</text>
+
+    <!-- COLLISION -->
+    <rect x="380" y="200" width="200" height="50" rx="6" fill="#fff0f0" stroke="var(--accent2)" stroke-width="2" stroke-dasharray="4,2"/>
+    <text x="480" y="225" text-anchor="middle" font-size="12" font-weight="600" fill="var(--accent2)" font-family="IBM Plex Mono">COLLISION</text>
+    <text x="480" y="238" text-anchor="middle" font-size="8" fill="var(--accent2)" font-family="IBM Plex Mono">back off → RX 256B</text>
+
+    <!-- PULL_CMD -->
+    <rect x="680" y="290" width="200" height="50" rx="6" fill="var(--fill-cmd)" stroke="var(--fg)" stroke-width="2"/>
+    <text x="780" y="315" text-anchor="middle" font-size="12" font-weight="600" fill="var(--fg)" font-family="IBM Plex Mono">PULL_CMD</text>
+    <text x="780" y="328" text-anchor="middle" font-size="8" fill="var(--muted)" font-family="IBM Plex Mono">decode cmd, arm response</text>
+
+    <!-- COMPLETE -->
+    <rect x="380" y="420" width="180" height="50" rx="6" fill="var(--fill-data)" stroke="var(--fg)" stroke-width="2"/>
+    <text x="470" y="445" text-anchor="middle" font-size="12" font-weight="600" fill="var(--fg)" font-family="IBM Plex Mono">COMPLETE</text>
+    <text x="470" y="458" text-anchor="middle" font-size="8" fill="var(--muted)" font-family="IBM Plex Mono">CS̄↑ → process, return IDLE</text>
+
+    <!-- Arrows -->
+    <defs>
+      <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="var(--fg)"/>
+      </marker>
+      <marker id="arr-red" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="var(--accent2)"/>
+      </marker>
+    </defs>
+
+    <!-- IDLE → HAVE_DATA (GPS/Radio data ready) -->
+    <path d="M 380,55 Q 250,55 250,140" fill="none" stroke="var(--fg)" stroke-width="1.5" marker-end="url(#arr)"/>
+    <text x="270" y="90" font-size="9" fill="var(--fg)" font-family="IBM Plex Mono" transform="rotate(-50, 270, 90)">GPS/Radio ready</text>
+
+    <!-- IDLE → RX_RADIO (CS low, no IRQ) -->
+    <path d="M 560,55 Q 700,55 700,140" fill="none" stroke="var(--fg)" stroke-width="1.5" marker-end="url(#arr)"/>
+    <text x="610" y="80" font-size="9" fill="var(--fg)" font-family="IBM Plex Mono">CS̄↓, IRQ̄ high</text>
+    <text x="620" y="92" font-size="8" fill="var(--muted)" font-family="IBM Plex Mono">(master TX)</text>
+
+    <!-- HAVE_DATA → PUSH_SENDING (CS low, IRQ was asserted, master responding) -->
+    <line x1="150" y1="190" x2="150" y2="290" fill="none" stroke="var(--fg)" stroke-width="1.5" marker-end="url(#arr)"/>
+    <text x="160" y="240" font-size="9" fill="var(--fg)" font-family="IBM Plex Mono">CS̄↓ (master read)</text>
+    <text x="160" y="252" font-size="8" fill="var(--muted)" font-family="IBM Plex Mono">t > t_race</text>
+
+    <!-- HAVE_DATA → COLLISION (CS low within t_race) -->
+    <line x1="250" y1="180" x2="380" y2="210" fill="none" stroke="var(--accent2)" stroke-width="1.5" marker-end="url(#arr-red)"/>
+    <text x="270" y="182" font-size="9" fill="var(--accent2)" font-family="IBM Plex Mono">CS̄↓ within t_race</text>
+
+    <!-- COLLISION → RX_RADIO -->
+    <line x1="580" y1="220" x2="680" y2="170" fill="none" stroke="var(--accent2)" stroke-width="1.5" marker-end="url(#arr-red)"/>
+    <text x="610" y="205" font-size="9" fill="var(--accent2)" font-family="IBM Plex Mono">deassert IRQ̄</text>
+    <text x="618" y="217" font-size="8" fill="var(--accent2)" font-family="IBM Plex Mono">switch to RX</text>
+
+    <!-- PUSH_SENDING → COMPLETE -->
+    <path d="M 250,330 Q 350,400 380,440" fill="none" stroke="var(--fg)" stroke-width="1.5" marker-end="url(#arr)"/>
+    <text x="260" y="385" font-size="9" fill="var(--fg)" font-family="IBM Plex Mono">DMA TX complete</text>
+
+    <!-- RX_RADIO → COMPLETE -->
+    <path d="M 700,190 Q 600,400 560,430" fill="none" stroke="var(--fg)" stroke-width="1.5" marker-end="url(#arr)"/>
+    <text x="650" y="370" font-size="9" fill="var(--fg)" font-family="IBM Plex Mono">DMA RX complete</text>
+
+    <!-- PULL_CMD → COMPLETE -->
+    <path d="M 730,340 Q 600,400 560,430" fill="none" stroke="var(--fg)" stroke-width="1.5" marker-end="url(#arr)"/>
+    <text x="660" y="400" font-size="9" fill="var(--fg)" font-family="IBM Plex Mono">transaction done</text>
+
+    <!-- COMPLETE → IDLE -->
+    <path d="M 470,420 Q 470,400 470,70" fill="none" stroke="var(--fg)" stroke-width="1.5" marker-end="url(#arr)"/>
+    <text x="480" y="380" font-size="9" fill="var(--fg)" font-family="IBM Plex Mono">re-arm DMA</text>
+    <text x="480" y="392" font-size="8" fill="var(--muted)" font-family="IBM Plex Mono">(re-assert IRQ̄ if data pending)</text>
+
+    <!-- IDLE → PULL_CMD (Pull mode, CS low) -->
+    <text x="690" y="278" font-size="8" fill="var(--muted)" font-family="IBM Plex Mono">(pull mode only)</text>
+  </svg>
+</div>
+
+<div class="note-box">
+  <strong>Key implementation detail — <code>t_race</code> window:</strong> Define a minimum time between IRQ̄ assertion and the earliest legitimate CS̄ response from the master. If the flight controller's IRQ-to-SPI latency is e.g. >10 µs, set <code>t_race</code> = 5 µs. Any CS̄ falling edge within <code>t_race</code> of IRQ̄ assertion is treated as a collision (master couldn't have responded that fast). This is checked with a simple timer or cycle counter in the EXTI CS̄ handler.
+</div>
+
+
+<!-- ============================================================ -->
+<h2>7. Protocol Summary</h2>
+
+<div class="two-col">
+<div>
+<h3>Pull Mode Transaction Sizes (⚠ CORRECTED)</h3>
+<table class="reg-table">
+  <tr><th>Command</th><th>Total Bytes</th><th>Breakdown</th></tr>
+  <tr><td>0x01 / 0x02</td><td><strong>261</strong></td><td>1 cmd + <strong>4</strong> dum + 256 data</td></tr>
+  <tr><td>0x03</td><td><strong>6</strong></td><td>1 cmd + <strong>4</strong> dum + 1 data</td></tr>
+  <tr><td>0x04</td><td><strong>261</strong></td><td>1 cmd + <strong>4</strong> dum + 256 data</td></tr>
+  <tr><td>0x05</td><td><strong>92</strong></td><td>1 cmd + <strong>4</strong> dum + 87 data</td></tr>
+</table>
+</div>
+<div>
+<h3>Push Mode Transaction Sizes (✓ ACCURATE)</h3>
+<table class="reg-table">
+  <tr><th>Transaction</th><th>Total Bytes</th><th>Breakdown</th></tr>
+  <tr><td>Status read</td><td>1</td><td>1 type byte on MISO</td></tr>
+  <tr><td>Radio payload</td><td>257</td><td>1 type + 256 data</td></tr>
+  <tr><td>GPS payload</td><td><strong>49</strong></td><td>1 type + <strong>48</strong> data (sizeof(gps_fix_t), parsed)</td></tr>
+  <tr><td>Radio TX</td><td>256</td><td>no prefix (simultaneous with push)</td></tr>
+</table>
+</div>
+</div>
+
+<hr/>
+<div style="font-size:11px; color:var(--muted); margin-top:20px;">
+  End of document — Rev 0.2
+</div>
+
+</body>
+</html>

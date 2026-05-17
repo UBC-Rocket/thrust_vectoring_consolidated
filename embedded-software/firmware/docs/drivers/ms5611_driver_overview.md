@@ -1,5 +1,9 @@
 # MS5611 Barometer Driver Overview
 
+> **Heads-up.** Describes the deprecated H5 driver. The new H747 driver
+> lives at `dev/baro_ms5611/` and uses the same `lib/sensors/ms5611_baro.*`
+> protocol helpers behind the `io_spi_xfer_blocking` API.
+
 The MS5611 is a high-resolution barometric pressure sensor used to estimate altitude. Unlike the BMI088, it provides pressure and temperature through two ADC conversions (D1 and D2). This document tracks how the firmware initializes the baro, schedules conversions, reads results over SPI + DMA, and feeds samples into the fusion pipeline.
 
 ## Initialization sequence

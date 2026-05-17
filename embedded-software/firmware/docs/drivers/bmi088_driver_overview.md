@@ -1,5 +1,9 @@
 # BMI088 IMU Driver Overview
 
+> **Heads-up.** Describes the deprecated H5 driver. The new H747 driver
+> lives at `dev/imu_bmi088/` and reuses the same `lib/sensors/bmi088_*`
+> protocol helpers above the `io_spi_*` transport.
+
 This note documents how the Ulysses firmware configures and samples the Bosch BMI088 inertial measurement unit (IMU), which integrates a three-axis accelerometer and a three-axis gyroscope. It covers the initialization sequence, data-ready flow, SPI job wiring, and how raw samples are converted into physical units.
 
 ## Accelerometer path
