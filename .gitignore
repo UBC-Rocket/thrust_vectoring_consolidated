@@ -104,3 +104,7 @@ Module.symvers
 
 # EKF testing files
 *.csv
+
+# Claude Code / gstack (local-only, do not push)
+/CLAUDE.md
+/.claude/

@@ -44,6 +44,7 @@ const char* const kCsvHeader =
     "att_w,att_x,att_y,att_z,"
     "gyro_x,gyro_y,gyro_z,"
     "thrust_cmd,gimbal_x,gimbal_y,"
+    "uwb0_x,uwb0_y,uwb1_x,uwb1_y,"
     "uptime_ms,accel_ok,gyro_ok,baro1_ok,baro2_ok,"
     "gps_connected,radio_rx_count,radio_tx_count,cmd_rx_count";
 
@@ -100,14 +101,18 @@ bool SensorDataModel::startCsvRecording(const QString& path)
     QFileInfo info(target);
     QDir dir = info.absoluteDir();
     if (!dir.exists() && !dir.mkpath(QStringLiteral("."))) {
-        qWarning() << "CSV: cannot create directory" << dir.absolutePath();
+        m_lastCsvError = QStringLiteral("cannot create %1").arg(dir.absolutePath());
+        qWarning() << "CSV:" << m_lastCsvError;
+        emit recordingStateChanged();
         return false;
     }
 
     auto* file = new QFile(target);
     if (!file->open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
-        qWarning() << "CSV: cannot open" << target << file->errorString();
+        m_lastCsvError = QStringLiteral("cannot open %1: %2").arg(target, file->errorString());
+        qWarning() << "CSV:" << m_lastCsvError;
         delete file;
+        emit recordingStateChanged();
         return false;
     }
 
@@ -116,6 +121,7 @@ bool SensorDataModel::startCsvRecording(const QString& path)
     (*m_csvStream) << kCsvHeader << '\n';
     m_csvStream->flush();
     m_csvPath = info.absoluteFilePath();
+    m_lastCsvError.clear();
     emit recordingStateChanged();
     return true;
 }
@@ -142,6 +148,16 @@ void SensorDataModel::onBinaryPacketReceived(int which, const QByteArray& packet
 {
     if (packet.isEmpty())
         return;
+
+    // D6: auto-start CSV recording the first time a packet arrives in a session.
+    // The operator can stop+restart via Panel_Radio_Output to choose a different
+    // path. m_autoCsvAttempted guards against retrying after stop.
+    if (!m_autoCsvAttempted) {
+        m_autoCsvAttempted = true;
+        if (!isRecording()) {
+            startCsvRecording();
+        }
+    }
 
     tvr_Downlink downlink = tvr_Downlink_init_default;
     const uint8_t* data = reinterpret_cast<const uint8_t*>(packet.constData());
@@ -187,6 +203,14 @@ void SensorDataModel::onBinaryPacketReceived(int which, const QByteArray& packet
                 .arg(static_cast<double>(t->angular_rate.x))
                 .arg(static_cast<double>(t->angular_rate.y))
                 .arg(static_cast<double>(t->angular_rate.z));
+        if (t->has_uwb_tag_0)
+            line += QStringLiteral(" uwb0=%1,%2")
+                .arg(static_cast<double>(t->uwb_tag_0.x))
+                .arg(static_cast<double>(t->uwb_tag_0.y));
+        if (t->has_uwb_tag_1)
+            line += QStringLiteral(" uwb1=%1,%2")
+                .arg(static_cast<double>(t->uwb_tag_1.x))
+                .arg(static_cast<double>(t->uwb_tag_1.y));
         m_rawPacketLog += line + "\n";
     } else if (downlink.which_payload == tvr_Downlink_status_tag) {
         const tvr_SystemStatus* s = &downlink.payload.status;
@@ -311,6 +335,21 @@ void SensorDataModel::applyDownlink(int which, const void* downlinkStruct)
             static_cast<double>(t->gimbal_y)
         );
 
+        // UWB tag positions: validity = whether this frame carried that tag.
+        // Stale frames (where the field is absent) flip *Valid to false so the
+        // QML overlay disappears instead of freezing at the last position.
+        m_uwbTag0Valid = t->has_uwb_tag_0;
+        if (t->has_uwb_tag_0) {
+            m_uwbTag0X = static_cast<double>(t->uwb_tag_0.x);
+            m_uwbTag0Y = static_cast<double>(t->uwb_tag_0.y);
+        }
+        m_uwbTag1Valid = t->has_uwb_tag_1;
+        if (t->has_uwb_tag_1) {
+            m_uwbTag1X = static_cast<double>(t->uwb_tag_1.x);
+            m_uwbTag1Y = static_cast<double>(t->uwb_tag_1.y);
+        }
+        emit uwbDataChanged();
+
         // Emit statusReceived so flightState binding updates from telemetry too.
         emit statusReceived();
 
@@ -325,7 +364,47 @@ void SensorDataModel::applyDownlink(int which, const void* downlinkStruct)
                      << "uptime=" << s->uptime_ms;
         }
 
-        m_flightState  = static_cast<int>(s->flight_state);
+        // D3: synthesize alarm chips from state transitions. First status frame
+        // emits the baseline; subsequent frames only emit when something flipped.
+        const int newState = static_cast<int>(s->flight_state);
+        auto chipForSensor = [this](const char* name, bool prev, bool now, bool first) {
+            if (first) {
+                if (now) emit alarmSuccess(QStringLiteral("%1 OK").arg(name));
+                else     emit alarmError(QStringLiteral("%1 FAIL").arg(name));
+            } else if (prev != now) {
+                if (now) emit alarmSuccess(QStringLiteral("%1 recovered").arg(name));
+                else     emit alarmError(QStringLiteral("%1 went FAIL").arg(name));
+            }
+        };
+        chipForSensor("Accel",   m_prevAccelOk, s->accel_ok,      !m_haveLastStatus);
+        chipForSensor("Gyro",    m_prevGyroOk,  s->gyro_ok,       !m_haveLastStatus);
+        chipForSensor("Baro1",   m_prevBaro1Ok, s->baro1_ok,      !m_haveLastStatus);
+        chipForSensor("Baro2",   m_prevBaro2Ok, s->baro2_ok,      !m_haveLastStatus);
+        if (!m_haveLastStatus) {
+            emit alarmSuccess(QStringLiteral("GPS %1").arg(s->gps_connected ? "connected" : "not connected"));
+        } else if (m_prevGpsConn != s->gps_connected) {
+            if (s->gps_connected) emit alarmSuccess(QStringLiteral("GPS connected"));
+            else                  emit alarmWarning(QStringLiteral("GPS lost"));
+        }
+        if (m_haveLastStatus && m_prevFlightState != newState) {
+            // Flight-state transitions: ESTOP=ERROR, IDLE=WARN otherwise, others=SUCCESS.
+            static const char* names[] = {"IDLE","ESTOP","RISE","HOVER","LOWER"};
+            const char* label = (newState >= 0 && newState <= 4) ? names[newState] : "?";
+            const QString msg = QStringLiteral("Flight state → %1").arg(label);
+            if (newState == 1)       emit alarmError(msg);
+            else if (newState == 0)  emit alarmWarning(msg);
+            else                     emit alarmSuccess(msg);
+        }
+
+        m_prevAccelOk   = s->accel_ok;
+        m_prevGyroOk    = s->gyro_ok;
+        m_prevBaro1Ok   = s->baro1_ok;
+        m_prevBaro2Ok   = s->baro2_ok;
+        m_prevGpsConn   = s->gps_connected;
+        m_prevFlightState = newState;
+        m_haveLastStatus = true;
+
+        m_flightState  = newState;
         m_uptimeMs     = s->uptime_ms;
         m_accelOk      = s->accel_ok;
         m_gyroOk       = s->gyro_ok;
@@ -381,17 +460,29 @@ void SensorDataModel::writeCsvRow(const void* downlinkStruct)
         }
         // engine
         (*m_csvStream) << fmt(t->thrust_cmd) << ',' << fmt(t->gimbal_x) << ',' << fmt(t->gimbal_y) << ',';
+        // uwb tags
+        if (t->has_uwb_tag_0) {
+            (*m_csvStream) << fmt(t->uwb_tag_0.x) << ',' << fmt(t->uwb_tag_0.y) << ',';
+        } else {
+            (*m_csvStream) << ",,";
+        }
+        if (t->has_uwb_tag_1) {
+            (*m_csvStream) << fmt(t->uwb_tag_1.x) << ',' << fmt(t->uwb_tag_1.y) << ',';
+        } else {
+            (*m_csvStream) << ",,";
+        }
         // status columns empty
         (*m_csvStream) << ",,,,,,,," << '\n';
     } else if (d->which_payload == tvr_Downlink_status_tag) {
         const tvr_SystemStatus* s = &d->payload.status;
         (*m_csvStream) << wallMs << ",STATUS," << s->timestamp_ms << ',' << s->flight_state << ',';
-        // empty telemetry columns (pos, vel, att, gyro, engine)
+        // empty telemetry columns (pos, vel, att, gyro, engine, uwb)
         (*m_csvStream) << ",,,"     // pos
                        << ",,,"     // vel
                        << ",,,,"    // att
                        << ",,,"     // gyro
-                       << ",,,";    // engine
+                       << ",,,"     // engine
+                       << ",,,,";   // uwb0/uwb1
         (*m_csvStream) << s->uptime_ms << ','
                        << fmtBool(s->accel_ok) << ','
                        << fmtBool(s->gyro_ok) << ','

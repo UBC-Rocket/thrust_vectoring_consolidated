@@ -37,9 +37,20 @@ int main(int argc, char *argv[])
     // Backend objects live for the duration of main
     SerialBridge bridge;
     CommandSender   commandsender(&bridge);   // sends commands via bridge
-    AlarmReceiver   alarmreceiver(&bridge);   // receives/decodes alarms via bridge
+    AlarmReceiver   alarmreceiver;            // re-emit point for SystemStatus-derived chips (D3)
     SensorDataModel sensorData(&bridge);      // decodes all downlink packets (telemetry + status)
     PresetManager   presetManager;            // JSON-backed PID/Reference/Config preset store
+
+    // Synthesize alarm chips from decoded SystemStatus transitions (D3).
+    // SensorDataModel watches the decoded stream and emits alarm*-shaped signals
+    // on sensor flip / flight-state transition; AlarmReceiver re-emits them as
+    // rxError/rxWarning/rxSuccess so Panel_System_Alert renders them unchanged.
+    QObject::connect(&sensorData, &SensorDataModel::alarmError,
+                     &alarmreceiver, &AlarmReceiver::rxError);
+    QObject::connect(&sensorData, &SensorDataModel::alarmWarning,
+                     &alarmreceiver, &AlarmReceiver::rxWarning);
+    QObject::connect(&sensorData, &SensorDataModel::alarmSuccess,
+                     &alarmreceiver, &AlarmReceiver::rxSuccess);
 
     // QML engine + expose C++ backends to QML by name
     QQmlApplicationEngine engine;

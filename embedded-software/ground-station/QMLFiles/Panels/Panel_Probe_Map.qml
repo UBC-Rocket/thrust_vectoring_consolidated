@@ -34,9 +34,10 @@ Rectangle {
     property real   mapOpacity:  0.85   // tile opacity (keep dark theme feel)
     property var    visibleTiles: []
 
-    // ── Poles (mutable) ───────────────────────────────────────────────────
-    // Each pole: { id: "Pn", x: float, y: float, isBase: bool }
-    // P0 = center, P1-P4 = corners (isBase: true), P5+ = user-placed extras
+    // ── Anchors ───────────────────────────────────────────────────────────
+    // Exactly 4 ground UWB anchors forming a rectangle.
+    // No center pole — the rocket's takeoff origin (0,0) is implied, not anchored.
+    // poles[0..3] map directly to SetProbeLayout.anchor_0..anchor_3 on the wire.
     property var poles: []
 
     function recomputeBasePoles() {
@@ -44,38 +45,12 @@ Rectangle {
             poles = []
             return
         }
-        const base = [
-            { id: "P0", x: 0,            y: 0,             isBase: true },
-            { id: "P1", x: -rectWidth/2, y: -rectHeight/2, isBase: true },
-            { id: "P2", x:  rectWidth/2, y: -rectHeight/2, isBase: true },
-            { id: "P3", x:  rectWidth/2, y:  rectHeight/2, isBase: true },
-            { id: "P4", x: -rectWidth/2, y:  rectHeight/2, isBase: true }
+        poles = [
+            { id: "A0", x: -rectWidth/2, y: -rectHeight/2, isBase: true },
+            { id: "A1", x:  rectWidth/2, y: -rectHeight/2, isBase: true },
+            { id: "A2", x:  rectWidth/2, y:  rectHeight/2, isBase: true },
+            { id: "A3", x: -rectWidth/2, y:  rectHeight/2, isBase: true }
         ]
-        const extras = poles.length > 5 ? poles.slice(5) : []
-        poles = base.concat(extras)
-    }
-
-    function movePole(index, newXm, newYm) {
-        const arr = poles.slice()
-        arr[index] = { id: arr[index].id, x: newXm, y: newYm, isBase: arr[index].isBase }
-        poles = arr
-    }
-
-    function addPole(xm, ym) {
-        if (poles.length >= 15) return
-        const arr = poles.slice()
-        arr.push({ id: "P" + arr.length, x: xm, y: ym, isBase: false })
-        poles = arr
-    }
-
-    function removePole(index) {
-        if (index < 5) return  // cannot remove base poles
-        const arr = poles.slice()
-        arr.splice(index, 1)
-        // re-label extras
-        for (let i = 5; i < arr.length; i++)
-            arr[i] = { id: "P" + i, x: arr[i].x, y: arr[i].y, isBase: false }
-        poles = arr
     }
 
     onRectWidthChanged:  recomputeBasePoles()
@@ -202,7 +177,7 @@ Rectangle {
             font.pixelSize: Theme.fontBody
         }
         Text {
-            text: panel.poles.length + " poles"
+            text: panel.poles.length + "/4 anchors"
             color: Theme.textTertiary
             font.family: Theme.monoFamily
             font.pixelSize: Theme.fontCaption
@@ -564,31 +539,30 @@ Rectangle {
                     }
                 }
 
-                if (panel.poles.length < 5) return
+                if (panel.poles.length < 4) return
 
                 const p = panel.poles
                 function ptOf(pole) { return Qt.point(panel.mxToPx(pole.x), panel.myToPy(pole.y)) }
 
-                const c  = ptOf(p[0])  // center
-                const c1 = ptOf(p[1])  // P1 corner
-                const c2 = ptOf(p[2])  // P2 corner
-                const c3 = ptOf(p[3])  // P3 corner
-                const c4 = ptOf(p[4])  // P4 corner
+                const c0 = ptOf(p[0])  // anchor 0 (bottom-left)
+                const c1 = ptOf(p[1])  // anchor 1 (bottom-right)
+                const c2 = ptOf(p[2])  // anchor 2 (top-right)
+                const c3 = ptOf(p[3])  // anchor 3 (top-left)
 
-                // Solid rectangle outline (P1-P4)
+                // Solid rectangle outline (4 anchors)
                 const mapOn = panel.mapEnabled && panel.refValid
                 ctx.strokeStyle = mapOn ? "rgba(20,60,90,0.8)" : Theme.accentMuted
                 ctx.lineWidth = 1.5
                 ctx.setLineDash([])
                 ctx.beginPath()
-                ctx.moveTo(c1.x, c1.y)
+                ctx.moveTo(c0.x, c0.y)
+                ctx.lineTo(c1.x, c1.y)
                 ctx.lineTo(c2.x, c2.y)
                 ctx.lineTo(c3.x, c3.y)
-                ctx.lineTo(c4.x, c4.y)
                 ctx.closePath()
                 ctx.stroke()
 
-                // Dashed lines
+                // Dashed perimeter
                 ctx.strokeStyle = mapOn ? "rgba(30,80,120,0.7)" : Theme.accent
                 ctx.lineWidth = 1.2
                 ctx.setLineDash([6, 4])
@@ -596,29 +570,58 @@ Rectangle {
                 const w = panel.rectWidth
                 const h = panel.rectHeight
 
-                // Perimeter edges
+                drawDashedLine(ctx, c0.x, c0.y, c1.x, c1.y)
                 drawDashedLine(ctx, c1.x, c1.y, c2.x, c2.y)
                 drawDashedLine(ctx, c2.x, c2.y, c3.x, c3.y)
-                drawDashedLine(ctx, c3.x, c3.y, c4.x, c4.y)
-                drawDashedLine(ctx, c4.x, c4.y, c1.x, c1.y)
-
-                // Spokes from center to ALL poles
-                for (let i = 1; i < p.length; ++i) {
-                    const pi = ptOf(p[i])
-                    drawDashedLine(ctx, c.x, c.y, pi.x, pi.y)
-                }
+                drawDashedLine(ctx, c3.x, c3.y, c0.x, c0.y)
 
                 // Perimeter length labels
-                drawLengthLabel(ctx, c1.x, c1.y, c2.x, c2.y, w)
-                drawLengthLabel(ctx, c3.x, c3.y, c4.x, c4.y, w)
-                drawLengthLabel(ctx, c2.x, c2.y, c3.x, c3.y, h)
-                drawLengthLabel(ctx, c4.x, c4.y, c1.x, c1.y, h)
+                drawLengthLabel(ctx, c0.x, c0.y, c1.x, c1.y, w)
+                drawLengthLabel(ctx, c2.x, c2.y, c3.x, c3.y, w)
+                drawLengthLabel(ctx, c1.x, c1.y, c2.x, c2.y, h)
+                drawLengthLabel(ctx, c3.x, c3.y, c0.x, c0.y, h)
 
-                // Spoke distance labels
-                for (let i = 1; i < p.length; ++i) {
-                    const pi = ptOf(p[i])
-                    const dist = Math.sqrt(p[i].x * p[i].x + p[i].y * p[i].y)
-                    drawLengthLabel(ctx, c.x, c.y, pi.x, pi.y, dist)
+                // Origin crosshair (no anchor here, just the takeoff reference)
+                const origin = Qt.point(panel.mxToPx(0), panel.myToPy(0))
+                ctx.setLineDash([])
+                ctx.strokeStyle = mapOn ? "rgba(255,200,80,0.9)" : Theme.warnText
+                ctx.lineWidth = 1
+                const arm = 8
+                ctx.beginPath()
+                ctx.moveTo(origin.x - arm, origin.y); ctx.lineTo(origin.x + arm, origin.y)
+                ctx.moveTo(origin.x, origin.y - arm); ctx.lineTo(origin.x, origin.y + arm)
+                ctx.stroke()
+
+                // Live rocket UWB tag positions from downlink (Vec2 each)
+                if (sensorData.uwbTag0Valid || sensorData.uwbTag1Valid) {
+                    ctx.fillStyle = mapOn ? "rgba(255,80,80,0.95)" : Theme.danger
+                    ctx.strokeStyle = mapOn ? "#111" : Theme.background
+                    ctx.lineWidth = 1.5
+                    if (sensorData.uwbTag0Valid) {
+                        const t0 = Qt.point(panel.mxToPx(sensorData.uwbTag0X),
+                                            panel.myToPy(sensorData.uwbTag0Y))
+                        ctx.beginPath()
+                        ctx.arc(t0.x, t0.y, 5, 0, 2 * Math.PI)
+                        ctx.fill(); ctx.stroke()
+                    }
+                    if (sensorData.uwbTag1Valid) {
+                        const t1 = Qt.point(panel.mxToPx(sensorData.uwbTag1X),
+                                            panel.myToPy(sensorData.uwbTag1Y))
+                        ctx.beginPath()
+                        ctx.arc(t1.x, t1.y, 5, 0, 2 * Math.PI)
+                        ctx.fill(); ctx.stroke()
+                    }
+                    if (sensorData.uwbTag0Valid && sensorData.uwbTag1Valid) {
+                        ctx.strokeStyle = mapOn ? "rgba(255,80,80,0.7)" : Theme.danger
+                        ctx.setLineDash([3, 3])
+                        ctx.beginPath()
+                        ctx.moveTo(panel.mxToPx(sensorData.uwbTag0X),
+                                   panel.myToPy(sensorData.uwbTag0Y))
+                        ctx.lineTo(panel.mxToPx(sensorData.uwbTag1X),
+                                   panel.myToPy(sensorData.uwbTag1Y))
+                        ctx.stroke()
+                        ctx.setLineDash([])
+                    }
                 }
             }
         }
@@ -631,6 +634,12 @@ Rectangle {
             function onRectWidthChanged()  { geometryLayer.requestPaint() }
             function onRectHeightChanged() { geometryLayer.requestPaint() }
             function onPolesChanged()      { geometryLayer.requestPaint() }
+        }
+
+        // Live rocket-side UWB tag positions (downlink) drive the red overlay.
+        Connections {
+            target: sensorData
+            function onUwbDataChanged() { geometryLayer.requestPaint() }
         }
 
         // Refresh tiles and repaint overlays on map state changes
@@ -664,9 +673,7 @@ Rectangle {
                     height: 12
                     radius: 6
                     property bool mapOn: panel.mapEnabled && panel.refValid
-                    color: modelData.id === "P0" ? (mapOn ? "#1a5a80" : Theme.accent)
-                         : modelData.isBase      ? (mapOn ? "#2a6648" : Theme.successText)
-                         :                         (mapOn ? "#8a6a20" : Theme.warnText)
+                    color: mapOn ? "#2a6648" : Theme.successText
                     border.color: mapOn ? "#111" : Theme.background
                     border.width: 2
                 }
@@ -686,7 +693,7 @@ Rectangle {
                     anchors.fill: parent
                     anchors.margins: -4
                     hoverEnabled: true
-                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    acceptedButtons: Qt.LeftButton
                     cursorShape: containsMouse ? Qt.PointingHandCursor : Qt.ArrowCursor
 
                     property bool isDragging: false
@@ -694,14 +701,6 @@ Rectangle {
                     property real offsetYm: 0
 
                     onPressed: (mouse) => {
-                        if (mouse.button === Qt.RightButton) {
-                            if (!markerItem.modelData.isBase) {
-                                panel.removePole(markerItem.index)
-                            }
-                            mouse.accepted = true
-                            return
-                        }
-                        // Start drag
                         isDragging = true
                         const clickXm = panel.pxToMx(mouse.x + markerItem.x + markerItem.hitSize/2)
                         const clickYm = panel.pyToMy(mouse.y + markerItem.y + markerItem.hitSize/2)
@@ -767,20 +766,11 @@ Rectangle {
 
             onReleased: (mouse) => {
                 if (panel.dragging && mouse.button === Qt.LeftButton) {
-                    const dxm = Math.abs(panel.dragCurXm - panel.dragStartXm)
-                    const dym = Math.abs(panel.dragCurYm - panel.dragStartYm)
-                    const isClick = dxm < 0.05 && dym < 0.05
-
-                    if (isClick && panel.poles.length >= 5 && panel.poles.length < 15) {
-                        // Click-to-add extra probe
-                        panel.addPole(panel.dragStartXm, panel.dragStartYm)
-                    } else if (!isClick) {
-                        const w = 2 * dxm
-                        const h = 2 * dym
-                        if (w > 0.01 && h > 0.01) {
-                            panel.rectWidth = w
-                            panel.rectHeight = h
-                        }
+                    const w = 2 * Math.abs(panel.dragCurXm - panel.dragStartXm)
+                    const h = 2 * Math.abs(panel.dragCurYm - panel.dragStartYm)
+                    if (w > 0.01 && h > 0.01) {
+                        panel.rectWidth = w
+                        panel.rectHeight = h
                     }
                     panel.dragging = false
                     geometryLayer.requestPaint()
@@ -929,19 +919,9 @@ Rectangle {
                 }
                 RowLayout {
                     spacing: 6
-                    Rectangle { width: 10; height: 10; radius: 5; color: Theme.accent }
-                    Text {
-                        text: "Center pole (0,0)"
-                        color: Theme.textSecondary
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontCaption
-                    }
-                }
-                RowLayout {
-                    spacing: 6
                     Rectangle { width: 10; height: 10; radius: 5; color: Theme.successText }
                     Text {
-                        text: "Corner pole"
+                        text: "Ground anchor (1 of 4)"
                         color: Theme.textSecondary
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontCaption
@@ -951,7 +931,17 @@ Rectangle {
                     spacing: 6
                     Rectangle { width: 10; height: 10; radius: 5; color: Theme.warnText }
                     Text {
-                        text: "Extra probe (draggable)"
+                        text: "Takeoff origin (0,0)"
+                        color: Theme.textSecondary
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontCaption
+                    }
+                }
+                RowLayout {
+                    spacing: 6
+                    Rectangle { width: 10; height: 10; radius: 5; color: Theme.danger }
+                    Text {
+                        text: "Rocket UWB tag (live)"
                         color: Theme.textSecondary
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontCaption
@@ -964,13 +954,13 @@ Rectangle {
                     font.pixelSize: Theme.fontCaption
                 }
                 Text {
-                    text: "Drag: rectangle  •  Click: add probe  •  Right-click: delete"
+                    text: "Drag: rectangle  •  Drag pole: fine-tune"
                     color: Theme.textTertiary
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontCaption
                 }
                 Text {
-                    text: "Right-drag: pan  •  Wheel: zoom  •  Max 15 probes"
+                    text: "Right-drag: pan  •  Wheel: zoom  •  4 anchors only"
                     color: Theme.textTertiary
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontCaption

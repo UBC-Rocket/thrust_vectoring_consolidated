@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define LOG_SCHEMA_VERSION 5U
+#define LOG_SCHEMA_VERSION 6U
 #define LOG_RECORD_MAGIC 0xA5U
 
 /* ── Enable modes for per-record compile-time gating ── */
@@ -163,6 +163,22 @@ typedef struct __attribute__((packed)) {
     FIELD(float, theta_min) \
     FIELD(float, theta_max)
 
+/* SetProbeLayout from GCS: four UWB anchor positions in nav-frame meters. */
+#define LOG_RECORD_FIELDS_PROBE_LAYOUT(FIELD) \
+    FIELD(uint32_t, timestamp_us) \
+    FIELD(bool, has_anchor_0) \
+    FIELD(float, anchor_0_x) \
+    FIELD(float, anchor_0_y) \
+    FIELD(bool, has_anchor_1) \
+    FIELD(float, anchor_1_x) \
+    FIELD(float, anchor_1_y) \
+    FIELD(bool, has_anchor_2) \
+    FIELD(float, anchor_2_x) \
+    FIELD(float, anchor_2_y) \
+    FIELD(bool, has_anchor_3) \
+    FIELD(float, anchor_3_x) \
+    FIELD(float, anchor_3_y)
+
 #define LOG_RECORD_FIELDS_RADIO_TELEMETRY(FIELD) \
     FIELD(uint32_t, timestamp_us) \
     FIELD(uint32_t, timestamp_ms) \
@@ -234,6 +250,7 @@ typedef struct __attribute__((packed)) {
     APP(0x0C, configuration,    LOG_RECORD_FIELDS_CONFIGURATION,     LOG_ENABLE_ALWAYS)   \
     APP(0x0D, radio_telemetry,  LOG_RECORD_FIELDS_RADIO_TELEMETRY,   LOG_ENABLE_ALWAYS)   \
     APP(0x0E, radio_status,     LOG_RECORD_FIELDS_RADIO_STATUS,      LOG_ENABLE_ALWAYS)   \
+    APP(0x0F, probe_layout,     LOG_RECORD_FIELDS_PROBE_LAYOUT,      LOG_ENABLE_ALWAYS)   \
     APP(0x20, trace_batch,      LOG_RECORD_FIELDS_TRACE_BATCH,       LOG_ENABLE_DBG_ONLY) \
     APP(0x21, trace_overflow,   LOG_RECORD_FIELDS_TRACE_OVERFLOW,    LOG_ENABLE_DBG_ONLY)
 

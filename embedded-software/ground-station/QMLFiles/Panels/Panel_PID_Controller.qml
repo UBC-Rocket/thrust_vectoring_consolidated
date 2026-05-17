@@ -7,8 +7,9 @@ import "../Items"
 BasePanel {
     id: panel
 
-    // TODO: check if channel 1 is valid for command sending.
-    property int which: 1
+    // Mirrors the operator's TX channel choice in the Diagnostics panel.
+    // Bridge changes propagate via txToChanged.
+    property int which: bridge.txTo
 
     // Preset status — shown in the strip below the header.
     property string loadedPresetName: ""

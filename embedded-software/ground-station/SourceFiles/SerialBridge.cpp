@@ -250,36 +250,6 @@ void SerialBridge::handleReadyRead(int which) {
     parseBufferedBinary(which);
 }
 
-void SerialBridge::parseBufferedLines(int which) {
-    auto b = bundle(which);
-
-    // Grab any remaining bytes in case readyRead fired again between calls.
-    b.rxBuf.append(b.port.readAll());
-
-    int idx;
-    // Consume full lines terminated by '\n'; keep partial line in buffer.
-    while ((idx = b.rxBuf.indexOf('\n')) != -1) {
-        QByteArray line = b.rxBuf.left(idx);
-
-        // Convert CRLF → LF by dropping trailing '\r'.
-        if (!line.isEmpty() && line.endsWith('\r')) {
-            line.chop(1);
-        }
-
-        // Remove this line (and its '\n') from the buffer.
-        b.rxBuf.remove(0, idx + 1);
-
-        // Prefer UTF-8; fall back to Latin-1 if decoding fails.
-        QString text = QString::fromUtf8(line);
-        if (text.isNull()) {
-            text = QString::fromLatin1(line);
-        }
-
-        // Emit a clean logical line to whoever is listening (QML, alarm system, etc.).
-        emit textReceivedFrom(which, text);
-    }
-}
-
 void SerialBridge::parseBufferedBinary(int which) {
     auto b = bundle(which);
 

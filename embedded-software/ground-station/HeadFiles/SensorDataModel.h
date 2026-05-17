@@ -41,6 +41,15 @@ public:
     // Telemetry — velocity magnitude in m/s (consistent with altitude)
     Q_PROPERTY(double velocity READ velocity NOTIFY telemetryDataChanged)
 
+    // On-board UWB tag positions (nav-frame m), decoded from TelemetryState.uwb_tag_0/1.
+    // *Valid is true only for the most recent telemetry frame that carried that tag.
+    Q_PROPERTY(double uwbTag0X    READ uwbTag0X    NOTIFY uwbDataChanged)
+    Q_PROPERTY(double uwbTag0Y    READ uwbTag0Y    NOTIFY uwbDataChanged)
+    Q_PROPERTY(bool   uwbTag0Valid READ uwbTag0Valid NOTIFY uwbDataChanged)
+    Q_PROPERTY(double uwbTag1X    READ uwbTag1X    NOTIFY uwbDataChanged)
+    Q_PROPERTY(double uwbTag1Y    READ uwbTag1Y    NOTIFY uwbDataChanged)
+    Q_PROPERTY(bool   uwbTag1Valid READ uwbTag1Valid NOTIFY uwbDataChanged)
+
     // Raw packet log (hex dump of every received binary packet)
     Q_PROPERTY(QString rawPacketLog READ rawPacketLog NOTIFY rawPacketLogChanged)
 
@@ -64,6 +73,9 @@ public:
     Q_PROPERTY(bool    isRecording    READ isRecording    NOTIFY recordingStateChanged)
     Q_PROPERTY(QString currentCsvPath READ currentCsvPath NOTIFY recordingStateChanged)
     Q_PROPERTY(QString defaultCsvPath READ defaultCsvPath CONSTANT)
+    // Set by the auto-CSV path (D6) when startCsvRecording() returns false.
+    // Cleared on the next successful start. QML binds for the failure banner.
+    Q_PROPERTY(QString lastCsvError READ lastCsvError NOTIFY recordingStateChanged)
 
     // Simple getters used by QML properties
     double altitude() const { return m_altitude; }
@@ -82,6 +94,13 @@ public:
     double gimbalY()   const { return m_gimbalY; }
 
     double velocity() const { return m_velocity; }
+
+    double uwbTag0X()     const { return m_uwbTag0X; }
+    double uwbTag0Y()     const { return m_uwbTag0Y; }
+    bool   uwbTag0Valid() const { return m_uwbTag0Valid; }
+    double uwbTag1X()     const { return m_uwbTag1X; }
+    double uwbTag1Y()     const { return m_uwbTag1Y; }
+    bool   uwbTag1Valid() const { return m_uwbTag1Valid; }
 
     int     flightState()  const { return m_flightState; }
     quint32 uptimeMs()     const { return m_uptimeMs; }
@@ -103,6 +122,7 @@ public:
     bool    isRecording()    const { return m_csvFile && m_csvFile->isOpen(); }
     QString currentCsvPath() const { return m_csvPath; }
     QString defaultCsvPath() const;
+    QString lastCsvError()   const { return m_lastCsvError; }
 
     /// Open a CSV file for writing. If `path` is empty, defaultCsvPath() is used.
     /// Returns true on success, false otherwise (e.g. directory creation failed).
@@ -135,9 +155,17 @@ signals:
     void baroDataChanged();
     void engineDataChanged();
     void telemetryDataChanged();
+    void uwbDataChanged();
     void statusReceived();
     void rawPacketLogChanged();
     void recordingStateChanged();
+
+    // Synthesized alarm signals fired on SystemStatus state transitions
+    // (sensor flip to fail/ok, flight-state changes). Connected in main.cpp
+    // to AlarmReceiver's chip signals so Panel_System_Alert renders them.
+    void alarmError(const QString& line);
+    void alarmWarning(const QString& line);
+    void alarmSuccess(const QString& line);
 
 private:
     // Backing storage for the latest sensor values
@@ -158,6 +186,13 @@ private:
 
     double m_velocity = 0.0;
 
+    double m_uwbTag0X     = 0.0;
+    double m_uwbTag0Y     = 0.0;
+    bool   m_uwbTag0Valid = false;
+    double m_uwbTag1X     = 0.0;
+    double m_uwbTag1Y     = 0.0;
+    bool   m_uwbTag1Valid = false;
+
     // SystemStatus state
     int     m_flightState  = 0;
     quint32 m_uptimeMs     = 0;
@@ -172,12 +207,25 @@ private:
 
     qint64 m_lastStatusMs = 0;
 
+    // Previous SystemStatus snapshot, used to detect transitions for alarm chips.
+    bool m_haveLastStatus = false;
+    bool m_prevAccelOk    = false;
+    bool m_prevGyroOk     = false;
+    bool m_prevBaro1Ok    = false;
+    bool m_prevBaro2Ok    = false;
+    bool m_prevGpsConn    = false;
+    int  m_prevFlightState = -1;
+
+    // Auto-start CSV on first packet (per D6 in the review plan).
+    bool m_autoCsvAttempted = false;
+
     QString m_rawPacketLog;
 
     // CSV sink
     QFile*       m_csvFile   = nullptr;
     QTextStream* m_csvStream = nullptr;
     QString      m_csvPath;
+    QString      m_lastCsvError;
 
     /// Update model from decoded Downlink (TelemetryState or SystemStatus).
     void applyDownlink(int which, const void* downlinkStruct);

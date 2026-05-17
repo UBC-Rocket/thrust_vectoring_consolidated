@@ -20,6 +20,21 @@ typedef enum _tvr_StateCommand_Type {
 } tvr_StateCommand_Type;
 
 /* Struct definitions */
+/* Four UWB anchor positions on the ground, in nav-frame meters relative to the
+ rocket's takeoff origin. The four anchors form a rectangle; there is no
+ center anchor. The flight controller stores these and uses them as the
+ known-position references for trilateration of the on-board UWB tags. */
+typedef struct _tvr_SetProbeLayout {
+    bool has_anchor_0;
+    tvr_Vec2 anchor_0;
+    bool has_anchor_1;
+    tvr_Vec2 anchor_1;
+    bool has_anchor_2;
+    tvr_Vec2 anchor_2;
+    bool has_anchor_3;
+    tvr_Vec2 anchor_3;
+} tvr_SetProbeLayout;
+
 /* High-level state transitions */
 typedef struct _tvr_StateCommand {
     tvr_StateCommand_Type type;
@@ -63,6 +78,7 @@ typedef struct _tvr_FlightCommand {
         tvr_SetPidGains set_pid_gains;
         tvr_SetReference set_reference;
         tvr_SetConfig set_config;
+        tvr_SetProbeLayout set_probe_layout;
     } payload;
 } tvr_FlightCommand;
 
@@ -77,6 +93,7 @@ extern "C" {
 #define _tvr_StateCommand_Type_ARRAYSIZE ((tvr_StateCommand_Type)(tvr_StateCommand_Type_CMD_LAND+1))
 
 
+
 #define tvr_StateCommand_type_ENUMTYPE tvr_StateCommand_Type
 
 
@@ -85,17 +102,23 @@ extern "C" {
 
 /* Initializer values for message structs */
 #define tvr_FlightCommand_init_default           {0, {tvr_StateCommand_init_default}}
+#define tvr_SetProbeLayout_init_default          {false, tvr_Vec2_init_default, false, tvr_Vec2_init_default, false, tvr_Vec2_init_default, false, tvr_Vec2_init_default}
 #define tvr_StateCommand_init_default            {_tvr_StateCommand_Type_MIN}
 #define tvr_SetPidGains_init_default             {false, tvr_Vec3_init_default, false, tvr_Vec3_init_default, 0, 0, 0, 0}
 #define tvr_SetReference_init_default            {0, 0, false, tvr_Quaternion_init_default}
 #define tvr_SetConfig_init_default               {0, 0, 0, 0, 0}
 #define tvr_FlightCommand_init_zero              {0, {tvr_StateCommand_init_zero}}
+#define tvr_SetProbeLayout_init_zero             {false, tvr_Vec2_init_zero, false, tvr_Vec2_init_zero, false, tvr_Vec2_init_zero, false, tvr_Vec2_init_zero}
 #define tvr_StateCommand_init_zero               {_tvr_StateCommand_Type_MIN}
 #define tvr_SetPidGains_init_zero                {false, tvr_Vec3_init_zero, false, tvr_Vec3_init_zero, 0, 0, 0, 0}
 #define tvr_SetReference_init_zero               {0, 0, false, tvr_Quaternion_init_zero}
 #define tvr_SetConfig_init_zero                  {0, 0, 0, 0, 0}
 
 /* Field tags (for use in manual encoding/decoding) */
+#define tvr_SetProbeLayout_anchor_0_tag          1
+#define tvr_SetProbeLayout_anchor_1_tag          2
+#define tvr_SetProbeLayout_anchor_2_tag          3
+#define tvr_SetProbeLayout_anchor_3_tag          4
 #define tvr_StateCommand_type_tag                1
 #define tvr_SetPidGains_attitude_kp_tag          1
 #define tvr_SetPidGains_attitude_kd_tag          2
@@ -115,19 +138,34 @@ extern "C" {
 #define tvr_FlightCommand_set_pid_gains_tag      2
 #define tvr_FlightCommand_set_reference_tag      3
 #define tvr_FlightCommand_set_config_tag         4
+#define tvr_FlightCommand_set_probe_layout_tag   5
 
 /* Struct field encoding specification for nanopb */
 #define tvr_FlightCommand_FIELDLIST(X, a) \
 X(a, STATIC,   ONEOF,    MESSAGE,  (payload,state_cmd,payload.state_cmd),   1) \
 X(a, STATIC,   ONEOF,    MESSAGE,  (payload,set_pid_gains,payload.set_pid_gains),   2) \
 X(a, STATIC,   ONEOF,    MESSAGE,  (payload,set_reference,payload.set_reference),   3) \
-X(a, STATIC,   ONEOF,    MESSAGE,  (payload,set_config,payload.set_config),   4)
+X(a, STATIC,   ONEOF,    MESSAGE,  (payload,set_config,payload.set_config),   4) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (payload,set_probe_layout,payload.set_probe_layout),   5)
 #define tvr_FlightCommand_CALLBACK NULL
 #define tvr_FlightCommand_DEFAULT NULL
 #define tvr_FlightCommand_payload_state_cmd_MSGTYPE tvr_StateCommand
 #define tvr_FlightCommand_payload_set_pid_gains_MSGTYPE tvr_SetPidGains
 #define tvr_FlightCommand_payload_set_reference_MSGTYPE tvr_SetReference
 #define tvr_FlightCommand_payload_set_config_MSGTYPE tvr_SetConfig
+#define tvr_FlightCommand_payload_set_probe_layout_MSGTYPE tvr_SetProbeLayout
+
+#define tvr_SetProbeLayout_FIELDLIST(X, a) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  anchor_0,          1) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  anchor_1,          2) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  anchor_2,          3) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  anchor_3,          4)
+#define tvr_SetProbeLayout_CALLBACK NULL
+#define tvr_SetProbeLayout_DEFAULT NULL
+#define tvr_SetProbeLayout_anchor_0_MSGTYPE tvr_Vec2
+#define tvr_SetProbeLayout_anchor_1_MSGTYPE tvr_Vec2
+#define tvr_SetProbeLayout_anchor_2_MSGTYPE tvr_Vec2
+#define tvr_SetProbeLayout_anchor_3_MSGTYPE tvr_Vec2
 
 #define tvr_StateCommand_FIELDLIST(X, a) \
 X(a, STATIC,   SINGULAR, UENUM,    type,              1)
@@ -164,6 +202,7 @@ X(a, STATIC,   SINGULAR, FLOAT,    theta_max,         5)
 #define tvr_SetConfig_DEFAULT NULL
 
 extern const pb_msgdesc_t tvr_FlightCommand_msg;
+extern const pb_msgdesc_t tvr_SetProbeLayout_msg;
 extern const pb_msgdesc_t tvr_StateCommand_msg;
 extern const pb_msgdesc_t tvr_SetPidGains_msg;
 extern const pb_msgdesc_t tvr_SetReference_msg;
@@ -171,6 +210,7 @@ extern const pb_msgdesc_t tvr_SetConfig_msg;
 
 /* Defines for backwards compatibility with code written before nanopb-0.4.0 */
 #define tvr_FlightCommand_fields &tvr_FlightCommand_msg
+#define tvr_SetProbeLayout_fields &tvr_SetProbeLayout_msg
 #define tvr_StateCommand_fields &tvr_StateCommand_msg
 #define tvr_SetPidGains_fields &tvr_SetPidGains_msg
 #define tvr_SetReference_fields &tvr_SetReference_msg
@@ -181,6 +221,7 @@ extern const pb_msgdesc_t tvr_SetConfig_msg;
 #define tvr_FlightCommand_size                   56
 #define tvr_SetConfig_size                       25
 #define tvr_SetPidGains_size                     54
+#define tvr_SetProbeLayout_size                  48
 #define tvr_SetReference_size                    32
 #define tvr_StateCommand_size                    2
 

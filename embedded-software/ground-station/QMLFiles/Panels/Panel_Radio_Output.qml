@@ -50,6 +50,40 @@ Pane {
         anchors.margins: Theme.paddingMd
         spacing: Theme.paddingSm
 
+        // Banner shown when auto-CSV (D6) failed to open a file. Stays up until
+        // the next successful start. Operator sees a red strip with the reason
+        // instead of silently believing recording is on.
+        Rectangle {
+            Layout.fillWidth: true
+            visible: sensorData.lastCsvError.length > 0 && !sensorData.isRecording
+            color: Theme.dangerBg
+            border.color: Theme.danger
+            border.width: 1
+            radius: Theme.radiusControl
+            implicitHeight: csvErrorRow.implicitHeight + 12
+
+            RowLayout {
+                id: csvErrorRow
+                anchors.fill: parent
+                anchors.leftMargin: 10
+                anchors.rightMargin: 10
+                spacing: 8
+
+                Label {
+                    text: "CSV recording failed: " + sensorData.lastCsvError
+                    color: Theme.dangerText
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontBody
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                }
+                Button {
+                    text: "Choose path…"
+                    onClicked: saveDialog.open()
+                }
+            }
+        }
+
         RowLayout {
             Layout.fillWidth: true
             spacing: Theme.paddingMd
