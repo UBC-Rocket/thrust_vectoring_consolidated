@@ -12,10 +12,13 @@
 #include "cmsis_os2.h"
 #include "command.pb.h"
 #include "common.pb.h"
+#include "motor_drivers/protocols/bdshot.h"
+#include "motor_drivers/protocols/bdshot_dma.h"
 #include "projdefs.h"
 #include "state_exchange.h"
 #include "main.h"
 #include "FreeRTOS.h"
+#include "stm32h563xx.h"
 #include "task.h"
 #include "state_estimation/state.h"
 #include "mission_manager/mission_manager.h"
@@ -25,6 +28,7 @@
 #include "debug/log.h"
 #include "SD_logging/log_service.h"
 #include "timestamp.h"
+#include "stm32h5xx_ll_gpio.h"
 
 #define RAD_TO_DEG (180.0f / 3.14159265f)
 
@@ -103,6 +107,34 @@ static void init_default_ref(flight_controller_ref_t *ref)
 
 /* ── Task entry ───────────────────────────────────────────────────────── */
 
+uint32_t set_test(GPIO_TypeDef *gpio, uint32_t ll_gpio_pin)
+{
+    uint32_t alternate_function;
+
+    if (ll_gpio_pin <= LL_GPIO_PIN_7) {
+        alternate_function = LL_GPIO_GetAFPin_0_7(gpio, ll_gpio_pin);
+    } else {
+        alternate_function = LL_GPIO_GetAFPin_8_15(gpio, ll_gpio_pin);
+    }
+
+    LL_GPIO_SetPinMode(gpio, ll_gpio_pin, LL_GPIO_MODE_OUTPUT);
+    LL_GPIO_SetPinOutputType(gpio, ll_gpio_pin, LL_GPIO_OUTPUT_PUSHPULL);
+
+    return alternate_function;
+}
+
+void restore_test(GPIO_TypeDef *gpio, uint32_t ll_gpio_pin, uint32_t alternate_function)
+{
+    LL_GPIO_SetPinMode(gpio, ll_gpio_pin, LL_GPIO_MODE_ALTERNATE);
+    LL_GPIO_SetPinOutputType(gpio, ll_gpio_pin, LL_GPIO_OUTPUT_OPENDRAIN);
+
+    if (ll_gpio_pin <= LL_GPIO_PIN_7) {
+        LL_GPIO_SetAFPin_0_7(gpio, ll_gpio_pin, alternate_function);
+    } else {
+        LL_GPIO_SetAFPin_8_15(gpio, ll_gpio_pin, alternate_function);
+    }
+}
+
 /**
  * @brief FreeRTOS entry: 1.25 ms period (800 Hz via TIM4 CH2), get state -> flight_controller_run -> publish control output.
  * @param argument Unused.
@@ -123,12 +155,46 @@ void controls_task_start(void *argument)
 
     uint8_t ctrl_log_div = 0;
 
-    servo_pair_enable(false);
-    esc_pair_set_armed(false);
+    // servo_pair_enable(false);
+    // esc_pair_set_armed(false);
 
-    osDelay(pdMS_TO_TICKS(ESC_POWER_ON_TIME_MS));
+    // uint32_t a1 = set_test(ESC_1_PWM_GPIO_Port, ESC_1_PWM_Pin);
+    // uint32_t a2 = set_test(ESC_2_PWM_GPIO_Port, ESC_2_PWM_Pin);
+
+    // LL_GPIO_ResetOutputPin(ESC_1_PWM_GPIO_Port, ESC_1_PWM_Pin);
+    // LL_GPIO_ResetOutputPin(ESC_2_PWM_GPIO_Port, ESC_2_PWM_Pin);
+
+    // osDelay(pdMS_TO_TICKS(ESC_POWER_ON_TIME_MS));
+
+    // restore_test(ESC_1_PWM_GPIO_Port, ESC_1_PWM_Pin, a1);
+    // restore_test(ESC_2_PWM_GPIO_Port, ESC_2_PWM_Pin, a2);
+
+    osDelay(pdMS_TO_TICKS(3000));
+
+    bdshot_dma_set_armed(true);
+
+    for (uint32_t i = 0; i < 5000; i++) {
+        bdshot_dma_apply();
+        osDelay(pdMS_TO_TICKS(1));
+    }
 
     state_exchange_publish_startup_test_complete(true);
+
+    // esc_pair_set_armed(true);
+    // esc_pair_set_force(0, 0);
+
+    bdshot_dma_motor_set_throttle(BDSHOT_MOTOR_INDEX_UPPER, 100);
+    bdshot_dma_motor_set_throttle(BDSHOT_MOTOR_INDEX_LOWER, 100);
+
+    for (;;) {
+        bdshot_dma_apply();
+        osDelay(pdMS_TO_TICKS(1));
+    }
+
+    __BKPT(0);
+
+    for (;;) {
+    }
 
     for (;;) {
         /* Block until TIM4 CH2 output-compare ISR fires (see timing.c) */

@@ -1,18 +1,25 @@
 #include "motor_drivers/protocols/bdshot_dma.h"
 
-#include "motor_drivers/protocols/bdshot.h"
+#define DEBUG_RESET_PIN_ON_TIMER_SWITCH (false)
+
 #include "stm32h5xx.h"
 #include "stm32h563xx.h"
 #include "stm32h5xx_hal_def.h"
 #include "stm32h5xx_hal_dma.h"
-#include "stm32h5xx_hal_gpio.h"
 #include "stm32h5xx_hal_tim.h"
-#include "stm32h5xx_ll_gpio.h"
 #include "stm32h5xx_ll_tim.h"
+
+// #if DEBUG_RESET_PIN_ON_TIMER_SWITCH
+#include "stm32h5xx_hal_gpio.h"
+#include "stm32h5xx_ll_gpio.h"
+// #endif
+
+#include "motor_drivers/protocols/bdshot.h"
+
 #include <stdint.h>
 #include <string.h>
 
-#define DEBUG_RESET_PIN_ON_TIMER_SWITCH (false)
+#define MINUTES_TO_US(minutes) ((minutes) * 60 * 1000000)
 
 typedef enum bdshot_dma_direction {
     BDSHOT_DMA_DIRECTION_OUTPUT,
@@ -22,13 +29,17 @@ typedef enum bdshot_dma_direction {
 typedef struct bdshot_dma_motor {
     bool is_initialized;
     bool is_armed;
+    bool is_throttle_dirty;
+    bool is_telemetry_valid;
+
     bdshot_dma_direction_t direction;
 
     bdshot_dma_motor_config_t config;
 
+    bool is_command;
     uint16_t throttle;
+    bdshot_frame_t frame;
 
-    bool is_telemetry_valid;
     bdshot_motor_telemetry_t telemetry;
 } bdshot_dma_motor_t;
 
@@ -57,7 +68,9 @@ static uint32_t bdshot_dma_rx_buffer[BDSHOT_MOTOR_COUNT][BDSHOT_DMA_RX_FRAME_SIZ
 static volatile uint32_t *get_timer_channel_ccrx_reg(TIM_HandleTypeDef *tim, uint32_t channel);
 static volatile uint32_t get_timer_channel_dma_src(TIM_HandleTypeDef *tim, uint32_t channel);
 static uint32_t tim_channel_convert_hal_to_ll(uint32_t hal_channel);
+#if DEBUG_RESET_PIN_ON_TIMER_SWITCH
 static uint32_t gpio_pin_convert_hal_to_ll(uint32_t hal_pin);
+#endif // DEBUG_RESET_PIN_ON_TIMER_SWITCH
 static size_t find_motor_index_from_dma(DMA_HandleTypeDef *dma);
 static bool tim_channel_dma_set_enable(TIM_HandleTypeDef *tim, uint32_t tim_channel, bool enable);
 static void bdshot_switch_to_rx(bdshot_dma_motor_t *motor);
@@ -115,7 +128,7 @@ static uint32_t tim_channel_convert_hal_to_ll(uint32_t hal_channel)
     }
 }
 
-#if DEBUG_RESET_PIN_ON_TIMER_SWITCH
+// #if DEBUG_RESET_PIN_ON_TIMER_SWITCH
 
 static uint32_t gpio_pin_convert_hal_to_ll(uint32_t hal_pin)
 {
@@ -157,7 +170,7 @@ static uint32_t gpio_pin_convert_hal_to_ll(uint32_t hal_pin)
     }
 }
 
-#endif // DEBUG_RESET_PIN_ON_TIMER_SWITCH
+// #endif // DEBUG_RESET_PIN_ON_TIMER_SWITCH
 
 static size_t find_motor_index_from_dma(DMA_HandleTypeDef *dma)
 {
@@ -219,12 +232,12 @@ static void bdshot_switch_to_rx(bdshot_dma_motor_t *motor)
     // We want to have ARR preload enabled here since we want to ensure
     // all other motors in the same TIM has finished transferring the last byte.
     LL_TIM_EnableARRPreload(tim->Instance);
-    LL_TIM_SetAutoReload(tim->Instance, 0xFFFFFFFF);
+    LL_TIM_SetAutoReload(tim->Instance, UINT32_MAX);
 
 #if DEBUG_RESET_PIN_ON_TIMER_SWITCH
     uint32_t alternate_function;
 
-    if (ll_tim_channel <= LL_GPIO_PIN_7) {
+    if (ll_gpio_pin <= LL_GPIO_PIN_7) {
         alternate_function = LL_GPIO_GetAFPin_0_7(gpio, ll_gpio_pin);
     } else {
         alternate_function = LL_GPIO_GetAFPin_8_15(gpio, ll_gpio_pin);
@@ -247,7 +260,7 @@ static void bdshot_switch_to_rx(bdshot_dma_motor_t *motor)
 #if DEBUG_RESET_PIN_ON_TIMER_SWITCH
     LL_GPIO_SetPinMode(gpio, ll_gpio_pin, LL_GPIO_MODE_ALTERNATE);
 
-    if (ll_tim_channel <= LL_GPIO_PIN_7) {
+    if (ll_gpio_pin <= LL_GPIO_PIN_7) {
         LL_GPIO_SetAFPin_0_7(gpio, ll_gpio_pin, alternate_function);
     } else {
         LL_GPIO_SetAFPin_8_15(gpio, ll_gpio_pin, alternate_function);
@@ -282,6 +295,11 @@ static void bdshot_switch_to_tx(bdshot_dma_motor_t *motor)
     __HAL_TIM_SET_COMPARE(tim, tim_channel, 0);
     LL_TIM_OC_EnablePreload(tim->Instance, ll_tim_channel);
 
+    GPIO_TypeDef *gpio = motor->config.gpio;
+    uint32_t gpio_pin = motor->config.gpio_pin;
+    uint32_t ll_gpio_pin = gpio_pin_convert_hal_to_ll(gpio_pin);
+    LL_GPIO_SetPinPull(gpio, ll_gpio_pin, LL_GPIO_PULL_NO);
+
     TIM_CCxChannelCmd(tim->Instance, tim_channel, TIM_CCx_ENABLE);
 
     // TODO: replace direct register access with LL
@@ -304,41 +322,45 @@ static void dma_xfer_complete_callback(DMA_HandleTypeDef *const dma)
     TIM_HandleTypeDef *tim = motor->config.tim;
     uint32_t tim_channel = motor->config.tim_channel;
 
-    if (motor->direction == BDSHOT_DMA_DIRECTION_OUTPUT) {
+    // if (motor->is_command) {
+    //     return;
+    // }
+
+    // if (motor->direction == BDSHOT_DMA_DIRECTION_OUTPUT) {
         // Disable DMA requests from the timer peripheral to prevent
         // accidental transfers from reading
-        tim_channel_dma_set_enable(tim, tim_channel, false);
+        // tim_channel_dma_set_enable(tim, tim_channel, false);
 
         bdshot_switch_to_rx(motor);
 
-        volatile uint32_t *ccrx = get_timer_channel_ccrx_reg(tim, tim_channel);
+        // volatile uint32_t *ccrx = get_timer_channel_ccrx_reg(tim, tim_channel);
 
-        if (ccrx == NULL) {
-            return;
-        }
+        // if (ccrx == NULL) {
+        //     return;
+        // }
 
-        HAL_DMA_Start_IT(dma, (uint32_t)ccrx, (uint32_t)bdshot_dma_rx_buffer[motor_index],
-                         sizeof(bdshot_dma_tx_buffer[motor_index]));
+        // HAL_DMA_Start_IT(dma, (uint32_t)ccrx, (uint32_t)bdshot_dma_rx_buffer[motor_index],
+        //                  sizeof(bdshot_dma_tx_buffer[motor_index]));
 
-        tim_channel_dma_set_enable(tim, tim_channel, true);
+        // tim_channel_dma_set_enable(tim, tim_channel, true);
 
-        motor->direction = BDSHOT_DMA_DIRECTION_INPUT;
-    } else {
-        tim_channel_dma_set_enable(tim, tim_channel, false);
+    //     motor->direction = BDSHOT_DMA_DIRECTION_INPUT;
+    // } else {
+    //     tim_channel_dma_set_enable(tim, tim_channel, false);
 
-        bdshot_motor_telemetry_t telemetry;
-        bool success = bdshot_decode_gcr(bdshot_dma_rx_buffer[motor_index], &telemetry,
-                                         motor->config.pole_count);
+    //     bdshot_motor_telemetry_t telemetry;
+    //     bool success = bdshot_decode_gcr(bdshot_dma_rx_buffer[motor_index], &telemetry,
+    //                                      motor->config.pole_count);
 
-        if (success) {
-            motor->is_telemetry_valid = true;
-            motor->telemetry = telemetry;
-        }
+    //     if (success) {
+    //         motor->is_telemetry_valid = true;
+    //         motor->telemetry = telemetry;
+    //     }
 
-        bdshot_switch_to_tx(motor);
+    //     bdshot_switch_to_tx(motor);
 
-        motor->direction = BDSHOT_DMA_DIRECTION_OUTPUT;
-    }
+    //     motor->direction = BDSHOT_DMA_DIRECTION_OUTPUT;
+    // }
 }
 
 static void build_dma_tx_buffer(bdshot_frame_t frame, uint32_t *buffer)
@@ -415,35 +437,31 @@ static bool bdshot_decode_gcr(const uint32_t *rx_buf, bdshot_motor_telemetry_t *
         telem_word = (telem_word << 4) | nibble;
     }
 
-    /* ── Step 4: verify CRC
-     * CRC covers the upper 12 bits [15:4].
-     * Same algorithm as the TX checksum but NOT inverted on the RX side
-     * (the ESC inverts it on transmit, our de-invert in step 2 undoes that) */
-    uint8_t received_crc = telem_word & BDSHOT_CHECKSUM_MASK;
-    uint16_t payload = telem_word >> BDSHOT_CHECKSUM_BITS;
-    uint8_t expected_crc = (~(payload ^ (payload >> 4) ^ (payload >> 8))) & BDSHOT_CHECKSUM_MASK;
+    uint8_t received_crc = (telem_word & BDSHOT_CHECKSUM_MASK) >> BDSHOT_CHECKSUM_SHIFT;
+    uint8_t expected_crc = bdshot_frame_checksum(telem_word);
 
     if (received_crc != expected_crc) {
         return false;
     }
 
-    /* ── Step 5: decode eRPM from 12-bit payload
-     * Format: [11:9] = 3-bit exponent, [8:0] = 9-bit mantissa
-     * Period (µs) = mantissa << exponent
-     * eRPM = 60,000,000 / period_us
-     * mechanical RPM = eRPM / (pole_count / 2)                      */
-    uint16_t exponent = (payload >> 9) & 0x7;
-    uint16_t mantissa = payload & 0x1FF;
-
-    if (mantissa == 0) {
-        /* Motor stopped */
-        telem->rpm = 0.0f;
-        return true;
+    // TODO: add support for EDT
+    if (bdshot_is_edt_frame(telem_word)) {
+        return false;
     }
 
-    uint32_t period_us = (uint32_t)mantissa << exponent;
-    float erpm = 60000000.0f / (float)period_us;
-    telem->rpm = erpm / ((float)pole_count / 2.0f);
+    uint8_t exponent = (telem_word & BDSHOT_ERPM_EXPONENT_MASK) >> BDSHOT_ERPM_EXPONENT_SHIFT;
+    uint16_t mantissa = (telem_word & BDSHOT_ERPM_MANTISSA_MASK) >> BDSHOT_ERPM_MANTISSA_SHIFT;
+
+    // Have to handle mantissa=0 separately, since it is a
+    // divide by 0 in the general case
+    if (mantissa == 0) {
+        telem->rpm = 0.0;
+    } else {
+        uint32_t period_us = (uint32_t)mantissa << (uint32_t)exponent;
+        float erpm = MINUTES_TO_US(1.0f) / (float)period_us;
+
+        telem->rpm = (erpm / 2.0f) / pole_count;
+    }
 
     return true;
 }
@@ -453,9 +471,10 @@ bool bdshot_dma_init()
     for (size_t i = 0; i < BDSHOT_MOTOR_COUNT; i++) {
         motors[i].is_initialized = false;
         motors[i].is_armed = false;
-        motors[i].direction = BDSHOT_DMA_DIRECTION_OUTPUT;
-
+        motors[i].is_throttle_dirty = false;
         motors[i].is_telemetry_valid = false;
+
+        motors[i].direction = BDSHOT_DMA_DIRECTION_OUTPUT;
     }
 
     return true;
@@ -472,9 +491,6 @@ bool bdshot_dma_motor_init(bdshot_motor_index_t motor, bdshot_dma_motor_config_t
     if (motors[motor].is_initialized) {
         return false;
     }
-
-    motors[motor].is_initialized = true;
-    motors[motor].config = *config;
 
     HAL_DMA_RegisterCallback(config->dma, HAL_DMA_XFER_CPLT_CB_ID, dma_xfer_complete_callback);
 
@@ -495,6 +511,16 @@ bool bdshot_dma_motor_init(bdshot_motor_index_t motor, bdshot_dma_motor_config_t
         }
     }
 
+
+    motors[motor].config = *config;
+    // bdshot_dma_motor_set_throttle(motor, 0);
+
+    bdshot_command_frame_pack(&motors[motor].frame, BDSHOT_COMMAND_MOTOR_STOP, false);
+    motors[motor].is_throttle_dirty = true;
+    motors[motor].is_command = true;
+
+    motors[motor].is_initialized = true;
+
     return true;
 }
 
@@ -509,26 +535,33 @@ bool bdshot_dma_motor_set_throttle(bdshot_motor_index_t motor, uint16_t throttle
     }
 
     bdshot_frame_t frame;
-    bool success = bdshot_frame_pack(&frame, throttle, true);
+    bool success = bdshot_throttle_frame_pack(&frame, throttle, false);
 
     if (!success) {
         return false;
     }
 
+    motors[motor].is_command = false;
     motors[motor].throttle = throttle;
-    build_dma_tx_buffer(frame, bdshot_dma_tx_buffer[motor]);
+    motors[motor].frame = frame;
+
+    motors[motor].is_throttle_dirty = true;
 
     return true;
 }
 
-bool bdshot_dma_motor_get_telemetry(bdshot_motor_index_t motor, bdshot_motor_telemetry_t *telemtry)
+bool bdshot_dma_motor_get_telemetry(bdshot_motor_index_t motor, bdshot_motor_telemetry_t *telemetry)
 {
     if (motor < 0 || motor >= BDSHOT_MOTOR_COUNT) {
         return false;
     }
 
-    if (telemtry != NULL) {
-        *telemtry = motors[motor].telemetry;
+    if (!motors[motor].is_initialized || !motors[motor].is_telemetry_valid) {
+        return false;
+    }
+
+    if (telemetry != NULL) {
+        *telemetry = motors[motor].telemetry;
     }
 
     return true;
@@ -576,6 +609,14 @@ bool bdshot_dma_apply()
             continue;
         }
 
+        bdshot_switch_to_tx(motor);
+
+        if (motor->is_throttle_dirty) {
+            build_dma_tx_buffer(motor->frame, bdshot_dma_tx_buffer[motor_index]);
+
+            motor->is_throttle_dirty = false;
+        }
+
         TIM_HandleTypeDef *tim = motor->config.tim;
         uint32_t tim_channel = motor->config.tim_channel;
 
@@ -599,9 +640,9 @@ bool bdshot_dma_apply()
         // Restore the free running timer ARR used for telemetry RX to a value for TX.
         // Must disable ARR preload here since the free running timer use for RX will
         // never have a UEV.
-        LL_TIM_EnableARRPreload(timer->tim->Instance);
-        LL_TIM_SetAutoReload(timer->tim->Instance, BDSHOT_DMA_BIT_TICKS - 1);
         LL_TIM_DisableARRPreload(timer->tim->Instance);
+        LL_TIM_SetAutoReload(timer->tim->Instance, BDSHOT_DMA_BIT_TICKS - 1);
+        LL_TIM_EnableARRPreload(timer->tim->Instance);
 
         LL_TIM_SetCounter(timer->tim->Instance, 0);
 
@@ -611,3 +652,7 @@ bool bdshot_dma_apply()
 
     return true;
 }
+
+/*
+Level shifter outputs high on default, change code to be open drain (pulls to low on )
+*/

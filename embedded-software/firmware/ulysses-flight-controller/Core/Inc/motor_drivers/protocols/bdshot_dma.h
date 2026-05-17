@@ -15,9 +15,9 @@
 
 #define BDSHOT_DMA_RX_FRAME_SIZE (BDSHOT_TELEMETRY_WIRE_BITS)
 
-#define BDSHOT_DMA_T1H_TICKS (312)
-#define BDSHOT_DMA_T0H_TICKS (138)
-#define BDSHOT_DMA_BIT_TICKS (416)
+#define BDSHOT_DMA_T1H_TICKS (625)
+#define BDSHOT_DMA_T0H_TICKS (312)
+#define BDSHOT_DMA_BIT_TICKS (833)
 
 typedef struct bdshot_dma_motor_config {
     TIM_HandleTypeDef *tim;
@@ -37,6 +37,6 @@ bool bdshot_dma_apply();
 
 bool bdshot_dma_motor_init(bdshot_motor_index_t motor, bdshot_dma_motor_config_t *config);
 bool bdshot_dma_motor_set_throttle(bdshot_motor_index_t motor, uint16_t throttle);
-bool bdshot_dma_motor_get_telemetry(bdshot_motor_index_t motor, bdshot_motor_telemetry_t *telemtry);
+bool bdshot_dma_motor_get_telemetry(bdshot_motor_index_t motor, bdshot_motor_telemetry_t *telemetry);
 
 #endif // ULYSSES_MOTOR_DRIVER_PROTOCOLS_BDSHOT_DMA_H

@@ -23,6 +23,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "debug/log.h"
+#include "motor_drivers/protocols/bdshot.h"
+#include "motor_drivers/protocols/bdshot_dma.h"
 #include "sensors_init.h"
 #include "stm32h5xx_hal_tim.h"
 #include "timestamp.h"
@@ -30,6 +32,7 @@
 #include "gnss_radio_master.h"
 #include "motor_drivers/servo_driver.h"
 #include "motor_drivers/esc_driver.h"
+#include "stm32h5xx_ll_gpio.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -195,19 +198,39 @@ int main(void)
 
   /* --- ESC pair: TIM2 CH2 (esc1), TIM2 CH4 (esc2) - 400Hz ------- */
   {
-    pwm_output_t pwm1 = {
-      .htim        = &htim2,
-      .channel     = TIM_CHANNEL_2,
-      .timer_hz    = 1000000U,
-      .period_ticks = 2500U,
+    // pwm_output_t pwm1 = {
+    //   .htim        = &htim2,
+    //   .channel     = TIM_CHANNEL_2,
+    //   .timer_hz    = 1000000U,
+    //   .period_ticks = 2500U,
+    // };
+    // pwm_output_t pwm2 = {
+    //   .htim        = &htim2,
+    //   .channel     = TIM_CHANNEL_4,
+    //   .timer_hz    = 1000000U,
+    //   .period_ticks = 2500U,
+    // };
+    // esc_pair_init(&pwm1, &pwm2);
+
+    bdshot_dma_motor_config_t config1 = {
+      .tim = &htim2,
+      .tim_channel = TIM_CHANNEL_2,
+      .dma = htim2.hdma[TIM_DMA_ID_CC2],
+      .gpio = ESC_1_PWM_GPIO_Port,
+      .gpio_pin = ESC_1_PWM_Pin,
     };
-    pwm_output_t pwm2 = {
-      .htim        = &htim2,
-      .channel     = TIM_CHANNEL_4,
-      .timer_hz    = 1000000U,
-      .period_ticks = 2500U,
+
+    bdshot_dma_motor_config_t config2 = {
+      .tim = &htim2,
+      .tim_channel = TIM_CHANNEL_4,
+      .dma = htim2.hdma[TIM_DMA_ID_CC4],
+      .gpio = ESC_2_PWM_GPIO_Port,
+      .gpio_pin = ESC_2_PWM_Pin,
     };
-    esc_pair_init(&pwm1, &pwm2);
+
+    bdshot_dma_init();
+    bdshot_dma_motor_init(BDSHOT_MOTOR_INDEX_LOWER, &config2);
+    bdshot_dma_motor_init(BDSHOT_MOTOR_INDEX_UPPER, &config1);
   }
 
 #ifdef ULYSSES_ENABLE_DEBUG_LOGGING
