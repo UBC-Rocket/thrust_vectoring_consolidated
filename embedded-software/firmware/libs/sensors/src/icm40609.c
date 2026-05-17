@@ -478,6 +478,9 @@ bool icm40609_parse_accel_gyro(const uint8_t *rx_buf,
 {
     if (!rx_buf || !sample || !dev) return false;
 
+    /* Caller fills t_us with a host timestamp (see icm40609_done). */
+    sample->t_us = 0;
+
     /*
      * rx_buf layout (14 bytes, big-endian by default):
      *   [0]  TEMP_DATA1 (high)
@@ -534,6 +537,10 @@ bool icm40609_parse_fifo_packet(const uint8_t *rx_buf,
                                  const icm40609_t *dev)
 {
     if (!rx_buf || !sample || !dev) return false;
+
+    /* Caller fills t_us with a host timestamp (FIFO packets carry only a
+     * 16-bit sensor-internal tick, which is not host µs). */
+    sample->t_us = 0;
 
     uint8_t header = rx_buf[0];
 

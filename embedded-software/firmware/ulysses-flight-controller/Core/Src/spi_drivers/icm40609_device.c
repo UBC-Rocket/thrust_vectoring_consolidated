@@ -190,8 +190,8 @@ uint8_t icm40609_init_with_config(SPI_HandleTypeDef *hspi,
     st = icm40609_spi_read(hspi, cs_port, cs_pin, tx, rx, n);
     ICM40609_CHECK_SPI(st);
 
-    uint8_t expected_pwr = ((uint8_t)config->gyro_mode << 2)
-                         | ((uint8_t)config->accel_mode);
+    uint8_t expected_pwr = (((uint8_t)config->gyro_mode  & 0x03) << 2)
+                         |  ((uint8_t)config->accel_mode & 0x03);
     if ((rx[1] & 0x0F) != expected_pwr) return 2;
 
     /* --- 10. Wait for gyro startup (>=45 ms from OFF to any other mode) --- */
@@ -319,7 +319,7 @@ static void icm40609_done(spi_job_t *job, const uint8_t *rx_buf, void *arg)
  */
 void icm40609_data_ready_interrupt(void)
 {
-    const uint64_t now = timestamp_us();
+    const uint32_t now = timestamp_us();
 
     spi_job_t job;
     job.cs_port  = ICM40609_CS_GPIO_Port;
