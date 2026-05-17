@@ -11,7 +11,7 @@ static void servo_home(servo_t *servo);
 
 static volatile bool s_servo_pair_ready = false;
 
-static servo_pair_t s_servos;
+static servo_pair_t s_servos = {0};
 
 static servo_config_t s_servo1_config = {
     .us_min = SERVO1_US_MIN,
@@ -42,6 +42,8 @@ void set_servo_degree(servo_t *servo, float degree) {
     }
 
     uint16_t us = degree_to_us(servo, degree);
+    us = clamp_u16(us, servo->config.us_min, servo->config.us_max);
+    
     servo->us_last = us;
     uint32_t ticks = pwm_us_to_ticks(&servo->pwm, us);
     servo->compare_val = pwm_clamp_ticks(&servo->pwm, ticks);
@@ -54,8 +56,10 @@ void set_gimbal_degrees(float x_deg, float y_deg) {
     /* servo1 = Y-axis (pitch); servo2 = X-axis (roll).
      * Negate both: positive command tilts toward positive axis per right-hand convention,
      * but servo mechanical direction is inverted relative to body frame. */
-    set_servo_degree(&s_servos.servo1, y_deg);
-    set_servo_degree(&s_servos.servo2, x_deg);
+    float servo1_deg = clamp_float(-y_deg, SERVO_GIMBAL_DEG_MIN, SERVO_GIMBAL_DEG_MAX);
+    float servo2_deg = clamp_float(-x_deg, SERVO_GIMBAL_DEG_MIN, SERVO_GIMBAL_DEG_MAX);
+    set_servo_degree(&s_servos.servo1, servo1_deg);
+    set_servo_degree(&s_servos.servo2, servo2_deg);
 }
 
 /* ---- ISR-level API ----------------------------------------------------- */
@@ -76,20 +80,20 @@ static void servo_home(servo_t *servo)
 
     pwm_output_t *pwm = &servo->pwm;
 
-    if (pwm == NULL) return; // check pwm channel is defined
+    if (pwm->htim == NULL) return; // check pwm channel is defined
 
-    uint16_t home_us = degree_to_us(servo, servo->config.deg_bias);
-    servo->us_last = home_us;  /* Start at mid position. */
+    uint16_t home_us = degree_to_us(servo, 0.0f);
+    servo->us_last = clamp_u16(home_us, servo->config.us_min, servo->config.us_max);  /* Start at mid position. */
 
-    /* Start PWM output, set to mid position, then stop until enabled. */
-    (void)HAL_TIM_PWM_Start(pwm->htim, pwm->channel);
-    {
-        uint32_t ticks = pwm_us_to_ticks(pwm, home_us);
-        ticks = pwm_clamp_ticks(pwm, ticks);
-        servo->compare_val = ticks;
-        pwm_set_compare(pwm, ticks);
-    }
-    (void)HAL_TIM_PWM_Stop(pwm->htim, pwm->channel);
+    // /* Start PWM output, set to mid position, then stop until enabled. */
+    // (void)HAL_TIM_PWM_Start(pwm->htim, pwm->channel);
+    // {
+    //     uint32_t ticks = pwm_us_to_ticks(pwm, home_us);
+    //     ticks = pwm_clamp_ticks(pwm, ticks);
+    //     servo->compare_val = ticks;
+    //     pwm_set_compare(pwm, ticks);
+    // }
+    // (void)HAL_TIM_PWM_Stop(pwm->htim, pwm->channel);
 }
 
 void servo_init(servo_t *servo, const pwm_output_t *pwm) {
@@ -100,6 +104,7 @@ void servo_init(servo_t *servo, const pwm_output_t *pwm) {
     servo->pwm = *pwm;
     servo->config = s_servo1_config; // default config; can be overridden after init
     servo->enabled = false;
+
     servo_home(servo);
 }
 
@@ -116,7 +121,8 @@ void servo_enable(servo_t *servo, bool enable) {
         pwm_set_compare(&servo->pwm, ticks);
         (void)HAL_TIM_PWM_Start(servo->pwm.htim, servo->pwm.channel);
     } else {
-        uint16_t home_us = degree_to_us(servo, servo->config.deg_bias);
+        uint16_t home_us = degree_to_us(servo, 0.0f);
+        home_us = clamp_u16(home_us, servo->config.us_min, servo->config.us_max);
 
         uint32_t ticks = pwm_us_to_ticks(&servo->pwm, home_us);
         ticks = pwm_clamp_ticks(&servo->pwm, ticks);
@@ -157,9 +163,10 @@ static uint16_t degree_to_us(const servo_t *servo, float degree) {
 
     float scale = (float)(cfg->us_max - cfg->us_min) / cfg->deg_range_max;
 
-    float d = (cfg->reversed ? -degree : degree) + cfg->deg_bias;
-    float d_clamped = clamp_float(d, cfg->deg_min + cfg->deg_bias, cfg->deg_max + cfg->deg_bias);
+    // float d = (cfg->reversed ? -degree : degree) + cfg->deg_bias;
+    // float d_clamped = clamp_float(degree, cfg->deg_min, cfg->deg_max);
 
-    uint16_t us = cfg->us_min + d_clamped * scale;
-    return clamp_u16(us, cfg->us_min, cfg->us_max);
+    uint16_t us = cfg->us_min + (degree + cfg->deg_bias) * scale;
+    // return clamp_u16(us, cfg->us_min, cfg->us_max);
+    return us;
 }
