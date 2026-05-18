@@ -84,8 +84,6 @@ void Error_Handler(void);
 #define GNSS_RST_GPIO_Port GPIOC
 #define PHY_INT_Pin GPIO_PIN_3
 #define PHY_INT_GPIO_Port GPIOA
-#define EXTRA_PB0_Pin GPIO_PIN_0
-#define EXTRA_PB0_GPIO_Port GPIOB
 #define EXTRA_PE9_Pin GPIO_PIN_9
 #define EXTRA_PE9_GPIO_Port GPIOE
 #define EXTRA_PE10_Pin GPIO_PIN_10
