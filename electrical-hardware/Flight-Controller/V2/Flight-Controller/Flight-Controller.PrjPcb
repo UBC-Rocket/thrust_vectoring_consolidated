@@ -492,6 +492,23 @@ DItemRevisionGUID=
 GenerateClassCluster=0
 DocumentUniqueId=COJUANDB
 
+[Document27]
+DocumentPath=job.OutJob
+AnnotationEnabled=1
+AnnotateStartValue=1
+AnnotationIndexControlEnabled=0
+AnnotateSuffix=
+AnnotateScope=All
+AnnotateOrder=-1
+DoLibraryUpdate=1
+DoDatabaseUpdate=1
+ClassGenCCAutoEnabled=1
+ClassGenCCAutoRoomEnabled=0
+ClassGenNCAutoScope=None
+DItemRevisionGUID=
+GenerateClassCluster=0
+DocumentUniqueId=
+
 [ProjectVariant1]
 UniqueId=118e5998-9d35-4ed1-b17b-245e30316e9f
 Description=Var 1A
@@ -504,7 +521,207 @@ Variation3=Designator=R35|UniqueId=\YNIGVDLB\CFTHJKHU|Kind=1|AlternatePart=
 ParamVariationCount=0
 
 [GeneratedDocument1]
+DocumentPath=Project Outputs for Flight-Controller\BOM\Bill of Materials-Flight-Controller.xlsx
+DItemRevisionGUID=
+
+[GeneratedDocument2]
 DocumentPath=Project Outputs for Flight-Controller\Design Rule Check - Flight-Controller.html
+DItemRevisionGUID=
+
+[GeneratedDocument3]
+DocumentPath=Project Outputs for Flight-Controller\NC Drill\Flight-Controller-RoundHoles.TXT
+DItemRevisionGUID=
+
+[GeneratedDocument4]
+DocumentPath=Project Outputs for Flight-Controller\NC Drill\Flight-Controller-SlotHoles.TXT
+DItemRevisionGUID=
+
+[GeneratedDocument5]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.1
+DItemRevisionGUID=
+
+[GeneratedDocument6]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.2
+DItemRevisionGUID=
+
+[GeneratedDocument7]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.3
+DItemRevisionGUID=
+
+[GeneratedDocument8]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.4
+DItemRevisionGUID=
+
+[GeneratedDocument9]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.5
+DItemRevisionGUID=
+
+[GeneratedDocument10]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.6
+DItemRevisionGUID=
+
+[GeneratedDocument11]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.7
+DItemRevisionGUID=
+
+[GeneratedDocument12]
+DocumentPath=Project Outputs for Flight-Controller\NC Drill\Flight-Controller.DRR
+DItemRevisionGUID=
+
+[GeneratedDocument13]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.EXTREP
+DItemRevisionGUID=
+
+[GeneratedDocument14]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.G1
+DItemRevisionGUID=
+
+[GeneratedDocument15]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.G2
+DItemRevisionGUID=
+
+[GeneratedDocument16]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.G3
+DItemRevisionGUID=
+
+[GeneratedDocument17]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.G4
+DItemRevisionGUID=
+
+[GeneratedDocument18]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.G5
+DItemRevisionGUID=
+
+[GeneratedDocument19]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.G6
+DItemRevisionGUID=
+
+[GeneratedDocument20]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.GBL
+DItemRevisionGUID=
+
+[GeneratedDocument21]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.GBO
+DItemRevisionGUID=
+
+[GeneratedDocument22]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.GBP
+DItemRevisionGUID=
+
+[GeneratedDocument23]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.GBS
+DItemRevisionGUID=
+
+[GeneratedDocument24]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.GD1
+DItemRevisionGUID=
+
+[GeneratedDocument25]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.GG1
+DItemRevisionGUID=
+
+[GeneratedDocument26]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.GKO
+DItemRevisionGUID=
+
+[GeneratedDocument27]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.GM
+DItemRevisionGUID=
+
+[GeneratedDocument28]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.GM1
+DItemRevisionGUID=
+
+[GeneratedDocument29]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.GM2
+DItemRevisionGUID=
+
+[GeneratedDocument30]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.GM3
+DItemRevisionGUID=
+
+[GeneratedDocument31]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.GM4
+DItemRevisionGUID=
+
+[GeneratedDocument32]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.GM5
+DItemRevisionGUID=
+
+[GeneratedDocument33]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.GM6
+DItemRevisionGUID=
+
+[GeneratedDocument34]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.GM7
+DItemRevisionGUID=
+
+[GeneratedDocument35]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.GM13
+DItemRevisionGUID=
+
+[GeneratedDocument36]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.GM15
+DItemRevisionGUID=
+
+[GeneratedDocument37]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.GM16
+DItemRevisionGUID=
+
+[GeneratedDocument38]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.GM20
+DItemRevisionGUID=
+
+[GeneratedDocument39]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.GM21
+DItemRevisionGUID=
+
+[GeneratedDocument40]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.GM23
+DItemRevisionGUID=
+
+[GeneratedDocument41]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.GM24
+DItemRevisionGUID=
+
+[GeneratedDocument42]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.GML
+DItemRevisionGUID=
+
+[GeneratedDocument43]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.GPB
+DItemRevisionGUID=
+
+[GeneratedDocument44]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.GPT
+DItemRevisionGUID=
+
+[GeneratedDocument45]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.GTL
+DItemRevisionGUID=
+
+[GeneratedDocument46]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.GTO
+DItemRevisionGUID=
+
+[GeneratedDocument47]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.GTP
+DItemRevisionGUID=
+
+[GeneratedDocument48]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.GTS
+DItemRevisionGUID=
+
+[GeneratedDocument49]
+DocumentPath=Project Outputs for Flight-Controller\NC Drill\Flight-Controller.LDP
+DItemRevisionGUID=
+
+[GeneratedDocument50]
+DocumentPath=Project Outputs for Flight-Controller\Gerber\Flight-Controller.REP
+DItemRevisionGUID=
+
+[GeneratedDocument51]
+DocumentPath=Project Outputs for Flight-Controller\Pick Place\Pick Place for Flight-Controller.csv
 DItemRevisionGUID=
 
 [Configuration1]
