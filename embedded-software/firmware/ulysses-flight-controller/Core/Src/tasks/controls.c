@@ -75,8 +75,8 @@ static void init_default_config(flight_controller_config_t *cfg)
     cfg->allocation.thrust_dir[2] = -1.0f;
     /* Gimbal */
     cfg->gimbal.L = 0.2f;
-    cfg->gimbal.theta_min = -0.05f;
-    cfg->gimbal.theta_max = 0.05f;
+    cfg->gimbal.theta_min = SERVO_GIMBAL_DEG_MIN * (3.14159265f / 180.0f);
+    cfg->gimbal.theta_max = SERVO_GIMBAL_DEG_MAX * (3.14159265f / 180.0f);
     /* Thrust */
     cfg->thrust.m = 1.0f;
     cfg->thrust.g = 9.8067f;
@@ -138,6 +138,7 @@ void controls_task_start(void *argument)
 
         // Arming status has changed
         if (armed_seq != last_armed_seq) {
+            last_armed_seq = armed_seq; 
             DLOG_PRINT("[CTRL] ARM: begin %s sequence\r\n", armed ? "arm" : "disarm");
 
             if (armed) {
@@ -245,9 +246,23 @@ void controls_task_start(void *argument)
                 float theta_y_deg =
                     clamp_float(control_output.theta_y_cmd * RAD_TO_DEG, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
 
-                set_gimbal_degrees(theta_x_deg, theta_y_deg);
+                float calibrated_theta_x_deg = (1/sqrtf(2.0f)) * theta_x_deg + (1/sqrtf(2.0f)) * theta_y_deg; // Calibrated to match physical gimbal direction
+                float calibrated_theta_y_deg = -(1/sqrtf(2.0f)) * theta_x_deg + (1/sqrtf(2.0f)) * theta_y_deg; // Calibrated to match physical gimbal direction
+
+                set_gimbal_degrees(calibrated_theta_x_deg, calibrated_theta_y_deg);
                 esc_pair_set_force(control_output.T_cmd, control_output.tau_thrust);
             }
+            else {
+                set_gimbal_degrees(0.0f, 0.0f);
+                // servo_pair_enable(armed);
+                esc_pair_set_force(0, 0);
+            }
+        }
+        else {
+            // Not armed or no valid state — output safe (zero) controls.
+            set_gimbal_degrees(0.0f, 0.0f);
+            // servo_pair_enable(false);
+            esc_pair_set_force(0, 0);
         }
     }
 }

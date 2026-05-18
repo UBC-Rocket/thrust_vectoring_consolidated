@@ -122,7 +122,9 @@ void compute_thrust_dir(const flight_controller_gimbal_config_t* gcfg,
     float thrust_perp_mag = sqrtf(thrust_x * thrust_x + thrust_y * thrust_y);
 
     // parallel torque
-    float thrust_z = sqrtf(thrust_mag * thrust_mag - thrust_perp_mag * thrust_perp_mag);
+    // float thrust_z = sqrtf(thrust_mag * thrust_mag - thrust_perp_mag * thrust_perp_mag);
+    float thrust_z = sqrtf(fabsf(thrust_mag * thrust_mag - thrust_perp_mag * thrust_perp_mag));
+
 
     float total_thrust_mag = sqrtf(thrust_x * thrust_x + thrust_y * thrust_y + thrust_z * thrust_z);
     
@@ -208,7 +210,7 @@ void flight_controller_init(const flight_controller_config_t *config)
     s_thrust_dir[1] = config->allocation.thrust_dir[1];
     s_thrust_dir[2] = config->allocation.thrust_dir[2];
 
-    s_thrust_mag = 0.0f;
+    s_thrust_mag = config->thrust.m * config->thrust.g; // initialize to min thrust
 }
 
 void flight_controller_reset(void)
@@ -230,7 +232,7 @@ void flight_controller_run(const state_t *state,
         return;
 
     const flight_controller_thrust_config_t *tcfg = &config->thrust;
-    const flight_controller_gimbal_config_t *gcfg = &config->gimbal;
+    const flight_controller_gimbal_config_t *gcfg = &config->gimbal;    //ISSUE
 
     float phi[3];
     compute_axis_angle_err(&ref->q_ref, &state->q_bn, phi);
