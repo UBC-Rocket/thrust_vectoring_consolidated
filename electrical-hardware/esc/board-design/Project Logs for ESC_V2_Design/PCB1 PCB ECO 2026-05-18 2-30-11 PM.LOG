@@ -1,0 +1,324 @@
+Removed Pin From Net: NetName=AGND Pin=C?-1
+Removed Pin From Net: NetName=VDRAIN Pin=C?-2
+Removed Pin From Net: NetName=+5V Pin=D?-1
+Removed Pin From Net: NetName=NetD?_2 Pin=D?-2
+Removed Pin From Net: NetName=SPC Pin=R?-2
+Added Component: Designator=C?(FP-C1608-080-0_1-IPC_B)
+Add component (AddParameter): Name = "Capacitance"; Value = "1uF"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Case Code (Imperial)"; Value = "0603"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Case Code (Metric)"; Value = "1608"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Case/Package"; Value = "0603"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Construction"; Value = "Flat"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Depth"; Value = "0.8mm"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Dielectric"; Value = "X5R"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Dielectric Material"; Value = "Ceramic"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Height"; Value = "0.8mm"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Lead Free"; Value = "Lead Free"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Length"; Value = "1.6mm"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Max Operating Temperature"; Value = "85°C"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Min Operating Temperature"; Value = "-55°C"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Mount"; Value = "Surface Mount"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Number of Pins"; Value = "2"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Package Quantity"; Value = "1"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Packaging"; Value = "Tape and Reel"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Radiation Hardening"; Value = "No"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "REACH SVHC"; Value = "No SVHC"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Resistor Type"; Value = "Ceramic"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "RoHS Compliant"; Value = "Yes"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Series"; Value = "C"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Termination"; Value = "SMD/SMT"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Thickness"; Value = "0.035inch"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Tolerance"; Value = "10%"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Voltage"; Value = "50V"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Voltage Rating"; Value = "50V"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Voltage Rating (DC)"; Value = "50V"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Weight"; Value = "7.1E-05oz"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Width"; Value = "0.031inch"; VariantName = "[No Variations]"
+Added Component: Designator=C?(FP-C1608-080-0_1-IPC_B)
+Add component (AddParameter): Name = "Capacitance"; Value = "1uF"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Case Code (Imperial)"; Value = "0603"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Case Code (Metric)"; Value = "1608"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Case/Package"; Value = "0603"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Construction"; Value = "Flat"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Depth"; Value = "0.8mm"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Dielectric"; Value = "X5R"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Dielectric Material"; Value = "Ceramic"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Height"; Value = "0.8mm"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Lead Free"; Value = "Lead Free"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Length"; Value = "1.6mm"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Max Operating Temperature"; Value = "85°C"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Min Operating Temperature"; Value = "-55°C"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Mount"; Value = "Surface Mount"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Number of Pins"; Value = "2"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Package Quantity"; Value = "1"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Packaging"; Value = "Tape and Reel"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Radiation Hardening"; Value = "No"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "REACH SVHC"; Value = "No SVHC"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Resistor Type"; Value = "Ceramic"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "RoHS Compliant"; Value = "Yes"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Series"; Value = "C"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Termination"; Value = "SMD/SMT"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Thickness"; Value = "0.035inch"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Tolerance"; Value = "10%"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Voltage"; Value = "50V"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Voltage Rating"; Value = "50V"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Voltage Rating (DC)"; Value = "50V"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Weight"; Value = "7.1E-05oz"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Width"; Value = "0.031inch"; VariantName = "[No Variations]"
+Add component: Footprint Not Found CAPPRD500W65D1000H2200
+Added Component: Designator=D?(FP-SOD962-2-CA-MFG)
+Add component (AddParameter): Name = "Ambient Temperature Range High"; Value = "125°C"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Breakdown Voltage"; Value = "4.2V"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Capacitance"; Value = "240fF"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Clamping Voltage"; Value = "3.7V"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Direction"; Value = "Bidirectional"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Height"; Value = "320µm"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Lifecycle Status"; Value = "Production"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Manufacturer Lifecycle Status"; Value = "RELEASED FOR SUPPLY"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "NexarPartId"; Value = "92175759"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Number of Channels"; Value = "1"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Reverse Standoff Voltage"; Value = "3.3V"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "RoHS"; Value = "Non-Compliant"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Schedule B"; Value = "8536300000"; VariantName = "[No Variations]"
+Added Component: Designator=D?(ONSC-SOD-323-2-477-02_V)
+Add component (AddParameter): Name = "ComponentLink1Description"; Value = "Manufacturer URL"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "ComponentLink1URL"; Value = "http://www.onsemi.com/"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "ComponentLink2Description"; Value = "Datasheet"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "ComponentLink2URL"; Value = "http://www.onsemi.cn/pub_link/Collateral/NSR0320MW2T1-D.PDF"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "ComponentLink3Description"; Value = "Package Specification"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "ComponentLink3URL"; Value = "http://www.onsemi.com/pub_link/Collateral/477-02.PDF.1"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Configuration"; Value = "Single"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "DatasheetVersion"; Value = "Rev. 4"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "IFSM Max (A)"; Value = "5"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Manufacturer"; Value = "On Semiconductor"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Mounting Technology"; Value = "Surface Mount"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "PackageDescription"; Value = "2-Pin SOD, Body 1.7 x 1.25 mm"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "PackageReference"; Value = "SOD-323-2-477-02"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "PackageVersion"; Value = "Rev. H, 03/2007"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Packing"; Value = "Tape and Reel"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "PartNumber"; Value = "NSR0320MW2T1G"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "RoHS"; Value = "TRUE"; VariantName = "[No Variations]"
+Add component: Footprint Not Found SODFL3616X98N
+Add component: Footprint Not Found SOT65P210X110-6N
+Add component: Footprint Not Found CONN14_3220-14_CNC
+Added Component: Designator=J2(FP-217175-0001-MFG)
+Add component: Footprint Not Found INDPM6054X300N
+Add component: Footprint Not Found FERD20U50DJFTR
+Add component: Footprint Not Found FERD20U50DJFTR
+Add component: Footprint Not Found FERD20U50DJFTR
+Add component: Footprint Not Found FERD20U50DJFTR
+Add component: Footprint Not Found FERD20U50DJFTR
+Add component: Footprint Not Found FERD20U50DJFTR
+Added Component: Designator=R?(FP-RN73R1E-IPC_C)
+Added Component: Designator=R?(FP-RN73R1E-IPC_C)
+Add component: Footprint Not Found WFCP06121L000FE66
+Add component: Footprint Not Found WFCP06121L000FE66
+Add component: Footprint Not Found WFCP06121L000FE66
+Added Component: Designator=U?(FP-SOT25-IPC_A)
+Add component (AddParameter): Name = "Accuracy"; Value = "1.5%"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Case/Package"; Value = "SOT-23-5"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Dropout Voltage"; Value = "250mV"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Height"; Value = "1.3mm"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Lead Free"; Value = "Lead Free"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Length"; Value = "3.1mm"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Max Input Voltage"; Value = "6V"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Max Operating Temperature"; Value = "85°C"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Max Output Current"; Value = "600mA"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Min Input Voltage"; Value = "2.5V"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Min Operating Temperature"; Value = "-40°C"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Mount"; Value = "Surface Mount"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Number of Outputs"; Value = "1"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Number of Pins"; Value = "5"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Number of Regulators"; Value = "1"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Output Current"; Value = "600mA"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Output Type"; Value = "Fixed"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Output Voltage"; Value = "3.3V"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Package Quantity"; Value = "1"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Packaging"; Value = "Tape and Reel"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Polarity"; Value = "Positive"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Quiescent Current"; Value = "55uA"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Width"; Value = "1.7mm"; VariantName = "[No Variations]"
+Added Pin To Net: NetName=+3V3 Pin=C?-1
+Added Pin To Net: NetName=AGND Pin=C?-1
+Added Pin To Net: NetName=AGND Pin=C?-1
+Added Pin To Net: NetName=AGND Pin=C?-2
+Added Pin To Net: NetName=VDRAIN Pin=C?-2
+Added Pin To Net: NetName=+3V3 Pin=D?-1
+Added Pin To Net: NetName=+5V Pin=D?-1
+Added Pin To Net: NetName=AGND Pin=D?-1
+Added Pin To Net: NetName=BEMF_A Pin=D?-2
+Added Pin To Net: NetName=NetD?_2 Pin=D?-2
+Add Pin To Net: Unknown Pin: Pin IC?-2
+Add Pin To Net: Unknown Pin: Pin IC?-3
+Add Pin To Net: Unknown Pin: Pin IC?-4
+Add Pin To Net: Unknown Pin: Pin IC?-5
+Add Pin To Net: Unknown Pin: Pin IC?-6
+Add Pin To Net: Unknown Pin: Pin J1-1
+Add Pin To Net: Unknown Pin: Pin J1-2
+Add Pin To Net: Unknown Pin: Pin J1-4
+Add Pin To Net: Unknown Pin: Pin J1-5
+Add Pin To Net: Unknown Pin: Pin J1-7
+Added Pin To Net: NetName=AGND Pin=J2-A12
+Added Pin To Net: NetName=AGND Pin=J2-B12
+Add Pin To Net: Unknown Pin: Pin L?-1
+Add Pin To Net: Unknown Pin: Pin L?-2
+Add Pin To Net: Unknown Pin: Pin Q?-1
+Add Pin To Net: Unknown Pin: Pin Q?-1
+Add Pin To Net: Unknown Pin: Pin Q?-1
+Add Pin To Net: Unknown Pin: Pin Q?-1
+Add Pin To Net: Unknown Pin: Pin Q?-1
+Add Pin To Net: Unknown Pin: Pin Q?-2
+Add Pin To Net: Unknown Pin: Pin Q?-2
+Add Pin To Net: Unknown Pin: Pin Q?-2
+Add Pin To Net: Unknown Pin: Pin Q?-2
+Add Pin To Net: Unknown Pin: Pin Q?-2
+Add Pin To Net: Unknown Pin: Pin Q?-3
+Add Pin To Net: Unknown Pin: Pin Q?-3
+Add Pin To Net: Unknown Pin: Pin Q?-3
+Add Pin To Net: Unknown Pin: Pin Q?-3
+Add Pin To Net: Unknown Pin: Pin Q?-3
+Add Pin To Net: Unknown Pin: Pin Q?-4
+Add Pin To Net: Unknown Pin: Pin Q?-4
+Add Pin To Net: Unknown Pin: Pin Q?-4
+Add Pin To Net: Unknown Pin: Pin Q?-4
+Add Pin To Net: Unknown Pin: Pin Q?-4
+Add Pin To Net: Unknown Pin: Pin Q?-4
+Add Pin To Net: Unknown Pin: Pin Q?-5
+Add Pin To Net: Unknown Pin: Pin Q?-5
+Add Pin To Net: Unknown Pin: Pin Q?-5
+Add Pin To Net: Unknown Pin: Pin Q?-5
+Add Pin To Net: Unknown Pin: Pin Q?-5
+Add Pin To Net: Unknown Pin: Pin Q?-6
+Add Pin To Net: Unknown Pin: Pin Q?-6
+Add Pin To Net: Unknown Pin: Pin Q?-6
+Add Pin To Net: Unknown Pin: Pin Q?-6
+Add Pin To Net: Unknown Pin: Pin Q?-6
+Add Pin To Net: Unknown Pin: Pin Q?-7
+Add Pin To Net: Unknown Pin: Pin Q?-7
+Add Pin To Net: Unknown Pin: Pin Q?-7
+Add Pin To Net: Unknown Pin: Pin Q?-7
+Add Pin To Net: Unknown Pin: Pin Q?-7
+Add Pin To Net: Unknown Pin: Pin Q?-8
+Add Pin To Net: Unknown Pin: Pin Q?-8
+Add Pin To Net: Unknown Pin: Pin Q?-8
+Add Pin To Net: Unknown Pin: Pin Q?-8
+Add Pin To Net: Unknown Pin: Pin Q?-8
+Add Pin To Net: Unknown Pin: Pin Q?-9
+Add Pin To Net: Unknown Pin: Pin Q?-9
+Add Pin To Net: Unknown Pin: Pin Q?-9
+Add Pin To Net: Unknown Pin: Pin Q?-9
+Add Pin To Net: Unknown Pin: Pin Q?-9
+Added Pin To Net: NetName=AGND Pin=R?-1
+Added Pin To Net: NetName=AGND Pin=R?-2
+Added Pin To Net: NetName=AGND Pin=R?-2
+Added Pin To Net: NetName=SPA Pin=R?-2
+Added Pin To Net: NetName=SPB Pin=R?-2
+Added Pin To Net: NetName=SPC Pin=R?-2
+Added Pin To Net: NetName=AGND Pin=U?-2
+Added Pin To Net: NetName=+5 Pin=C?-2
+Added Pin To Net: NetName=+5 Pin=D?-1
+Added Pin To Net: NetName=+5 Pin=U?-1
+Added Pin To Net: NetName=+5 Pin=U?-3
+Added Net: Name=+5
+Added Pin To Net: NetName=3V3 Pin=C?-2
+Added Pin To Net: NetName=3V3 Pin=U?-5
+Added Net: Name=3V3
+Add Net: Net with name "CAN_RX" already exists
+Add Net: Net with name "CAN_SHDN" already exists
+Add Net: Net with name "CAN_TX" already exists
+Add Net: Net with name "NetC?_1" already exists
+Add Net: Net with name "NetC?_1" already exists
+Add Net: Net with name "NetC?_1" already exists
+Add Net: Net with name "NetC?_1" already exists
+Add Net: Net with name "NetC?_2" already exists
+Add Net: Net with name "NetC?_2" already exists
+Add Net: Net with name "NetC?_2" already exists
+Add Net: Net with name "NetC?_2" already exists
+Add Net: Net with name "NetC?_2" already exists
+Add Net: Net with name "NetD?_1" already exists
+Add Net: Net with name "NetD?_1" already exists
+Add Net: Net with name "NetD?_2" already exists
+Add Net: Net with name "NetD?_2" already exists
+Add Net: Net with name "NetD?_2" already exists
+Added Pin To Net: NetName=NetJ2_A5 Pin=J2-A5
+Added Pin To Net: NetName=NetJ2_A5 Pin=R?-1
+Added Net: Name=NetJ2_A5
+Added Pin To Net: NetName=NetJ2_B5 Pin=J2-B5
+Added Pin To Net: NetName=NetJ2_B5 Pin=R?-1
+Added Net: Name=NetJ2_B5
+Add Net: Net with name "NetR?_1" already exists
+Add Net: Net with name "NetR?_1" already exists
+Add Net: Net with name "NetR?_1" already exists
+Add Net: Net with name "NetR?_1" already exists
+Add Net: Net with name "PHASE A" already exists
+Added Pin To Net: NetName=VBUS Pin=D?-2
+Added Pin To Net: NetName=VBUS Pin=D?-2
+Added Pin To Net: NetName=VBUS Pin=J2-A9
+Added Pin To Net: NetName=VBUS Pin=J2-B9
+Added Net: Name=VBUS
+Added Class: Name=USB
+Added Member To Class: ClassName=CAN Member=Component C? 0.1uF 25V X7R 0603
+Added Member To Class: ClassName=Gate Drive Member=Component C? 1uF X7R 16 V 0805
+Added Member To Class: ClassName=Gate Drive Member=Component C? 0.1uF X7R 50V 0603
+Added Member To Class: ClassName=Gate Drive Member=Component C? 0.1uF X7R 50V 0603
+Added Member To Class: ClassName=Gate Drive Member=Component C? 4.7uF X7R 50V 0805
+Added Member To Class: ClassName=Gate Drive Member=Component C? 0.1uF X7R 50V 0603
+Added Member To Class: ClassName=Gate Drive Member=Component C? 1uF X7R 6.3V 0402
+Added Member To Class: ClassName=Gate Drive Member=Component C? 4.7uF X7R 50V 0805
+Added Member To Class: ClassName=Gate Drive Member=Component C? 22uF X7R 10V 0805
+Added Member To Class: ClassName=Gate Drive Member=Component C? 10uF X5R 50V 0805
+Added Member To Class: ClassName=Gate Drive Member=Component C? 1uF X7R 25V 0805
+Added Member To Class: ClassName=Gate Drive Member=Component C? 47nF X7R 25V 0603
+Added Member To Class: ClassName=Gate Drive Member=Component C? 0.1uF X7R 50V 0603
+Added Member To Class: ClassName=Gate Drive Member=Component C? 470uF 20% 50V 10mm
+Added Member To Class: ClassName=Gate Drive Member=Component C? 0.1uF X7R 50V 0603
+Added Member To Class: ClassName=MCU Member=Component C? 10nF C0G 25V 0603
+Added Member To Class: ClassName=MCU Member=Component C? 0.1uF 25V X7R 0603
+Added Member To Class: ClassName=MCU Member=Component C? 0.1uF 25V X7R 0603
+Added Member To Class: ClassName=MCU Member=Component C? 1nF 50V X7R 0603
+Added Member To Class: ClassName=MCU Member=Component C? 1nF 50V X7R 0603
+Added Member To Class: ClassName=MCU Member=Component C? 100nF 0402
+Added Member To Class: ClassName=MCU Member=Component C? 4.7uF 16V X7R 0603
+Added Member To Class: ClassName=MCU Member=Component C? 0.1uF 25V X7R 0603
+Added Member To Class: ClassName=MCU Member=Component C? 1uF X7R 25V 0603
+Added Member To Class: ClassName=MCU Member=Component D? GREEN
+Added Member To Class: ClassName=MCU Member=Component D? BLUE
+Added Member To Class: ClassName=Sensors Member=Component D? BAT30KFILM
+Added Member To Class: ClassName=Sensors Member=Component D? BAT30KFILM
+Added Member To Class: ClassName=Sensors Member=Component D? BAT30KFILM
+Added Member To Class: ClassName=Sensors Member=Component D? BAT30KFILM
+Added Member To Class: ClassName=Sensors Member=Component D? BAT30KFILM
+Add Class Member: Failed to add class member : Component IC? 74LVC1G3157GW-Q10H
+Add Class Member: Failed to add class member : Component J1 3220-14-0100-00
+Add Class Member: Failed to add class member : Component L? 22uH 1.7A_sat
+Add Class Member: Failed to add class member : Component Q? STL130N6F7
+Add Class Member: Failed to add class member : Component Q? STL130N6F7
+Add Class Member: Failed to add class member : Component Q? STL130N6F7
+Add Class Member: Failed to add class member : Component Q? STL130N6F7
+Add Class Member: Failed to add class member : Component Q? STL130N6F7
+Add Class Member: Failed to add class member : Component Q? STL130N6F7
+Added Member To Class: ClassName=Gate Drive Member=Component R? 10kO 5% 0603
+Added Member To Class: ClassName=Gate Drive Member=Component R? 10kO 0.1% 0603
+Added Member To Class: ClassName=Gate Drive Member=Component R? 1mO 1% 2W 0612
+Added Member To Class: ClassName=Gate Drive Member=Component R? 1mO 1% 2W 0612
+Added Member To Class: ClassName=Gate Drive Member=Component R? 10kO 5% 0603
+Added Member To Class: ClassName=Gate Drive Member=Component R? 33.2k 1% 0603
+Added Member To Class: ClassName=Gate Drive Member=Component R? 100kO 1% 0603
+Added Member To Class: ClassName=MCU Member=Component R? AC0603JR-07330RL
+Added Member To Class: ClassName=MCU Member=Component R? 220 O 1% 0603
+Added Member To Class: ClassName=MCU Member=Component R? 100 O 0603 1%
+Added Member To Class: ClassName=MCU Member=Component R? 100 O 0603 1%
+Added Member To Class: ClassName=MCU Member=Component R? 0 O 0603
+Added Member To Class: ClassName=MCU Member=Component R? AC0603JR-07330RL
+Added Member To Class: ClassName=Sensors Member=Component R? 10kO 5% 0603
+Added Member To Class: ClassName=Sensors Member=Component R? NTC 10kO 1% 0603
+Added Member To Class: ClassName=Sensors Member=Component R? 2.2kO 1% 0603
+Added Member To Class: ClassName=Sensors Member=Component R? 2.2kO 1% 0603
+Added Member To Class: ClassName=Sensors Member=Component R? 100kO 1% 0402
+Added Member To Class: ClassName=Sensors Member=Component R? 10kO 1% 0603
+Added Member To Class: ClassName=Sensors Member=Component R? 10kO 1% 0603
+Added Member To Class: ClassName=Sensors Member=Component R? 10kO 5% 0603
+Added Member To Class: ClassName=Sensors Member=Component R? 1kO 5% 0603
+Added Member To Class: ClassName=Sensors Member=Component R? 10kO 1% 0603
+Added Rule: Name=Schematic Supply Nets_5
+Added Rule: Name=Schematic Supply Nets_6
