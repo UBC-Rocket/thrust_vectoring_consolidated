@@ -139,16 +139,32 @@ static bool tim_channel_dma_set_enable(TIM_HandleTypeDef *tim, uint32_t channel,
 {
     switch (channel) {
     case TIM_CHANNEL_1:
+        if (enable) {
+            LL_TIM_EnableDMAReq_CC1(tim->Instance);
+        } else {
         LL_TIM_DisableDMAReq_CC1(tim->Instance);
+        }
         break;
     case TIM_CHANNEL_2:
+        if (enable) {
+            LL_TIM_EnableDMAReq_CC2(tim->Instance);
+        } else {
         LL_TIM_DisableDMAReq_CC2(tim->Instance);
+        }
         break;
     case TIM_CHANNEL_3:
+        if (enable) {
+            LL_TIM_EnableDMAReq_CC3(tim->Instance);
+        } else {
         LL_TIM_DisableDMAReq_CC3(tim->Instance);
+        }
         break;
     case TIM_CHANNEL_4:
+        if (enable) {
+            LL_TIM_EnableDMAReq_CC4(tim->Instance);
+        } else {
         LL_TIM_DisableDMAReq_CC4(tim->Instance);
+        }
         break;
     default:
         return false;
