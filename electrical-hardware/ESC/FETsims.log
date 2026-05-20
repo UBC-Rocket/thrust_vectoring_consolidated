@@ -1,6 +1,6 @@
 LTspice 24.0.12 for Windows
 Circuit: * D:\UBC_Rocket_TVR\electrical-hardware\ESC\FETsims.asc
-Start Time: Tue May 19 19:15:36 2026
+Start Time: Tue May 19 19:38:35 2026
 solver = Normal
 Maximum thread count: 16
 
@@ -44,5 +44,5 @@ tnom = 27
 temp = 27
 method = modified trap
 .step chgd=1e-11
-Total elapsed time: 3.398 seconds.
+Total elapsed time: 16.890 seconds.
 
