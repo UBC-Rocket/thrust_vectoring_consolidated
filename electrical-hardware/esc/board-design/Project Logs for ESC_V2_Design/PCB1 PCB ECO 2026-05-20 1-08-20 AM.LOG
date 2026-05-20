@@ -1,0 +1,221 @@
+Removed Pin From Net: NetName=VDRAIN Pin=C?-2
+Removed Pin From Net: NetName=NetC?_2 Pin=D?-1
+Removed Pin From Net: NetName=NetD?_2 Pin=F?-2
+Removed Pin From Net: NetName=ADC1 IN5 Pin=R?-1
+Removed Pin From Net: NetName=SPC Pin=R?-2
+Removed Member From Class: ClassName=CAN Member=C?
+Removed Member From Class: ClassName=Sensors Member=C?
+Removed Member From Class: ClassName=CAN Member=D?
+Removed Member From Class: ClassName=Gate Drive Member=D?
+Removed Member From Class: ClassName=MCU Member=R?
+Removed Member From Class: ClassName=USB Member=U?
+Change Footprint: Footprint Not Found WFCP06121L000FE66
+Change Component Comment : Designator=R? Old Comment=1kO 5% 0603 New Comment=1mO 1% 2W 0612
+Change Component Designator: OldDesignator=C? NewDesignator=C1
+Change Component Designator: OldDesignator=C? NewDesignator=C2
+Change Component Designator: OldDesignator=C? NewDesignator=C3
+Change Component Designator: OldDesignator=C? NewDesignator=C4
+Change Component Designator: OldDesignator=C? NewDesignator=C5
+Change Component Designator: OldDesignator=C? NewDesignator=C6
+Change Component Designator: OldDesignator=C? NewDesignator=C7
+Change Component Designator: OldDesignator=C? NewDesignator=C8
+Change Component Designator: OldDesignator=C? NewDesignator=C9
+Change Component Designator: OldDesignator=C? NewDesignator=C10
+Change Component Designator: OldDesignator=C? NewDesignator=C11
+Change Component Designator: OldDesignator=C? NewDesignator=C12
+Change Component Designator: OldDesignator=C? NewDesignator=C13
+Change Component Designator: OldDesignator=C? NewDesignator=C14
+Change Component Designator: OldDesignator=C? NewDesignator=C15
+Change Component Designator: OldDesignator=C? NewDesignator=C16
+Change Component Designator: OldDesignator=C? NewDesignator=C17
+Change Component Designator: OldDesignator=C? NewDesignator=C18
+Change Component Designator: OldDesignator=C? NewDesignator=C19
+Change Component Designator: OldDesignator=C? NewDesignator=C20
+Change Component Designator: OldDesignator=C? NewDesignator=C21
+Change Component Designator: OldDesignator=C? NewDesignator=C22
+Change Component Designator: OldDesignator=C? NewDesignator=C23
+Change Component Designator: OldDesignator=C? NewDesignator=C24
+Change Component Designator: OldDesignator=C? NewDesignator=C25
+Change Component Designator: OldDesignator=C? NewDesignator=C26
+Change Component Designator: OldDesignator=C? NewDesignator=C27
+Change Component Designator: OldDesignator=C? NewDesignator=C28
+Change Component Designator: OldDesignator=D? NewDesignator=D1
+Change Component Designator: OldDesignator=D? NewDesignator=D3
+Change Component Designator: OldDesignator=D? NewDesignator=LED1
+Change Component Designator: OldDesignator=D? NewDesignator=LED2
+Change Component Designator: OldDesignator=D? NewDesignator=LED3
+Change Component Designator: OldDesignator=R? NewDesignator=R2
+Change Component Designator: OldDesignator=R? NewDesignator=R3
+Change Component Designator: OldDesignator=R? NewDesignator=R4
+Change Component Designator: OldDesignator=R? NewDesignator=R5
+Change Component Designator: OldDesignator=R? NewDesignator=R6
+Change Component Designator: OldDesignator=R? NewDesignator=R7
+Change Component Designator: OldDesignator=R? NewDesignator=R8
+Change Component Designator: OldDesignator=R? NewDesignator=R9
+Change Component Designator: OldDesignator=R? NewDesignator=R10
+Change Component Designator: OldDesignator=R? NewDesignator=R11
+Change Component Designator: OldDesignator=R? NewDesignator=R12
+Change Component Designator: OldDesignator=R? NewDesignator=R13
+Change Component Designator: OldDesignator=R? NewDesignator=R14
+Change Component Designator: OldDesignator=R? NewDesignator=R15
+Change Component Designator: OldDesignator=R? NewDesignator=R17
+Change Component Designator: OldDesignator=R? NewDesignator=R18
+Change Component Designator: OldDesignator=U? NewDesignator=U3
+Change Managed Component Library Link : Designator=R? Old VaultGUID=B7D15EC3-160A-466F-A46C-7801FE6295A7 New VaultGUID= Old ItemGUID=7F7A1039-2C04-4EF4-86E6-43B0602F35DF New ItemGUID= Old RevisionGUID=CD130924-F2F5-4A46-A868-4D2A8A9095B3 New RevisionGUID=
+Change component parameters: Designator = "R?" ("R?"); Footprint = "RESC1608X55X25LL10T15"; UniqueID = "\MLNSVKLP\HCYIIFXA" ("\MLNSVKLP\HCYIIFXA")
+Change component parameters (AddParameter): Name = "Arrow Part Number"; Value = "WFCP06121L000FE66"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Arrow Price/Stock"; Value = "https://www.arrow.com/en/products/wfcp06121l000fe66/vishay?utm_currency=USD&region=nac"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Datasheet Link"; Value = "https://www.vishay.com/docs/30417/wfcp.pdf"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Height"; Value = "1mm"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Manufacturer_Name"; Value = "Vishay"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Manufacturer_Part_Number"; Value = "WFCP06121L000FE66"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Mouser Part Number"; Value = "71-WFCP06121L000FE66"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Mouser Price/Stock"; Value = "https://www.mouser.co.uk/ProductDetail/Vishay-Dale/WFCP06121L000FE66?qs=Li%252BoUPsLEnsMoGHMrspCzw%3D%3D"; VariantName = "[No Variations]"
+Add component: Footprint Not Found CAPPRD500W65D1000H2200
+Add component: Footprint Not Found SODFL3616X98N
+Add component: Footprint Not Found SOT65P210X110-6N
+Add component: Footprint Not Found INDPM6054X300N
+Added Component: Designator=R16(RESC1608X55X25ML10T15)
+Add component (AddParameter): Name = "Manufacturer"; Value = "Yageo"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Part Number"; Value = "RC0603FR-10100RL"; VariantName = "[No Variations]"
+Add component: Footprint Not Found WFCP06121L000FE66
+Add component: Footprint Not Found WFCP06121L000FE66
+Added Pin To Net: NetName=ADC1 IN5 Pin=C25-2
+Added Pin To Net: NetName=VDRAIN Pin=C?-2
+Add Pin To Net: Unknown Pin: Pin D2-1
+Added Pin To Net: NetName=NetC?_2 Pin=D3-1
+Added Pin To Net: NetName=NetD?_2 Pin=D?-2
+Add Pin To Net: Unknown Pin: Pin IC1-2
+Add Pin To Net: Unknown Pin: Pin IC1-3
+Add Pin To Net: Unknown Pin: Pin IC1-4
+Add Pin To Net: Unknown Pin: Pin IC1-5
+Add Pin To Net: Unknown Pin: Pin IC1-6
+Add Pin To Net: Unknown Pin: Pin L1-1
+Add Pin To Net: Unknown Pin: Pin L1-2
+Added Pin To Net: NetName=ADC1 IN5 Pin=R16-1
+Added Pin To Net: NetName=AGND Pin=R?-1
+Added Pin To Net: NetName=ADC1 IN4 / COMP2 INP Pin=R?-2
+Added Pin To Net: NetName=NetD?_2 Pin=R?-2
+Added Pin To Net: NetName=SPA Pin=R?-2
+Added Pin To Net: NetName=SPB Pin=R?-2
+Added Pin To Net: NetName=SPC Pin=R?-2
+Change Net Name : Old Net Name=NetC?_1 New Net Name=NetC6_2
+Change Net Name : Old Net Name=NetC?_2 New Net Name=NetC16_2
+Change Net Name : Old Net Name=NetD?_1 New Net Name=NetLED2_1
+Change Net Name : Old Net Name=NetR?_2 New Net Name=NetR5_2
+Add Net: Net with name "CAN_RX" already exists
+Add Net: Net with name "CAN_TX" already exists
+Added Pin To Net: NetName=NetC11_2 Pin=C11-2
+Added Pin To Net: NetName=NetC11_2 Pin=U2-36
+Added Net: Name=NetC11_2
+Added Pin To Net: NetName=NetC13_2 Pin=C13-2
+Added Pin To Net: NetName=NetC13_2 Pin=U2-5
+Added Net: Name=NetC13_2
+Added Pin To Net: NetName=NetC14_1 Pin=C14-1
+Added Pin To Net: NetName=NetC14_1 Pin=U2-4
+Added Net: Name=NetC14_1
+Added Pin To Net: NetName=NetC14_2 Pin=C14-2
+Added Pin To Net: NetName=NetC14_2 Pin=U2-3
+Added Net: Name=NetC14_2
+Added Pin To Net: NetName=NetC16_1 Pin=C16-1
+Added Pin To Net: NetName=NetC16_1 Pin=U2-44
+Added Net: Name=NetC16_1
+Added Pin To Net: NetName=NetD2_2 Pin=F?-2
+Added Net: Name=NetD2_2
+Add Net: Net with name "NetD?_2" already exists
+Add Net: Net with name "NetD?_2" already exists
+Added Pin To Net: NetName=NetLED1_1 Pin=LED1-1
+Added Pin To Net: NetName=NetLED1_1 Pin=R3-2
+Added Net: Name=NetLED1_1
+Added Pin To Net: NetName=NetLED3_1 Pin=LED3-1
+Added Pin To Net: NetName=NetLED3_1 Pin=R1-2
+Added Net: Name=NetLED3_1
+Added Pin To Net: NetName=NetR4_1 Pin=R4-1
+Added Pin To Net: NetName=NetR4_1 Pin=U1-3
+Added Net: Name=NetR4_1
+Added Pin To Net: NetName=NetR5_1 Pin=R5-1
+Added Pin To Net: NetName=NetR5_1 Pin=U1-6
+Added Net: Name=NetR5_1
+Added Pin To Net: NetName=NetR10_1 Pin=R10-1
+Added Pin To Net: NetName=NetR10_1 Pin=U2-48
+Added Net: Name=NetR10_1
+Added Pin To Net: NetName=NetR14_1 Pin=R14-1
+Added Pin To Net: NetName=NetR14_1 Pin=R15-2
+Added Pin To Net: NetName=NetR14_1 Pin=R16-2
+Added Net: Name=NetR14_1
+Add Net: Net with name "PHASE A" already exists
+Added Member To Class: ClassName=MCU Member=Component C1 100nF 0402
+Added Member To Class: ClassName=MCU Member=Component C2 0.1uF 25V X7R 0603
+Added Member To Class: ClassName=MCU Member=Component C3 4.7uF 16V X7R 0603
+Added Member To Class: ClassName=MCU Member=Component C4 0.1uF 25V X7R 0603
+Added Member To Class: ClassName=MCU Member=Component C5 0.1uF 25V X7R 0603
+Added Member To Class: ClassName=MCU Member=Component C7 10nF C0G 25V 0603
+Added Member To Class: ClassName=MCU Member=Component C8 1nF 50V X7R 0603
+Added Member To Class: ClassName=MCU Member=Component C9 1nF 50V X7R 0603
+Added Member To Class: ClassName=MCU Member=Component C10 1nF 50V X7R 0603
+Added Member To Class: ClassName=Gate Drive Member=Component C11 1uF X7R 6.3V 0402
+Added Member To Class: ClassName=Gate Drive Member=Component C12 0.1uF X7R 50V 0603
+Added Member To Class: ClassName=Gate Drive Member=Component C13 1uF X7R 16 V 0805
+Added Member To Class: ClassName=Gate Drive Member=Component C14 47nF X7R 25V 0603
+Added Member To Class: ClassName=Gate Drive Member=Component C15 10uF X5R 50V 0805
+Added Member To Class: ClassName=Gate Drive Member=Component C16 0.1uF X7R 50V 0603
+Added Member To Class: ClassName=Gate Drive Member=Component C17 1uF X7R 25V 0805
+Added Member To Class: ClassName=Gate Drive Member=Component C18 22uF X7R 10V 0805
+Added Member To Class: ClassName=Gate Drive Member=Component C19 0.1uF X7R 50V 0603
+Added Member To Class: ClassName=Gate Drive Member=Component C20 4.7uF X7R 50V 0805
+Added Member To Class: ClassName=Gate Drive Member=Component C21 0.1uF X7R 50V 0603
+Added Member To Class: ClassName=Gate Drive Member=Component C22 4.7uF X7R 50V 0805
+Added Member To Class: ClassName=Gate Drive Member=Component C23 0.1uF X7R 50V 0603
+Added Member To Class: ClassName=Gate Drive Member=Component C24 4.7uF X7R 50V 0805
+Added Member To Class: ClassName=Sensors Member=Component C25 0.1uF X7R 50V 0603
+Added Member To Class: ClassName=Sensors Member=Component C26 0.1uF X7R 50V 0603
+Added Member To Class: ClassName=CAN Member=Component C27 0.1uF 25V X7R 0603
+Added Member To Class: ClassName=CAN Member=Component C28 0.1uF 25V X7R 0603
+Added Member To Class: ClassName=USB Member=Component C? C1608X5R1H105K080AB
+Added Member To Class: ClassName=Gate Drive Member=Component D1 60V 1A
+Add Class Member: Failed to add class member : Component D2 NRVB120VLSFT1G
+Added Member To Class: ClassName=USB Member=Component D3 NSR0320MW2T1G
+Added Member To Class: ClassName=Sensors Member=Component D? BAT30KFILM
+Added Member To Class: ClassName=Sensors Member=Component D? BAT30KFILM
+Added Member To Class: ClassName=Sensors Member=Component D? BAT30KFILM
+Added Member To Class: ClassName=Sensors Member=Component D? BAT30KFILM
+Added Member To Class: ClassName=Sensors Member=Component D? BAT30KFILM
+Add Class Member: Failed to add class member : Component IC1 74LVC1G3157GW-Q10H
+Add Class Member: Failed to add class member : Component L1 22uH 1.7A_sat
+Added Member To Class: ClassName=MCU Member=Component LED2 GREEN
+Added Member To Class: ClassName=MCU Member=Component LED3 BLUE
+Added Member To Class: ClassName=MCU Member=Component R2 AC0603JR-07330RL
+Added Member To Class: ClassName=MCU Member=Component R3 AC0603JR-07330RL
+Added Member To Class: ClassName=MCU Member=Component R4 0 O 0603
+Added Member To Class: ClassName=MCU Member=Component R5 220 O 1% 0603
+Added Member To Class: ClassName=MCU Member=Component R6 100 O 0603 1%
+Added Member To Class: ClassName=MCU Member=Component R7 100 O 0603 1%
+Added Member To Class: ClassName=MCU Member=Component R8 100 O 0603 1%
+Added Member To Class: ClassName=Gate Drive Member=Component R9 10kO 5% 0603
+Added Member To Class: ClassName=Gate Drive Member=Component R10 100kO 1% 0603
+Added Member To Class: ClassName=Gate Drive Member=Component R11 10kO 5% 0603
+Added Member To Class: ClassName=Gate Drive Member=Component R12 33.2k 1% 0603
+Added Member To Class: ClassName=Gate Drive Member=Component R13 10kO 0.1% 0603
+Added Member To Class: ClassName=Sensors Member=Component R14 10kO 5% 0603
+Added Member To Class: ClassName=Sensors Member=Component R15 NTC 10kO 1% 0603
+Added Member To Class: ClassName=Sensors Member=Component R16 100 O 0603 1%
+Added Member To Class: ClassName=Sensors Member=Component R17 100kO 1% 0402
+Added Member To Class: ClassName=Sensors Member=Component R18 10kO 5% 0603
+Added Member To Class: ClassName=Gate Drive Member=Component R? 1mO 1% 2W 0612
+Added Member To Class: ClassName=Gate Drive Member=Component R? 1mO 1% 2W 0612
+Added Member To Class: ClassName=Sensors Member=Component R? RC0402FR-07100KL
+Added Member To Class: ClassName=Sensors Member=Component R? RC0402FR-07100KL
+Added Member To Class: ClassName=Sensors Member=Component R? 10kO 1% 0603
+Added Member To Class: ClassName=Sensors Member=Component R? RC0402FR-07100KL
+Added Member To Class: ClassName=Sensors Member=Component R? RC0402FR-07100KL
+Added Member To Class: ClassName=Sensors Member=Component R? 10kO 1% 0603
+Added Member To Class: ClassName=Sensors Member=Component R? RC0402FR-07100KL
+Added Member To Class: ClassName=Sensors Member=Component R? RK73B1ETTP332J
+Added Member To Class: ClassName=Sensors Member=Component R? 10kO 1% 0603
+Added Member To Class: ClassName=Sensors Member=Component R? 2.2kO 1% 0603
+Added Member To Class: ClassName=Sensors Member=Component R? RC0402FR-07100KL
+Added Member To Class: ClassName=Sensors Member=Component R? RK73B1ETTP332J
+Added Member To Class: ClassName=Sensors Member=Component R? 2.2kO 1% 0603
+Added Member To Class: ClassName=Sensors Member=Component R? 2.2kO 1% 0603
+Added Member To Class: ClassName=USB Member=Component R? RN73R1ETTP5101F25
+Added Member To Class: ClassName=USB Member=Component U3 AP2112K-3.3TRG1
