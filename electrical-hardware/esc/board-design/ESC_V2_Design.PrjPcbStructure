@@ -1,5 +1,6 @@
-Record=TopLevelDocument|FileName=CAN.SchDoc|SheetNumber=5
-Record=NoMainPathDocument|SourceDocument=CAN.SchDoc|FileName=DRV8323RSRGZR.SchDoc|SheetNumber=3
-Record=NoMainPathDocument|SourceDocument=CAN.SchDoc|FileName=SensingSchDoc.SchDoc|SheetNumber=4
-Record=NoMainPathDocument|SourceDocument=CAN.SchDoc|FileName=STM32G431CBU6.SchDoc|SheetNumber=2
-Record=NoMainPathDocument|SourceDocument=CAN.SchDoc|FileName=Top Level.SchDoc|SheetNumber=1
+Record=TopLevelDocument|FileName=Top Level.SchDoc|SheetNumber=1
+Record=SheetSymbol|SourceDocument=Top Level.SchDoc|Designator=CAN|SchDesignator=CAN|FileName=CAN.SchDoc|SheetNumber=5|SymbolType=Normal|RawFileName=CAN.SchDoc|DesignItemId= |SourceLibraryName= |ObjectKind=Sheet Symbol|RevisionGUID= |ItemGUID= |VaultGUID= 
+Record=SheetSymbol|SourceDocument=Top Level.SchDoc|Designator=Gate Drive|SchDesignator=Gate Drive|FileName=DRV8323RSRGZR.SchDoc|SheetNumber=3|SymbolType=Normal|RawFileName=DRV8323RSRGZR.SchDoc|DesignItemId= |SourceLibraryName= |ObjectKind=Sheet Symbol|RevisionGUID= |ItemGUID= |VaultGUID= 
+Record=SheetSymbol|SourceDocument=Top Level.SchDoc|Designator=MCU|SchDesignator=MCU|FileName=STM32G431CBU6.SchDoc|SheetNumber=2|SymbolType=Normal|RawFileName=STM32G431CBU6.SchDoc|DesignItemId= |SourceLibraryName= |ObjectKind=Sheet Symbol|RevisionGUID= |ItemGUID= |VaultGUID= 
+Record=SheetSymbol|SourceDocument=Top Level.SchDoc|Designator=Sensors|SchDesignator=Sensors|FileName=SensingSchDoc.SchDoc|SheetNumber=4|SymbolType=Normal|RawFileName=SensingSchDoc.SchDoc|DesignItemId= |SourceLibraryName= |ObjectKind=Sheet Symbol|RevisionGUID= |ItemGUID= |VaultGUID= 
+Record=SheetSymbol|SourceDocument=Top Level.SchDoc|Designator=USB|SchDesignator=USB|FileName=USB.SchDoc|SheetNumber=6|SymbolType=Normal|RawFileName=USB.SchDoc|DesignItemId= |SourceLibraryName= |ObjectKind=Sheet Symbol|RevisionGUID= |ItemGUID= |VaultGUID= 

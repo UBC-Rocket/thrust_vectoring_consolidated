@@ -1,0 +1,141 @@
+Change Component Footprint: Designator=R21 Old Footprint=RESC1608X55X25LL10T15 New Footprint=FP-WSL2010-1_47-MFG
+Change Component Comment : Designator=R21 Old Comment=1mO 1% 2W 0612 New Comment=0.001 Ohm 2010
+Change Managed Component Library Link : Designator=R21 Old VaultGUID= New VaultGUID=B7D15EC3-160A-466F-A46C-7801FE6295A7 Old ItemGUID= New ItemGUID=D283C17D-0757-439F-A681-2F200E78BBC5 Old RevisionGUID= New RevisionGUID=325B7D7B-B72E-4960-8E74-E9A37881D138
+Change component parameters: Designator = "R21" ("R21"); Footprint = "RESC1608X55X25LL10T15"; UniqueID = "\MLNSVKLP\WISMSPDN" ("\MLNSVKLP\WISMSPDN")
+Change component parameters (AddParameter): Name = "Case Code (Imperial)"; Value = "2010"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Case Code (Metric)"; Value = "5025"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Case/Package"; Value = "2010"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Composition"; Value = "Metal Element, Metal Strip"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Contact Plating"; Value = "Tin"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Depth"; Value = "2.54mm"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Features"; Value = "Moisture Resistant"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Height"; Value = "635µm"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Lead Free"; Value = "Lead Free"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Length"; Value = "5.08mm"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Max Operating Temperature"; Value = "170°C"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Max Power Dissipation"; Value = "1W"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Min Operating Temperature"; Value = "-65°C"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Mount"; Value = "Surface Mount"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "NexarPartId"; Value = "39744854"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Number of Pins"; Value = "2010"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Number of Terminations"; Value = "2"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Packaging"; Value = "Cut Tape"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Power Rating"; Value = "500mW"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Radiation Hardening"; Value = "No"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "REACH SVHC"; Value = "Unknown"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Resistance"; Value = "1mO"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "RoHS"; Value = "Compliant"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Schedule B"; Value = "8533210045, 8533210045"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Temperature Coefficient"; Value = "275ppm/°C"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Termination"; Value = "SMD/SMT"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Tolerance"; Value = "1%"; VariantName = "[No Variations]"
+Change component parameters (AddParameter): Name = "Width"; Value = "2.54mm"; VariantName = "[No Variations]"
+Add component: Footprint Not Found CAPPRD500W65D1000H2200
+Add component: Footprint Not Found SODFL3616X98N
+Add component: Footprint Not Found SOT65P210X110-6N
+Add component: Footprint Not Found INDPM6054X300N
+Added Component: Designator=R19(FP-WSL2010-1_47-MFG)
+Add component (AddParameter): Name = "Case Code (Imperial)"; Value = "2010"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Case Code (Metric)"; Value = "5025"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Case/Package"; Value = "2010"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Composition"; Value = "Metal Element, Metal Strip"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Contact Plating"; Value = "Tin"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Depth"; Value = "2.54mm"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Features"; Value = "Moisture Resistant"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Height"; Value = "635µm"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Lead Free"; Value = "Lead Free"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Length"; Value = "5.08mm"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Max Operating Temperature"; Value = "170°C"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Max Power Dissipation"; Value = "1W"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Min Operating Temperature"; Value = "-65°C"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Mount"; Value = "Surface Mount"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "NexarPartId"; Value = "39744854"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Number of Pins"; Value = "2010"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Number of Terminations"; Value = "2"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Packaging"; Value = "Cut Tape"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Power Rating"; Value = "500mW"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Radiation Hardening"; Value = "No"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "REACH SVHC"; Value = "Unknown"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Resistance"; Value = "1mO"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "RoHS"; Value = "Compliant"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Schedule B"; Value = "8533210045, 8533210045"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Temperature Coefficient"; Value = "275ppm/°C"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Termination"; Value = "SMD/SMT"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Tolerance"; Value = "1%"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Width"; Value = "2.54mm"; VariantName = "[No Variations]"
+Added Component: Designator=R20(FP-WSL2010-1_47-MFG)
+Add component (AddParameter): Name = "Case Code (Imperial)"; Value = "2010"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Case Code (Metric)"; Value = "5025"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Case/Package"; Value = "2010"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Composition"; Value = "Metal Element, Metal Strip"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Contact Plating"; Value = "Tin"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Depth"; Value = "2.54mm"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Features"; Value = "Moisture Resistant"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Height"; Value = "635µm"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Lead Free"; Value = "Lead Free"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Length"; Value = "5.08mm"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Max Operating Temperature"; Value = "170°C"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Max Power Dissipation"; Value = "1W"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Min Operating Temperature"; Value = "-65°C"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Mount"; Value = "Surface Mount"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "NexarPartId"; Value = "39744854"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Number of Pins"; Value = "2010"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Number of Terminations"; Value = "2"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Packaging"; Value = "Cut Tape"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Power Rating"; Value = "500mW"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Radiation Hardening"; Value = "No"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "REACH SVHC"; Value = "Unknown"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Resistance"; Value = "1mO"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "RoHS"; Value = "Compliant"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Schedule B"; Value = "8533210045, 8533210045"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Temperature Coefficient"; Value = "275ppm/°C"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Termination"; Value = "SMD/SMT"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Tolerance"; Value = "1%"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Width"; Value = "2.54mm"; VariantName = "[No Variations]"
+Add Pin To Net: Unknown Pin: Pin C29-1
+Add Pin To Net: Unknown Pin: Pin C29-2
+Add Pin To Net: Unknown Pin: Pin D2-1
+Add Pin To Net: Unknown Pin: Pin D2-2
+Add Pin To Net: Unknown Pin: Pin IC1-2
+Add Pin To Net: Unknown Pin: Pin IC1-3
+Add Pin To Net: Unknown Pin: Pin IC1-4
+Add Pin To Net: Unknown Pin: Pin IC1-5
+Add Pin To Net: Unknown Pin: Pin IC1-6
+Add Pin To Net: Unknown Pin: Pin L1-1
+Add Pin To Net: Unknown Pin: Pin L1-2
+Added Pin To Net: NetName=AGND Pin=R19-1
+Added Pin To Net: NetName=SPA Pin=R19-2
+Added Pin To Net: NetName=AGND Pin=R20-1
+Added Pin To Net: NetName=SPB Pin=R20-2
+Add Net: Net with name "CAN_RX" already exists
+Add Net: Net with name "CAN_TX" already exists
+Add Net: Net with name "NetD?_2" already exists
+Add Net: Net with name "NetD?_2" already exists
+Add Net: Net with name "PHASE A" already exists
+Add Class Member: Failed to add class member : Component C29 470uF 20% 50V 10mm
+Added Member To Class: ClassName=USB Member=Component C? C1608X5R1H105K080AB
+Add Class Member: Failed to add class member : Component D2 NRVB120VLSFT1G
+Added Member To Class: ClassName=Sensors Member=Component D? BAT30KFILM
+Added Member To Class: ClassName=Sensors Member=Component D? BAT30KFILM
+Added Member To Class: ClassName=Sensors Member=Component D? BAT30KFILM
+Added Member To Class: ClassName=Sensors Member=Component D? BAT30KFILM
+Added Member To Class: ClassName=Sensors Member=Component D? BAT30KFILM
+Add Class Member: Failed to add class member : Component IC1 74LVC1G3157GW-Q10H
+Add Class Member: Failed to add class member : Component L1 22uH 1.7A_sat
+Added Member To Class: ClassName=Gate Drive Member=Component R19 0.001 Ohm 2010
+Added Member To Class: ClassName=Gate Drive Member=Component R20 0.001 Ohm 2010
+Added Member To Class: ClassName=Sensors Member=Component R? RK73B1ETTP332J
+Added Member To Class: ClassName=Sensors Member=Component R? RC0402FR-07100KL
+Added Member To Class: ClassName=Sensors Member=Component R? 10kO 1% 0603
+Added Member To Class: ClassName=Sensors Member=Component R? RK73B1ETTP332J
+Added Member To Class: ClassName=Sensors Member=Component R? 2.2kO 1% 0603
+Added Member To Class: ClassName=Sensors Member=Component R? RC0402FR-07100KL
+Added Member To Class: ClassName=Sensors Member=Component R? 10kO 1% 0603
+Added Member To Class: ClassName=Sensors Member=Component R? RC0402FR-07100KL
+Added Member To Class: ClassName=Sensors Member=Component R? RC0402FR-07100KL
+Added Member To Class: ClassName=Sensors Member=Component R? 2.2kO 1% 0603
+Added Member To Class: ClassName=Sensors Member=Component R? RC0402FR-07100KL
+Added Member To Class: ClassName=Sensors Member=Component R? 10kO 1% 0603
+Added Member To Class: ClassName=Sensors Member=Component R? RC0402FR-07100KL
+Added Member To Class: ClassName=Sensors Member=Component R? 2.2kO 1% 0603
+Added Member To Class: ClassName=USB Member=Component R? RN73R1ETTP5101F25
