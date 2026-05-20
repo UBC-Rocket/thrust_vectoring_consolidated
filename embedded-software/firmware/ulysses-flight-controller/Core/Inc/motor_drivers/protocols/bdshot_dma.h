@@ -10,11 +10,27 @@
 
 #include "motor_drivers/protocols/bdshot.h"
 
+// Idle bits are not necessary, but it holds the line in an idle
+// state so the ESC doesn't misinterpret our frame if the switch from
+// TX to RX causes noise.
 #define BDSHOT_TX_IDLE_BITS      (2)
 #define BDSHOT_DMA_TX_FRAME_SIZE (BDSHOT_FRAME_BITS + BDSHOT_TX_IDLE_BITS)
 
+// Number of rising and falling edges will be at most as the number of
+// bits in the longest wire message. This occurs when the wire message
+// is alternating bits.
 #define BDSHOT_DMA_RX_FRAME_SIZE (BDSHOT_TELEMETRY_WIRE_BITS)
 
+// Currently configured for DSHOT300.
+//
+// For some version DSHOT[XXX], the bit rate is XXX kb/s (e.g. DSHOT300 is 300 kb/s).
+//
+// Bit period in seconds is 1/(bit rate). From this, we can calculate the bit ticks
+// by using (timer peripheral clock in hertz)*(bit period in seconds).
+//
+// The high time of a 1 bit is not well documented, but most FCs and ESCs use 75% of the bit
+// period/ticks. By the protocol definition, the high time of a 0 bit is always half that of
+// a 1 bit.
 #define BDSHOT_DMA_T1H_TICKS (625)
 #define BDSHOT_DMA_T0H_TICKS (312)
 #define BDSHOT_DMA_BIT_TICKS (833)
