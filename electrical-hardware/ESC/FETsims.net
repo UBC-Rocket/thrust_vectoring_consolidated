@@ -1,0 +1,34 @@
+* D:\UBC_Rocket_TVR\electrical-hardware\ESC\FETsims.asc
+V§BATT+ N001 0 22V
+V§High N003 Vld PULSE(0 12 0 10n 10n 8u 20u)
+V§Low N006 0 PULSE(0 12 50u 10n 10n 8u 20u)
+L1 N001 Vhd 10n Rpar=1u
+L2 Vls 0 10n Rser=1u
+Chgd Vhd N002 {Chgd}
+Clgd Vld N004 {Clgd}
+R1 Vld N005 3
+Chds Vhd Vhs {Chds}
+Clds Vld Vls {Clds}
+D3 Vhs Vhd MBR745
+L4 Vhs Vld 10n Rser=1u
+M1 Vhd N002 Vhs Vhs BSC42DN25NS3
+D1 Vls Vld MBR745
+R2 N002 N003 10R
+R3 N004 N006 10R
+L3 N005 0 20m
+M2 Vld N004 Vls Vls BSC42DN25NS3
+C1 Vhs N002 {Chgs}
+C2 Vls N004 {Chgs}
+.model D D
+.lib C:\Users\ak915\AppData\Local\LTspice\lib\cmp\standard.dio
+.model NMOS NMOS
+.model PMOS PMOS
+.lib C:\Users\ak915\AppData\Local\LTspice\lib\cmp\standard.mos
+.param Chgd=1E-12 Chgs=1E-12 Chds=1E-12 Clgd=1E-12 Clgs=1E-12 Clds=1E-12
+.tran 0 200u 0
+* 10kHz  -> 100us: PULSE(0 12 0 10n 10n 45u 100u) : PULSE(0 12 50u 10n 10n 45u 100u)\n50kHz  -> 20us:  PULSE(0 12 0 10n 10n 8u 20u)   : PULSE(0 12 10u 10n 10n 8u 20u)\n100kHz -> 10us:  PULSE(0 12 0 10n 10n 4u 10u)   : PULSE(0 12 5u 10n 10n 4u 10u)
+.model mysw1 SW(Ron=1m Roff=1G VT=5)
+.model mysw2 SW(Ron=1m Roff=1G VT=5)
+.step param Chgd 1p 10p 1p
+.backanno
+.end
