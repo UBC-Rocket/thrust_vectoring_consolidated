@@ -67,8 +67,8 @@ static void bdshot_switch_to_rx(bdshot_dma_motor_t *motor);
 static void bdshot_switch_to_tx(bdshot_dma_motor_t *motor);
 static void dma_xfer_complete_callback(DMA_HandleTypeDef *const dma);
 static void build_dma_tx_buffer(bdshot_frame_t frame, uint32_t *buffer);
-static bool bdshot_decode_gcr(const uint32_t *rx_buf, bdshot_motor_telemetry_t *telem,
-                              uint8_t pole_count);
+static bool bdshot_decode_telemetry(const uint32_t *rx_buf, uint32_t edge_count,
+                                    bdshot_motor_telemetry_t *telem, uint8_t pole_count);
 
 static volatile uint32_t *get_timer_channel_ccrx_reg(TIM_HandleTypeDef *tim, uint32_t channel)
 {
@@ -142,28 +142,28 @@ static bool tim_channel_dma_set_enable(TIM_HandleTypeDef *tim, uint32_t channel,
         if (enable) {
             LL_TIM_EnableDMAReq_CC1(tim->Instance);
         } else {
-        LL_TIM_DisableDMAReq_CC1(tim->Instance);
+            LL_TIM_DisableDMAReq_CC1(tim->Instance);
         }
         break;
     case TIM_CHANNEL_2:
         if (enable) {
             LL_TIM_EnableDMAReq_CC2(tim->Instance);
         } else {
-        LL_TIM_DisableDMAReq_CC2(tim->Instance);
+            LL_TIM_DisableDMAReq_CC2(tim->Instance);
         }
         break;
     case TIM_CHANNEL_3:
         if (enable) {
             LL_TIM_EnableDMAReq_CC3(tim->Instance);
         } else {
-        LL_TIM_DisableDMAReq_CC3(tim->Instance);
+            LL_TIM_DisableDMAReq_CC3(tim->Instance);
         }
         break;
     case TIM_CHANNEL_4:
         if (enable) {
             LL_TIM_EnableDMAReq_CC4(tim->Instance);
         } else {
-        LL_TIM_DisableDMAReq_CC4(tim->Instance);
+            LL_TIM_DisableDMAReq_CC4(tim->Instance);
         }
         break;
     default:
@@ -202,8 +202,6 @@ static void bdshot_switch_to_rx(bdshot_dma_motor_t *motor)
     dma->Instance->CTR1 &= ~(DMA_CTR1_SINC | DMA_CTR1_DINC);
     dma->Instance->CTR1 |= DMA_DINC_INCREMENTED;
     dma->Instance->CTR2 &= ~DMA_CTR2_DREQ;
-
-    __HAL_DMA_ENABLE(dma);
 }
 
 static void bdshot_switch_to_tx(bdshot_dma_motor_t *motor)
@@ -232,8 +230,6 @@ static void bdshot_switch_to_tx(bdshot_dma_motor_t *motor)
     dma->Instance->CTR1 &= ~(DMA_CTR1_SINC | DMA_CTR1_DINC);
     dma->Instance->CTR1 |= DMA_SINC_INCREMENTED;
     dma->Instance->CTR2 |= DMA_CTR2_DREQ;
-
-    __HAL_DMA_ENABLE(dma);
 }
 
 static void dma_xfer_complete_callback(DMA_HandleTypeDef *const dma)
@@ -248,45 +244,36 @@ static void dma_xfer_complete_callback(DMA_HandleTypeDef *const dma)
     TIM_HandleTypeDef *tim = motor->config.tim;
     uint32_t tim_channel = motor->config.tim_channel;
 
-    // if (motor->is_command) {
-    //     return;
-    // }
+    if (motor->is_command) {
+        return;
+    }
 
-    // if (motor->direction == BDSHOT_DMA_DIRECTION_OUTPUT) {
+    if (motor->direction == BDSHOT_DMA_DIRECTION_OUTPUT) {
         // Disable DMA requests from the timer peripheral to prevent
         // accidental transfers from reading
-        // tim_channel_dma_set_enable(tim, tim_channel, false);
+        tim_channel_dma_set_enable(tim, tim_channel, false);
 
         bdshot_switch_to_rx(motor);
 
-        // volatile uint32_t *ccrx = get_timer_channel_ccrx_reg(tim, tim_channel);
+        volatile uint32_t *ccrx = get_timer_channel_ccrx_reg(tim, tim_channel);
 
-        // if (ccrx == NULL) {
-        //     return;
-        // }
+        if (ccrx == NULL) {
+            return;
+        }
 
-        // HAL_DMA_Start_IT(dma, (uint32_t)ccrx, (uint32_t)bdshot_dma_rx_buffer[motor_index],
-        //                  sizeof(bdshot_dma_tx_buffer[motor_index]));
+        HAL_DMA_Start_IT(dma, (uint32_t)ccrx, (uint32_t)bdshot_dma_rx_buffer[motor_index],
+                         sizeof(bdshot_dma_rx_buffer[motor_index]));
 
-        // tim_channel_dma_set_enable(tim, tim_channel, true);
+        tim_channel_dma_set_enable(tim, tim_channel, true);
 
-    //     motor->direction = BDSHOT_DMA_DIRECTION_INPUT;
-    // } else {
-    //     tim_channel_dma_set_enable(tim, tim_channel, false);
+        motor->direction = BDSHOT_DMA_DIRECTION_INPUT;
+    } else {
+        tim_channel_dma_set_enable(tim, tim_channel, false);
 
-    //     bdshot_motor_telemetry_t telemetry;
-    //     bool success = bdshot_decode_gcr(bdshot_dma_rx_buffer[motor_index], &telemetry,
-    //                                      motor->config.pole_count);
+        bdshot_switch_to_tx(motor);
 
-    //     if (success) {
-    //         motor->is_telemetry_valid = true;
-    //         motor->telemetry = telemetry;
-    //     }
-
-    //     bdshot_switch_to_tx(motor);
-
-    //     motor->direction = BDSHOT_DMA_DIRECTION_OUTPUT;
-    // }
+        motor->direction = BDSHOT_DMA_DIRECTION_OUTPUT;
+    }
 }
 
 static void build_dma_tx_buffer(bdshot_frame_t frame, uint32_t *buffer)
@@ -300,93 +287,84 @@ static void build_dma_tx_buffer(bdshot_frame_t frame, uint32_t *buffer)
     buffer[BDSHOT_FRAME_BITS + 1] = 0;
 }
 
-static bool bdshot_decode_gcr(const uint32_t *rx_buf, bdshot_motor_telemetry_t *telem,
-                              uint8_t pole_count)
+static bool bdshot_decode_telemetry(const uint32_t *edge_times, uint32_t edge_count,
+                                    bdshot_motor_telemetry_t *telemetry, uint8_t pole_count)
 {
-    /* ── Step 1: reconstruct 21-bit GCR bit stream from edge timestamps */
-    uint32_t gcr_bits = 0;
+    // Wire encoding ensures first bit is 0
+    uint8_t bit = 0;
+
+    uint32_t wire_value = 0;
     uint32_t bits_written = 0;
-    uint8_t level = 1; /* line idles HIGH (inverted bDShot) */
 
-    for (uint32_t i = 0; i + 1 < BDSHOT_TELEMETRY_WIRE_BITS && bits_written < 21; i++) {
-
-        /* Pulse width in timer counts — handle 32-bit counter wraparound */
-        uint32_t width = rx_buf[i + 1] - rx_buf[i];
-
-        /* Quantise to number of bit periods.
-         * Add half a period for rounding: (width + period/2) / period  */
-        uint32_t n_bits = (width + (BDSHOT_DMA_BIT_TICKS / 2)) / BDSHOT_DMA_BIT_TICKS;
-
-        if (n_bits < 1 || n_bits > 4) {
-            /* Invalid pulse width — frame is corrupt */
-            return false;
-        }
-
-        /* Fill n_bits worth of the GCR stream with the current level */
-        for (uint32_t b = 0; b < n_bits && bits_written < 21; b++) {
-            gcr_bits = (gcr_bits << 1) | level;
-            bits_written++;
-        }
-
-        /* Toggle level at each edge */
-        level ^= 1;
-    }
-
-    if (bits_written < 21) {
+    if (edge_times == NULL || telemetry == NULL || pole_count == 0 || edge_count == 0 ||
+        edge_count > BDSHOT_DMA_RX_FRAME_SIZE) {
         return false;
     }
 
-    /* ── Step 2: de-invert the GCR stream
-     * ESC output is inverted relative to the bDShot command polarity  */
-    gcr_bits ^= 0x1FFFFF; /* 21-bit invert */
+    for (uint32_t i = 0; i + 1 < edge_count && bits_written < BDSHOT_TELEMETRY_WIRE_BITS; i++) {
+        uint32_t width = edge_times[i + 1] - edge_times[i];
+        uint32_t n_bits =
+            (width + (BDSHOT_DMA_TELEMETRY_BIT_TICKS / 2)) / BDSHOT_DMA_TELEMETRY_BIT_TICKS;
 
-    /* ── Step 3: decode 4 × 5-bit GCR symbols → 4 nibbles
-     * Bit layout of 21-bit stream (MSB first):
-     *   bit 20    = leading framing bit (always 0 after invert, ignored)
-     *   bits 19:15 = GCR symbol 0 (most significant nibble)
-     *   bits 14:10 = GCR symbol 1
-     *   bits  9:5  = GCR symbol 2
-     *   bits  4:0  = GCR symbol 3 (least significant nibble)        */
-    uint16_t telem_word = 0;
+        if (n_bits < 1 || n_bits > BDSHOT_TELEMETRY_WIRE_BITS ||
+            bits_written + n_bits > BDSHOT_TELEMETRY_WIRE_BITS) {
+            return false;
+        }
+
+        for (uint32_t bit = 0; bit < n_bits; bit++) {
+            wire_value = (wire_value << 1) | bit;
+            bits_written++;
+        }
+
+        // Every edge we encounter means the bit value we received is flipped
+        bit ^= 1;
+    }
+
+    while (bits_written < BDSHOT_TELEMETRY_WIRE_BITS) {
+        wire_value = (wire_value << 1) | bit;
+        bits_written++;
+    }
+
+    uint32_t gcr_bits = (wire_value ^ (wire_value >> 1)) & 0xFFFFF;
+
+    uint16_t frame = 0;
 
     for (int sym = 0; sym < 4; sym++) {
-        /* Extract 5-bit symbol from MSB side, skipping leading bit   */
         uint32_t shift = 15 - (sym * 5);
         uint8_t symbol = (gcr_bits >> shift) & 0x1F;
         uint8_t nibble = GCR_DECODE_TABLE[symbol];
 
         if (nibble == 0xFF) {
-            /* Invalid GCR symbol */
             return false;
         }
 
-        telem_word = (telem_word << 4) | nibble;
+        frame = (frame << 4) | nibble;
     }
 
-    uint8_t received_crc = (telem_word & BDSHOT_CHECKSUM_MASK) >> BDSHOT_CHECKSUM_SHIFT;
-    uint8_t expected_crc = bdshot_frame_checksum(telem_word);
+    uint8_t received_crc = (frame & BDSHOT_CHECKSUM_MASK) >> BDSHOT_CHECKSUM_SHIFT;
+    uint8_t expected_crc = bdshot_frame_checksum(frame);
 
     if (received_crc != expected_crc) {
         return false;
     }
 
     // TODO: add support for EDT
-    if (bdshot_is_edt_frame(telem_word)) {
+    if (bdshot_is_edt_frame(frame)) {
         return false;
     }
 
-    uint8_t exponent = (telem_word & BDSHOT_ERPM_EXPONENT_MASK) >> BDSHOT_ERPM_EXPONENT_SHIFT;
-    uint16_t mantissa = (telem_word & BDSHOT_ERPM_MANTISSA_MASK) >> BDSHOT_ERPM_MANTISSA_SHIFT;
+    uint8_t exponent = (frame & BDSHOT_ERPM_EXPONENT_MASK) >> BDSHOT_ERPM_EXPONENT_SHIFT;
+    uint16_t mantissa = (frame & BDSHOT_ERPM_MANTISSA_MASK) >> BDSHOT_ERPM_MANTISSA_SHIFT;
 
-    // Have to handle mantissa=0 separately, since it is a
+    // Have to handle 0 RPM values separately, since it is a
     // divide by 0 in the general case
-    if (mantissa == 0) {
-        telem->rpm = 0.0;
+    if ((mantissa == 0) || (exponent == UINT8_MAX && mantissa == UINT16_MAX)) {
+        telemetry->rpm = 0.0;
     } else {
         uint32_t period_us = (uint32_t)mantissa << (uint32_t)exponent;
         float erpm = MINUTES_TO_US(1.0f) / (float)period_us;
 
-        telem->rpm = (erpm / 2.0f) / pole_count;
+        telemetry->rpm = (erpm / 2.0f) / pole_count;
     }
 
     return true;
@@ -394,6 +372,11 @@ static bool bdshot_decode_gcr(const uint32_t *rx_buf, bdshot_motor_telemetry_t *
 
 bool bdshot_dma_init()
 {
+    for (size_t i = 0; i < BDSHOT_MOTOR_COUNT; i++) {
+        memset(bdshot_dma_tx_buffer[i], 0, sizeof(bdshot_dma_tx_buffer[i]));
+        memset(bdshot_dma_rx_buffer[i], 0, sizeof(bdshot_dma_rx_buffer[i]));
+    }
+
     for (size_t i = 0; i < BDSHOT_MOTOR_COUNT; i++) {
         motors[i].is_initialized = false;
         motors[i].is_armed = false;
@@ -436,7 +419,6 @@ bool bdshot_dma_motor_init(bdshot_motor_index_t motor, bdshot_dma_motor_config_t
             break;
         }
     }
-
 
     motors[motor].config = *config;
     // bdshot_dma_motor_set_throttle(motor, 0);
@@ -522,10 +504,53 @@ bool bdshot_dma_set_armed(bool is_armed)
 
 bool bdshot_dma_apply()
 {
+    // Decode telemetry
+    for (size_t i = 0; i < BDSHOT_MOTOR_COUNT; i++) {
+        bdshot_dma_motor_t *motor = &motors[i];
+
+        if (!motor->is_initialized || !motor->is_armed) {
+            continue;
+        }
+
+        DMA_HandleTypeDef *dma = motor->config.dma;
+        TIM_HandleTypeDef *tim = motor->config.tim;
+        uint32_t tim_channel = motor->config.tim_channel;
+
+        uint32_t received_edges = BDSHOT_DMA_RX_FRAME_SIZE;
+
+        // Wire bits is designed to be half the edge transitions as the GCR encoded
+        // value. So for a fixed sized DMA transfer, it is not always going to complete,
+        // so we have to abort it, but the data should still be good.
+        if (motor->direction == BDSHOT_DMA_DIRECTION_INPUT) {
+            tim_channel_dma_set_enable(tim, tim_channel, false);
+
+            received_edges =
+                BDSHOT_DMA_RX_FRAME_SIZE - (__HAL_DMA_GET_COUNTER(dma) / sizeof(uint32_t));
+
+            // TODO: less jank manipulation of HAL state
+            __HAL_DMA_DISABLE(dma);
+            dma->State = HAL_DMA_STATE_READY;
+
+            bdshot_switch_to_tx(motor);
+
+            motor->direction = BDSHOT_DMA_DIRECTION_OUTPUT;
+        }
+
+        bdshot_motor_telemetry_t telemetry;
+        bool success = bdshot_decode_telemetry(bdshot_dma_rx_buffer[i], received_edges, &telemetry,
+                                               motor->config.pole_count);
+
+        if (success) {
+            motor->is_telemetry_valid = true;
+            motor->telemetry = telemetry;
+        }
+
+        memset(bdshot_dma_rx_buffer[i], 0, sizeof(bdshot_dma_rx_buffer[i]));
+    }
+
     // Starts the DMA controller to begin transfers
     for (size_t i = 0; i < BDSHOT_MOTOR_COUNT; i++) {
-        size_t motor_index = i;
-        bdshot_dma_motor_t *motor = &motors[motor_index];
+        bdshot_dma_motor_t *motor = &motors[i];
 
         if (!motor->is_initialized || !motor->is_armed) {
             continue;
@@ -535,10 +560,8 @@ bool bdshot_dma_apply()
             continue;
         }
 
-        bdshot_switch_to_tx(motor);
-
         if (motor->is_throttle_dirty) {
-            build_dma_tx_buffer(motor->frame, bdshot_dma_tx_buffer[motor_index]);
+            build_dma_tx_buffer(motor->frame, bdshot_dma_tx_buffer[i]);
 
             motor->is_throttle_dirty = false;
         }
@@ -553,8 +576,8 @@ bool bdshot_dma_apply()
             return false;
         }
 
-        HAL_DMA_Start_IT(motor->config.dma, (uint32_t)bdshot_dma_tx_buffer[motor_index],
-                         (uint32_t)ccrx, sizeof(bdshot_dma_tx_buffer[motor_index]));
+        HAL_DMA_Start_IT(motor->config.dma, (uint32_t)bdshot_dma_tx_buffer[i], (uint32_t)ccrx,
+                         sizeof(bdshot_dma_tx_buffer[i]));
     }
 
     // Enable DMA transfers from the timers.
@@ -578,7 +601,3 @@ bool bdshot_dma_apply()
 
     return true;
 }
-
-/*
-Level shifter outputs high on default, change code to be open drain (pulls to low on )
-*/
