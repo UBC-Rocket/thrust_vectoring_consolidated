@@ -1,4 +1,4 @@
-BEMF=BEMFA,BEMFB,BEMFC,Thermistor,VBUS Sense
+BEMF=BEMFA,BEMFB,BEMFC,BEMF_COM,Thermistor,VBUS Sense
 Gate Drive Control Signals=Enable,Calibrate,Gate Drive FAULT
 Gate Drive Signals=INLA,INHA,INLB,INHB,INLC,INHC,SOA,SOB,SOC
 SPI=SCS,SCLK,SDO,SDI
