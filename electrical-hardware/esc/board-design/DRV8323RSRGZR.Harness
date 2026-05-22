@@ -1,3 +1,3 @@
 Gate Drive Control Signals=Enable,Calibrate,Gate Drive FAULT
-Gate Drive Signals=INLA,INHA,INLB,INHB,INLC,INHC,SOA,SOB,SOC
+Gate Drive Signals=INLA,INHA,INLB,INHB,INLC,INHC,SOB,SOA,SOC
 SPI=SCS,SCLK,SDO,SDI
