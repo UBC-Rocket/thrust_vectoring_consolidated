@@ -3,12 +3,8 @@
 #include <QSerialPort>
 #include <QSerialPortInfo>
 #include <QElapsedTimer>
-#include <QThread>
+#include <QtMath>
 #include <QDebug>
-
-namespace {
-enum { kSerialDebug = 0 }; // flip to 1 to re-enable verbose IMU logging
-}
 
 SerialBridge::SerialBridge(QObject* parent) : QObject(parent) {
     refreshPorts(); // Build the initial COM list so the UI has something to show.
@@ -137,7 +133,7 @@ bool SerialBridge::setTxTo(int which) {
 
 bool SerialBridge::setRxFrom(int which) {
     if (which != 1 && which != 2) {
-        emitError("setTxTo: which must be 1 or 2");
+        emitError("setRxFrom: which must be 1 or 2");
         return false;
     }
 

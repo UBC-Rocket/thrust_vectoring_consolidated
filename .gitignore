@@ -49,6 +49,8 @@
 
 # CMake
 build/
+build-release/
+build_test/
 CMakeLists.txt.user*
 compile_commands.json
 
@@ -80,6 +82,9 @@ ui_*.h
 # macOS
 .DS_Store
 
+# Packaged app bundles / installers
+*.dmg
+
 # Python
 __pycache__/
 *.pyc
@@ -108,3 +113,4 @@ Module.symvers
 # Claude Code / gstack (local-only, do not push)
 /CLAUDE.md
 /.claude/
+.gstack/

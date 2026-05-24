@@ -50,7 +50,8 @@ public:
     Q_PROPERTY(double uwbTag1Y    READ uwbTag1Y    NOTIFY uwbDataChanged)
     Q_PROPERTY(bool   uwbTag1Valid READ uwbTag1Valid NOTIFY uwbDataChanged)
 
-    // Raw packet log (hex dump of every received binary packet)
+    // Human-readable decoded log of every received downlink packet (TELEM/STATUS
+    // lines, or a decode-error marker). Appended to on each packet.
     Q_PROPERTY(QString rawPacketLog READ rawPacketLog NOTIFY rawPacketLogChanged)
 
     // SystemStatus properties
