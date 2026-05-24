@@ -13,6 +13,8 @@ static void esc_disarm(esc_t *esc);
 static void esc_set_pwm_pulse_us(esc_t *esc, uint16_t pulse_us);
 static uint32_t esc_pwm_us_to_ticks(esc_t *esc, uint16_t pulse_us);
 static void esc_apply(esc_t *esc);
+static void esc_pair_arm(void);
+static void esc_pair_disarm(void);
 
 /* ---- Single ESC API ----------------------------------------------- */
 
@@ -115,7 +117,7 @@ void esc_pair_set_armed(bool armed)
     }
 }
 
-void esc_pair_arm(void)
+static void esc_pair_arm(void)
 {
     if (!g_esc_pair.initialized) {
         return;
@@ -125,7 +127,7 @@ void esc_pair_arm(void)
     esc_arm(&g_esc_pair.esc_lower);
 }
 
-void esc_pair_disarm(void)
+static void esc_pair_disarm(void)
 {
     if (!g_esc_pair.initialized) {
         return;

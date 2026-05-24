@@ -18,7 +18,7 @@ uint32_t pwm_us_to_ticks(const pwm_output_t *pwm, uint16_t us) {
 }
 
 uint32_t pwm_clamp_ticks(const pwm_output_t *pwm, uint32_t ticks) {
-    if (pwm == NULL || pwm->period_ticks == 0U) {
+    if (pwm == NULL || pwm->htim == NULL || pwm->period_ticks == 0U) {
         return 0U;
     }
 
