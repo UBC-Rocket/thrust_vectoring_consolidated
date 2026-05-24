@@ -20,7 +20,6 @@ static servo_config_t s_servo1_config = {
     .deg_min = SERVO_GIMBAL_DEG_MIN,
     .deg_max = SERVO_GIMBAL_DEG_MAX,
     .deg_bias = SERVO1_DEG_BIAS,
-    .reversed = SERVO1_REVERSED,
 };
 
 static servo_config_t s_servo2_config = {
@@ -30,7 +29,6 @@ static servo_config_t s_servo2_config = {
     .deg_min = SERVO_GIMBAL_DEG_MIN,
     .deg_max = SERVO_GIMBAL_DEG_MAX,
     .deg_bias = SERVO2_DEG_BIAS,
-    .reversed = SERVO2_REVERSED,
 };
 
 
@@ -162,11 +160,7 @@ static uint16_t degree_to_us(const servo_t *servo, float degree) {
     const servo_config_t *cfg = &servo->config;
 
     float scale = (float)(cfg->us_max - cfg->us_min) / cfg->deg_range_max;
-
-    // float d = (cfg->reversed ? -degree : degree) + cfg->deg_bias;
-    // float d_clamped = clamp_float(degree, cfg->deg_min, cfg->deg_max);
-
     uint16_t us = cfg->us_min + (degree + cfg->deg_bias) * scale;
-    // return clamp_u16(us, cfg->us_min, cfg->us_max);
+
     return us;
 }

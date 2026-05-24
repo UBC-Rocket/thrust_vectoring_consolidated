@@ -12,8 +12,6 @@ typedef struct {
     float deg_min;
     float deg_max;
     float deg_bias;
-
-    bool reversed;
 } servo_config_t;
 
 typedef struct {
@@ -42,14 +40,12 @@ typedef struct {
 #define SERVO1_US_MAX  2100
 #define SERVO1_DEG_BIAS 95.0f    // Calibrated to center gimbal at 0° when both servos are at 1500µs
 #define SERVO1_DEG_RANGE_MAX 120.0f
-#define SERVO1_REVERSED false
 
 /* Servo 2 (X-axis / roll): TIM3 CH3 / PB0 */
 #define SERVO2_US_MIN  900
 #define SERVO2_US_MAX  2100
 #define SERVO2_DEG_BIAS 50.0f   // Calibrated to center gimbal at 0° when both servos are at 1500µs
 #define SERVO2_DEG_RANGE_MAX 120.0f
-#define SERVO2_REVERSED false
 
 /* ── Gimbal angular limits ───────────────────────────────────────────── */
 #define SERVO_GIMBAL_DEG_MIN -30.0f 
@@ -69,8 +65,8 @@ void set_servo_degree(servo_t *servo, float degree);
 /**
  * @brief Command gimbal angles by physical axis.
  * Handles servo axis mapping and sign convention internally.
- * @param x_deg  Desired X-axis (roll) gimbal angle in degrees, clamped to ±SERVO_GIMBAL_HALF_RANGE_DEG.
- * @param y_deg  Desired Y-axis (pitch) gimbal angle in degrees, clamped to ±SERVO_GIMBAL_HALF_RANGE_DEG.
+ * @param x_deg  Desired X-axis (roll) gimbal angle in degrees, clamped to bewteen SERVO_GIMBAL_DEG_MIN and SERVO_GIMBAL_DEG_MAX.
+ * @param y_deg  Desired Y-axis (pitch) gimbal angle in degrees, clamped to bewteen SERVO_GIMBAL_DEG_MIN and SERVO_GIMBAL_DEG_MAX.
  */
 void set_gimbal_degrees(float x_deg, float y_deg);
 

@@ -27,7 +27,10 @@
 #include "timestamp.h"
 #include "utilities/clamp.h"
 
+/* Utility macros */
 #define RAD_TO_DEG (180.0f / 3.14159265f)
+#define DEG_TO_RAD (3.14159265f / 180.0f);
+#define SQRT_2_2 (0.70710678f) /**< For 45 degree trim to stay within circular gimbal limits. */
 
 #define CONTROLS_DT_S 0.00125f /**< Control period [s] (800 Hz via TIM4 CH2). */
 #define STALE_STATE_THRESHOLD_TICKS \
@@ -46,7 +49,6 @@
 #define ESC_HOLD_MS       500           /**< Hold at peak thrust (ms). */
 
 /* Empirical times for the ESC power on sequence*/
-#define ESC_POWER_ON_TIME_MS (3000) /**< Delay before arming sequence begins */
 #define ESC_ARM_TIME_MS      (3000) /**< Delay before PWM output */
 
 /* Empirical values for a safe operational range of the gimbal */
@@ -125,8 +127,6 @@ void controls_task_start(void *argument)
 
     servo_pair_enable(false);
     esc_pair_set_armed(false);
-
-    osDelay(pdMS_TO_TICKS(ESC_POWER_ON_TIME_MS));
 
     state_exchange_publish_startup_test_complete(true);
 
@@ -246,8 +246,8 @@ void controls_task_start(void *argument)
                 float theta_y_deg =
                     clamp_float(control_output.theta_y_cmd * RAD_TO_DEG, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
 
-                float calibrated_theta_x_deg = (1/sqrtf(2.0f)) * theta_x_deg + (1/sqrtf(2.0f)) * theta_y_deg; // Calibrated to match physical gimbal direction
-                float calibrated_theta_y_deg = -(1/sqrtf(2.0f)) * theta_x_deg + (1/sqrtf(2.0f)) * theta_y_deg; // Calibrated to match physical gimbal direction
+                float calibrated_theta_x_deg = (SQRT_2_2) * theta_x_deg + (SQRT_2_2) * theta_y_deg; // Calibrated to match physical gimbal direction
+                float calibrated_theta_y_deg = -(SQRT_2_2) * theta_x_deg + (SQRT_2_2) * theta_y_deg; // Calibrated to match physical gimbal direction
 
                 set_gimbal_degrees(calibrated_theta_x_deg, calibrated_theta_y_deg);
                 esc_pair_set_force(control_output.T_cmd, control_output.tau_thrust);
