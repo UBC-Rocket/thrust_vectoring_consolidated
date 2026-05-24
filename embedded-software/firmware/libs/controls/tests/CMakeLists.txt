@@ -5,6 +5,7 @@ project(controls_tests LANGUAGES C)
 enable_testing()
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../state_estimation ${CMAKE_BINARY_DIR}/state_estimation)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../utilities ${CMAKE_BINARY_DIR}/utilities)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_BINARY_DIR}/controls)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../unity ${CMAKE_BINARY_DIR}/unity)
 
