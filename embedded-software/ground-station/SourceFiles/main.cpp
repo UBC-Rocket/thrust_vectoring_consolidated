@@ -4,8 +4,6 @@
 #include <QQmlNetworkAccessManagerFactory>
 #include <QNetworkAccessManager>
 #include <QNetworkRequest>
-#include <QCommandLineParser>
-#include <QTimer>
 #include "SerialBridge.h"
 #include "SensorDataModel.h"
 #include "CommandSender.h"

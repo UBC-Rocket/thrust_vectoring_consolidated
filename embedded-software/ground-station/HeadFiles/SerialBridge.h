@@ -138,9 +138,6 @@ private:
     /// Heuristic check whether a QSerialPortInfo looks like an RFD900x (VID/PID, etc.).
     static bool looksLikeRadio(const QSerialPortInfo &info);
 
-    /// Active probe using AT command to verify attached device is a radio modem.
-    static bool probeRadio_AT(QSerialPort &port);
-
     /// Connect readyRead/error handlers for the given port.
     void attachRx(int which);
 
@@ -184,7 +181,6 @@ private:
 
     QMetaObject::Connection m_readyConnect1, m_error1; ///< Connections for port 1 signals.
     QMetaObject::Connection m_readyConnect2, m_error2; ///< Connections for port 2 signals.
-    QMetaObject::Connection m_activeReadyConnect;      ///< Currently active RX connection in single-RX mode.
 
     QStringList m_ports;             ///< Cached list of discovered serial port names for UI.
 };

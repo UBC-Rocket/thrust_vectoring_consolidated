@@ -40,6 +40,14 @@ Rectangle {
     // poles[0..3] map directly to SetProbeLayout.anchor_0..anchor_3 on the wire.
     property var poles: []
 
+    // Corner currently being dragged. While a drag is in progress we deliberately
+    // do NOT rewrite `poles` — that would reset the pole Repeater's model and
+    // destroy the MouseArea mid-drag. Instead we draw the live position from these
+    // props and commit it back into `poles` once, on release (see commitPole()).
+    property int  activePoleIndex: -1
+    property real activePoleXm: 0
+    property real activePoleYm: 0
+
     function recomputeBasePoles() {
         if (rectWidth <= 0 || rectHeight <= 0) {
             poles = []
@@ -55,6 +63,33 @@ Rectangle {
 
     onRectWidthChanged:  recomputeBasePoles()
     onRectHeightChanged: recomputeBasePoles()
+
+    // Live update for the corner being dragged. Records the position and repaints
+    // the geometry overlay, but leaves `poles` untouched until commitPole().
+    function movePole(index, xm, ym) {
+        if (index < 0 || index >= poles.length) return
+        activePoleIndex = index
+        activePoleXm = xm
+        activePoleYm = ym
+        geometryLayer.requestPaint()
+    }
+
+    // Write the dragged corner back into `poles` (single reassign -> one repaint +
+    // Repeater refresh). Flips isBase=false: the corner is no longer a pristine
+    // rectangle vertex, it's been nudged to match the real-world anchor position.
+    function commitPole() {
+        const i = activePoleIndex
+        if (i < 0 || i >= poles.length) { activePoleIndex = -1; return }
+        var arr = poles.slice()
+        var pole = {}
+        for (var k in arr[i]) pole[k] = arr[i][k]
+        pole.x = activePoleXm
+        pole.y = activePoleYm
+        pole.isBase = false
+        arr[i] = pole
+        poles = arr
+        activePoleIndex = -1
+    }
 
     // ── Coordinate transforms ──────────────────────────────────────────────
     function mxToPx(xm) { return mapView.width  / 2 + panX + xm * pxPerMeter }
@@ -542,12 +577,17 @@ Rectangle {
                 if (panel.poles.length < 4) return
 
                 const p = panel.poles
-                function ptOf(pole) { return Qt.point(panel.mxToPx(pole.x), panel.myToPy(pole.y)) }
+                // Live position of corner i: while it's being dragged, read from
+                // the active* props (poles isn't rewritten until release).
+                function poleXm(i) { return panel.activePoleIndex === i ? panel.activePoleXm : p[i].x }
+                function poleYm(i) { return panel.activePoleIndex === i ? panel.activePoleYm : p[i].y }
+                function ptOf(i)   { return Qt.point(panel.mxToPx(poleXm(i)), panel.myToPy(poleYm(i))) }
+                function edgeLenM(i, j) { return Math.hypot(poleXm(i) - poleXm(j), poleYm(i) - poleYm(j)) }
 
-                const c0 = ptOf(p[0])  // anchor 0 (bottom-left)
-                const c1 = ptOf(p[1])  // anchor 1 (bottom-right)
-                const c2 = ptOf(p[2])  // anchor 2 (top-right)
-                const c3 = ptOf(p[3])  // anchor 3 (top-left)
+                const c0 = ptOf(0)  // anchor 0 (bottom-left)
+                const c1 = ptOf(1)  // anchor 1 (bottom-right)
+                const c2 = ptOf(2)  // anchor 2 (top-right)
+                const c3 = ptOf(3)  // anchor 3 (top-left)
 
                 // Solid rectangle outline (4 anchors)
                 const mapOn = panel.mapEnabled && panel.refValid
@@ -567,19 +607,18 @@ Rectangle {
                 ctx.lineWidth = 1.2
                 ctx.setLineDash([6, 4])
 
-                const w = panel.rectWidth
-                const h = panel.rectHeight
-
                 drawDashedLine(ctx, c0.x, c0.y, c1.x, c1.y)
                 drawDashedLine(ctx, c1.x, c1.y, c2.x, c2.y)
                 drawDashedLine(ctx, c2.x, c2.y, c3.x, c3.y)
                 drawDashedLine(ctx, c3.x, c3.y, c0.x, c0.y)
 
-                // Perimeter length labels
-                drawLengthLabel(ctx, c0.x, c0.y, c1.x, c1.y, w)
-                drawLengthLabel(ctx, c2.x, c2.y, c3.x, c3.y, w)
-                drawLengthLabel(ctx, c1.x, c1.y, c2.x, c2.y, h)
-                drawLengthLabel(ctx, c3.x, c3.y, c0.x, c0.y, h)
+                // Per-edge length labels, computed from the actual corner
+                // positions so they stay correct after corners are dragged
+                // off the pristine rectangle.
+                drawLengthLabel(ctx, c0.x, c0.y, c1.x, c1.y, edgeLenM(0, 1))
+                drawLengthLabel(ctx, c2.x, c2.y, c3.x, c3.y, edgeLenM(2, 3))
+                drawLengthLabel(ctx, c1.x, c1.y, c2.x, c2.y, edgeLenM(1, 2))
+                drawLengthLabel(ctx, c3.x, c3.y, c0.x, c0.y, edgeLenM(3, 0))
 
                 // Origin crosshair (no anchor here, just the takeoff reference)
                 const origin = Qt.point(panel.mxToPx(0), panel.myToPy(0))
@@ -658,8 +697,13 @@ Rectangle {
                 required property var modelData
                 required property int index
 
-                x: panel.mxToPx(modelData.x) - hitSize/2
-                y: panel.myToPy(modelData.y) - hitSize/2
+                // Follow the live drag position for the corner being moved.
+                readonly property bool isActive: panel.activePoleIndex === index
+                readonly property real poleXm: isActive ? panel.activePoleXm : modelData.x
+                readonly property real poleYm: isActive ? panel.activePoleYm : modelData.y
+
+                x: panel.mxToPx(poleXm) - hitSize/2
+                y: panel.myToPy(poleYm) - hitSize/2
 
                 property int hitSize: 20
                 width: hitSize
@@ -682,7 +726,7 @@ Rectangle {
                     anchors.left: parent.right
                     anchors.bottom: parent.top
                     anchors.leftMargin: 2
-                    text: modelData.id + " (" + modelData.x.toFixed(2) + ", " + modelData.y.toFixed(2) + ")"
+                    text: markerItem.modelData.id + " (" + markerItem.poleXm.toFixed(2) + ", " + markerItem.poleYm.toFixed(2) + ")"
                     color: Theme.textSecondary
                     font.family: Theme.monoFamily
                     font.pixelSize: Theme.fontCaption
@@ -694,31 +738,42 @@ Rectangle {
                     anchors.margins: -4
                     hoverEnabled: true
                     acceptedButtons: Qt.LeftButton
-                    cursorShape: containsMouse ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    cursorShape: isDragging ? Qt.ClosedHandCursor
+                               : containsMouse ? Qt.OpenHandCursor : Qt.ArrowCursor
 
                     property bool isDragging: false
                     property real offsetXm: 0
                     property real offsetYm: 0
 
+                    // Map the press into mapView coords (stable even as the marker
+                    // moves under the cursor) and remember the grab offset so the
+                    // corner doesn't jump to the cursor on the first move.
                     onPressed: (mouse) => {
                         isDragging = true
-                        const clickXm = panel.pxToMx(mouse.x + markerItem.x + markerItem.hitSize/2)
-                        const clickYm = panel.pyToMy(mouse.y + markerItem.y + markerItem.hitSize/2)
-                        offsetXm = markerItem.modelData.x - clickXm
-                        offsetYm = markerItem.modelData.y - clickYm
+                        const pt = markerDragArea.mapToItem(mapView, mouse.x, mouse.y)
+                        offsetXm = markerItem.modelData.x - panel.pxToMx(pt.x)
+                        offsetYm = markerItem.modelData.y - panel.pyToMy(pt.y)
+                        panel.movePole(markerItem.index,
+                                       markerItem.modelData.x, markerItem.modelData.y)
                         mouse.accepted = true
                     }
 
                     onPositionChanged: (mouse) => {
                         if (!isDragging) return
-                        const newXm = panel.pxToMx(mouse.x + markerItem.x + markerItem.hitSize/2) + offsetXm
-                        const newYm = panel.pyToMy(mouse.y + markerItem.y + markerItem.hitSize/2) + offsetYm
-                        panel.movePole(markerItem.index, newXm, newYm)
+                        const pt = markerDragArea.mapToItem(mapView, mouse.x, mouse.y)
+                        panel.movePole(markerItem.index,
+                                       panel.pxToMx(pt.x) + offsetXm,
+                                       panel.pyToMy(pt.y) + offsetYm)
                     }
 
                     onReleased: (mouse) => {
-                        isDragging = false
+                        if (isDragging) { isDragging = false; panel.commitPole() }
                         mouse.accepted = true
+                    }
+
+                    // Mouse grab lost (e.g. window focus change): commit what we have.
+                    onCanceled: {
+                        if (isDragging) { isDragging = false; panel.commitPole() }
                     }
                 }
             }
