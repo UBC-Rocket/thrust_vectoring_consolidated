@@ -156,23 +156,6 @@ GenerateClassCluster=0
 DocumentUniqueId=
 
 [Document7]
-DocumentPath=MaUWB.BomDoc
-AnnotationEnabled=1
-AnnotateStartValue=1
-AnnotationIndexControlEnabled=0
-AnnotateSuffix=
-AnnotateScope=All
-AnnotateOrder=-1
-DoLibraryUpdate=1
-DoDatabaseUpdate=1
-ClassGenCCAutoEnabled=1
-ClassGenCCAutoRoomEnabled=0
-ClassGenNCAutoScope=None
-DItemRevisionGUID=
-GenerateClassCluster=0
-DocumentUniqueId=
-
-[Document8]
 DocumentPath=MaUWB.SchLib
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -189,7 +172,7 @@ DItemRevisionGUID=
 GenerateClassCluster=0
 DocumentUniqueId=NREPUBCF
 
-[Document9]
+[Document8]
 DocumentPath=MaUWB.PcbLib
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -206,7 +189,7 @@ DItemRevisionGUID=
 GenerateClassCluster=0
 DocumentUniqueId=EPRYOLOF
 
-[Document10]
+[Document9]
 DocumentPath=MCU.Harness
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -223,7 +206,7 @@ DItemRevisionGUID=
 GenerateClassCluster=0
 DocumentUniqueId=
 
-[Document11]
+[Document10]
 DocumentPath=Root.Harness
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -240,7 +223,7 @@ DItemRevisionGUID=
 GenerateClassCluster=0
 DocumentUniqueId=
 
-[Document12]
+[Document11]
 DocumentPath=Debug.SchDoc
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -257,18 +240,78 @@ DItemRevisionGUID=
 GenerateClassCluster=0
 DocumentUniqueId=WZBTFIUD
 
+[Document12]
+DocumentPath=Job1.OutJob
+AnnotationEnabled=1
+AnnotateStartValue=1
+AnnotationIndexControlEnabled=0
+AnnotateSuffix=
+AnnotateScope=All
+AnnotateOrder=-1
+DoLibraryUpdate=1
+DoDatabaseUpdate=1
+ClassGenCCAutoEnabled=1
+ClassGenCCAutoRoomEnabled=0
+ClassGenNCAutoScope=None
+DItemRevisionGUID=
+GenerateClassCluster=0
+DocumentUniqueId=
+
+[Document13]
+DocumentPath=MaUWB.BomDoc
+AnnotationEnabled=1
+AnnotateStartValue=1
+AnnotationIndexControlEnabled=0
+AnnotateSuffix=
+AnnotateScope=All
+AnnotateOrder=-1
+DoLibraryUpdate=1
+DoDatabaseUpdate=1
+ClassGenCCAutoEnabled=1
+ClassGenCCAutoRoomEnabled=0
+ClassGenNCAutoScope=None
+DItemRevisionGUID=
+GenerateClassCluster=0
+DocumentUniqueId=
+
 [ProjectVariant1]
 UniqueId=31aaf101-736c-448f-9323-6360c2e387a6
 Description=Variant of MaUWB
 AllowFabrication=0
 ParameterCount=0
-VariationCount=2
+VariationCount=4
 Variation1=Designator=J1|UniqueId=\PAHZSNEP|Kind=1|AlternatePart=
 Variation2=Designator=J7|UniqueId=\FTMKIVJY|Kind=1|AlternatePart=
+Variation3=Designator=I2C|UniqueId=\BOGCPKUS|Kind=1|AlternatePart=
+Variation4=Designator=IC4|UniqueId=\OAHRHSKF\KDFDXMPX|Kind=1|AlternatePart=
 ParamVariationCount=0
 
 [GeneratedDocument1]
-DocumentPath=Project Outputs for MaUWB\Design Rule Check - PCB.html
+DocumentPath=Project Outputs for MaUWB\BOM\Bill of Materials-MaUWB(Variant of MaUWB).csv
+DItemRevisionGUID=
+
+[GeneratedDocument2]
+DocumentPath=Project Outputs for MaUWB\NC Drill\PCB.DRR
+DItemRevisionGUID=
+
+[GeneratedDocument3]
+DocumentPath=Project Outputs for MaUWB\Gerber\PCB.EXTREP
+DItemRevisionGUID=
+
+[GeneratedDocument4]
+DocumentPath=Project Outputs for MaUWB\NC Drill\PCB.LDP
+DItemRevisionGUID=
+
+[GeneratedDocument5]
+DocumentPath=Project Outputs for MaUWB\Gerber\PCB.REP
+DItemRevisionGUID=
+
+[GeneratedDocument6]
+DocumentPath=Project Outputs for MaUWB\NC Drill\PCB.TXT
+DItemRevisionGUID=
+
+[GeneratedDocument7]
+DocumentPath=Project Outputs for MaUWB\Pick Place\Pick Place for PCB(Variant of MaUWB).csv
 DItemRevisionGUID=
 
 [Configuration1]
@@ -1240,56 +1283,254 @@ NetClassManualEnabled=1
 NetClassSeparateForBusSections=0
 
 [LibraryUpdateOptions]
-SelectedOnly=1
+SelectedOnly=0
 UpdateVariants=1
 UpdateToLatestRevision=1
 PartTypes=0
-ComponentLibIdentifierKind0=Library Name And Type
-ComponentLibraryIdentifier0=MaUWB.SchLib
-ComponentDesignItemID0=DS-04-R-T
-ComponentSymbolReference0=DS-04-R-T
+ComponentLibIdentifierKind0=Any
+ComponentLibraryIdentifier0=
+ComponentDesignItemID0=2N7002,215
+ComponentSymbolReference0=2N7002,215
 ComponentUpdate0=1
 ComponentIsDeviceSheet0=0
-FullReplace=1
+ComponentLibIdentifierKind1=Library Name And Type
+ComponentLibraryIdentifier1=MaUWB.SchLib
+ComponentDesignItemID1=0805W8F0000T5E
+ComponentSymbolReference1=0805W8F0000T5E
+ComponentUpdate1=1
+ComponentIsDeviceSheet1=0
+ComponentLibIdentifierKind2=Library Name And Type
+ComponentLibraryIdentifier2=MaUWB.SchLib
+ComponentDesignItemID2=0805W8F1003T5E
+ComponentSymbolReference2=0805W8F1003T5E
+ComponentUpdate2=1
+ComponentIsDeviceSheet2=0
+ComponentLibIdentifierKind3=Library Name And Type
+ComponentLibraryIdentifier3=MaUWB.SchLib
+ComponentDesignItemID3=0805W8F4701T5E
+ComponentSymbolReference3=0805W8F4701T5E
+ComponentUpdate3=1
+ComponentIsDeviceSheet3=0
+ComponentLibIdentifierKind4=Library Name And Type
+ComponentLibraryIdentifier4=MaUWB.SchLib
+ComponentDesignItemID4=0805W8J0471T5E
+ComponentSymbolReference4=0805W8J0471T5E
+ComponentUpdate4=1
+ComponentIsDeviceSheet4=0
+ComponentLibIdentifierKind5=Library Name And Type
+ComponentLibraryIdentifier5=MaUWB.SchLib
+ComponentDesignItemID5=AO3401A
+ComponentSymbolReference5=AO3401A
+ComponentUpdate5=1
+ComponentIsDeviceSheet5=0
+ComponentLibIdentifierKind6=Library Name And Type
+ComponentLibraryIdentifier6=MaUWB.SchLib
+ComponentDesignItemID6=AP2112K-3.3TRG1
+ComponentSymbolReference6=AP2112K-3.3TRG1
+ComponentUpdate6=1
+ComponentIsDeviceSheet6=0
+ComponentLibIdentifierKind7=Library Name And Type
+ComponentLibraryIdentifier7=MaUWB.SchLib
+ComponentDesignItemID7=B4B-PH-K-S_LF__SN_
+ComponentSymbolReference7=B4B-PH-K-S_LF__SN_
+ComponentUpdate7=1
+ComponentIsDeviceSheet7=0
+ComponentLibIdentifierKind8=Library Name And Type
+ComponentLibraryIdentifier8=MaUWB.SchLib
+ComponentDesignItemID8=CC0805KRX7R9BB104
+ComponentSymbolReference8=CC0805KRX7R9BB104
+ComponentUpdate8=1
+ComponentIsDeviceSheet8=0
+ComponentLibIdentifierKind9=Library Name And Type
+ComponentLibraryIdentifier9=MaUWB.SchLib
+ComponentDesignItemID9=CL21B105KAFNNNE
+ComponentSymbolReference9=CL21B105KAFNNNE
+ComponentUpdate9=1
+ComponentIsDeviceSheet9=0
+ComponentLibIdentifierKind10=Library Name And Type
+ComponentLibraryIdentifier10=MaUWB.SchLib
+ComponentDesignItemID10=DS-04-R-T
+ComponentSymbolReference10=DS-04-R-T
+ComponentUpdate10=1
+ComponentIsDeviceSheet10=0
+ComponentLibIdentifierKind11=Library Name And Type
+ComponentLibraryIdentifier11=MaUWB.SchLib
+ComponentDesignItemID11=EVQ-Q2P02W
+ComponentSymbolReference11=EVQ-Q2P02W
+ComponentUpdate11=1
+ComponentIsDeviceSheet11=0
+ComponentLibIdentifierKind12=Library Name And Type
+ComponentLibraryIdentifier12=MaUWB.SchLib
+ComponentDesignItemID12=KT-0603W
+ComponentSymbolReference12=KT-0603W
+ComponentUpdate12=1
+ComponentIsDeviceSheet12=0
+ComponentLibIdentifierKind13=Library Name And Type
+ComponentLibraryIdentifier13=MaUWB.SchLib
+ComponentDesignItemID13=LTST-C170GKT
+ComponentSymbolReference13=LTST-C170GKT
+ComponentUpdate13=1
+ComponentIsDeviceSheet13=0
+ComponentLibIdentifierKind14=Library Name And Type
+ComponentLibraryIdentifier14=MaUWB.SchLib
+ComponentDesignItemID14=LTST-C170KRKT
+ComponentSymbolReference14=LTST-C170KRKT
+ComponentUpdate14=1
+ComponentIsDeviceSheet14=0
+ComponentLibIdentifierKind15=Library Name And Type
+ComponentLibraryIdentifier15=MaUWB.SchLib
+ComponentDesignItemID15=PZ254V-11-04P
+ComponentSymbolReference15=PZ254V-11-04P
+ComponentUpdate15=1
+ComponentIsDeviceSheet15=0
+ComponentLibIdentifierKind16=Library Name And Type
+ComponentLibraryIdentifier16=MaUWB.SchLib
+ComponentDesignItemID16=S2B-PH-K-S_LF_SN
+ComponentSymbolReference16=S2B-PH-K-S_LF_SN
+ComponentUpdate16=1
+ComponentIsDeviceSheet16=0
+ComponentLibIdentifierKind17=Library Name And Type
+ComponentLibraryIdentifier17=MaUWB.SchLib
+ComponentDesignItemID17=STLINK-SW
+ComponentSymbolReference17=STLINK-SW
+ComponentUpdate17=1
+ComponentIsDeviceSheet17=0
+ComponentLibIdentifierKind18=Library Name And Type
+ComponentLibraryIdentifier18=MaUWB.SchLib
+ComponentDesignItemID18=STM1061N34WX6F
+ComponentSymbolReference18=STM1061N34WX6F
+ComponentUpdate18=1
+ComponentIsDeviceSheet18=0
+ComponentLibIdentifierKind19=Library Name And Type
+ComponentLibraryIdentifier19=MaUWB.SchLib
+ComponentDesignItemID19=STM32G030K8T6
+ComponentSymbolReference19=STM32G030K8T6
+ComponentUpdate19=1
+ComponentIsDeviceSheet19=0
+ComponentLibIdentifierKind20=Library Name And Type
+ComponentLibraryIdentifier20=MaUWB.SchLib
+ComponentDesignItemID20=TAJB107M010RNJ
+ComponentSymbolReference20=TAJB107M010RNJ
+ComponentUpdate20=1
+ComponentIsDeviceSheet20=0
+ComponentLibIdentifierKind21=Library Name And Type
+ComponentLibraryIdentifier21=MaUWB_DW3000.SchLib
+ComponentDesignItemID21=MaUWB_DW3000
+ComponentSymbolReference21=MaUWB_DW3000
+ComponentUpdate21=1
+ComponentIsDeviceSheet21=0
+FullReplace=0
 UpdateDesignatorLock=1
 UpdatePartIDLock=1
 PreserveParameterLocations=1
 PreserveParameterVisibility=1
-DoGraphics=1
+DoGraphics=0
 DoParameters=1
-DoModels=1
+DoModels=0
 AddParameters=0
 RemoveParameters=0
 AddModels=1
 RemoveModels=1
 UpdateCurrentModels=1
-ParameterName0=Comment
+ParameterName0=Arrow Part Number
 ParameterUpdate0=1
-ParameterName1=Component Kind
+ParameterName1=Arrow Price/Stock
 ParameterUpdate1=1
-ParameterName2=Datasheet
+ParameterName2=Comment
 ParameterUpdate2=1
-ParameterName3=Description
+ParameterName3=Component Kind
 ParameterUpdate3=1
-ParameterName4=Description_
+ParameterName4=Datasheet Link
 ParameterUpdate4=1
-ParameterName5=Footprint
+ParameterName5=Description
 ParameterUpdate5=1
-ParameterName6=ki_keywords
+ParameterName6=Footprint
 ParameterUpdate6=1
-ParameterName7=LCSC
+ParameterName7=Height
 ParameterUpdate7=1
-ParameterName8=Library Reference
+ParameterName8=LCSC Part #
 ParameterUpdate8=1
-ParameterName9=Manufacturer
+ParameterName9=Library Reference
 ParameterUpdate9=1
-ParameterName10=Manufacturer Part
+ParameterName10=Manu Part #
 ParameterUpdate10=1
+ParameterName11=Manufacturer
+ParameterUpdate11=1
+ParameterName12=Manufacturer Part
+ParameterUpdate12=1
+ParameterName13=Manufacturer_Name
+ParameterUpdate13=1
+ParameterName14=Manufacturer_Part_Number
+ParameterUpdate14=1
+ParameterName15=Mouser Part Number
+ParameterUpdate15=1
+ParameterName16=Mouser Price/Stock
+ParameterUpdate16=1
 ModelTypeGroup0=PCBLIB
 ModelTypeUpdate0=1
 ModelType0=PCBLIB
-ModelName0=DS-04-R-T
+ModelName0=009159010061911
 ModelUpdate0=1
+ModelType1=PCBLIB
+ModelName1=CAPC2012X135N
+ModelUpdate1=1
+ModelType2=PCBLIB
+ModelName2=CAPC2012X95N
+ModelUpdate2=1
+ModelType3=PCBLIB
+ModelName3=CAPPM3528X210N
+ModelUpdate3=1
+ModelType4=PCBLIB
+ModelName4=DS-04-R-T
+ModelUpdate4=1
+ModelType5=PCBLIB
+ModelName5=EVQQ2P02W
+ModelUpdate5=1
+ModelType6=PCBLIB
+ModelName6=HDRV4W64P0X254_1X4_1016X250X890P
+ModelUpdate6=1
+ModelType7=PCBLIB
+ModelName7=LEDC2012X120N
+ModelUpdate7=1
+ModelType8=PCBLIB
+ModelName8=LEDC2012X120N - Duplicate
+ModelUpdate8=1
+ModelType9=PCBLIB
+ModelName9=MaUWB_DW3000
+ModelUpdate9=1
+ModelType10=PCBLIB
+ModelName10=QFP80P900X900X160-32N
+ModelUpdate10=1
+ModelType11=PCBLIB
+ModelName11=RESC2013X65N
+ModelUpdate11=1
+ModelType12=PCBLIB
+ModelName12=RESC2013X65N - Duplicate
+ModelUpdate12=1
+ModelType13=PCBLIB
+ModelName13=RESC2013X65N - Duplicate1
+ModelUpdate13=1
+ModelType14=PCBLIB
+ModelName14=RESC2013X65N - Duplicate2
+ModelUpdate14=1
+ModelType15=PCBLIB
+ModelName15=S2B-PH-K-S_LF_SN
+ModelUpdate15=1
+ModelType16=PCBLIB
+ModelName16=SHDR4W50P0X200_1X4_990X450X600P
+ModelUpdate16=1
+ModelType17=PCBLIB
+ModelName17=SOT103P237X112-3N
+ModelUpdate17=1
+ModelType18=PCBLIB
+ModelName18=SOT95P230X110-3N
+ModelUpdate18=1
+ModelType19=PCBLIB
+ModelName19=SOT95P280X125-3N - duplicate
+ModelUpdate19=1
+ModelType20=PCBLIB
+ModelName20=SOT95P285X140-5N
+ModelUpdate20=1
 
 [DatabaseUpdateOptions]
 SelectedOnly=0
