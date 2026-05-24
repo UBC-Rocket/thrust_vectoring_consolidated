@@ -52,7 +52,7 @@ bool bdshot_throttle_frame_pack(bdshot_frame_t *frame, uint16_t throttle, bool r
 bool bdshot_command_frame_pack(bdshot_frame_t *frame, bdshot_command_t command,
                                bool request_telemetry);
 
-uint8_t bdshot_frame_checksum(bdshot_frame_t frame);
+uint8_t bdshot_frame_checksum(bdshot_frame_t frame, bool inverted);
 
 bool bdshot_is_edt_frame(bdshot_frame_t frame);
 

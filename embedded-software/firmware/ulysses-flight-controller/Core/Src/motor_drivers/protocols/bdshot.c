@@ -24,7 +24,7 @@ static void bdshot_frame_pack(bdshot_frame_t *frame, uint16_t data, bool request
 
     *frame |= (data << BDSHOT_THROTTLE_SHIFT) & BDSHOT_THROTTLE_MASK;
     *frame |= (bdshot_telemetry << BDSHOT_TELEMETRY_SHIFT) & BDSHOT_TELEMETRY_MASK;
-    *frame |= (bdshot_frame_checksum(*frame) << BDSHOT_CHECKSUM_SHIFT) & BDSHOT_CHECKSUM_MASK;
+    *frame |= (bdshot_frame_checksum(*frame, true) << BDSHOT_CHECKSUM_SHIFT) & BDSHOT_CHECKSUM_MASK;
 }
 
 bool bdshot_throttle_frame_pack(bdshot_frame_t *frame, uint16_t throttle, bool request_telemetry)
@@ -48,12 +48,18 @@ bool bdshot_command_frame_pack(bdshot_frame_t *frame, bdshot_command_t command,
     return true;
 }
 
-uint8_t bdshot_frame_checksum(bdshot_frame_t frame)
+uint8_t bdshot_frame_checksum(bdshot_frame_t frame, bool inverted)
 {
     // Checksum is calculated over the throttle and telemetry bits
     frame >>= BDSHOT_CHECKSUM_BITS;
 
-    return ~(frame ^ (frame >> 4) ^ (frame >> 8)) & BDSHOT_CHECKSUM_MASK;
+    uint8_t checksum = frame ^ (frame >> 4) ^ (frame >> 8);
+
+    if (inverted) {
+        checksum = ~checksum;
+    }
+
+    return checksum & BDSHOT_CHECKSUM_MASK;
 }
 
 bool bdshot_is_edt_frame(bdshot_frame_t frame)

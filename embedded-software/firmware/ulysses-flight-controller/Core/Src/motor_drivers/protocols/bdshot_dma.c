@@ -244,15 +244,15 @@ static void dma_xfer_complete_callback(DMA_HandleTypeDef *const dma)
     TIM_HandleTypeDef *tim = motor->config.tim;
     uint32_t tim_channel = motor->config.tim_channel;
 
+    // Disable DMA requests from the timer peripheral to prevent
+    // accidental transfers while we program the DMA
+    tim_channel_dma_set_enable(tim, tim_channel, false);
+
     if (motor->is_command) {
         return;
     }
 
     if (motor->direction == BDSHOT_DMA_DIRECTION_OUTPUT) {
-        // Disable DMA requests from the timer peripheral to prevent
-        // accidental transfers from reading
-        tim_channel_dma_set_enable(tim, tim_channel, false);
-
         bdshot_switch_to_rx(motor);
 
         volatile uint32_t *ccrx = get_timer_channel_ccrx_reg(tim, tim_channel);
@@ -268,8 +268,6 @@ static void dma_xfer_complete_callback(DMA_HandleTypeDef *const dma)
 
         motor->direction = BDSHOT_DMA_DIRECTION_INPUT;
     } else {
-        tim_channel_dma_set_enable(tim, tim_channel, false);
-
         bdshot_switch_to_tx(motor);
 
         motor->direction = BDSHOT_DMA_DIRECTION_OUTPUT;
@@ -311,7 +309,7 @@ static bool bdshot_decode_telemetry(const uint32_t *edge_times, uint32_t edge_co
             return false;
         }
 
-        for (uint32_t bit = 0; bit < n_bits; bit++) {
+        for (uint32_t j = 0; j < n_bits; j++) {
             wire_value = (wire_value << 1) | bit;
             bits_written++;
         }
@@ -342,7 +340,7 @@ static bool bdshot_decode_telemetry(const uint32_t *edge_times, uint32_t edge_co
     }
 
     uint8_t received_crc = (frame & BDSHOT_CHECKSUM_MASK) >> BDSHOT_CHECKSUM_SHIFT;
-    uint8_t expected_crc = bdshot_frame_checksum(frame);
+    uint8_t expected_crc = bdshot_frame_checksum(frame, false);
 
     if (received_crc != expected_crc) {
         return false;
@@ -364,7 +362,7 @@ static bool bdshot_decode_telemetry(const uint32_t *edge_times, uint32_t edge_co
         uint32_t period_us = (uint32_t)mantissa << (uint32_t)exponent;
         float erpm = MINUTES_TO_US(1.0f) / (float)period_us;
 
-        telemetry->rpm = (erpm / 2.0f) / pole_count;
+        telemetry->rpm = (erpm / pole_count) * 2.0f;
     }
 
     return true;
@@ -443,7 +441,7 @@ bool bdshot_dma_motor_set_throttle(bdshot_motor_index_t motor, uint16_t throttle
     }
 
     bdshot_frame_t frame;
-    bool success = bdshot_throttle_frame_pack(&frame, throttle, false);
+    bool success = bdshot_throttle_frame_pack(&frame, throttle, true);
 
     if (!success) {
         return false;
@@ -529,6 +527,8 @@ bool bdshot_dma_apply()
 
             // TODO: less jank manipulation of HAL state
             __HAL_DMA_DISABLE(dma);
+            __HAL_DMA_CLEAR_FLAG(dma, (DMA_FLAG_TC | DMA_FLAG_HT | DMA_FLAG_DTE | DMA_FLAG_ULE |
+                                       DMA_FLAG_USE | DMA_FLAG_SUSP | DMA_FLAG_TO));
             dma->State = HAL_DMA_STATE_READY;
 
             bdshot_switch_to_tx(motor);
