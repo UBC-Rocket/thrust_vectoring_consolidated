@@ -1,0 +1,16 @@
+Removed Pin From Net: NetName=+3V3 Pin=D6-1
+Removed Pin From Net: NetName=+3V3 Pin=D8-1
+Removed Pin From Net: NetName=+3V3 Pin=D10-1
+Removed Pin From Net: NetName=PHASE A Pin=R37-1
+Removed Member From Class: ClassName=Sensors Member=D6
+Removed Member From Class: ClassName=Sensors Member=D7
+Removed Member From Class: ClassName=Sensors Member=D8
+Removed Member From Class: ClassName=Sensors Member=D9
+Removed Member From Class: ClassName=Sensors Member=D10
+Removed Member From Class: ClassName=Sensors Member=D11
+Removed Member From Class: ClassName=Sensors Member=R34
+Removed Member From Class: ClassName=Sensors Member=R35
+Removed Member From Class: ClassName=Sensors Member=R36
+Removed Member From Class: ClassName=Sensors Member=R37
+Removed Member From Class: ClassName=Sensors Member=R38
+Removed Member From Class: ClassName=Sensors Member=R39

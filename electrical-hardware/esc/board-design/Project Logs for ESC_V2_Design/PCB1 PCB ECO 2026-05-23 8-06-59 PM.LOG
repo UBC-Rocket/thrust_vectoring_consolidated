@@ -1,0 +1,113 @@
+Removed Pin From Net: NetName=SOA Pin=R7-2
+Removed Member From Class: ClassName=MCU Member=R?
+Change Component Designator: OldDesignator=D? NewDesignator=D6
+Change Component Designator: OldDesignator=D? NewDesignator=D7
+Change Component Designator: OldDesignator=D? NewDesignator=D8
+Change Component Designator: OldDesignator=D? NewDesignator=D9
+Change Component Designator: OldDesignator=D? NewDesignator=D10
+Change Component Designator: OldDesignator=D? NewDesignator=D11
+Change Component Designator: OldDesignator=R? NewDesignator=R4
+Change Component Designator: OldDesignator=R? NewDesignator=R34
+Change Component Designator: OldDesignator=R? NewDesignator=R35
+Change Component Designator: OldDesignator=R? NewDesignator=R36
+Change Component Designator: OldDesignator=R? NewDesignator=R37
+Change Component Designator: OldDesignator=R? NewDesignator=R38
+Change Component Designator: OldDesignator=R? NewDesignator=R39
+Added Component: Designator=C29(CAPPRD500W65D1000H2200)
+Add component (AddParameter): Name = "Arrow Part Number"; Value = "ECA-1HM471B"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Arrow Price/Stock"; Value = "https://www.arrow.com/en/products/eca-1hm471b/panasonic?utm_currency=USD&region=nac"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Datasheet Link"; Value = "http://industrial.panasonic.com/cdbs/www-data/pdf/RDF0000/ABA0000C1218.pdf"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Height"; Value = "22mm"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Manufacturer_Name"; Value = "Panasonic"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Manufacturer_Part_Number"; Value = "ECA-1HM471B"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Mouser Part Number"; Value = "667-ECA-1HM471B"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Mouser Price/Stock"; Value = "https://www.mouser.co.uk/ProductDetail/Panasonic/ECA-1HM471B?qs=RQTRNQENgbttVw3qXUS4Ew%3D%3D"; VariantName = "[No Variations]"
+Added Component: Designator=C32(FP-MZS-HA0-A-MFG)
+Add component (AddParameter): Name = "Capacitance"; Value = "470uF"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Case/Package"; Value = "Radial"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "ESR (Equivalent Series Resistance)"; Value = "80mR"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Life (Hours)"; Value = "2000Hour"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Max Operating Temperature"; Value = "105°C"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Min Operating Temperature"; Value = "-55°C"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Mount"; Value = "Surface Mount"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Packaging"; Value = "Cut Tape"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Polarity"; Value = "Polar"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Ratings"; Value = "AEC-Q200"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Tolerance"; Value = "20%"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Voltage Rating"; Value = "35V"; VariantName = "[No Variations]"
+Added Component: Designator=C33(FP-GRM21B-0_2-e0_2_0_7-IPC_C)
+Added Component: Designator=C34(FP-GRM21B-0_2-e0_2_0_7-IPC_C)
+Added Component: Designator=C35(FP-GRM21B-0_2-e0_2_0_7-IPC_C)
+Added Component: Designator=C36(FP-GRM21B-0_2-e0_2_0_7-IPC_C)
+Added Component: Designator=C37(FP-GRM21B-0_2-e0_2_0_7-IPC_C)
+Added Component: Designator=C38(FP-GRM21B-0_2-e0_2_0_7-IPC_C)
+Added Component: Designator=C39(FP-GRM21B-0_2-e0_2_0_7-IPC_C)
+Add component: Footprint Not Found S2B-PH-K-S_LF_SN
+Added Pin To Net: NetName=AGND Pin=C29-1
+Added Pin To Net: NetName=VDRAIN Pin=C29-2
+Added Pin To Net: NetName=AGND Pin=C32-1
+Added Pin To Net: NetName=VDRAIN Pin=C32-2
+Added Pin To Net: NetName=VDRAIN Pin=C33-1
+Added Pin To Net: NetName=AGND Pin=C33-2
+Added Pin To Net: NetName=VDRAIN Pin=C34-1
+Added Pin To Net: NetName=AGND Pin=C34-2
+Added Pin To Net: NetName=VDRAIN Pin=C35-1
+Added Pin To Net: NetName=AGND Pin=C35-2
+Added Pin To Net: NetName=VDRAIN Pin=C36-1
+Added Pin To Net: NetName=AGND Pin=C36-2
+Added Pin To Net: NetName=VDRAIN Pin=C37-1
+Added Pin To Net: NetName=AGND Pin=C37-2
+Added Pin To Net: NetName=VDRAIN Pin=C38-1
+Added Pin To Net: NetName=AGND Pin=C38-2
+Added Pin To Net: NetName=VDRAIN Pin=C39-1
+Added Pin To Net: NetName=AGND Pin=C39-2
+Add Pin To Net: Unknown Pin: Pin J1-1
+Added Pin To Net: NetName=SOA Pin=R6-2
+Added Pin To Net: NetName=VBUS Sense Pin=U1-8
+Added Pin To Net: NetName=BEMF A Pin=U1-9
+Added Pin To Net: NetName=BEMF B Pin=U1-11
+Added Pin To Net: NetName=BEMF C Pin=U1-17
+Change Net Name : Old Net Name=+5V New Net Name=VBUS
+Change Net Name : Old Net Name=BEMF A New Net Name=ADC1 IN2 / COMP1 INP
+Change Net Name : Old Net Name=BEMF B New Net Name=ADC1 IN4 / COMP2 INP
+Change Net Name : Old Net Name=BEMF C New Net Name=ADC1 IN15 / COMP4 INP
+Change Net Name : Old Net Name=NetD?_2 New Net Name=NetD7_2
+Added Pin To Net: NetName=ESC PWM/TIM2_CH1 Pin=U1-38
+Added Net: Name=ESC PWM/TIM2_CH1
+Added Pin To Net: NetName=GPIO PB11 Pin=U1-24
+Added Pin To Net: NetName=GPIO PB11 Pin=U4-5
+Added Net: Name=GPIO PB11
+Added Pin To Net: NetName=GPIO PB12 Pin=U1-25
+Added Pin To Net: NetName=GPIO PB12 Pin=U2-32
+Added Net: Name=GPIO PB12
+Added Pin To Net: NetName=NetD9_2 Pin=D9-2
+Added Pin To Net: NetName=NetD9_2 Pin=R35-2
+Added Net: Name=NetD9_2
+Added Pin To Net: NetName=NetD11_2 Pin=D11-2
+Added Pin To Net: NetName=NetD11_2 Pin=R36-2
+Added Net: Name=NetD11_2
+Added Pin To Net: NetName=SOB Pin=R7-2
+Added Pin To Net: NetName=SOB Pin=U2-24
+Added Net: Name=SOB
+Added Member To Class: ClassName=Gate Drive Member=Component C29 470uF 20% 50V 10mm
+Added Member To Class: ClassName=MCU Member=Component C32 470uF 35V 8mm
+Added Member To Class: ClassName=MCU Member=Component C33 4.7uF X7R 50V 0805
+Added Member To Class: ClassName=MCU Member=Component C34 4.7uF X7R 50V 0805
+Added Member To Class: ClassName=MCU Member=Component C35 4.7uF X7R 50V 0805
+Added Member To Class: ClassName=MCU Member=Component C36 4.7uF X7R 50V 0805
+Added Member To Class: ClassName=MCU Member=Component C37 4.7uF X7R 50V 0805
+Added Member To Class: ClassName=MCU Member=Component C38 4.7uF X7R 50V 0805
+Added Member To Class: ClassName=MCU Member=Component C39 4.7uF X7R 50V 0805
+Added Member To Class: ClassName=Sensors Member=Component D7 BAT30KFILM
+Added Member To Class: ClassName=Sensors Member=Component D8 BAT30KFILM
+Added Member To Class: ClassName=Sensors Member=Component D9 BAT30KFILM
+Added Member To Class: ClassName=Sensors Member=Component D10 BAT30KFILM
+Added Member To Class: ClassName=Sensors Member=Component D11 BAT30KFILM
+Add Class Member: Failed to add class member : Component J1 S2B-PH-K-S(LF)(SN)
+Added Member To Class: ClassName=MCU Member=Component R4 0 O 0603
+Added Member To Class: ClassName=Sensors Member=Component R35 2.2kO 1% 0603
+Added Member To Class: ClassName=Sensors Member=Component R36 2.2kO 1% 0603
+Added Member To Class: ClassName=Sensors Member=Component R37 10kO 1% 0603
+Added Member To Class: ClassName=Sensors Member=Component R38 10kO 1% 0603
+Added Member To Class: ClassName=Sensors Member=Component R39 10kO 1% 0603
+Added Rule: Name=Schematic Supply Nets_5
