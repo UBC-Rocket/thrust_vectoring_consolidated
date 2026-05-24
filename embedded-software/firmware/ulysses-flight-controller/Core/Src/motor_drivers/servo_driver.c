@@ -115,6 +115,8 @@ void servo_pair_init(const pwm_output_t *pwm1, const pwm_output_t *pwm2) {
     }
     servo_init_with_cal(&servos.servo1, pwm1, SERVO1_US_MIN, SERVO1_US_MID, SERVO1_US_MAX);
     servo_init_with_cal(&servos.servo2, pwm2, SERVO2_US_MIN, SERVO2_US_MID, SERVO2_US_MAX);
+    servo_set_deg_range(&servos.servo1, SERVO1_DEGREE_RANGE, 0.0);
+    servo_set_deg_range(&servos.servo2, SERVO2_DEGREE_RANGE, 0.0);
     g_servo_pair_ready = true;
 }
 

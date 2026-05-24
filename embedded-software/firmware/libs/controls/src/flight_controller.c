@@ -54,6 +54,10 @@ void compute_quaternion_error(const quaternion_t *q_des,
                               const quaternion_t *q_meas,
                               quaternion_t *q_err)
 {
+    /* Both q_des and q_meas are body-to-nav quaternions.
+     * Error = q_des * conj(q_meas): the rotation FROM current TO desired.
+     * This matches the header comment and the spec when both quaternions
+     * use the same convention. */
     quaternion_t q_meas_conj;
     quaternion_conjugate(q_meas, &q_meas_conj);
     quaternion_multiply(q_des, &q_meas_conj, q_err);
@@ -98,7 +102,7 @@ void compute_axis_angle_error(const quaternion_t *q_err, float phi[3])
 /* ── Eq 10: Gyroscopic torque ──────────────────────────────────────────── */
 
 /**
- * @brief tau_gyro = (I * omega) x omega.
+ * @brief Spec eq 3.6 feedforward term: ω × (I·ω).
  */
 void compute_gyroscopic_torque(const float I[3][3],
                                const float omega[3],
@@ -106,21 +110,28 @@ void compute_gyroscopic_torque(const float I[3][3],
 {
     float I_omega[3];
     matrix33_vec3_mul(I, omega, I_omega);
-    vec3_cross(I_omega, omega, tau_gyro);
+    vec3_cross(omega, I_omega, tau_gyro);
 }
 
 /* ── Eq 11: Command torque ─────────────────────────────────────────────── */
 
 /**
- * @brief tau_cmd = -(tau_gyro + phi). No gain matrices.
+ * @brief Spec eq 3.8: τ_cmd = -Kp·φ - Kd·ω + ω×(I·ω).
  */
-void compute_command_torque(const float tau_gyro[3],
+void compute_command_torque(const float Kp[3][3],
+                            const float Kd[3][3],
                             const float phi[3],
+                            const float omega[3],
+                            const float tau_gyro[3],
                             float tau_cmd[3])
 {
-    tau_cmd[0] = -(tau_gyro[0] + phi[0]);
-    tau_cmd[1] = -(tau_gyro[1] + phi[1]);
-    tau_cmd[2] = -(tau_gyro[2] + phi[2]);
+    float Kp_phi[3], Kd_omega[3];
+    matrix33_vec3_mul(Kp, phi, Kp_phi);
+    matrix33_vec3_mul(Kd, omega, Kd_omega);
+
+    tau_cmd[0] = -Kp_phi[0] - Kd_omega[0] + tau_gyro[0];
+    tau_cmd[1] = -Kp_phi[1] - Kd_omega[1] + tau_gyro[1];
+    tau_cmd[2] = -Kp_phi[2] - Kd_omega[2] + tau_gyro[2];
 }
 
 /* ── Eq 12: Roll torque (projection onto thrust direction) ─────────────── */
@@ -235,8 +246,10 @@ void compute_gimbal_angles(const float t_des[3],
     float ty = t_des[1] * inv;
     float tz = t_des[2] * inv;
 
-    float theta_x = -atan2f(ty, tz);
-    float theta_y = asinf(clampf(tx, -1.0f, 1.0f));
+    /* Spec eq 5.7: θx = atan2(ty, -tz), θy = -asin(tx)
+     * with t̂ = [-sin(θy), sin(θx)cos(θy), -cos(θx)cos(θy)] (thrust in -z) */
+    float theta_x = atan2f(ty, -tz);
+    float theta_y = -asinf(clampf(tx, -1.0f, 1.0f));
 
     *theta_x_cmd = clampf(theta_x, cfg->theta_min, cfg->theta_max);
     *theta_y_cmd = clampf(theta_y, cfg->theta_min, cfg->theta_max);
@@ -245,7 +258,9 @@ void compute_gimbal_angles(const float t_des[3],
 /* ── Eq 8: Thrust direction update ─────────────────────────────────────── */
 
 /**
- * @brief t_hat = [sin(ty), -sin(tx)*cos(ty), cos(tx)*cos(ty)].
+ * @brief Spec eq 5.6: t̂ = Rx(θx)Ry(θy)(-k̂)
+ *        = [-sin(θy), sin(θx)cos(θy), -cos(θx)cos(θy)].
+ *        Thrust in -z body direction (z-up convention).
  */
 void update_thrust_direction(float theta_x, float theta_y,
                              float t_hat[3])
@@ -255,20 +270,24 @@ void update_thrust_direction(float theta_x, float theta_y,
     float sy = sinf(theta_y);
     float cy = cosf(theta_y);
 
-    t_hat[0] = sy;
-    t_hat[1] = -sx * cy;
-    t_hat[2] = cx * cy;
+    t_hat[0] = -sy;
+    t_hat[1] = sx * cy;
+    t_hat[2] = -cx * cy;
 }
 
 /* ── Eq 9: Thrust magnitude ────────────────────────────────────────────── */
 
 /**
- * @brief T = m * dot(a_des, t_hat); clamp >= 0.
+ * @brief T = -m * dot(a_des, t_hat); clamp >= 0.
+ *
+ * t_hat points in -z body (thrust downward), a_des points in +z nav
+ * (upward for hover).  The dot product is negative when they oppose,
+ * so we negate to obtain a positive thrust magnitude.
  */
 float compute_thrust_magnitude(float m, const float a_des[3],
                                const float t_hat[3])
 {
-    float T = m * vec3_dot(a_des, t_hat);
+    float T = -m * vec3_dot(a_des, t_hat);
     if (T < 0.0f)
         T = 0.0f;
     return T;
@@ -291,7 +310,12 @@ void flight_controller_init(const flight_controller_config_t *config)
     s_t_hat[0] = config->allocation.t_hat[0];
     s_t_hat[1] = config->allocation.t_hat[1];
     s_t_hat[2] = config->allocation.t_hat[2];
-    s_t_mag = 0.0f;
+    /* Bootstrap to hover thrust so the first compute_parallel_thrust call
+     * produces a dominant z-component in t_des.  With s_t_mag=0, t_par=0
+     * and t_des is purely perpendicular → gimbal saturates at ±90° →
+     * thrust direction goes horizontal → T_cmd=0 → s_t_mag stays 0.
+     * This vicious cycle never recovers. */
+    s_t_mag = config->thrust.m * config->thrust.g;
 }
 
 void flight_controller_run(const state_t *state,
@@ -311,8 +335,10 @@ void flight_controller_run(const state_t *state,
     const flight_controller_thrust_config_t *tcfg = &config->thrust;
     const flight_controller_gimbal_config_t *gcfg = &config->gimbal;
 
-    /* Construct r_gim from scalar L */
-    float r_gim[3] = {0.0f, 0.0f, gcfg->L};
+    /* Construct r_gim pointing in -z (thrust direction) so that
+     * compute_parallel_thrust produces t_par in -z, consistent with
+     * the -z thrust convention used by update_thrust_direction. */
+    float r_gim[3] = {0.0f, 0.0f, -gcfg->L};
 
     /* Eq 1: Quaternion error */
     quaternion_t q_err;
@@ -329,9 +355,10 @@ void flight_controller_run(const state_t *state,
     float tau_gyro[3];
     compute_gyroscopic_torque(config->attitude.I, state->omega_b, tau_gyro);
 
-    /* Eq 11: Command torque */
+    /* Eq 11: Command torque (spec eq 3.8) */
     float tau_cmd[3];
-    compute_command_torque(tau_gyro, phi, tau_cmd);
+    compute_command_torque(config->attitude.Kp, config->attitude.Kd,
+                           phi, state->omega_b, tau_gyro, tau_cmd);
 
     /* Eq 12: Roll torque */
     float tau_roll[3];
