@@ -55,13 +55,15 @@ static float accel_scale_for(icm40609_accel_fs_t fs) {
 static float gyro_scale_for(icm40609_gyro_fs_t fs) {
     float fs_dps;
     switch (fs) {
-    case ICM40609_GYRO_FS_4000DPS: fs_dps = 4000.0f; break;
-    case ICM40609_GYRO_FS_2000DPS: fs_dps = 2000.0f; break;
-    case ICM40609_GYRO_FS_1000DPS: fs_dps = 1000.0f; break;
-    case ICM40609_GYRO_FS_500DPS:  fs_dps = 500.0f;  break;
-    case ICM40609_GYRO_FS_250DPS:  fs_dps = 250.0f;  break;
-    case ICM40609_GYRO_FS_125DPS:  fs_dps = 125.0f;  break;
-    default:                       fs_dps = 2000.0f; break;
+    case ICM40609_GYRO_FS_2000DPS:   fs_dps = 2000.0f;   break;
+    case ICM40609_GYRO_FS_1000DPS:   fs_dps = 1000.0f;   break;
+    case ICM40609_GYRO_FS_500DPS:    fs_dps = 500.0f;    break;
+    case ICM40609_GYRO_FS_250DPS:    fs_dps = 250.0f;    break;
+    case ICM40609_GYRO_FS_125DPS:    fs_dps = 125.0f;    break;
+    case ICM40609_GYRO_FS_62_5DPS:   fs_dps = 62.5f;     break;
+    case ICM40609_GYRO_FS_31_25DPS:  fs_dps = 31.25f;    break;
+    case ICM40609_GYRO_FS_15_625DPS: fs_dps = 15.625f;   break;
+    default:                         fs_dps = 2000.0f;   break;
     }
     return (fs_dps * DEG_TO_RAD) / 32768.0f;
 }
@@ -144,6 +146,12 @@ size_t icm40609_build_read(icm40609_read_t what, uint8_t *tx_buf) {
 
 size_t icm40609_build_read_reg(uint8_t reg, uint8_t *tx_buf) {
     tx_buf[0] = SPI_RD(reg);
+    return 2;
+}
+
+size_t icm40609_build_write_reg(uint8_t reg, uint8_t value, uint8_t *tx_buf) {
+    tx_buf[0] = SPI_WR(reg);
+    tx_buf[1] = value;
     return 2;
 }
 

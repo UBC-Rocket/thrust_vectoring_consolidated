@@ -35,6 +35,8 @@ extern "C" {
 #define ICM40609_INT_STATUS             0x2D
 #define ICM40609_FIFO_COUNTH            0x2E
 #define ICM40609_FIFO_DATA              0x30
+#define ICM40609_INTF_CONFIG0           0x4C
+#define ICM40609_INTF_CONFIG1           0x4D
 #define ICM40609_PWR_MGMT0              0x4E
 #define ICM40609_GYRO_CONFIG0           0x4F
 #define ICM40609_ACCEL_CONFIG0          0x50
@@ -49,9 +51,26 @@ extern "C" {
 #define ICM40609_WHO_AM_I               0x75
 #define ICM40609_REG_BANK_SEL           0x76
 
-#define ICM40609_WHO_AM_I_VAL           0x39   ///< expected WHO_AM_I value
+#define ICM40609_WHO_AM_I_VAL           0x3B   ///< expected WHO_AM_I value (DS-000330 §13.66)
 
 #define ICM40609_SAMPLE_Q_SIZE          15
+
+/* -------------------------------------------------------------------------- */
+/* Init-time register values (datasheet-derived)                              */
+/* -------------------------------------------------------------------------- */
+/* INTF_CONFIG0: big-endian sensor data + byte-mode FIFO count. The parsers in
+ * this file assume big-endian (be16), so we lock that assumption at bring-up
+ * rather than trust the reset default. */
+#define ICM40609_INTF_CONFIG0_BE        0x30
+/* INT_CONFIG1 (0x64): bit4 INT_ASYNC_RESET must be cleared from its reset
+ * value of 1 for proper INT1 operation (DS-000330 §13.42). 0x00 for ODR<4kHz;
+ * 0x60 enables the 8µs pulse / de-assert-disabled path required at ODR>=4kHz. */
+#define ICM40609_INT_CONFIG1_DEFAULT    0x00
+#define ICM40609_INT_CONFIG1_HIGH_ODR   0x60
+/* DRIVE_CONFIG (0x13): SPI slew-rate setting (DS-000330 §14.4). */
+#define ICM40609_DRIVE_CONFIG_SLEW      0x05
+/* INT_STATUS (0x2D): DATA_RDY_INT is bit3. */
+#define ICM40609_INT_STATUS_DATA_RDY    0x08
 
 /* -------------------------------------------------------------------------- */
 /* Device state                                                               */
@@ -75,13 +94,17 @@ typedef enum {
     ICM40609_ACCEL_FS_4G  = 0x03,
 } icm40609_accel_fs_t;
 
+/* GYRO_FS_SEL encoding for the ICM-40609-D (max ±2000 dps; DS-000330 §13.48).
+ * Note: this part does NOT support ±4000 dps — that belongs to the ICM-42688. */
 typedef enum {
-    ICM40609_GYRO_FS_4000DPS = 0x00,
-    ICM40609_GYRO_FS_2000DPS = 0x01,
-    ICM40609_GYRO_FS_1000DPS = 0x02,
-    ICM40609_GYRO_FS_500DPS  = 0x03,
-    ICM40609_GYRO_FS_250DPS  = 0x04,
-    ICM40609_GYRO_FS_125DPS  = 0x05,
+    ICM40609_GYRO_FS_2000DPS   = 0x00,   ///< default
+    ICM40609_GYRO_FS_1000DPS   = 0x01,
+    ICM40609_GYRO_FS_500DPS    = 0x02,
+    ICM40609_GYRO_FS_250DPS    = 0x03,
+    ICM40609_GYRO_FS_125DPS    = 0x04,
+    ICM40609_GYRO_FS_62_5DPS   = 0x05,
+    ICM40609_GYRO_FS_31_25DPS  = 0x06,
+    ICM40609_GYRO_FS_15_625DPS = 0x07,
 } icm40609_gyro_fs_t;
 
 /**
@@ -165,6 +188,13 @@ typedef enum {
 size_t icm40609_build_read(icm40609_read_t what, uint8_t *tx_buf);
 
 size_t icm40609_build_read_reg(uint8_t reg, uint8_t *tx_buf);
+
+/**
+ * @brief Build a single-register write (reg, value). Returns 2.
+ *        Generic escape hatch for bring-up registers without a dedicated
+ *        builder (DRIVE_CONFIG, INTF_CONFIG0, INT_CONFIG1, ...).
+ */
+size_t icm40609_build_write_reg(uint8_t reg, uint8_t value, uint8_t *tx_buf);
 
 /* -------------------------------------------------------------------------- */
 /* Parsing                                                                    */
