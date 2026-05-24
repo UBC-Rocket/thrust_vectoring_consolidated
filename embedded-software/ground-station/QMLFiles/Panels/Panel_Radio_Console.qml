@@ -216,31 +216,38 @@ Pane {
 
                             Label { text: "Single-Port (RX + TX)"; font.bold: true; padding: 4 }
 
-                            RowLayout {
+                            Flow {
+                                Layout.fillWidth: true
                                 spacing: 8
 
-                                Label { text: "Use physical:"; Layout.alignment: Qt.AlignVCenter }
-                                ComboBox {
-                                    id: singleWhichSel
-                                    model: [1, 2]
-                                    Layout.preferredWidth: 90
-                                    Component.onCompleted: currentIndex = (rxWhich === 2 ? 1 : 0)
-                                    onActivated: {
-                                        const w = Number(currentText)
-                                        rxWhich = w
-                                        txWhich = w
-                                        if (bridge.isConnected(w)) {
-                                            bridge.setRxFrom(w)
-                                            bridge.setTxTo(w)
+                                Row {
+                                    spacing: 6
+                                    Label {
+                                        text: "Use physical:"
+                                        anchors.verticalCenter: parent.verticalCenter
+                                    }
+                                    ComboBox {
+                                        id: singleWhichSel
+                                        model: [1, 2]
+                                        width: 80
+                                        Component.onCompleted: currentIndex = (rxWhich === 2 ? 1 : 0)
+                                        onActivated: {
+                                            const w = Number(currentText)
+                                            rxWhich = w
+                                            txWhich = w
+                                            if (bridge.isConnected(w)) {
+                                                bridge.setRxFrom(w)
+                                                bridge.setTxTo(w)
+                                            }
+                                            radioWin.toolbarTitle = radioWin.titleText()
                                         }
-                                        radioWin.toolbarTitle = radioWin.titleText()
                                     }
                                 }
 
                                 ComboBox {
                                     id: singlePortSel
                                     model: bridge.ports
-                                    Layout.preferredWidth: 220
+                                    width: 180
                                     Component.onCompleted: {
                                         const name = bridge.portName(rxWhich)
                                         const i = model.indexOf(name)
@@ -248,12 +255,10 @@ Pane {
                                     }
                                 }
 
-                                Button { text: "Refresh"; onClicked: bridge.refreshPorts() }
-
                                 ComboBox {
                                     id: singleBaudSel
                                     model: baudList
-                                    Layout.preferredWidth: 120
+                                    width: 110
                                     Component.onCompleted: {
                                         const i = baudList.indexOf(bridge.baudRate(rxWhich) || 57600)
                                         currentIndex = (i >= 0 ? i : 0)
@@ -286,6 +291,7 @@ Pane {
                                 Label {
                                   text: singleConnected ? "Connected" : "—"
                                   color: singleConnected ? Theme.success : Theme.textTertiary
+                                  topPadding: 6
                                 }
                             }
                         }
@@ -402,13 +408,14 @@ Pane {
 
                             Label { text: "Port 1"; font.bold: true; padding: 4 }
 
-                            RowLayout {
+                            Flow {
+                                Layout.fillWidth: true
                                 spacing: 8
 
                                 ComboBox {
                                     id: portSel1
                                     model: bridge.ports
-                                    Layout.preferredWidth: 160
+                                    width: 150
                                     Component.onCompleted: {
                                         const name = bridge.portName(1)
                                         const i = model.indexOf(name)
@@ -419,7 +426,7 @@ Pane {
                                 ComboBox {
                                     id: baudSel1
                                     model: [57600, 115200]
-                                    Layout.preferredWidth: 80
+                                    width: 90
                                     Component.onCompleted: {
                                         const i = baudSel1.model.indexOf(bridge.baudRate(1) || 57600)
                                         currentIndex = (i >= 0 ? i : 0)
@@ -429,7 +436,7 @@ Pane {
                                 Button {
                                     id: connBtn1
                                     text: p1Connected ? "Disconnect" : "Connect"
-                                    Layout.preferredWidth: Math.max(implicitWidth, 100)
+                                    width: Math.max(implicitWidth, 100)
                                     onClicked: {
                                         if (p1Connected) {
                                             bridge.disconnectPort(1)
@@ -449,16 +456,10 @@ Pane {
                                     }
                                 }
 
-                                Button {
-                                    text: "Refresh"
-                                    Layout.preferredWidth: Math.max(implicitWidth, 80)
-                                    onClicked: bridge.refreshPorts()
-                                }
-
                                 Label {
                                     text: p1Connected ? "Connected" : "—"
                                     color: p1Connected ? Theme.success : Theme.textTertiary
-                                    Layout.alignment: Qt.AlignVCenter
+                                    topPadding: 6
                                 }
                             }
 
@@ -590,13 +591,14 @@ Pane {
 
                             Label { text: "Port 2"; font.bold: true; padding: 4 }
 
-                            RowLayout {
+                            Flow {
+                                Layout.fillWidth: true
                                 spacing: 8
 
                                 ComboBox {
                                     id: portSel2
                                     model: bridge.ports
-                                    Layout.preferredWidth: 160
+                                    width: 150
                                     Component.onCompleted: {
                                         const name = bridge.portName(2)
                                         const i = model.indexOf(name)
@@ -607,7 +609,7 @@ Pane {
                                 ComboBox {
                                     id: baudSel2
                                     model: [57600, 115200]
-                                    Layout.preferredWidth: 80
+                                    width: 90
                                     Component.onCompleted: {
                                         const i = baudSel2.model.indexOf(bridge.baudRate(2) || 57600)
                                         currentIndex = (i >= 0 ? i : 0)
@@ -617,7 +619,7 @@ Pane {
                                 Button {
                                     id: connBtn2
                                     text: p2Connected ? "Disconnect" : "Connect"
-                                    Layout.preferredWidth: Math.max(implicitWidth, 100)
+                                    width: Math.max(implicitWidth, 100)
                                     onClicked: {
                                         if (p2Connected) {
                                             bridge.disconnectPort(2)
@@ -637,16 +639,10 @@ Pane {
                                     }
                                 }
 
-                                Button {
-                                    text: "Refresh"
-                                    Layout.preferredWidth: Math.max(implicitWidth, 80)
-                                    onClicked: bridge.refreshPorts()
-                                }
-
                                 Label {
                                     text: p2Connected ? "Connected" : "—"
                                     color: p2Connected ? Theme.success : Theme.textTertiary
-                                    Layout.alignment: Qt.AlignVCenter
+                                    topPadding: 6
                                 }
                             }
 
