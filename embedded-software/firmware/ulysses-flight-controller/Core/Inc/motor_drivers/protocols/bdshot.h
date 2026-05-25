@@ -4,18 +4,16 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define BDSHOT_MOTOR_COUNT (2)
-
-#define BDSHOT_MIN_THROTTLE (48)
-#define BDSHOT_MAX_THROTTLE (2047)
-
 #define BDSHOT_FRAME_BITS          (16)
 #define BDSHOT_TELEMETRY_GCR_BITS  (20)
 #define BDSHOT_TELEMETRY_WIRE_BITS (BDSHOT_TELEMETRY_GCR_BITS + 1)
 
-#define BDSHOT_THROTTLE_MASK  (0xFFE0)
-#define BDSHOT_THROTTLE_BITS  (11)
-#define BDSHOT_THROTTLE_SHIFT (5)
+#define BDSHOT_MIN_THROTTLE (48)
+#define BDSHOT_MAX_THROTTLE (2047)
+
+#define BDSHOT_PAYLOAD_MASK  (0xFFE0)
+#define BDSHOT_PAYLOAD_BITS  (11)
+#define BDSHOT_PAYLOAD_SHIFT (5)
 
 #define BDSHOT_TELEMETRY_MASK  (0x0010)
 #define BDSHOT_TELEMETRY_BITS  (1)
@@ -53,7 +51,7 @@ bool bdshot_command_frame_pack(bdshot_frame_t *frame, bdshot_command_t command,
                                bool request_telemetry);
 
 uint8_t bdshot_frame_checksum(bdshot_frame_t frame, bool inverted);
-
-bool bdshot_is_edt_frame(bdshot_frame_t frame);
+float bdshot_frame_calculate_rpm(bdshot_frame_t frame, uint8_t motor_pole_count);
+bool bdshot_frame_is_edt(bdshot_frame_t frame);
 
 #endif // ULYSSES_MOTOR_DRIVER_PROTOCOLS_BDSHOT_H

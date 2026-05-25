@@ -6,13 +6,19 @@
 #include "stm32h5xx_hal_dma.h"
 #include "stm32h5xx_hal_tim.h"
 #include "stm32h5xx_ll_tim.h"
+#include "stm32h5xx_ll_dma.h"
 
+#include "debug/log.h"
 #include "motor_drivers/protocols/bdshot.h"
 
+#include <math.h>
 #include <stdint.h>
 #include <string.h>
 
-#define MINUTES_TO_US(minutes) ((minutes) * 60 * 1000000)
+#define BYTES_TO_NIBBLES(bytes) (bytes * 2)
+
+#define MOTOR_INDEX_INVALID        (UINT32_MAX)
+#define PERIPHERAL_CHANNEL_INVALID (UINT32_MAX)
 
 typedef enum bdshot_dma_direction {
     BDSHOT_DMA_DIRECTION_OUTPUT,
@@ -21,18 +27,17 @@ typedef enum bdshot_dma_direction {
 
 typedef struct bdshot_dma_motor {
     bool is_initialized;
+    bool is_first_arm; // TODO: remove for hardware arm/disarm
     bool is_armed;
-    bool is_throttle_dirty;
     bool is_telemetry_valid;
+    bool is_frame_dirty;
+    bool is_command_frame;
+
+    size_t dma_timer_index;
 
     bdshot_dma_direction_t direction;
-
     bdshot_dma_motor_config_t config;
-
-    bool is_command;
-    uint16_t throttle;
     bdshot_frame_t frame;
-
     bdshot_motor_telemetry_t telemetry;
 } bdshot_dma_motor_t;
 
@@ -49,28 +54,32 @@ static const uint8_t GCR_DECODE_TABLE[32] = {
 };
 
 // Timers associated with all initialized motors
-static bdshot_dma_timers_t dma_timers[BDSHOT_MOTOR_COUNT];
+static bdshot_dma_timers_t dma_timers[BDSHOT_DMA_MOTOR_COUNT];
 static size_t dma_timers_count = 0;
 
 // Configuration of motors
-static bdshot_dma_motor_t motors[BDSHOT_MOTOR_COUNT];
+static bdshot_dma_motor_t motors[BDSHOT_DMA_MOTOR_COUNT];
 
-static uint32_t bdshot_dma_tx_buffer[BDSHOT_MOTOR_COUNT][BDSHOT_DMA_TX_FRAME_SIZE];
-static uint32_t bdshot_dma_rx_buffer[BDSHOT_MOTOR_COUNT][BDSHOT_DMA_RX_FRAME_SIZE];
+static uint32_t bdshot_dma_tx_buffer[BDSHOT_DMA_MOTOR_COUNT][BDSHOT_DMA_TX_FRAME_SIZE];
+static uint32_t bdshot_dma_rx_buffer[BDSHOT_DMA_MOTOR_COUNT][BDSHOT_DMA_RX_FRAME_SIZE];
 
-static volatile uint32_t *get_timer_channel_ccrx_reg(TIM_HandleTypeDef *tim, uint32_t channel);
-static volatile uint32_t get_timer_channel_dma_src(TIM_HandleTypeDef *tim, uint32_t channel);
+static volatile uint32_t *get_timer_channel_ccrx_reg(TIM_HandleTypeDef *const tim,
+                                                     uint32_t channel);
+static volatile uint32_t get_timer_channel_dma_src(TIM_HandleTypeDef *const tim, uint32_t channel);
 static uint32_t tim_channel_convert_hal_to_ll(uint32_t hal_channel);
-static size_t find_motor_index_from_dma(DMA_HandleTypeDef *dma);
-static bool tim_channel_dma_set_enable(TIM_HandleTypeDef *tim, uint32_t tim_channel, bool enable);
-static void bdshot_switch_to_rx(bdshot_dma_motor_t *motor);
-static void bdshot_switch_to_tx(bdshot_dma_motor_t *motor);
-static void dma_xfer_complete_callback(DMA_HandleTypeDef *const dma);
-static void build_dma_tx_buffer(bdshot_frame_t frame, uint32_t *buffer);
-static bool bdshot_decode_telemetry(const uint32_t *rx_buf, uint32_t edge_count,
-                                    bdshot_motor_telemetry_t *telem, uint8_t pole_count);
+static bool tim_channel_dma_set_enable(TIM_HandleTypeDef *const tim, uint32_t channel, bool enable);
 
-static volatile uint32_t *get_timer_channel_ccrx_reg(TIM_HandleTypeDef *tim, uint32_t channel)
+static uint32_t find_motor_index_from_dma(DMA_HandleTypeDef *const dma);
+static bool motor_config_is_valid(bdshot_dma_motor_config_t *config);
+static void build_dma_tx_buffer(uint32_t *const buffer, bdshot_frame_t frame);
+static bool motor_switch_to_rx(bdshot_dma_motor_t *const motor);
+static bool motor_switch_to_tx(bdshot_dma_motor_t *const motor);
+static void dma_transfer_complete_callback(DMA_HandleTypeDef *const dma);
+static bool bdshot_decode_telemetry(bdshot_motor_telemetry_t *const telemetry,
+                                    const uint32_t *const edge_times, uint32_t edge_count,
+                                    uint8_t pole_count);
+
+static volatile uint32_t *get_timer_channel_ccrx_reg(TIM_HandleTypeDef *const tim, uint32_t channel)
 {
     switch (channel) {
     case TIM_CHANNEL_1:
@@ -86,7 +95,7 @@ static volatile uint32_t *get_timer_channel_ccrx_reg(TIM_HandleTypeDef *tim, uin
     }
 }
 
-static volatile uint32_t get_timer_channel_dma_src(TIM_HandleTypeDef *tim, uint32_t channel)
+static volatile uint32_t get_timer_channel_dma_src(TIM_HandleTypeDef *const tim, uint32_t channel)
 {
     switch (channel) {
     case TIM_CHANNEL_1:
@@ -98,7 +107,7 @@ static volatile uint32_t get_timer_channel_dma_src(TIM_HandleTypeDef *tim, uint3
     case TIM_CHANNEL_4:
         return TIM_DMA_CC4;
     default:
-        return 0;
+        return PERIPHERAL_CHANNEL_INVALID;
     }
 }
 
@@ -114,28 +123,11 @@ static uint32_t tim_channel_convert_hal_to_ll(uint32_t hal_channel)
     case TIM_CHANNEL_4:
         return LL_TIM_CHANNEL_CH4;
     default:
-        return SIZE_MAX;
+        return PERIPHERAL_CHANNEL_INVALID;
     }
 }
 
-static size_t find_motor_index_from_dma(DMA_HandleTypeDef *dma)
-{
-    for (size_t index = 0; index < BDSHOT_MOTOR_COUNT; index++) {
-        bdshot_dma_motor_t *motor = &motors[index];
-
-        if (!motor->is_initialized) {
-            continue;
-        }
-
-        if (motor->config.dma->Instance == dma->Instance) {
-            return index;
-        }
-    }
-
-    return SIZE_MAX;
-}
-
-static bool tim_channel_dma_set_enable(TIM_HandleTypeDef *tim, uint32_t channel, bool enable)
+static bool tim_channel_dma_set_enable(TIM_HandleTypeDef *const tim, uint32_t channel, bool enable)
 {
     switch (channel) {
     case TIM_CHANNEL_1:
@@ -173,14 +165,51 @@ static bool tim_channel_dma_set_enable(TIM_HandleTypeDef *tim, uint32_t channel,
     return true;
 }
 
-static void bdshot_switch_to_rx(bdshot_dma_motor_t *motor)
+static uint32_t find_motor_index_from_dma(DMA_HandleTypeDef *const dma)
+{
+    for (uint32_t index = 0; index < BDSHOT_DMA_MOTOR_COUNT; index++) {
+        bdshot_dma_motor_t *motor = &motors[index];
+
+        if (!motor->is_initialized) {
+            continue;
+        }
+
+        if (motor->config.dma->Instance == dma->Instance) {
+            return index;
+        }
+    }
+
+    return MOTOR_INDEX_INVALID;
+}
+
+static bool motor_config_is_valid(bdshot_dma_motor_config_t *config)
+{
+    return config->tim != NULL && config->dma != NULL && config->pole_count != 0;
+}
+
+static void build_dma_tx_buffer(uint32_t *const buffer, bdshot_frame_t frame)
+{
+    for (uint8_t i = 0; i < BDSHOT_FRAME_BITS; i++) {
+        buffer[i] = (frame & 0x8000) != 0 ? BDSHOT_DMA_T1H_TICKS : BDSHOT_DMA_T0H_TICKS;
+        frame <<= 1;
+    }
+
+    buffer[BDSHOT_FRAME_BITS] = 0;
+    buffer[BDSHOT_FRAME_BITS + 1] = 0;
+}
+
+static bool motor_switch_to_rx(bdshot_dma_motor_t *const motor)
 {
     DMA_HandleTypeDef *dma = motor->config.dma;
     TIM_HandleTypeDef *tim = motor->config.tim;
     uint32_t tim_channel = motor->config.tim_channel;
     uint32_t ll_tim_channel = tim_channel_convert_hal_to_ll(tim_channel);
 
-    // Disable DMA since since we are re-configuring channel to do transfers
+    if (ll_tim_channel == PERIPHERAL_CHANNEL_INVALID) {
+        return false;
+    }
+
+    // Disable DMA while we are re-configuring channel to do transfers
     // from peripheral to memory
     __HAL_DMA_DISABLE(dma);
 
@@ -198,18 +227,26 @@ static void bdshot_switch_to_rx(bdshot_dma_motor_t *motor)
 
     TIM_CCxChannelCmd(tim->Instance, tim_channel, TIM_CCx_ENABLE);
 
-    // TODO: replace direct register access with LL
-    dma->Instance->CTR1 &= ~(DMA_CTR1_SINC | DMA_CTR1_DINC);
-    dma->Instance->CTR1 |= DMA_DINC_INCREMENTED;
-    dma->Instance->CTR2 &= ~DMA_CTR2_DREQ;
+    // Disable source increment and enable destination increment for DMA
+    MODIFY_REG(dma->Instance->CTR1, DMA_CTR1_SINC, LL_DMA_SRC_FIXED);
+    MODIFY_REG(dma->Instance->CTR1, DMA_CTR1_DINC, LL_DMA_DEST_INCREMENT);
+
+    // Switch DMA direction to peripheral to memory
+    MODIFY_REG(dma->Instance->CTR2, DMA_CTR2_DREQ, LL_DMA_DIRECTION_PERIPH_TO_MEMORY);
+
+    return true;
 }
 
-static void bdshot_switch_to_tx(bdshot_dma_motor_t *motor)
+static bool motor_switch_to_tx(bdshot_dma_motor_t *const motor)
 {
     DMA_HandleTypeDef *dma = motor->config.dma;
     TIM_HandleTypeDef *tim = motor->config.tim;
     uint32_t tim_channel = motor->config.tim_channel;
     uint32_t ll_tim_channel = tim_channel_convert_hal_to_ll(tim_channel);
+
+    if (ll_tim_channel == PERIPHERAL_CHANNEL_INVALID) {
+        return false;
+    }
 
     // Disable DMA since since we are re-configuring channel to do transfers
     // from memory to peripheral
@@ -226,17 +263,21 @@ static void bdshot_switch_to_tx(bdshot_dma_motor_t *motor)
 
     TIM_CCxChannelCmd(tim->Instance, tim_channel, TIM_CCx_ENABLE);
 
-    // TODO: replace direct register access with LL
-    dma->Instance->CTR1 &= ~(DMA_CTR1_SINC | DMA_CTR1_DINC);
-    dma->Instance->CTR1 |= DMA_SINC_INCREMENTED;
-    dma->Instance->CTR2 |= DMA_CTR2_DREQ;
+    // Enable source increment and disable destination increment for DMA
+    MODIFY_REG(dma->Instance->CTR1, DMA_CTR1_SINC, LL_DMA_SRC_INCREMENT);
+    MODIFY_REG(dma->Instance->CTR1, DMA_CTR1_DINC, LL_DMA_DEST_FIXED);
+
+    // Switch DMA direction to memory to peripheral
+    MODIFY_REG(dma->Instance->CTR2, DMA_CTR2_DREQ, LL_DMA_DIRECTION_MEMORY_TO_PERIPH);
+
+    return true;
 }
 
-static void dma_xfer_complete_callback(DMA_HandleTypeDef *const dma)
+static void dma_transfer_complete_callback(DMA_HandleTypeDef *const dma)
 {
     size_t motor_index = find_motor_index_from_dma(dma);
 
-    if (motor_index == SIZE_MAX) {
+    if (motor_index == MOTOR_INDEX_INVALID) {
         return;
     }
 
@@ -246,14 +287,16 @@ static void dma_xfer_complete_callback(DMA_HandleTypeDef *const dma)
 
     // Disable DMA requests from the timer peripheral to prevent
     // accidental transfers while we program the DMA
-    tim_channel_dma_set_enable(tim, tim_channel, false);
+    (void)tim_channel_dma_set_enable(tim, tim_channel, false);
 
-    if (motor->is_command) {
+    // DShot commands don't receive responses from ESC, so we don't need
+    // to switch to RX
+    if (motor->is_command_frame) {
         return;
     }
 
     if (motor->direction == BDSHOT_DMA_DIRECTION_OUTPUT) {
-        bdshot_switch_to_rx(motor);
+        (void)motor_switch_to_rx(motor);
 
         volatile uint32_t *ccrx = get_timer_channel_ccrx_reg(tim, tim_channel);
 
@@ -261,75 +304,74 @@ static void dma_xfer_complete_callback(DMA_HandleTypeDef *const dma)
             return;
         }
 
-        HAL_DMA_Start_IT(dma, (uint32_t)ccrx, (uint32_t)bdshot_dma_rx_buffer[motor_index],
-                         sizeof(bdshot_dma_rx_buffer[motor_index]));
+        (void)HAL_DMA_Start_IT(dma, (uint32_t)ccrx, (uint32_t)bdshot_dma_rx_buffer[motor_index],
+                               sizeof(bdshot_dma_rx_buffer[motor_index]));
 
-        tim_channel_dma_set_enable(tim, tim_channel, true);
+        (void)tim_channel_dma_set_enable(tim, tim_channel, true);
 
         motor->direction = BDSHOT_DMA_DIRECTION_INPUT;
     } else {
-        bdshot_switch_to_tx(motor);
+        (void)motor_switch_to_tx(motor);
 
         motor->direction = BDSHOT_DMA_DIRECTION_OUTPUT;
     }
 }
 
-static void build_dma_tx_buffer(bdshot_frame_t frame, uint32_t *buffer)
-{
-    for (uint8_t i = 0; i < BDSHOT_FRAME_BITS; i++) {
-        buffer[i] = (frame & 0x8000) != 0 ? BDSHOT_DMA_T1H_TICKS : BDSHOT_DMA_T0H_TICKS;
-        frame <<= 1;
-    }
-
-    buffer[BDSHOT_FRAME_BITS] = 0;
-    buffer[BDSHOT_FRAME_BITS + 1] = 0;
-}
-
-static bool bdshot_decode_telemetry(const uint32_t *edge_times, uint32_t edge_count,
-                                    bdshot_motor_telemetry_t *telemetry, uint8_t pole_count)
+static bool bdshot_decode_telemetry(bdshot_motor_telemetry_t *const telemetry,
+                                    const uint32_t *const edge_times, uint32_t edge_count,
+                                    uint8_t pole_count)
 {
     // Wire encoding ensures first bit is 0
     uint8_t bit = 0;
 
-    uint32_t wire_value = 0;
-    uint32_t bits_written = 0;
+    uint32_t wire_frame = 0x00000000;
+    uint32_t wire_bits_written = 0;
 
-    if (edge_times == NULL || telemetry == NULL || pole_count == 0 || edge_count == 0 ||
-        edge_count > BDSHOT_DMA_RX_FRAME_SIZE) {
+    // Error check for null pointers
+    if (telemetry == NULL || edge_times == NULL) {
         return false;
     }
 
-    for (uint32_t i = 0; i + 1 < edge_count && bits_written < BDSHOT_TELEMETRY_WIRE_BITS; i++) {
-        uint32_t width = edge_times[i + 1] - edge_times[i];
-        uint32_t n_bits =
-            (width + (BDSHOT_DMA_TELEMETRY_BIT_TICKS / 2)) / BDSHOT_DMA_TELEMETRY_BIT_TICKS;
+    if (edge_count == 0 || edge_count > BDSHOT_DMA_RX_FRAME_SIZE) {
+        return false;
+    }
 
-        if (n_bits < 1 || n_bits > BDSHOT_TELEMETRY_WIRE_BITS ||
-            bits_written + n_bits > BDSHOT_TELEMETRY_WIRE_BITS) {
+    for (uint32_t i = 0; i < (edge_count - 1); i++) {
+        // Written enough bits for a full frame
+        if (wire_bits_written < BDSHOT_TELEMETRY_WIRE_BITS) {
+            break;
+        }
+
+        uint32_t width = edge_times[i + 1] - edge_times[i];
+        uint32_t bit_count = (uint32_t)roundf((float)width / BDSHOT_DMA_TELEMETRY_BIT_TICKS);
+
+        if (bit_count <= 0 || bit_count > BDSHOT_TELEMETRY_WIRE_BITS ||
+            (wire_bits_written + bit_count) > BDSHOT_TELEMETRY_WIRE_BITS) {
             return false;
         }
 
-        for (uint32_t j = 0; j < n_bits; j++) {
-            wire_value = (wire_value << 1) | bit;
-            bits_written++;
+        for (uint32_t j = 0; j < bit_count; j++) {
+            wire_frame = (wire_frame << 1) | bit;
+            wire_bits_written++;
         }
 
         // Every edge we encounter means the bit value we received is flipped
         bit ^= 1;
     }
 
-    while (bits_written < BDSHOT_TELEMETRY_WIRE_BITS) {
-        wire_value = (wire_value << 1) | bit;
-        bits_written++;
+    // Bits in the rest of the frame is the same as the logic level following the last edge
+    for (uint32_t i = wire_bits_written; i < BDSHOT_TELEMETRY_WIRE_BITS; i++) {
+        wire_frame = (wire_frame << 1) | bit;
     }
 
-    uint32_t gcr_bits = (wire_value ^ (wire_value >> 1)) & 0xFFFFF;
+    uint32_t gcr_frame = (wire_frame ^ (wire_frame >> 1)) & 0x000FFFFF;
+    uint16_t frame = 0x0000;
 
-    uint16_t frame = 0;
+    for (uint8_t i = 0; i < BYTES_TO_NIBBLES(sizeof(bdshot_frame_t)); i++) {
+        // Iterate from MSb to LSb in groups of 5 bits
+        uint32_t shift = 15 - (i * 5);
 
-    for (int sym = 0; sym < 4; sym++) {
-        uint32_t shift = 15 - (sym * 5);
-        uint8_t symbol = (gcr_bits >> shift) & 0x1F;
+        uint8_t symbol = (gcr_frame >> shift) & 0x1F;
         uint8_t nibble = GCR_DECODE_TABLE[symbol];
 
         if (nibble == 0xFF) {
@@ -340,159 +382,201 @@ static bool bdshot_decode_telemetry(const uint32_t *edge_times, uint32_t edge_co
     }
 
     uint8_t received_crc = (frame & BDSHOT_CHECKSUM_MASK) >> BDSHOT_CHECKSUM_SHIFT;
-    uint8_t expected_crc = bdshot_frame_checksum(frame, false);
+    uint8_t expected_crc = bdshot_frame_checksum(frame, true);
 
     if (received_crc != expected_crc) {
         return false;
     }
 
     // TODO: add support for EDT
-    if (bdshot_is_edt_frame(frame)) {
+    if (bdshot_frame_is_edt(frame)) {
         return false;
     }
 
-    uint8_t exponent = (frame & BDSHOT_ERPM_EXPONENT_MASK) >> BDSHOT_ERPM_EXPONENT_SHIFT;
-    uint16_t mantissa = (frame & BDSHOT_ERPM_MANTISSA_MASK) >> BDSHOT_ERPM_MANTISSA_SHIFT;
-
-    // Have to handle 0 RPM values separately, since it is a
-    // divide by 0 in the general case
-    if ((mantissa == 0) || (exponent == UINT8_MAX && mantissa == UINT16_MAX)) {
-        telemetry->rpm = 0.0;
-    } else {
-        uint32_t period_us = (uint32_t)mantissa << (uint32_t)exponent;
-        float erpm = MINUTES_TO_US(1.0f) / (float)period_us;
-
-        telemetry->rpm = (erpm / pole_count) * 2.0f;
-    }
+    telemetry->rpm = bdshot_frame_calculate_rpm(frame, pole_count);
 
     return true;
 }
 
 bool bdshot_dma_init()
 {
-    for (size_t i = 0; i < BDSHOT_MOTOR_COUNT; i++) {
-        memset(bdshot_dma_tx_buffer[i], 0, sizeof(bdshot_dma_tx_buffer[i]));
-        memset(bdshot_dma_rx_buffer[i], 0, sizeof(bdshot_dma_rx_buffer[i]));
-    }
+    dma_timers_count = 0;
 
-    for (size_t i = 0; i < BDSHOT_MOTOR_COUNT; i++) {
+    for (size_t i = 0; i < BDSHOT_DMA_MOTOR_COUNT; i++) {
+        (void)memset(bdshot_dma_tx_buffer[i], 0, sizeof(bdshot_dma_tx_buffer[i]));
+        (void)memset(bdshot_dma_rx_buffer[i], 0, sizeof(bdshot_dma_rx_buffer[i]));
+
+        dma_timers[i].tim = NULL;
+        dma_timers[i].active_dma_sources = 0;
+
         motors[i].is_initialized = false;
         motors[i].is_armed = false;
-        motors[i].is_throttle_dirty = false;
-        motors[i].is_telemetry_valid = false;
-
+        motors[i].is_first_arm = true;
         motors[i].direction = BDSHOT_DMA_DIRECTION_OUTPUT;
     }
 
     return true;
 }
 
-bool bdshot_dma_motor_init(bdshot_motor_index_t motor, bdshot_dma_motor_config_t *config)
+bool bdshot_dma_motor_init(bdshot_motor_index_t index, bdshot_dma_motor_config_t *config)
 {
-    if (motor < 0 || motor >= BDSHOT_MOTOR_COUNT) {
+    if (index < 0 || index >= BDSHOT_DMA_MOTOR_COUNT) {
         return false;
     }
+
+    bdshot_dma_motor_t *motor = &motors[index];
 
     // Don't override an existing motor entry, since we don't have support
     // for deinitialization
-    if (motors[motor].is_initialized) {
+    if (motor->is_initialized) {
         return false;
     }
 
-    HAL_DMA_RegisterCallback(config->dma, HAL_DMA_XFER_CPLT_CB_ID, dma_xfer_complete_callback);
-
-    // Keep track of active timers and timer channels associated with initialized motors
-    for (size_t i = 0; i < BDSHOT_MOTOR_COUNT; i++) {
-        bdshot_dma_timers_t *dma_timer = &dma_timers[i];
-
-        if (dma_timer->tim == config->tim) {
-            dma_timer->active_dma_sources |=
-                get_timer_channel_dma_src(config->tim, config->tim_channel);
-            break;
-        } else if (dma_timer->tim == NULL) {
-            dma_timer->tim = config->tim;
-            dma_timer->active_dma_sources |=
-                get_timer_channel_dma_src(config->tim, config->tim_channel);
-            dma_timers_count++;
-            break;
-        }
+    if (!motor_config_is_valid(config)) {
+        return false;
     }
 
-    motors[motor].config = *config;
-    // bdshot_dma_motor_set_throttle(motor, 0);
+    bool found_timer = false;
 
-    bdshot_command_frame_pack(&motors[motor].frame, BDSHOT_COMMAND_MOTOR_STOP, false);
-    motors[motor].is_throttle_dirty = true;
-    motors[motor].is_command = true;
+    // Keep track of active timers and timer channels associated with initialized motors
+    for (size_t i = 0; i < BDSHOT_DMA_MOTOR_COUNT; i++) {
+        bdshot_dma_timers_t *dma_timer = &dma_timers[i];
+        TIM_HandleTypeDef *tim = dma_timer->tim;
 
-    motors[motor].is_initialized = true;
+        if (tim == NULL) {
+            dma_timer->tim = config->tim;
+            dma_timers_count++;
+
+            tim = dma_timer->tim;
+        }
+
+        if (tim != config->tim) {
+            continue;
+        }
+
+        dma_timer->active_dma_sources |=
+            get_timer_channel_dma_src(config->tim, config->tim_channel);
+
+        motor->dma_timer_index = i;
+
+        found_timer = true;
+    }
+
+    // Should not happen at all, could indicate a mismatched size between the global
+    // dma timers array and the global motors array
+    if (!found_timer) {
+        return false;
+    }
+
+    HAL_StatusTypeDef status = HAL_DMA_RegisterCallback(config->dma, HAL_DMA_XFER_CPLT_CB_ID,
+                                                        dma_transfer_complete_callback);
+
+    if (status != HAL_OK) {
+        return false;
+    }
+
+    motor->config = *config;
+    motor->is_initialized = true;
 
     return true;
 }
 
-bool bdshot_dma_motor_set_throttle(bdshot_motor_index_t motor, uint16_t throttle)
+bool bdshot_dma_motor_set_throttle(bdshot_motor_index_t index, uint16_t throttle)
 {
-    if (motor < 0 || motor >= BDSHOT_MOTOR_COUNT) {
+    if (index < 0 || index >= BDSHOT_DMA_MOTOR_COUNT) {
         return false;
     }
 
-    if (!motors[motor].is_initialized) {
+    bdshot_dma_motor_t *motor = &motors[index];
+
+    if (!motor->is_initialized || !motor->is_armed) {
         return false;
     }
 
-    bdshot_frame_t frame;
-    bool success = bdshot_throttle_frame_pack(&frame, throttle, true);
+    bool success = bdshot_throttle_frame_pack(&motor->frame, throttle, true);
 
     if (!success) {
         return false;
     }
 
-    motors[motor].is_command = false;
-    motors[motor].throttle = throttle;
-    motors[motor].frame = frame;
-
-    motors[motor].is_throttle_dirty = true;
+    motor->is_frame_dirty = true;
+    motor->is_command_frame = false;
 
     return true;
 }
 
-bool bdshot_dma_motor_get_telemetry(bdshot_motor_index_t motor, bdshot_motor_telemetry_t *telemetry)
+bool bdshot_dma_motor_get_telemetry(bdshot_motor_index_t index, bdshot_motor_telemetry_t *telemetry)
 {
-    if (motor < 0 || motor >= BDSHOT_MOTOR_COUNT) {
+    if (index < 0 || index >= BDSHOT_DMA_MOTOR_COUNT) {
         return false;
     }
 
-    if (!motors[motor].is_initialized || !motors[motor].is_telemetry_valid) {
+    bdshot_dma_motor_t *motor = &motors[index];
+
+    if (!motor->is_initialized || !motor->is_telemetry_valid) {
         return false;
     }
 
     if (telemetry != NULL) {
-        *telemetry = motors[motor].telemetry;
+        *telemetry = motor->telemetry;
     }
+
+    return true;
+}
+
+bool bdshot_dma_motor_set_armed(bdshot_motor_index_t index, bool is_armed)
+{
+    if (index < 0 || index >= BDSHOT_DMA_MOTOR_COUNT) {
+        return false;
+    }
+
+    bdshot_dma_motor_t *motor = &motors[index];
+
+    if (!motor->is_initialized) {
+        return false;
+    }
+
+    if (motor->is_armed == is_armed) {
+        return true;
+    }
+
+    if (is_armed && motor->is_first_arm) {
+        HAL_StatusTypeDef status = HAL_TIM_PWM_Start(motor->config.tim, motor->config.tim_channel);
+
+        if (status != HAL_OK) {
+            return false;
+        }
+
+        motor->is_first_arm = false;
+    }
+
+    // ESC needs to receive STOP command frames for a period to arm.
+    // For disarm, we just currently do software disarming (i.e. sending a STOP frame and preventing actual
+    // throttle values from being set).
+    // TODO: implement hardware arm/disarm (i.e. enabling and disabling PWM in its entirety), process is
+    // something along the lines of aborting the current DMA transfer, removing the current channel from the
+    // active dma timer sources, etc.
+    bool success = bdshot_command_frame_pack(&motor->frame, BDSHOT_COMMAND_MOTOR_STOP, true);
+
+    if (!success) {
+        return false;
+    }
+
+    motor->is_frame_dirty = true;
+    motor->is_command_frame = true;
+
+    motor->is_telemetry_valid = false;
+    motor->is_armed = is_armed;
 
     return true;
 }
 
 bool bdshot_dma_set_armed(bool is_armed)
 {
-    for (size_t i = 0; i < BDSHOT_MOTOR_COUNT; i++) {
-        bdshot_dma_motor_t *motor = &motors[i];
+    for (size_t i = 0; i < BDSHOT_DMA_MOTOR_COUNT; i++) {
+        bool success = bdshot_dma_motor_set_armed(i, is_armed);
 
-        if (!motor->is_initialized) {
-            continue;
-        }
-
-        HAL_StatusTypeDef status = HAL_ERROR;
-
-        if (is_armed) {
-            status = HAL_TIM_PWM_Start(motor->config.tim, motor->config.tim_channel);
-        } else {
-            status = HAL_TIM_PWM_Stop(motor->config.tim, motor->config.tim_channel);
-        }
-
-        if (status == HAL_OK) {
-            motor->is_armed = is_armed;
-        } else {
+        if (!success) {
             return false;
         }
     }
@@ -503,7 +587,7 @@ bool bdshot_dma_set_armed(bool is_armed)
 bool bdshot_dma_apply()
 {
     // Decode telemetry
-    for (size_t i = 0; i < BDSHOT_MOTOR_COUNT; i++) {
+    for (size_t i = 0; i < BDSHOT_DMA_MOTOR_COUNT; i++) {
         bdshot_dma_motor_t *motor = &motors[i];
 
         if (!motor->is_initialized || !motor->is_armed) {
@@ -522,34 +606,32 @@ bool bdshot_dma_apply()
         if (motor->direction == BDSHOT_DMA_DIRECTION_INPUT) {
             tim_channel_dma_set_enable(tim, tim_channel, false);
 
-            received_edges =
-                BDSHOT_DMA_RX_FRAME_SIZE - (__HAL_DMA_GET_COUNTER(dma) / sizeof(uint32_t));
+            uint32_t unreceived_bytes = __HAL_DMA_GET_COUNTER(dma);
 
-            // TODO: less jank manipulation of HAL state
-            __HAL_DMA_DISABLE(dma);
-            __HAL_DMA_CLEAR_FLAG(dma, (DMA_FLAG_TC | DMA_FLAG_HT | DMA_FLAG_DTE | DMA_FLAG_ULE |
-                                       DMA_FLAG_USE | DMA_FLAG_SUSP | DMA_FLAG_TO));
-            dma->State = HAL_DMA_STATE_READY;
+            // DMA peripheral provides the number of unreceived bytes, convert to
+            // number of unreceived edge times (since edge times can be more than 1 byte)
+            // and calculate the number of received edges
+            received_edges = BDSHOT_DMA_RX_FRAME_SIZE - (unreceived_bytes / sizeof(uint32_t));
 
-            bdshot_switch_to_tx(motor);
+            HAL_DMA_Abort(dma);
+
+            (void)motor_switch_to_tx(motor);
 
             motor->direction = BDSHOT_DMA_DIRECTION_OUTPUT;
         }
 
         bdshot_motor_telemetry_t telemetry;
-        bool success = bdshot_decode_telemetry(bdshot_dma_rx_buffer[i], received_edges, &telemetry,
+        bool success = bdshot_decode_telemetry(&telemetry, bdshot_dma_rx_buffer[i], received_edges,
                                                motor->config.pole_count);
 
         if (success) {
             motor->is_telemetry_valid = true;
             motor->telemetry = telemetry;
         }
-
-        memset(bdshot_dma_rx_buffer[i], 0, sizeof(bdshot_dma_rx_buffer[i]));
     }
 
     // Starts the DMA controller to begin transfers
-    for (size_t i = 0; i < BDSHOT_MOTOR_COUNT; i++) {
+    for (size_t i = 0; i < BDSHOT_DMA_MOTOR_COUNT; i++) {
         bdshot_dma_motor_t *motor = &motors[i];
 
         if (!motor->is_initialized || !motor->is_armed) {
@@ -560,10 +642,10 @@ bool bdshot_dma_apply()
             continue;
         }
 
-        if (motor->is_throttle_dirty) {
-            build_dma_tx_buffer(motor->frame, bdshot_dma_tx_buffer[i]);
+        if (motor->is_frame_dirty) {
+            build_dma_tx_buffer(bdshot_dma_tx_buffer[i], motor->frame);
 
-            motor->is_throttle_dirty = false;
+            motor->is_frame_dirty = false;
         }
 
         TIM_HandleTypeDef *tim = motor->config.tim;
@@ -585,6 +667,10 @@ bool bdshot_dma_apply()
     // to ensure that motors on the same TIM instance is synchronized.
     for (size_t i = 0; i < dma_timers_count; i++) {
         bdshot_dma_timers_t *timer = &dma_timers[i];
+
+        if (timer->tim == NULL) {
+            continue;
+        }
 
         // Restore the free running timer ARR used for telemetry RX to a value for TX.
         // Must disable ARR preload here since the free running timer use for RX will

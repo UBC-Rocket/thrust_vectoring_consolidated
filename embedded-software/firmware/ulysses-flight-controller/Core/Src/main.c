@@ -216,16 +216,14 @@ int main(void)
       .tim = &htim2,
       .tim_channel = TIM_CHANNEL_2,
       .dma = htim2.hdma[TIM_DMA_ID_CC2],
-      .gpio = ESC_1_PWM_GPIO_Port,
-      .gpio_pin = ESC_1_PWM_Pin,
+      .pole_count = 14,
     };
 
     bdshot_dma_motor_config_t config2 = {
       .tim = &htim2,
       .tim_channel = TIM_CHANNEL_4,
       .dma = htim2.hdma[TIM_DMA_ID_CC4],
-      .gpio = ESC_2_PWM_GPIO_Port,
-      .gpio_pin = ESC_2_PWM_Pin,
+      .pole_count = 14,
     };
 
     bdshot_dma_init();
