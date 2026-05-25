@@ -5,6 +5,11 @@ project(ulysses_ground_control
     LANGUAGES CXX C
 )
 
+# ----------------------------------------------------------------------
+# For Linux release
+include(GNUInstallDirs)
+# ----------------------------------------------------------------------
+
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
@@ -72,9 +77,41 @@ qt_add_executable(ulysses_ground_control
     ${HDR_FILES}
 )
 
+# ---------------------------------------------------------------------- 
+# For Linux release
 if(UNIX AND NOT APPLE)
-    set_target_properties(ulysses_ground_control PROPERTIES OUTPUT_NAME ulysses_gcs)
+    set_target_properties(ulysses_ground_control PROPERTIES 
+    OUTPUT_NAME ulysses_gcs
+    BUILD_WITH_INSTALL_RPATH TRUE
+    INSTALL_RPATH "$ORIGIN/../lib"
+    )
 endif()
+
+install(TARGETS ulysses_ground_control
+    BUNDLE DESTINATION .
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+qt_generate_deploy_qml_app_script(
+    TARGET ulysses_ground_control
+    OUTPUT_SCRIPT deploy_script
+)
+
+install(SCRIPT ${deploy_script})
+
+get_target_property(QT6_SERIALPORT_LOCATION Qt6::SerialPort LOCATION)
+get_filename_component(QT6_LIB_DIR "${QT6_SERIALPORT_LOCATION}" DIRECTORY)
+
+file(GLOB QT6_SERIALPORT_LIBS
+    "${QT6_LIB_DIR}/libQt6SerialPort.so*"
+)
+
+install(FILES
+    ${QT6_SERIALPORT_LIBS}
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+# ----------------------------------------------------------------------
+
 
 # Preset JSON lives in the repo so the whole team shares the same presets.
 # PresetManager reads this macro at runtime.
@@ -147,3 +184,17 @@ target_link_libraries(ulysses_ground_control
 
 qt_import_qml_plugins(ulysses_ground_control)
 qt_finalize_executable(ulysses_ground_control)
+
+# ----------------------------------------------------------------------
+# For Linux release
+set(CPACK_PACKAGE_NAME "ulysses-gcs")
+set(CPACK_PACKAGE_VERSION "0.1.1")  # Update this for each release
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Ulysses Ground Control")
+set(CPACK_PACKAGE_VENDOR "UBC Rocket")
+set(CPACK_PACKAGE_INSTALL_DIRECTORY ${CPACK_PACKAGE_NAME})
+set(CPACK_VERBATIM_VARIABLES ON)
+set(CPACK_PACKAGING_INSTALL_PREFIX "/opt/ulysses-gcs")
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Jimmy Pan")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6, libstdc++6, libgcc-s1, libxcb-cursor0, libxkbcommon-x11-0, qt6-wayland")
+
+include(CPack)
