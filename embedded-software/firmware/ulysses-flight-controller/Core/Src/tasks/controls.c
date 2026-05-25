@@ -18,7 +18,6 @@
 #include "state_exchange.h"
 #include "main.h"
 #include "FreeRTOS.h"
-#include "stm32h563xx.h"
 #include "task.h"
 #include "state_estimation/state.h"
 #include "mission_manager/mission_manager.h"
@@ -28,7 +27,6 @@
 #include "debug/log.h"
 #include "SD_logging/log_service.h"
 #include "timestamp.h"
-#include "stm32h5xx_ll_gpio.h"
 
 #define RAD_TO_DEG (180.0f / 3.14159265f)
 
@@ -106,34 +104,6 @@ static void init_default_ref(flight_controller_ref_t *ref)
 }
 
 /* ── Task entry ───────────────────────────────────────────────────────── */
-
-uint32_t set_test(GPIO_TypeDef *gpio, uint32_t ll_gpio_pin)
-{
-    uint32_t alternate_function;
-
-    if (ll_gpio_pin <= LL_GPIO_PIN_7) {
-        alternate_function = LL_GPIO_GetAFPin_0_7(gpio, ll_gpio_pin);
-    } else {
-        alternate_function = LL_GPIO_GetAFPin_8_15(gpio, ll_gpio_pin);
-    }
-
-    LL_GPIO_SetPinMode(gpio, ll_gpio_pin, LL_GPIO_MODE_OUTPUT);
-    LL_GPIO_SetPinOutputType(gpio, ll_gpio_pin, LL_GPIO_OUTPUT_PUSHPULL);
-
-    return alternate_function;
-}
-
-void restore_test(GPIO_TypeDef *gpio, uint32_t ll_gpio_pin, uint32_t alternate_function)
-{
-    LL_GPIO_SetPinMode(gpio, ll_gpio_pin, LL_GPIO_MODE_ALTERNATE);
-    LL_GPIO_SetPinOutputType(gpio, ll_gpio_pin, LL_GPIO_OUTPUT_OPENDRAIN);
-
-    if (ll_gpio_pin <= LL_GPIO_PIN_7) {
-        LL_GPIO_SetAFPin_0_7(gpio, ll_gpio_pin, alternate_function);
-    } else {
-        LL_GPIO_SetAFPin_8_15(gpio, ll_gpio_pin, alternate_function);
-    }
-}
 
 /**
  * @brief FreeRTOS entry: 1.25 ms period (800 Hz via TIM4 CH2), get state -> flight_controller_run -> publish control output.
