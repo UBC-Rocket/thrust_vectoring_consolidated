@@ -17,7 +17,7 @@ RevisionNamingSchemeGUID=
 [OutputGroup1]
 Name=job.OutJob
 Description=
-TargetOutputMedium=BOM & CPL
+TargetOutputMedium=GERBER
 VariantName=[No Variations]
 VariantScope=1
 CurrentConfigurationName=
@@ -42,7 +42,7 @@ OutputName1=Generates pick and place files
 OutputCategory1=Assembly
 OutputDocumentPath1=
 OutputVariantName1=
-OutputEnabled1=1
+OutputEnabled1=0
 OutputEnabled1_OutputMedium1=0
 OutputEnabled1_OutputMedium2=0
 OutputEnabled1_OutputMedium3=0
@@ -57,7 +57,7 @@ OutputName2=Bill of Materials
 OutputCategory2=Report
 OutputDocumentPath2=
 OutputVariantName2=
-OutputEnabled2=1
+OutputEnabled2=0
 OutputEnabled2_OutputMedium1=0
 OutputEnabled2_OutputMedium2=0
 OutputEnabled2_OutputMedium3=0
@@ -72,16 +72,18 @@ Configuration2_Name2=General
 Configuration2_Item2=OpenExported=False|AddToProject=False|ReportBOMViolationsInMessages=False|ForceFit=False|NotFitted=False|Database=False|DatabasePriority=False|IncludePcbData=False|IncludeVaultData=False|IncludeCloudData=False|IncludeDocumentData=True|IncludeAlternatives=False|ShowExportOptions=True|TemplateFilename=|TemplateVaultGuid=|TemplateItemGuid=|TemplateRevisionGuid=|BatchMode=5|FormWidth=1200|FormHeight=710|SupplierProdQty=1|SupplierAutoQty=False|SupplierUseCachedPricing=False|SupplierCurrency=USD|SolutionsPerItem=1|SuppliersPerSolution=1|ViewType=0|BomSetName=
 Configuration2_Name3=GroupOrder
 Configuration2_Item3=Comment=True|Footprint=True
-Configuration2_Name4=VisibleOrder
-Configuration2_Item4=Manu Part #=100|Description=120|Designator=120|Footprint=100|Quantity=120
-Configuration2_Name5=VisibleOrder_Flat
-Configuration2_Item5=Manu Part #=100|Description=120|Designator=120|Footprint=100|Quantity=120
+Configuration2_Name4=SortOrder
+Configuration2_Item4=Designator=Up|Footprint=Up
+Configuration2_Name5=VisibleOrder
+Configuration2_Item5=Manu Part #=100|Description=120|Designator=120|Footprint=100|Quantity=120|LCSC Part #=100
+Configuration2_Name6=VisibleOrder_Flat
+Configuration2_Item6=Manu Part #=100|Description=120|Designator=120|Footprint=100|Quantity=120|LCSC Part #=100
 OutputType3=Gerber
 OutputName3=Gerber Files
 OutputCategory3=Fabrication
 OutputDocumentPath3=
 OutputVariantName3=
-OutputEnabled3=0
+OutputEnabled3=1
 OutputEnabled3_OutputMedium1=0
 OutputEnabled3_OutputMedium2=0
 OutputEnabled3_OutputMedium3=0
@@ -96,7 +98,7 @@ OutputName4=NC Drill Files
 OutputCategory4=Fabrication
 OutputDocumentPath4=
 OutputVariantName4=
-OutputEnabled4=0
+OutputEnabled4=1
 OutputEnabled4_OutputMedium1=0
 OutputEnabled4_OutputMedium2=0
 OutputEnabled4_OutputMedium3=0
@@ -110,13 +112,13 @@ Configuration4_Item1=BoardEdgeRoutToolDia=2000000|GenerateBoardEdgeRout=False|Ge
 [PublishSettings]
 OutputFilePath2=
 ReleaseManaged2=1
-OutputBasePath2=
+OutputBasePath2=Project Outputs for Flight-Controller
 OutputPathMedia2=
 OutputPathMediaValue2=
 OutputPathOutputer2=[Output Type]
 OutputPathOutputerPrefix2=
 OutputPathOutputerValue2=
-OutputFileName2=
+OutputFileName2=job.PDF
 OutputFileNameMulti2=
 UseOutputNameForMulti2=1
 OutputFileNameSpecial2=
@@ -137,7 +139,7 @@ PDFACompliance2=Disabled
 PDFVersion2=Default
 OutputFilePath3=
 ReleaseManaged3=1
-OutputBasePath3=
+OutputBasePath3=Project Outputs for Flight-Controller
 OutputPathMedia3=
 OutputPathMediaValue3=
 OutputPathOutputer3=[Output Type]
@@ -150,7 +152,7 @@ OutputFileNameSpecial3=
 OpenOutput3=1
 OutputFilePath4=
 ReleaseManaged4=1
-OutputBasePath4=
+OutputBasePath4=Project Outputs for Flight-Controller
 OutputPathMedia4=
 OutputPathMediaValue4=
 OutputPathOutputer4=[Output Type]

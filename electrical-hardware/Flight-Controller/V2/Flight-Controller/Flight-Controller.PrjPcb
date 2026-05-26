@@ -514,10 +514,12 @@ UniqueId=118e5998-9d35-4ed1-b17b-245e30316e9f
 Description=Var 1A
 AllowFabrication=0
 ParameterCount=0
-VariationCount=3
-Variation1=Designator=R30|UniqueId=\YNIGVDLB\UFILZSVW|Kind=1|AlternatePart=
-Variation2=Designator=R34|UniqueId=\YNIGVDLB\YQKQNJOL|Kind=1|AlternatePart=
-Variation3=Designator=R35|UniqueId=\YNIGVDLB\CFTHJKHU|Kind=1|AlternatePart=
+VariationCount=5
+Variation1=Designator=C47|UniqueId=\YCIVYNOX\IHNFNRIV|Kind=1|AlternatePart=
+Variation2=Designator=C48|UniqueId=\YCIVYNOX\HIMBHVQF|Kind=1|AlternatePart=
+Variation3=Designator=R37|UniqueId=\YNIGVDLB\POBNJQTW|Kind=1|AlternatePart=
+Variation4=Designator=R36|UniqueId=\YNIGVDLB\FRSIZRBY|Kind=1|AlternatePart=
+Variation5=Designator=R32|UniqueId=\YNIGVDLB\HLMWAOGH|Kind=1|AlternatePart=
 ParamVariationCount=0
 
 [GeneratedDocument1]
@@ -1234,6 +1236,36 @@ OutputName12=Web Review Data
 OutputDocumentPath12=
 OutputVariantName12=
 OutputDefault12=0
+OutputType13=Ansoft Neutral
+OutputName13=Ansoft Neutral (AutoPCB)
+OutputDocumentPath13=
+OutputVariantName13=
+OutputDefault13=0
+OutputType14=HyperLynx
+OutputName14=HyperLynx (AutoPCB)
+OutputDocumentPath14=
+OutputVariantName14=
+OutputDefault14=0
+OutputType15=MathWorks
+OutputName15=MathWorks (AutoPCB)
+OutputDocumentPath15=
+OutputVariantName15=
+OutputDefault15=0
+OutputType16=Orcad v7 Capture Design
+OutputName16=Orcad v7 Capture Design (AutoSCH)
+OutputDocumentPath16=
+OutputVariantName16=
+OutputDefault16=0
+OutputType17=P-CAD ASCII
+OutputName17=P-CAD ASCII (AutoPCB)
+OutputDocumentPath17=
+OutputVariantName17=
+OutputDefault17=0
+OutputType18=P-CAD V16 Schematic Design
+OutputName18=P-CAD V16 Schematic Design (AutoSCH)
+OutputDocumentPath18=
+OutputVariantName18=
+OutputDefault18=0
 
 [OutputGroup10]
 Name=PostProcess Outputs
