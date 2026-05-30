@@ -1,4 +1,4 @@
-#include "motor_drivers/protocols/bdshot.h"
+#include "motor_drivers/dshot/dshot.h"
 
 #include <stdbool.h>
 #include <stdint.h>

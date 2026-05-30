@@ -23,8 +23,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "debug/log.h"
-#include "motor_drivers/protocols/bdshot.h"
-#include "motor_drivers/protocols/bdshot_dma.h"
+#include "motor_drivers/dshot/dshot.h"
+#include "motor_drivers/dshot/bdshot_dma.h"
 #include "sensors_init.h"
 #include "stm32h5xx_hal_tim.h"
 #include "timestamp.h"

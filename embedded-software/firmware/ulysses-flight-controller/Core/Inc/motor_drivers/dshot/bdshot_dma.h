@@ -9,7 +9,7 @@
 #include "stm32h5xx_hal_dma.h"
 #include "stm32h5xx_hal_tim.h"
 
-#include "motor_drivers/protocols/bdshot.h"
+#include "motor_drivers/dshot/dshot.h"
 
 #define BDSHOT_DMA_MOTOR_COUNT (2)
 

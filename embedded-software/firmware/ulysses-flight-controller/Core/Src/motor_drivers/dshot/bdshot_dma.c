@@ -1,4 +1,4 @@
-#include "motor_drivers/protocols/bdshot_dma.h"
+#include "motor_drivers/dshot/bdshot_dma.h"
 
 #include "stm32h5xx.h"
 #include "stm32h563xx.h"
@@ -8,8 +8,7 @@
 #include "stm32h5xx_ll_tim.h"
 #include "stm32h5xx_ll_dma.h"
 
-#include "debug/log.h"
-#include "motor_drivers/protocols/bdshot.h"
+#include "motor_drivers/dshot/dshot.h"
 
 #include <math.h>
 #include <stdint.h>
