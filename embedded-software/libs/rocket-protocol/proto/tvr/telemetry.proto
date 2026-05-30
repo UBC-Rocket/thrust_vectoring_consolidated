@@ -20,4 +20,11 @@ message TelemetryState {
   float thrust_cmd  = 7;   // [N]
   float gimbal_x    = 8;   // [rad]
   float gimbal_y    = 9;   // [rad]
+
+  // On-board UWB tag positions in nav-frame meters, computed by the flight
+  // controller via trilateration against the 4 ground anchors set by
+  // SetProbeLayout. Two tags on the rocket; both optional (present only when
+  // the UWB ranging frame for that tag was usable this tick).
+  Vec2 uwb_tag_0 = 10;
+  Vec2 uwb_tag_1 = 11;
 }

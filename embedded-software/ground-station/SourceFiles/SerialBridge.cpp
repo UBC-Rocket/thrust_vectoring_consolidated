@@ -3,12 +3,8 @@
 #include <QSerialPort>
 #include <QSerialPortInfo>
 #include <QElapsedTimer>
-#include <QThread>
+#include <QtMath>
 #include <QDebug>
-
-namespace {
-enum { kSerialDebug = 0 }; // flip to 1 to re-enable verbose IMU logging
-}
 
 SerialBridge::SerialBridge(QObject* parent) : QObject(parent) {
     refreshPorts(); // Build the initial COM list so the UI has something to show.
@@ -137,7 +133,7 @@ bool SerialBridge::setTxTo(int which) {
 
 bool SerialBridge::setRxFrom(int which) {
     if (which != 1 && which != 2) {
-        emitError("setTxTo: which must be 1 or 2");
+        emitError("setRxFrom: which must be 1 or 2");
         return false;
     }
 
@@ -248,36 +244,6 @@ void SerialBridge::handleReadyRead(int which) {
 
     // Parse as binary COBS packets (0x00-delimited). Sender uses COBS+protobuf, not text.
     parseBufferedBinary(which);
-}
-
-void SerialBridge::parseBufferedLines(int which) {
-    auto b = bundle(which);
-
-    // Grab any remaining bytes in case readyRead fired again between calls.
-    b.rxBuf.append(b.port.readAll());
-
-    int idx;
-    // Consume full lines terminated by '\n'; keep partial line in buffer.
-    while ((idx = b.rxBuf.indexOf('\n')) != -1) {
-        QByteArray line = b.rxBuf.left(idx);
-
-        // Convert CRLF → LF by dropping trailing '\r'.
-        if (!line.isEmpty() && line.endsWith('\r')) {
-            line.chop(1);
-        }
-
-        // Remove this line (and its '\n') from the buffer.
-        b.rxBuf.remove(0, idx + 1);
-
-        // Prefer UTF-8; fall back to Latin-1 if decoding fails.
-        QString text = QString::fromUtf8(line);
-        if (text.isNull()) {
-            text = QString::fromLatin1(line);
-        }
-
-        // Emit a clean logical line to whoever is listening (QML, alarm system, etc.).
-        emit textReceivedFrom(which, text);
-    }
 }
 
 void SerialBridge::parseBufferedBinary(int which) {

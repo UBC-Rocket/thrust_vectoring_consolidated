@@ -31,8 +31,6 @@
 #include "spi1_bus.h"
 #include "gnss_radio_master.h"
 #include "motor_drivers/servo_driver.h"
-#include "motor_drivers/esc_driver.h"
-#include "stm32h5xx_ll_gpio.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -180,38 +178,24 @@ int main(void)
 
   /* --- Servo pair: TIM1 CH2 (servo1), TIM3 CH3 (servo2) - 200Hz -- */
   {
-    pwm_output_t pwm1 = {
+    pwm_output_t pwm1_servo = {
       .htim        = &htim1,
       .channel     = TIM_CHANNEL_2,
       .timer_hz    = 1000000U,
       .period_ticks = 5000U,
     };
-    pwm_output_t pwm2 = {
+    pwm_output_t pwm2_servo = {
       .htim        = &htim3,
       .channel     = TIM_CHANNEL_3,
       .timer_hz    = 1000000U,
       .period_ticks = 5000U,
     };
-    servo_pair_init(&pwm1, &pwm2);
+    servo_pair_init(&pwm1_servo, &pwm2_servo);
     servo_pair_enable(true);
   }
 
   /* --- ESC pair: TIM2 CH2 (esc1), TIM2 CH4 (esc2) - 400Hz ------- */
   {
-    // pwm_output_t pwm1 = {
-    //   .htim        = &htim2,
-    //   .channel     = TIM_CHANNEL_2,
-    //   .timer_hz    = 1000000U,
-    //   .period_ticks = 2500U,
-    // };
-    // pwm_output_t pwm2 = {
-    //   .htim        = &htim2,
-    //   .channel     = TIM_CHANNEL_4,
-    //   .timer_hz    = 1000000U,
-    //   .period_ticks = 2500U,
-    // };
-    // esc_pair_init(&pwm1, &pwm2);
-
     bdshot_dma_motor_config_t config1 = {
       .tim = &htim2,
       .tim_channel = TIM_CHANNEL_2,

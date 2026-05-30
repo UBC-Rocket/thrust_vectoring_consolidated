@@ -27,8 +27,12 @@
 #include "debug/log.h"
 #include "SD_logging/log_service.h"
 #include "timestamp.h"
+#include "utilities/clamp.h"
 
+/* Utility macros */
 #define RAD_TO_DEG (180.0f / 3.14159265f)
+#define DEG_TO_RAD (3.14159265f / 180.0f);
+#define SQRT_2_2 (0.70710678f) /**< For 45 degree trim to stay within circular gimbal limits. */
 
 #define CONTROLS_DT_S 0.00125f /**< Control period [s] (800 Hz via TIM4 CH2). */
 #define STALE_STATE_THRESHOLD_TICKS \
@@ -47,15 +51,13 @@
 #define ESC_HOLD_MS       500           /**< Hold at peak thrust (ms). */
 
 /* Empirical times for the ESC power on sequence*/
-#define ESC_POWER_ON_TIME_MS (3000) /**< Delay before arming sequence begins */
 #define ESC_ARM_TIME_MS      (3000) /**< Delay before PWM output */
 
 /* Empirical values for a safe operational range of the gimbal */
-#define SERVO_MAX_DEGREES (25)
-#define SERVO_MIN_DEGREES (-25)
+#define SERVO_MAX_DEGREES (30.0f)
+#define SERVO_MIN_DEGREES (-30.0f)
 
 static quaternion_t pb_to_fc_quaternion(tvr_Quaternion quaternion);
-static inline float clampf(float value, float minimum, float maximum);
 
 /** Fill config with default gains and limits (tune in use). */
 static void init_default_config(flight_controller_config_t *cfg)
@@ -72,13 +74,13 @@ static void init_default_config(flight_controller_config_t *cfg)
     cfg->attitude.I[1][1] = 0.01f;
     cfg->attitude.I[2][2] = 0.01f;
     /* Allocation: thrust along -z body (z-up) */
-    cfg->allocation.t_hat[0] = 0.0f;
-    cfg->allocation.t_hat[1] = 0.0f;
-    cfg->allocation.t_hat[2] = -1.0f;
+    cfg->allocation.thrust_dir[0] = 0.0f;
+    cfg->allocation.thrust_dir[1] = 0.0f;
+    cfg->allocation.thrust_dir[2] = -1.0f;
     /* Gimbal */
     cfg->gimbal.L = 0.2f;
-    cfg->gimbal.theta_min = -0.05f;
-    cfg->gimbal.theta_max = 0.05f;
+    cfg->gimbal.theta_min = SERVO_GIMBAL_DEG_MIN * (3.14159265f / 180.0f);
+    cfg->gimbal.theta_max = SERVO_GIMBAL_DEG_MAX * (3.14159265f / 180.0f);
     /* Thrust */
     cfg->thrust.m = 1.0f;
     cfg->thrust.g = 9.8067f;
@@ -128,26 +130,6 @@ void controls_task_start(void *argument)
     // servo_pair_enable(false);
     // esc_pair_set_armed(false);
 
-    // uint32_t a1 = set_test(ESC_1_PWM_GPIO_Port, ESC_1_PWM_Pin);
-    // uint32_t a2 = set_test(ESC_2_PWM_GPIO_Port, ESC_2_PWM_Pin);
-
-    // LL_GPIO_ResetOutputPin(ESC_1_PWM_GPIO_Port, ESC_1_PWM_Pin);
-    // LL_GPIO_ResetOutputPin(ESC_2_PWM_GPIO_Port, ESC_2_PWM_Pin);
-
-    // osDelay(pdMS_TO_TICKS(ESC_POWER_ON_TIME_MS));
-
-    // restore_test(ESC_1_PWM_GPIO_Port, ESC_1_PWM_Pin, a1);
-    // restore_test(ESC_2_PWM_GPIO_Port, ESC_2_PWM_Pin, a2);
-
-    osDelay(pdMS_TO_TICKS(3000));
-
-    bdshot_dma_set_armed(true);
-
-    for (uint32_t i = 0; i < 5000; i++) {
-        bdshot_dma_apply();
-        osDelay(pdMS_TO_TICKS(1));
-    }
-
     state_exchange_publish_startup_test_complete(true);
 
     // esc_pair_set_armed(true);
@@ -174,6 +156,7 @@ void controls_task_start(void *argument)
 
         // Arming status has changed
         if (armed_seq != last_armed_seq) {
+            last_armed_seq = armed_seq;
             DLOG_PRINT("[CTRL] ARM: begin %s sequence\r\n", armed ? "arm" : "disarm");
 
             if (armed) {
@@ -228,7 +211,7 @@ void controls_task_start(void *argument)
                 flight_controller_init(&config);
             }
 
-            set_servo_pair_degrees(0, 0);
+            set_gimbal_degrees(0.0f, 0.0f);
             servo_pair_enable(armed);
 
             esc_pair_set_force(0, 0);
@@ -249,6 +232,7 @@ void controls_task_start(void *argument)
         state_exchange_get_flight_state(&flight_state);
 
         if (armed && state_seq != 0) {
+
             flight_controller_run(&current_state, &ref, &config, &control_output, CONTROLS_DT_S);
 
             state_exchange_publish_control_output(&control_output);
@@ -275,16 +259,28 @@ void controls_task_start(void *argument)
             }
 
             if (flight_state == RISE) {
-                // FIXME: artificially limit the operational range of the gimbal since the propellers
-                // could hit the landing legs in the current design
-                float theta_x_cmd_safe =
-                    clampf(control_output.theta_x_cmd, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
-                float theta_y_cmd_safe =
-                    clampf(control_output.theta_y_cmd, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
+                float theta_x_deg =
+                    clamp_float(control_output.theta_x_cmd * RAD_TO_DEG, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
+                float theta_y_deg =
+                    clamp_float(control_output.theta_y_cmd * RAD_TO_DEG, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
 
-                set_servo_pair_degrees(-theta_y_cmd_safe, -theta_x_cmd_safe);
+                float calibrated_theta_x_deg = (SQRT_2_2) * theta_x_deg + (SQRT_2_2) * theta_y_deg; // Calibrated to match physical gimbal direction
+                float calibrated_theta_y_deg = -(SQRT_2_2) * theta_x_deg + (SQRT_2_2) * theta_y_deg; // Calibrated to match physical gimbal direction
+
+                set_gimbal_degrees(calibrated_theta_x_deg, calibrated_theta_y_deg);
                 esc_pair_set_force(control_output.T_cmd, control_output.tau_thrust);
             }
+            else {
+                set_gimbal_degrees(0.0f, 0.0f);
+                // servo_pair_enable(armed);
+                esc_pair_set_force(0, 0);
+            }
+        }
+        else {
+            // Not armed or no valid state — output safe (zero) controls.
+            set_gimbal_degrees(0.0f, 0.0f);
+            // servo_pair_enable(false);
+            esc_pair_set_force(0, 0);
         }
     }
 }
@@ -303,9 +299,4 @@ static quaternion_t pb_to_fc_quaternion(tvr_Quaternion quaternion)
         .y = quaternion.y,
         .z = quaternion.z,
     };
-}
-
-static inline float clampf(float value, float minimum, float maximum)
-{
-    return fminf(fmaxf(value, minimum), maximum);
 }
