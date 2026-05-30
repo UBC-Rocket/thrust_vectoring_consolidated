@@ -69,8 +69,8 @@ set(MOTOR_DRIVERS_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/motor_drivers/pwm_output.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/motor_drivers/servo_driver.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/motor_drivers/esc_driver.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/motor_drivers/protocols/bdshot.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/motor_drivers/protocols/bdshot_dma.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/motor_drivers/dshot/dshot.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/motor_drivers/dshot/bdshot_dma.c
 )
 
 set(SPI_DRIVER_SRC
