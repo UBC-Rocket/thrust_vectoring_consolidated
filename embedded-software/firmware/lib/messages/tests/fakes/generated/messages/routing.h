@@ -14,6 +14,7 @@ typedef struct {
     uint16_t payload_size;
     uint8_t  enabled_channels;          /* bitmask: bit i for channel i */
     uint16_t max_rate_hz[CH_COUNT];
+    const void *pb_desc;                /* Class B: pb_msgdesc_t*; Class A: NULL */
 } messages_routing_entry_t;
 
 extern const messages_routing_entry_t messages_routing_table[];

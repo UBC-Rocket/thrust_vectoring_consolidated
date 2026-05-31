@@ -15,6 +15,10 @@ typedef struct {
     uint16_t payload_size;     // Class A: fixed size; Class B: 0 (variable)
     uint8_t  enabled_channels; // bitmask: bit channel_id set if enabled at boot
     uint16_t max_rate_hz[CH_COUNT]; // per-channel rate cap; 0 = unlimited
+    // Class B: pointer to nanopb pb_msgdesc_t (declared as `const void *`
+    // so consumers that don't link nanopb still see a complete type).
+    // Class A: NULL.
+    const void *pb_desc;
 } messages_routing_entry_t;
 
 extern const messages_routing_entry_t messages_routing_table[];

@@ -41,6 +41,10 @@
  * counter. The test harness shims this header to provide a fake clock. */
 #include "timestamp/timestamp.h"
 
+#if defined(MESSAGES_HAVE_NANOPB)
+#include "pb_encode.h"
+#endif
+
 /* -------------------------------------------------------------------------- */
 /* Compile-time sanity                                                        */
 /* -------------------------------------------------------------------------- */
@@ -330,13 +334,57 @@ bool messages_publish_a(uint8_t module_id, uint16_t msg_id,
 bool messages_publish_b(uint8_t module_id, uint16_t msg_id,
                         const void *payload, uint16_t payload_size)
 {
-    /* TODO(phase-2): nanopb-encode payload, then run through the same
-     * routing / rate-limit / sink path as Class A. */
-    (void)module_id;
-    (void)msg_id;
-    (void)payload;
+#if !defined(MESSAGES_HAVE_NANOPB)
+    (void)module_id; (void)msg_id; (void)payload; (void)payload_size;
+    return false;  /* nanopb not in this build (e.g. host-side test harness) */
+#else
+    /* Class B `payload` is a pointer to the codegen'd struct (e.g.
+     * messages_SystemLogEvent*). `payload_size` is unused for Class B —
+     * nanopb walks the descriptor instead. We keep the param for API
+     * symmetry with publish_a. */
     (void)payload_size;
-    return false;
+
+    size_t idx = find_routing_index(module_id, msg_id);
+    if (idx == (size_t)-1) {
+        return false;
+    }
+    const messages_routing_entry_t *entry = &messages_routing_table[idx];
+    if (entry->class != MSG_CLASS_B || entry->pb_desc == NULL) {
+        return false;
+    }
+
+    /* Encode payload into a stack buffer. The envelope assembler runs
+     * after we know the encoded length. */
+    uint8_t pb_buf[MESSAGES_MAX_PAYLOAD_SIZE];
+    pb_ostream_t stream = pb_ostream_from_buffer(pb_buf, sizeof(pb_buf));
+    if (!pb_encode(&stream, (const pb_msgdesc_t *)entry->pb_desc, payload)) {
+        return false;
+    }
+    if (stream.bytes_written > MESSAGES_MAX_PAYLOAD_SIZE) {
+        return false;  /* shouldn't happen; pb_encode would have failed first */
+    }
+
+    uint8_t record[MESSAGES_ENVELOPE_LENGTH_SIZE + MESSAGES_ENVELOPE_HEADER_SIZE +
+                   MESSAGES_MAX_PAYLOAD_SIZE + MESSAGES_ENVELOPE_CRC_SIZE];
+    uint64_t now_us = timestamp_us64();
+    size_t record_len = assemble_envelope(record, MSG_CLASS_B, module_id, msg_id,
+                                          now_us, pb_buf, (uint16_t)stream.bytes_written);
+
+    bool any_accepted = false;
+    for (uint8_t ch = 0U; ch < (uint8_t)CH_COUNT; ++ch) {
+        if ((entry->enabled_channels & (uint8_t)(1U << ch)) == 0U) {
+            continue;
+        }
+        if (!token_bucket_admit(idx, ch, entry->max_rate_hz[ch], now_us)) {
+            bump_drop(ch);
+            continue;
+        }
+        if (dispatch_to_channel(ch, record, record_len)) {
+            any_accepted = true;
+        }
+    }
+    return any_accepted;
+#endif
 }
 
 void messages_publish_drop_counters(void)

@@ -26,6 +26,10 @@ def emit_header(registry: dict[str, Any], crc32: int) -> str:
     out.append("    uint16_t payload_size;     // Class A: fixed size; Class B: 0 (variable)\n")
     out.append("    uint8_t  enabled_channels; // bitmask: bit channel_id set if enabled at boot\n")
     out.append("    uint16_t max_rate_hz[CH_COUNT]; // per-channel rate cap; 0 = unlimited\n")
+    out.append("    // Class B: pointer to nanopb pb_msgdesc_t (declared as `const void *`\n")
+    out.append("    // so consumers that don't link nanopb still see a complete type).\n")
+    out.append("    // Class A: NULL.\n")
+    out.append("    const void *pb_desc;\n")
     out.append("} messages_routing_entry_t;\n")
     out.append("\n")
     out.append("extern const messages_routing_entry_t messages_routing_table[];\n")
@@ -40,6 +44,15 @@ def emit_source(registry: dict[str, Any], crc32: int, resolver: TypeResolver) ->
     out.append(banner(crc32))
     out.append("\n")
     out.append('#include "generated/messages/routing.h"\n')
+    out.append("\n")
+    # Pull in nanopb message descriptors only when nanopb is on the build,
+    # so host-side tests + non-firmware builds don't need the .pb.h header.
+    out.append("#if defined(MESSAGES_HAVE_NANOPB)\n")
+    out.append('  #include "generated/proto/messages.pb.h"\n')
+    out.append("  #define PB_DESC(name) (&(name))\n")
+    out.append("#else\n")
+    out.append("  #define PB_DESC(name) ((const void *)0)\n")
+    out.append("#endif\n")
     out.append("\n")
     out.append("const messages_routing_entry_t messages_routing_table[] = {\n")
 
@@ -81,11 +94,24 @@ def emit_source(registry: dict[str, Any], crc32: int, resolver: TypeResolver) ->
                 rates.append(rate)
 
             rates_init = ", ".join(str(r) for r in rates) if rates else "0"
+            # pb_desc: Class B references the nanopb-generated descriptor;
+            # naming convention from emit_proto.py is messages_<PascalMod><PascalMsg>_msg.
+            if cls == "B":
+                pb_name = (
+                    "messages_"
+                    + "".join(p.capitalize() for p in modname.split("_"))
+                    + "".join(p.capitalize() for p in msgname.split("_"))
+                    + "_msg"
+                )
+                pb_desc = f"PB_DESC({pb_name})"
+            else:
+                pb_desc = "NULL"
             out.append(
                 f"    {{ .module_id = {mod_const}, .msg_id = {msg_const}, "
                 f".class = {cls_const}, .payload_size = {payload_size}, "
                 f".enabled_channels = 0x{enabled_mask:02X}, "
-                f".max_rate_hz = {{ {rates_init} }} }},\n"
+                f".max_rate_hz = {{ {rates_init} }}, "
+                f".pb_desc = {pb_desc} }},\n"
             )
 
     out.append("};\n")

@@ -46,6 +46,7 @@ add_subdirectory(${LIB_DIR}/collections      collections_build)
 add_subdirectory(${LIB_DIR}/timestamp        timestamp_build)
 add_subdirectory(${LIB_DIR}/state_estimation state_estimation_build)
 add_subdirectory(${LIB_DIR}/controls         controls_build)
+add_subdirectory(${FW_ROOT}/comms/nanopb     nanopb_build)
 add_subdirectory(${LIB_DIR}/messages         messages_build)
 
 # DEV layer (CM7 owns actuators)
