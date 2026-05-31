@@ -165,9 +165,9 @@ static bool tim_channel_dma_set_enable(TIM_HandleTypeDef *const tim, uint32_t ch
     return true;
 }
 
-static uint32_t find_motor_index_from_dma(DMA_HandleTypeDef *const dma)
+static size_t find_motor_index_from_dma(DMA_HandleTypeDef *const dma)
 {
-    for (uint32_t index = 0; index < BDSHOT_DMA_MOTOR_COUNT; index++) {
+    for (size_t index = 0; index < BDSHOT_DMA_MOTOR_COUNT; index++) {
         bdshot_dma_motor_t *motor = &motors[index];
 
         if (!motor->is_initialized) {
