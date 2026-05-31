@@ -1,0 +1,87 @@
+name: Messages Registry
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'embedded-software/messages/**'
+      - 'embedded-software/firmware/lib/messages/**'
+      - 'embedded-software/firmware/generated/messages/**'
+      - '.github/workflows/messages.yml'
+  pull_request:
+    paths:
+      - 'embedded-software/messages/**'
+      - 'embedded-software/firmware/lib/messages/**'
+      - 'embedded-software/firmware/generated/messages/**'
+      - '.github/workflows/messages.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  schema-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install jsonschema
+        run: pip install jsonschema
+
+      - name: Validate registry.json against meta-schema
+        run: |
+          python - <<'PY'
+          import json, sys
+          from jsonschema import Draft202012Validator
+          with open('embedded-software/messages/registry.schema.json') as f: schema = json.load(f)
+          with open('embedded-software/messages/registry.json') as f: reg = json.load(f)
+          errs = list(Draft202012Validator(schema).iter_errors(reg))
+          if errs:
+              for e in errs: print('FAIL:', list(e.absolute_path), '->', e.message)
+              sys.exit(1)
+          print('OK')
+          PY
+
+  codegen-idempotency:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install jsonschema
+        run: pip install jsonschema
+
+      - name: Re-run codegen
+        working-directory: embedded-software/messages
+        run: python -m codegen --registry registry.json --out ../firmware/generated/messages
+
+      - name: Verify no drift
+        run: |
+          if ! git diff --exit-code -- embedded-software/firmware/generated/messages; then
+            echo ""
+            echo "::error::registry.json was edited without rerunning codegen."
+            echo "::error::Run: (cd embedded-software/messages && python -m codegen --registry registry.json --out ../firmware/generated/messages) and commit the diff."
+            exit 1
+          fi
+
+  decoder-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install jsonschema
+        run: pip install jsonschema
+
+      - name: Run decoder unittest suite
+        working-directory: embedded-software/messages/decoder
+        run: python -m unittest discover -v

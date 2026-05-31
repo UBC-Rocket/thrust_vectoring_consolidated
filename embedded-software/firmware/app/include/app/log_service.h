@@ -28,6 +28,24 @@ void log_service_init(void);
 bool log_service_ready(void);
 void log_service_mark_ready(void);
 
+/**
+ * @brief Raw-bytes sink used by the structured messages runtime.
+ *
+ * The messages library hands fully-assembled envelopes (length + class +
+ * module_id + msg_id + t_us + payload + crc16) to this function via the
+ * sink installed by messages_sd_sink_set(). Phase-1 implementation just
+ * counts bytes appended + drops; the real SD path lands when sd_log_task
+ * grows a body. Returns true on accept, false if the staging buffer is
+ * full (messages runtime then bumps the per-channel drop counter).
+ */
+bool log_service_append_raw(const uint8_t *bytes, uint32_t len);
+
+/** Cumulative bytes successfully appended via log_service_append_raw. */
+uint32_t log_service_raw_bytes_appended(void);
+
+/** Cumulative bytes dropped at log_service_append_raw (sink full). */
+uint32_t log_service_raw_bytes_dropped(void);
+
 /* One log function per record type, auto-generated from LOG_RECORD_LIST. */
 #define APP_LOG_DECLARE_FN_(id, name, fields, enable) \
     void log_service_log_##name(const log_record_##name##_t *record);

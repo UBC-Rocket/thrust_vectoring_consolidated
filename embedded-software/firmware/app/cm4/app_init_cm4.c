@@ -11,6 +11,8 @@
 #include "app/state_exchange.h"
 #include "app/tasks.h"
 
+#include "messages/messages.h"
+
 #include "FreeRTOS.h"
 #include "task.h"
 
@@ -26,9 +28,23 @@ static StackType_t  s_stk_log[STK_SD_LOG];
 
 static TaskHandle_t s_h_state, s_h_mission, s_h_log;
 
+/* Sink shim: hand assembled message records into log_service's raw-append
+ * path. messages_sink_fn_t and log_service_append_raw use the same
+ * (const uint8_t*, len, -> bool) contract, but we keep the shim so the
+ * coupling is explicit and easy to swap when the SD path firms up. */
+static bool messages_sd_sink(const uint8_t *record, size_t record_len) {
+    return log_service_append_raw(record, (uint32_t)record_len);
+}
+
 void app_init_cm4(void) {
     state_exchange_init();
     log_service_init();
+
+    /* Bring up the structured messages runtime and route the SD channel
+     * into log_service. Must happen AFTER log_service_init (the sink
+     * touches log_service state) and before any task starts publishing. */
+    messages_init();
+    messages_sd_sink_set(messages_sd_sink);
 
     s_h_log     = xTaskCreateStatic(task_sd_log,           "sd_log",
                                     STK_SD_LOG,            NULL, 4,

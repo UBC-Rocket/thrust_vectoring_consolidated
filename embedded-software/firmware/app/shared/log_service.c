@@ -19,6 +19,11 @@
 
 static bool s_ready;
 
+/* Phase-1 placeholders for the raw-bytes sink. Real implementation
+ * (ring buffer drained by sd_log_task) lands when SD writing comes online. */
+static volatile uint32_t s_raw_bytes_appended;
+static volatile uint32_t s_raw_bytes_dropped;
+
 IO_TEST_HOOK_RW(s_ready, bool, log_service_ready)
 
 void log_service_init(void) {
@@ -43,3 +48,16 @@ void log_service_log_state(const state_t *state, app_flight_state_t flight_state
     (void)state;
     (void)flight_state;
 }
+
+bool log_service_append_raw(const uint8_t *bytes, uint32_t len) {
+    (void)bytes;
+    /* Phase-1: accept everything; just count bytes so the messages publish
+     * path exercises end-to-end. When the real staging ring lands the
+     * memcpy + ring write goes here, and the bool return reflects whether
+     * the ring had room. */
+    s_raw_bytes_appended += len;
+    return true;
+}
+
+uint32_t log_service_raw_bytes_appended(void) { return s_raw_bytes_appended; }
+uint32_t log_service_raw_bytes_dropped(void)  { return s_raw_bytes_dropped; }
