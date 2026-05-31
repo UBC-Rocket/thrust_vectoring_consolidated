@@ -68,7 +68,7 @@ static volatile uint32_t get_timer_channel_dma_src(TIM_HandleTypeDef *const tim,
 static uint32_t tim_channel_convert_hal_to_ll(uint32_t hal_channel);
 static bool tim_channel_dma_set_enable(TIM_HandleTypeDef *const tim, uint32_t channel, bool enable);
 
-static uint32_t find_motor_index_from_dma(DMA_HandleTypeDef *const dma);
+static size_t find_motor_index_from_dma(DMA_HandleTypeDef *const dma);
 static bool motor_config_is_valid(bdshot_dma_motor_config_t *config);
 static void build_dma_tx_buffer(uint32_t *const buffer, bdshot_frame_t frame);
 static bool motor_switch_to_rx(bdshot_dma_motor_t *const motor);
