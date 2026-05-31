@@ -11,6 +11,6 @@ typedef struct {
     uint16_t lower_motor_us; /**< PWM period for the lower motor in microseconds */
 } pwm_setpoint_t;
 
-pwm_setpoint_t pwm_setpoint_from_forces(double thrust, double torque);
+pwm_setpoint_t pwm_setpoint_from_forces(float thrust, float torque);
 
 #endif // LIB_CONTROLS_PWM_H

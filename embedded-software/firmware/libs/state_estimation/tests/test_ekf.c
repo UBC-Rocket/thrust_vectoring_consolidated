@@ -1,5 +1,6 @@
 #include "unity.h"
 #include "state_estimation/ekf.h"
+#include "state_estimation/quaternion.h"
 #include <math.h>
 #include <string.h>
 
@@ -45,6 +46,38 @@ static void make_default_config(eskf_config_t *cfg)
     cfg->mag_ref[2] = 0.0f;
 
     cfg->calibration_samples = 0; /* No calibration for basic tests */
+}
+
+static void euler_zyx_to_quat(float roll, float pitch, float yaw, float q[4])
+{
+    const float hr = 0.5f * roll;
+    const float hp = 0.5f * pitch;
+    const float hy = 0.5f * yaw;
+
+    const float cr = cosf(hr), sr = sinf(hr);
+    const float cp = cosf(hp), sp = sinf(hp);
+    const float cy = cosf(hy), sy = sinf(hy);
+
+    q[0] = cr * cp * cy + sr * sp * sy;
+    q[1] = sr * cp * cy - cr * sp * sy;
+    q[2] = cr * sp * cy + sr * cp * sy;
+    q[3] = cr * cp * sy - sr * sp * cy;
+}
+
+static float yaw_from_quat_rad(const float q[4])
+{
+    const float siny = 2.0f * (q[0] * q[3] + q[1] * q[2]);
+    const float cosy = 1.0f - 2.0f * (q[2] * q[2] + q[3] * q[3]);
+    return atan2f(siny, cosy);
+}
+
+static float wrap_angle_pi(float angle_rad)
+{
+    const float pi = 3.14159265358979323846f;
+    const float two_pi = 2.0f * pi;
+    while (angle_rad > pi) angle_rad -= two_pi;
+    while (angle_rad < -pi) angle_rad += two_pi;
+    return angle_rad;
 }
 
 /* ---------- eskf_init + eskf_get_state ---------- */
@@ -221,4 +254,46 @@ void test_eskf_calibration_seeds_biases(void)
         TEST_ASSERT_FLOAT_WITHIN(0.01f, accel_bias[i],
                                  eskf.orientation.b_accel[0][i]);
     }
+}
+
+void test_eskf_yaw_lock_stable_near_vertical_pitch(void)
+{
+    eskf_t eskf;
+    eskf_config_t cfg;
+    make_default_config(&cfg);
+    eskf_init(&eskf, &cfg);
+
+    const float roll = 0.35f;
+    const float pitch = 1.5533430f; /* ~89 deg, near Euler singularity */
+    const float yaw_locked = -0.70f;
+
+    euler_zyx_to_quat(roll, pitch, yaw_locked, eskf.orientation.q_nom);
+    eskf.orientation.yaw_nom = yaw_locked;
+
+    eskf_sample_t accel_sample = {0};
+    accel_sample.timestamp_us = 10000;
+    eskf_predict_accel(eskf.orientation.q_nom, eskf.expected_g, accel_sample.data);
+    accel_sample.data[0] += 1e-4f; /* tiny non-zero innovation */
+
+    eskf_sensor_channel_t channels[] = {
+        { ESKF_SENSOR_ACCEL, 0, &accel_sample, 1 },
+    };
+    eskf_input_t input = { channels, 1 };
+    eskf_process(&eskf, &input);
+
+    float q[4];
+    memcpy(q, eskf.orientation.q_nom, sizeof(q));
+
+    for (int i = 0; i < 4; i++) {
+        TEST_ASSERT_FALSE(isnan(q[i]));
+        TEST_ASSERT_FALSE(isinf(q[i]));
+    }
+
+    const float norm =
+        sqrtf(q[0]*q[0] + q[1]*q[1] + q[2]*q[2] + q[3]*q[3]);
+    TEST_ASSERT_FLOAT_WITHIN(1e-4f, 1.0f, norm);
+
+    const float yaw_out = yaw_from_quat_rad(q);
+    const float yaw_err = wrap_angle_pi(yaw_out - yaw_locked);
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 0.0f, yaw_err);
 }

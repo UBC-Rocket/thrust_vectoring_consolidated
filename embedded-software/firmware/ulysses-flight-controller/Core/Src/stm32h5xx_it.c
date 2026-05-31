@@ -22,6 +22,7 @@
 #include "stm32h5xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "crash/crash_dump.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -71,6 +72,8 @@ extern DMA_HandleTypeDef handle_GPDMA1_Channel2;
 extern SPI_HandleTypeDef hspi1;
 extern SPI_HandleTypeDef hspi2;
 extern SPI_HandleTypeDef hspi4;
+extern DMA_HandleTypeDef handle_GPDMA2_Channel7;
+extern DMA_HandleTypeDef handle_GPDMA2_Channel6;
 extern TIM_HandleTypeDef htim4;
 extern DMA_HandleTypeDef handle_GPDMA2_Channel5;
 extern DMA_HandleTypeDef handle_GPDMA2_Channel4;
@@ -110,13 +113,15 @@ void NMI_Handler(void)
 void HardFault_Handler(void)
 {
   /* USER CODE BEGIN HardFault_IRQn 0 */
-  g_hardfault_cfsr = SCB->CFSR;
-  g_hardfault_hfsr = SCB->HFSR;
-  g_hardfault_bfar = SCB->BFAR;
-  g_hardfault_shcsr = SCB->SHCSR;
-  __asm volatile ("mov %0, lr" : "=r" (g_hardfault_lr));
-  g_hardfault_sp = __get_MSP();
-  __BKPT(0);
+  __asm volatile (
+      "tst lr, #4        \n"
+      "ite eq             \n"
+      "mrseq r0, msp     \n"
+      "mrsne r0, psp     \n"
+      "mov r1, lr        \n"
+      "mov r2, #0        \n" /* CRASH_FAULT_HARD */
+      "b crash_dump_handler \n"
+  );
   /* USER CODE END HardFault_IRQn 0 */
   while (1)
   {
@@ -131,7 +136,15 @@ void HardFault_Handler(void)
 void MemManage_Handler(void)
 {
   /* USER CODE BEGIN MemoryManagement_IRQn 0 */
-
+  __asm volatile (
+      "tst lr, #4        \n"
+      "ite eq             \n"
+      "mrseq r0, msp     \n"
+      "mrsne r0, psp     \n"
+      "mov r1, lr        \n"
+      "mov r2, #1        \n" /* CRASH_FAULT_MEMMANAGE */
+      "b crash_dump_handler \n"
+  );
   /* USER CODE END MemoryManagement_IRQn 0 */
   while (1)
   {
@@ -146,7 +159,15 @@ void MemManage_Handler(void)
 void BusFault_Handler(void)
 {
   /* USER CODE BEGIN BusFault_IRQn 0 */
-
+  __asm volatile (
+      "tst lr, #4        \n"
+      "ite eq             \n"
+      "mrseq r0, msp     \n"
+      "mrsne r0, psp     \n"
+      "mov r1, lr        \n"
+      "mov r2, #2        \n" /* CRASH_FAULT_BUS */
+      "b crash_dump_handler \n"
+  );
   /* USER CODE END BusFault_IRQn 0 */
   while (1)
   {
@@ -161,7 +182,15 @@ void BusFault_Handler(void)
 void UsageFault_Handler(void)
 {
   /* USER CODE BEGIN UsageFault_IRQn 0 */
-
+  __asm volatile (
+      "tst lr, #4        \n"
+      "ite eq             \n"
+      "mrseq r0, msp     \n"
+      "mrsne r0, psp     \n"
+      "mov r1, lr        \n"
+      "mov r2, #3        \n" /* CRASH_FAULT_USAGE */
+      "b crash_dump_handler \n"
+  );
   /* USER CODE END UsageFault_IRQn 0 */
   while (1)
   {
@@ -594,6 +623,34 @@ void GPDMA2_Channel5_IRQHandler(void)
   /* USER CODE BEGIN GPDMA2_Channel5_IRQn 1 */
 
   /* USER CODE END GPDMA2_Channel5_IRQn 1 */
+}
+
+/**
+  * @brief This function handles GPDMA2 Channel 6 global interrupt.
+  */
+void GPDMA2_Channel6_IRQHandler(void)
+{
+  /* USER CODE BEGIN GPDMA2_Channel6_IRQn 0 */
+
+  /* USER CODE END GPDMA2_Channel6_IRQn 0 */
+  HAL_DMA_IRQHandler(&handle_GPDMA2_Channel6);
+  /* USER CODE BEGIN GPDMA2_Channel6_IRQn 1 */
+
+  /* USER CODE END GPDMA2_Channel6_IRQn 1 */
+}
+
+/**
+  * @brief This function handles GPDMA2 Channel 7 global interrupt.
+  */
+void GPDMA2_Channel7_IRQHandler(void)
+{
+  /* USER CODE BEGIN GPDMA2_Channel7_IRQn 0 */
+
+  /* USER CODE END GPDMA2_Channel7_IRQn 0 */
+  HAL_DMA_IRQHandler(&handle_GPDMA2_Channel7);
+  /* USER CODE BEGIN GPDMA2_Channel7_IRQn 1 */
+
+  /* USER CODE END GPDMA2_Channel7_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */

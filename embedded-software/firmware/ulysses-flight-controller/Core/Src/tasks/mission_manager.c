@@ -19,11 +19,7 @@
 #include "status.pb.h"
 #include "common.pb.h"
 #include "rp/codec.h"
-
-static flight_state_t last_logged_flight_state = IDLE;
-static bool flight_header_logged = false;
-static uint32_t flight_magic = 0U;
-static uint32_t flight_counter = 0U;
+#include "timestamp.h"
 
 #define TELEMETRY_INTERVAL_MS 100   /* 10 Hz */
 #define STATUS_INTERVAL_MS    1000  /* 1 Hz */
@@ -33,11 +29,11 @@ static uint32_t radio_tx_count = 0;
 static uint32_t radio_rx_count = 0;
 static uint32_t cmd_rx_count = 0;
 
-static void log_flight_header_if_ready(uint32_t timestamp_us);
-static void log_flight_state_if_changed(flight_state_t flight_state,
-                                        uint32_t timestamp);
 static void handle_state_command(const tvr_StateCommand *cmd,
                                  flight_state_t *flight_state);
+static void handle_pid_gains(const tvr_SetPidGains *pid);
+static void handle_reference(const tvr_SetReference *reference);
+static void handle_configuration(const tvr_SetConfig *configuration);
 static void send_telemetry(const state_t *st, const control_output_t *ctrl,
                            flight_state_t flight_state);
 static void send_status(flight_state_t flight_state);
@@ -56,12 +52,8 @@ void mission_manager_task_start(void *argument) {
         uint32_t flags = 0;
         xTaskNotifyWaitIndexed(0, 0, UINT32_MAX, &flags, timeout);
 
-        log_service_try_init();
-
         state_t current_state = {0};
         state_exchange_get_state(&current_state);
-
-        log_flight_header_if_ready(current_state.u_s);
 
         /* ── Radio RX: decode FlightCommand ── */
         if (flags & GNSS_RADIO_MSG_READY_FLAG) {
@@ -97,35 +89,28 @@ void mission_manager_task_start(void *argument) {
 
                         case tvr_FlightCommand_set_pid_gains_tag:
                             cmd_rx_count++;
-                            /* TODO: apply PID gains to controller */
+                            /* TODO: apply pid gains */
+                            handle_pid_gains(
+                                &decoded.payload.set_pid_gains);
                             break;
 
                         case tvr_FlightCommand_set_reference_tag:
                             cmd_rx_count++;
                             /* TODO: apply reference setpoints */
+                            handle_reference(
+                                    &decoded.payload.set_reference);
                             break;
 
                         case tvr_FlightCommand_set_config_tag:
                             cmd_rx_count++;
                             /* TODO: apply vehicle config */
+                            handle_configuration(
+                                &decoded.payload.set_config);
                             break;
 
                         default:
                             break;
                     }
-
-                    log_service_log_event(
-                        LOG_EVENT_CODE_RADIO_RX,
-                        (uint16_t)decoded.which_payload,
-                        current_state.u_s
-                    );
-
-                } else if (dec.status == RP_CODEC_CHECKSUM_MISMATCH) {
-                    log_service_log_event(
-                        LOG_EVENT_CODE_RADIO_RX,
-                        0xFFFF,
-                        current_state.u_s
-                    );
                 }
             }
         }
@@ -133,20 +118,23 @@ void mission_manager_task_start(void *argument) {
         /* ── Periodic downlink ── */
         TickType_t now = xTaskGetTickCount();
 
-        /* 10 Hz telemetry */
+        /* 1 Hz system status (takes priority over telemetry this cycle) */
+        static TickType_t last_status_tick = 0;
+        bool status_due = (now - last_status_tick) >= pdMS_TO_TICKS(STATUS_INTERVAL_MS);
+        if (status_due) {
+            last_status_tick = now;
+            send_status(flight_state);
+        }
+
+        /* 10 Hz telemetry (skipped on cycles where status was sent) */
         static TickType_t last_telem_tick = 0;
         if ((now - last_telem_tick) >= pdMS_TO_TICKS(TELEMETRY_INTERVAL_MS)) {
             last_telem_tick = now;
-            control_output_t ctrl = {0};
-            state_exchange_get_control_output(&ctrl);
-            send_telemetry(&current_state, &ctrl, flight_state);
-        }
-
-        /* 1 Hz system status */
-        static TickType_t last_status_tick = 0;
-        if ((now - last_status_tick) >= pdMS_TO_TICKS(STATUS_INTERVAL_MS)) {
-            last_status_tick = now;
-            send_status(flight_state);
+            if (!status_due) {
+                control_output_t ctrl = {0};
+                state_exchange_get_control_output(&ctrl);
+                send_telemetry(&current_state, &ctrl, flight_state);
+            }
         }
 
         /* ── Periodic GNSS stats (debug) ── */
@@ -160,43 +148,68 @@ void mission_manager_task_start(void *argument) {
                        (unsigned long)err_cnt);
         }
 
-        log_service_periodic_flush();
-        log_flight_state_if_changed(flight_state, current_state.u_s);
         state_exchange_publish_flight_state(flight_state);
     }
 }
 
-static uint32_t next_flight_magic(void) {
-    uint32_t seed = HAL_GetTick() ^ 0x5A5AA5A5U;
-    if (seed == 0U) {
-        seed = 0xA5A5A5A5U;
-    }
-    return seed;
-}
-
-static void log_flight_header_if_ready(uint32_t timestamp_us) {
-    if (flight_header_logged || !log_service_ready()) {
+static void handle_pid_gains(const tvr_SetPidGains *pid) {
+    if (pid == NULL) {
         return;
     }
 
-    if (flight_magic == 0U) {
-        flight_magic = next_flight_magic();
-        flight_counter = HAL_GetTick();
-    }
+    log_service_log_pid_gains(&(log_record_pid_gains_t){
+        .timestamp_us = timestamp_us(),
+        .has_attitude_kp = pid->has_attitude_kp,
+        .attitude_kp_x = pid->has_attitude_kp ? pid->attitude_kp.x : 0.0f,
+        .attitude_kp_y = pid->has_attitude_kp ? pid->attitude_kp.y : 0.0f,
+        .attitude_kp_z = pid->has_attitude_kp ? pid->attitude_kp.z : 0.0f,
+        .has_attitude_kd = pid->has_attitude_kd,
+        .attitude_kd_x = pid->has_attitude_kd ? pid->attitude_kd.x : 0.0f,
+        .attitude_kd_y = pid->has_attitude_kd ? pid->attitude_kd.y : 0.0f,
+        .attitude_kd_z = pid->has_attitude_kd ? pid->attitude_kd.z : 0.0f,
+        .z_kp = pid->z_kp,
+        .z_ki = pid->z_ki,
+        .z_kd = pid->z_kd,
+        .z_integral_limit = pid->z_integral_limit,
+    });
 
-    log_service_log_flight_header(timestamp_us, flight_magic, flight_counter);
-    flight_header_logged = true;
+    state_exchange_publish_pid_gains(*pid);
 }
 
-static void log_flight_state_if_changed(flight_state_t flight_state,
-                                        uint32_t timestamp) {
-    if (flight_state == last_logged_flight_state) {
+static void handle_reference(const tvr_SetReference *reference) {
+    if (reference == NULL) {
         return;
     }
 
-    log_service_log_event(LOG_EVENT_CODE_FLIGHT_STATE, (uint16_t)flight_state,
-                          timestamp);
-    last_logged_flight_state = flight_state;
+    log_service_log_reference(&(log_record_reference_t){
+        .timestamp_us = timestamp_us(),
+        .z_ref = reference->z_ref,
+        .vz_ref = reference->vz_ref,
+        .has_q_ref = reference->has_q_ref,
+        .q_ref_w = reference->has_q_ref ? reference->q_ref.w : 0.0f,
+        .q_ref_x = reference->has_q_ref ? reference->q_ref.x : 0.0f,
+        .q_ref_y = reference->has_q_ref ? reference->q_ref.y : 0.0f,
+        .q_ref_z = reference->has_q_ref ? reference->q_ref.z : 0.0f,
+    });
+
+    state_exchange_publish_flight_reference(*reference);
+}
+
+static void handle_configuration(const tvr_SetConfig *configuration) {
+    if (configuration == NULL) {
+        return;
+    }
+
+    log_service_log_configuration(&(log_record_configuration_t){
+        .timestamp_us = timestamp_us(),
+        .mass = configuration->mass,
+        .T_min = configuration->T_min,
+        .T_max = configuration->T_max,
+        .theta_min = configuration->theta_min,
+        .theta_max = configuration->theta_max,
+    });
+
+    state_exchange_publish_vehicle_config(*configuration);
 }
 
 static void handle_state_command(const tvr_StateCommand *cmd,
@@ -205,35 +218,37 @@ static void handle_state_command(const tvr_StateCommand *cmd,
         case tvr_StateCommand_Type_CMD_ARM:
         {
             if (*flight_state == IDLE) {
-                /* Disarm and invalidate the previous test so the controls task
-                 * re-runs the full startup sequence before going live. */
-                state_exchange_publish_armed(false);
-                state_exchange_publish_startup_test_complete(false);
-                state_exchange_publish_rearm_request(true);
+                state_exchange_publish_armed(true);
                 DLOG_PRINT("[MM] ARM: rearm sequence requested\r\n");
             } else {
-                DLOG_PRINT("[MM] ARM rejected: flight_state=%d\r\n",
-                           (int)*flight_state);
+                DLOG_PRINT("[MM] ARM rejected: flight_state=%d\r\n", (int)*flight_state);
             }
             break;
         }
 
         case tvr_StateCommand_Type_CMD_LAUNCH:
+        {
             if (*flight_state == IDLE) {
                 *flight_state = RISE;
             }
             break;
+        }
 
         case tvr_StateCommand_Type_CMD_ABORT:
+        {
             *flight_state = IDLE;
+            state_exchange_publish_armed(false);
             DLOG_PRINT("[MM] Abort: ESC off, flight_state -> IDLE\r\n");
             break;
+        }
 
         case tvr_StateCommand_Type_CMD_LAND:
+        {
             if (*flight_state == HOVER) {
                 *flight_state = LOWER;
             }
             break;
+        }
 
         case tvr_StateCommand_Type_CMD_NONE:
         default:
@@ -274,6 +289,7 @@ static void send_telemetry(const state_t *st, const control_output_t *ctrl,
     telem->thrust_cmd   = ctrl->T_cmd;
     telem->gimbal_x     = ctrl->theta_x_cmd;
     telem->gimbal_y     = ctrl->theta_y_cmd;
+    const uint32_t tx_timestamp_us = telem->timestamp_ms * 1000U;
 
     uint8_t pkt[RP_PACKET_MAX_SIZE];
     rp_packet_encode_result_t enc = rp_packet_encode(
@@ -281,6 +297,27 @@ static void send_telemetry(const state_t *st, const control_output_t *ctrl,
 
     if (enc.status == RP_CODEC_OK) {
         if (gnss_radio_send(pkt, (uint16_t)enc.written)) {
+            log_service_log_radio_telemetry(&(log_record_radio_telemetry_t){
+                .timestamp_us   = tx_timestamp_us,
+                .timestamp_ms   = telem->timestamp_ms,
+                .position_x     = telem->position.x,
+                .position_y     = telem->position.y,
+                .position_z     = telem->position.z,
+                .velocity_x     = telem->velocity.x,
+                .velocity_y     = telem->velocity.y,
+                .velocity_z     = telem->velocity.z,
+                .attitude_w     = telem->attitude.w,
+                .attitude_x     = telem->attitude.x,
+                .attitude_y     = telem->attitude.y,
+                .attitude_z     = telem->attitude.z,
+                .angular_rate_x = telem->angular_rate.x,
+                .angular_rate_y = telem->angular_rate.y,
+                .angular_rate_z = telem->angular_rate.z,
+                .thrust_cmd     = telem->thrust_cmd,
+                .gimbal_x       = telem->gimbal_x,
+                .gimbal_y       = telem->gimbal_y,
+                .flight_state   = (uint8_t)telem->flight_state,
+            });
             radio_tx_count++;
         }
     }
@@ -304,6 +341,7 @@ static void send_status(flight_state_t flight_state) {
     s->radio_tx_count = radio_tx_count;
     s->radio_rx_count = radio_rx_count;
     s->cmd_rx_count   = cmd_rx_count;
+    const uint32_t tx_timestamp_us = s->timestamp_ms * 1000U;
 
     uint8_t pkt[RP_PACKET_MAX_SIZE];
     rp_packet_encode_result_t enc = rp_packet_encode(
@@ -311,6 +349,20 @@ static void send_status(flight_state_t flight_state) {
 
     if (enc.status == RP_CODEC_OK) {
         if (gnss_radio_send(pkt, (uint16_t)enc.written)) {
+            log_service_log_radio_status(&(log_record_radio_status_t){
+                .timestamp_us   = tx_timestamp_us,
+                .timestamp_ms   = s->timestamp_ms,
+                .uptime_ms      = s->uptime_ms,
+                .radio_tx_count = s->radio_tx_count,
+                .radio_rx_count = s->radio_rx_count,
+                .cmd_rx_count   = s->cmd_rx_count,
+                .flight_state   = (uint8_t)s->flight_state,
+                .accel_ok       = s->accel_ok,
+                .gyro_ok        = s->gyro_ok,
+                .baro1_ok       = s->baro1_ok,
+                .baro2_ok       = s->baro2_ok,
+                .gps_connected  = s->gps_connected,
+            });
             radio_tx_count++;
         }
     }

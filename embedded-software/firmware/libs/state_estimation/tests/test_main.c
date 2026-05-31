@@ -34,6 +34,7 @@ void test_eskf_init_gives_identity_quaternion(void);
 void test_eskf_orientation_stable_at_rest(void);
 void test_eskf_body_zero_accel_gps_origin(void);
 void test_eskf_calibration_seeds_biases(void);
+void test_eskf_yaw_lock_stable_near_vertical_pitch(void);
 
 /* test_eskf_trajectory.c */
 void test_trajectory_static(void);
@@ -77,6 +78,7 @@ int main(void)
     RUN_TEST(test_eskf_orientation_stable_at_rest);
     RUN_TEST(test_eskf_body_zero_accel_gps_origin);
     RUN_TEST(test_eskf_calibration_seeds_biases);
+    RUN_TEST(test_eskf_yaw_lock_stable_near_vertical_pitch);
 
     /* trajectory integration tests */
     RUN_TEST(test_trajectory_static);

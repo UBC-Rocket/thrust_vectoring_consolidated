@@ -22,7 +22,10 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+
 #include "state_exchange.h"
+#include "crash/crash_dump.h"
+#include "timestamp.h"
 
 /* USER CODE END Includes */
 
@@ -53,6 +56,14 @@ const osThreadAttr_t DebugLoggingTask_attributes = {
 };
 #endif // ULYSSES_ENABLE_DEBUG_LOGGING
 
+osThreadId_t SdFlushTaskHandle;
+const osThreadAttr_t SdFlushTask_attributes = {
+  .name = "SdFlush",
+  .priority = (osPriority_t) osPriorityAboveNormal,
+  .stack_size = 256 * 4,
+};
+extern void sd_flush_task_start(void *argument);
+
 /* USER CODE END Variables */
 /* Definitions for MissionManager */
 osThreadId_t MissionManagerHandle;
@@ -80,6 +91,20 @@ const osThreadAttr_t StateEstimation_attributes = {
 /* USER CODE BEGIN FunctionPrototypes */
 
 /* USER CODE END FunctionPrototypes */
+
+/* USER CODE BEGIN 3 */
+void vApplicationTickHook( void )
+{
+  /* This function will be called by each tick interrupt if
+     configUSE_TICK_HOOK is set to 1 in FreeRTOSConfig.h. User code can be
+     added here, but the tick hook is called from an interrupt context, so
+     code must not attempt to block, and only the interrupt safe FreeRTOS API
+     functions can be used (those that end in FromISR()).
+  */
+
+  timestamp_update();
+}
+/* USER CODE END 3 */
 
 /**
   * @brief  FreeRTOS initialization
@@ -118,9 +143,24 @@ void MX_FREERTOS_Init(void) {
 
   /* USER CODE BEGIN RTOS_THREADS */
 
+  crash_dump_register_task((TaskHandle_t)MissionManagerHandle);
+  vTaskSetTaskNumber((TaskHandle_t)MissionManagerHandle, 1);
+
+  crash_dump_register_task((TaskHandle_t)ControlsHandle);
+  vTaskSetTaskNumber((TaskHandle_t)ControlsHandle, 2);
+
+  crash_dump_register_task((TaskHandle_t)StateEstimationHandle);
+  vTaskSetTaskNumber((TaskHandle_t)StateEstimationHandle, 3);
+
 #ifdef ULYSSES_ENABLE_DEBUG_LOGGING
   DebugLoggingTaskHandle = osThreadNew(debug_logging_task_start, NULL, &DebugLoggingTask_attributes);
+  crash_dump_register_task((TaskHandle_t)DebugLoggingTaskHandle);
+  vTaskSetTaskNumber((TaskHandle_t)DebugLoggingTaskHandle, 4);
 #endif // ULYSSES_ENABLE_DEBUG_LOGGING
+
+  SdFlushTaskHandle = osThreadNew(sd_flush_task_start, NULL, &SdFlushTask_attributes);
+  crash_dump_register_task((TaskHandle_t)SdFlushTaskHandle);
+  vTaskSetTaskNumber((TaskHandle_t)SdFlushTaskHandle, 5);
 
   /* USER CODE END RTOS_THREADS */
 

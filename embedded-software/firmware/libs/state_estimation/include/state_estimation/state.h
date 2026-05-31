@@ -85,6 +85,14 @@ void vec3_cross(const float a[3], const float b[3], float out[3]);
 float vec3_dot(const float a[3], const float b[3]);
 
 /**
+ * @brief 3-vector sum .
+ * @param a First vector (length 3).
+ * @param b Second vector (length 3).
+ * @param out Result vector (length 3).
+ */
+void vec3_sum(const float a[3], const float b[3], float out[3]);
+
+/**
  * @brief 3x3 matrix times 3-vector: out = M * v.
  * @param M   Row-major matrix M[3][3].
  * @param v   Vector (length 3).

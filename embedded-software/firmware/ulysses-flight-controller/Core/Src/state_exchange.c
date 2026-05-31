@@ -7,6 +7,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"
+#include "command.pb.h"
 
 /* -------------------------------------------------------------------------- */
 /* Configuration                                                              */
@@ -23,7 +24,7 @@
  * which prevents unbounded priority inversion. However, bounded timeout
  * provides an additional safety net for deadlock detection.
  */
-#define STATE_MUTEX_TIMEOUT_TICKS   pdMS_TO_TICKS(10)
+#define STATE_MUTEX_TIMEOUT_TICKS pdMS_TO_TICKS(10)
 
 /* -------------------------------------------------------------------------- */
 /* Private state                                                              */
@@ -42,6 +43,9 @@ static control_output_t latest_control_output = {0};
 static bool latest_armed = false;
 static bool latest_startup_test_complete = false;
 static bool latest_rearm_requested = false;
+static tvr_SetPidGains latest_pid_gains = {0};
+static tvr_SetReference latest_flight_reference = {0};
+static tvr_SetConfig latest_vehicle_config = {0};
 
 static uint32_t state_seq = 0;
 static uint32_t flight_state_seq = 0;
@@ -49,6 +53,9 @@ static uint32_t control_seq = 0;
 static uint32_t armed_seq = 0;
 static uint32_t startup_test_seq = 0;
 static uint32_t rearm_seq = 0;
+static uint32_t pid_gains_seq = 0;
+static uint32_t flight_reference_seq = 0;
+static uint32_t vehicle_config_seq = 0;
 
 /* -------------------------------------------------------------------------- */
 /* Private helpers                                                            */
@@ -96,7 +103,9 @@ void state_exchange_init(void)
 
 uint32_t state_exchange_publish_state(const state_t *state)
 {
-    if (!state) return state_seq;
+    if (!state) {
+        return state_seq;
+    }
 
     ensure_initialized();
     if (take_mutex_safe(state_mutex_handle) != pdTRUE) {
@@ -116,7 +125,7 @@ uint32_t state_exchange_get_state(state_t *state_out)
     if (take_mutex_safe(state_mutex_handle) != pdTRUE) {
         /* Mutex timeout - return stale data with current sequence */
         if (state_out) {
-            *state_out = latest_state;  /* Read without lock (may be inconsistent) */
+            *state_out = latest_state; /* Read without lock (may be inconsistent) */
         }
         return state_seq;
     }
@@ -162,7 +171,9 @@ uint32_t state_exchange_get_flight_state(flight_state_t *flight_state_out)
 
 uint32_t state_exchange_publish_control_output(const control_output_t *out)
 {
-    if (!out) return control_seq;
+    if (!out) {
+        return control_seq;
+    }
 
     ensure_initialized();
     xSemaphoreTake(control_mutex_handle, portMAX_DELAY);
@@ -271,6 +282,96 @@ uint32_t state_exchange_get_rearm_request(bool *requested_out)
         *requested_out = latest_rearm_requested;
     }
     uint32_t seq = rearm_seq;
+    xSemaphoreGive(flight_mutex_handle);
+    return seq;
+}
+
+uint32_t state_exchange_publish_pid_gains(tvr_SetPidGains pid_gains)
+{
+    ensure_initialized();
+    if (take_mutex_safe(flight_mutex_handle) != pdTRUE) {
+        return pid_gains_seq;
+    }
+    latest_pid_gains = pid_gains;
+    pid_gains_seq++;
+    uint32_t seq = pid_gains_seq;
+    xSemaphoreGive(flight_mutex_handle);
+    return seq;
+}
+
+uint32_t state_exchange_get_pid_gains(tvr_SetPidGains *pid_gains_out)
+{
+    ensure_initialized();
+    if (take_mutex_safe(flight_mutex_handle) != pdTRUE) {
+        if (pid_gains_out) {
+            *pid_gains_out = latest_pid_gains;
+        }
+        return pid_gains_seq;
+    }
+    if (pid_gains_out) {
+        *pid_gains_out = latest_pid_gains;
+    }
+    uint32_t seq = pid_gains_seq;
+    xSemaphoreGive(flight_mutex_handle);
+    return seq;
+}
+
+uint32_t state_exchange_publish_vehicle_config(tvr_SetConfig config)
+{
+    ensure_initialized();
+    if (take_mutex_safe(flight_mutex_handle) != pdTRUE) {
+        return vehicle_config_seq;
+    }
+    latest_vehicle_config = config;
+    vehicle_config_seq++;
+    uint32_t seq = vehicle_config_seq;
+    xSemaphoreGive(flight_mutex_handle);
+    return seq;
+}
+
+uint32_t state_exchange_get_vehicle_config(tvr_SetConfig *config_out)
+{
+    ensure_initialized();
+    if (take_mutex_safe(flight_mutex_handle) != pdTRUE) {
+        if (config_out) {
+            *config_out = latest_vehicle_config;
+        }
+        return vehicle_config_seq;
+    }
+    if (config_out) {
+        *config_out = latest_vehicle_config;
+    }
+    uint32_t seq = vehicle_config_seq;
+    xSemaphoreGive(flight_mutex_handle);
+    return seq;
+}
+
+uint32_t state_exchange_publish_flight_reference(tvr_SetReference reference)
+{
+    ensure_initialized();
+    if (take_mutex_safe(flight_mutex_handle) != pdTRUE) {
+        return flight_reference_seq;
+    }
+    latest_flight_reference = reference;
+    flight_reference_seq++;
+    uint32_t seq = flight_reference_seq;
+    xSemaphoreGive(flight_mutex_handle);
+    return seq;
+}
+
+uint32_t state_exchange_get_flight_reference(tvr_SetReference *reference_out)
+{
+    ensure_initialized();
+    if (take_mutex_safe(flight_mutex_handle) != pdTRUE) {
+        if (reference_out) {
+            *reference_out = latest_flight_reference;
+        }
+        return flight_reference_seq;
+    }
+    if (reference_out) {
+        *reference_out = latest_flight_reference;
+    }
+    uint32_t seq = flight_reference_seq;
     xSemaphoreGive(flight_mutex_handle);
     return seq;
 }

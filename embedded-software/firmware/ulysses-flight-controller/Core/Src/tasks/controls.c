@@ -10,34 +10,43 @@
 #include <string.h>
 #include <math.h>
 #include "cmsis_os2.h"
+#include "command.pb.h"
+#include "common.pb.h"
+#include "motor_drivers/dshot/dshot.h"
+#include "motor_drivers/dshot/bdshot_dma.h"
+#include "projdefs.h"
 #include "state_exchange.h"
 #include "main.h"
 #include "FreeRTOS.h"
 #include "task.h"
-#include "stm32h5xx_hal.h"
 #include "state_estimation/state.h"
 #include "mission_manager/mission_manager.h"
 #include "controls/flight_controller.h"
 #include "motor_drivers/servo_driver.h"
 #include "motor_drivers/esc_driver.h"
 #include "debug/log.h"
+#include "SD_logging/log_service.h"
+#include "timestamp.h"
+#include "utilities/clamp.h"
+#include "motor_drivers/dshot/dshot.h"
 
+/* Utility macros */
 #define RAD_TO_DEG (180.0f / 3.14159265f)
+#define DEG_TO_RAD (3.14159265f / 180.0f);
+#define SQRT_2_2 (0.70710678f) /**< For 45 degree trim to stay within circular gimbal limits. */
 
-#define CONTROLS_DT_S 0.00125f  /**< Control period [s] (800 Hz via TIM4 CH2). */
-#define STALE_STATE_THRESHOLD_TICKS 100  /**< If state_seq unchanged for this many ticks, treat as stale and output safe (zero). */
+#define CONTROLS_DT_S 0.00125f /**< Control period [s] (800 Hz via TIM4 CH2). */
+#define STALE_STATE_THRESHOLD_TICKS \
+    100 /**< If state_seq unchanged for this many ticks, treat as stale and output safe (zero). */
 
-/* ── Startup test parameters ────────────────────────────────────────────── */
-#define SWEEP_RANGE_DEG   90.0f   /**< Servo sweep half-range (degrees). */
-#define SWEEP_STEP_DEG    1.0f    /**< Degrees per step. */
-#define SWEEP_STEP_MS     5       /**< Milliseconds between steps. */
-#define CIRCLE_RADIUS_DEG 72.0f   /**< Servo circle sweep radius (degrees). */
-#define CIRCLE_STEPS      72      /**< Steps per full revolution (5 deg each). */
-#define CIRCLE_STEP_MS    18      /**< Milliseconds between circle steps. */
-#define ESC_TEST_THRUST   0.10f   /**< Motor test thrust (10%). */
-#define ESC_RAMP_STEPS    50      /**< Steps to ramp up/down. */
-#define ESC_RAMP_STEP_MS  10      /**< Milliseconds per ramp step. */
-#define ESC_HOLD_MS       500     /**< Hold at peak thrust (ms). */
+/* Empirical values for a safe operational range of the gimbal */
+#define SERVO_MAX_DEGREES (30.0f)
+#define SERVO_MIN_DEGREES (-30.0f)
+
+/* Time to wait after arming before sending throttle commands (ESCs need to see a few frames to arm) */
+#define BDSHOT_ARM_TIME_US (5000000U) /**< 5 seconds */
+
+static quaternion_t pb_to_fc_quaternion(tvr_Quaternion quaternion);
 
 /** Fill config with default gains and limits (tune in use). */
 static void init_default_config(flight_controller_config_t *cfg)
@@ -54,13 +63,13 @@ static void init_default_config(flight_controller_config_t *cfg)
     cfg->attitude.I[1][1] = 0.01f;
     cfg->attitude.I[2][2] = 0.01f;
     /* Allocation: thrust along -z body (z-up) */
-    cfg->allocation.t_hat[0] = 0.0f;
-    cfg->allocation.t_hat[1] = 0.0f;
-    cfg->allocation.t_hat[2] = -1.0f;
+    cfg->allocation.thrust_dir[0] = 0.0f;
+    cfg->allocation.thrust_dir[1] = 0.0f;
+    cfg->allocation.thrust_dir[2] = -1.0f;
     /* Gimbal */
     cfg->gimbal.L = 0.2f;
-    cfg->gimbal.theta_min = -0.05f;
-    cfg->gimbal.theta_max = 0.05f;
+    cfg->gimbal.theta_min = SERVO_GIMBAL_DEG_MIN * DEG_TO_RAD;
+    cfg->gimbal.theta_max = SERVO_GIMBAL_DEG_MAX * DEG_TO_RAD;
     /* Thrust */
     cfg->thrust.m = 1.0f;
     cfg->thrust.g = 9.8067f;
@@ -85,144 +94,6 @@ static void init_default_ref(flight_controller_ref_t *ref)
     ref->vz_ref = 0.0f;
 }
 
-/* ── Startup actuator test ────────────────────────────────────────────── */
-
-/** Sweep a single servo through center → +max → center → -max → center. */
-static void sweep_servo(int servo_index)
-{
-    const int steps = (int)(SWEEP_RANGE_DEG / SWEEP_STEP_DEG);
-
-    /* center → +max */
-    for (int i = 0; i <= steps; i++) {
-        float angle = SWEEP_STEP_DEG * (float)i;
-        if (servo_index == 0)
-            set_servo_pair_degrees(angle, 0.0f);
-        else
-            set_servo_pair_degrees(0.0f, angle);
-        osDelay(SWEEP_STEP_MS);
-    }
-
-    /* +max → center */
-    for (int i = steps; i >= 0; i--) {
-        float angle = SWEEP_STEP_DEG * (float)i;
-        if (servo_index == 0)
-            set_servo_pair_degrees(angle, 0.0f);
-        else
-            set_servo_pair_degrees(0.0f, angle);
-        osDelay(SWEEP_STEP_MS);
-    }
-
-    /* center → -max */
-    for (int i = 0; i <= steps; i++) {
-        float angle = -SWEEP_STEP_DEG * (float)i;
-        if (servo_index == 0)
-            set_servo_pair_degrees(angle, 0.0f);
-        else
-            set_servo_pair_degrees(0.0f, angle);
-        osDelay(SWEEP_STEP_MS);
-    }
-
-    /* -max → center */
-    for (int i = steps; i >= 0; i--) {
-        float angle = -SWEEP_STEP_DEG * (float)i;
-        if (servo_index == 0)
-            set_servo_pair_degrees(angle, 0.0f);
-        else
-            set_servo_pair_degrees(0.0f, angle);
-        osDelay(SWEEP_STEP_MS);
-    }
-}
-
-/** Trace one full clockwise circle with both servos simultaneously. */
-static void sweep_circle(void)
-{
-    for (int i = 0; i <= CIRCLE_STEPS; i++) {
-        float angle_rad = (2.0f * 3.14159265f * (float)i) / (float)CIRCLE_STEPS;
-        float x = CIRCLE_RADIUS_DEG * cosf(angle_rad);
-        float y = CIRCLE_RADIUS_DEG * sinf(angle_rad);
-        set_servo_pair_degrees(x, y);
-        osDelay(CIRCLE_STEP_MS);
-    }
-    /* Return to centre */
-    set_servo_pair_degrees(0.0f, 0.0f);
-    osDelay(50);
-}
-
-/** Smooth ramp a single motor: 0 → peak → hold → 0. */
-static void ramp_motor(int motor_index)
-{
-    /* Ramp up */
-    for (int i = 0; i <= ESC_RAMP_STEPS; i++) {
-        float t = ESC_TEST_THRUST * (float)i / (float)ESC_RAMP_STEPS;
-        if (motor_index == 0)
-            ESC_set_pair_thrust(t, 0.0f);
-        else
-            ESC_set_pair_thrust(0.0f, t);
-        osDelay(ESC_RAMP_STEP_MS);
-    }
-
-    /* Hold */
-    osDelay(ESC_HOLD_MS);
-
-    /* Ramp down */
-    for (int i = ESC_RAMP_STEPS; i >= 0; i--) {
-        float t = ESC_TEST_THRUST * (float)i / (float)ESC_RAMP_STEPS;
-        if (motor_index == 0)
-            ESC_set_pair_thrust(t, 0.0f);
-        else
-            ESC_set_pair_thrust(0.0f, t);
-        osDelay(ESC_RAMP_STEP_MS);
-    }
-}
-
-/**
- * @brief Run the startup actuator test sequence.
- *
- * Sweeps each servo through its full range one at a time, then briefly
- * spins each motor up to ESC_TEST_THRUST and back.  Total duration ~8 s.
- * The TIM4 ISR is already applying servo/ESC values in the background.
- */
-static void run_startup_actuator_test(void)
-{
-    DLOG_PRINT("[CTRL] Startup actuator test begin\r\n");
-
-    /* ── Servo test ── */
-    servo_pair_enable(true);
-    set_servo_pair_degrees(0.0f, 0.0f);
-
-    DLOG_PRINT("[CTRL] Servo 1 sweep\r\n");
-    sweep_servo(0);
-
-    DLOG_PRINT("[CTRL] Servo 2 sweep\r\n");
-    sweep_servo(1);
-
-    DLOG_PRINT("[CTRL] Servo circle\r\n");
-    sweep_circle();
-
-    /* Return to center and disable */
-    set_servo_pair_degrees(0.0f, 0.0f);
-    osDelay(50);
-    servo_pair_enable(false);
-
-    /* ── Motor test ── */
-    ESC_pair_arm();
-    osDelay(7000);
-
-    DLOG_PRINT("[CTRL] Motor 1 ramp\r\n");
-    ramp_motor(0);
-
-    DLOG_PRINT("[CTRL] Motor 2 ramp\r\n");
-    ramp_motor(1);
-
-    /* Shut down */
-    ESC_set_pair_thrust(0.0f, 0.0f);
-    osDelay(50);
-    ESC_pair_disarm();
-
-    DLOG_PRINT("[CTRL] Startup actuator test complete\r\n");
-    state_exchange_publish_startup_test_complete(true);
-}
-
 /* ── Task entry ───────────────────────────────────────────────────────── */
 
 /**
@@ -232,111 +103,187 @@ static void run_startup_actuator_test(void)
 void controls_task_start(void *argument)
 {
     (void)argument;
+
     state_t current_state = {0};
     flight_state_t flight_state = IDLE;
     flight_controller_config_t config = {0};
     flight_controller_ref_t ref = {0};
+
     control_output_t control_output = {0};
-    uint8_t config_done = 0;
-    uint32_t last_state_seq = 0;
-    uint32_t stale_tick_count = 0;
-    bool esc_running = false;
-    uint32_t esc_arm_tick = 0;
 
-    init_default_config(&config);
-    init_default_ref(&ref);
+    bool armed = true;
+    uint32_t last_armed_seq = 0;
 
-    /* Run cinematic startup test before entering the control loop. */
-    run_startup_actuator_test();
+    uint64_t bdshot_last_armed_time = 0;
+
+    uint8_t ctrl_log_div = 0;
+
+    servo_pair_enable(false);
+
+    state_exchange_publish_startup_test_complete(true);
+
+    bdshot_dma_set_armed(true); // Wait for a bit before setting and applying the throttle
+    bdshot_last_armed_time = timestamp_us64();
 
     for (;;) {
         /* Block until TIM4 CH2 output-compare ISR fires (see timing.c) */
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
-        /* Re-arm request: safe actuators, redo startup test, then arm. */
-        bool rearm = false;
-        state_exchange_get_rearm_request(&rearm);
-        if (rearm) {
-            state_exchange_publish_rearm_request(false);
-            DLOG_PRINT("[CTRL] Rearm: starting startup sequence\r\n");
+        // uint32_t armed_seq = state_exchange_get_armed(&armed);
+        uint32_t armed_seq = 1;
 
-            servo_pair_enable(false);
-            ESC_set_pair_thrust(0.0f, 0.0f);
-            ESC_pair_disarm();
-            esc_running = false;
-            esc_arm_tick = 0;
+        // Arming status has changed
+        if (armed_seq != last_armed_seq) {
+            last_armed_seq = armed_seq;
+            DLOG_PRINT("[CTRL] ARM: begin %s sequence\r\n", armed ? "arm" : "disarm");
 
-            run_startup_actuator_test();
+            if (armed) {
+                init_default_config(&config);
+                init_default_ref(&ref);
 
-            flight_controller_init(&config);
-            config_done = 1;
+                tvr_SetPidGains pid_gains;
+                tvr_SetReference flight_reference;
+                tvr_SetConfig vehicle_config;
 
-            state_exchange_publish_armed(true);
-            DLOG_PRINT("[CTRL] Rearm complete, armed\r\n");
-            continue;
+                uint32_t pid_gains_seq = state_exchange_get_pid_gains(&pid_gains);
+                uint32_t flight_reference_seq =
+                    state_exchange_get_flight_reference(&flight_reference);
+                uint32_t vehicle_config_seq = state_exchange_get_vehicle_config(&vehicle_config);
+
+                if (pid_gains_seq != 0) {
+                    if (pid_gains.has_attitude_kp) {
+                        config.attitude.Kp[0][0] = pid_gains.attitude_kp.x;
+                        config.attitude.Kp[1][1] = pid_gains.attitude_kp.y;
+                        config.attitude.Kp[2][2] = pid_gains.attitude_kp.z;
+                    }
+
+                    if (pid_gains.has_attitude_kd) {
+                        config.attitude.Kd[0][0] = pid_gains.attitude_kd.x;
+                        config.attitude.Kd[1][1] = pid_gains.attitude_kd.y;
+                        config.attitude.Kd[2][2] = pid_gains.attitude_kd.z;
+                    }
+
+                    config.thrust.kp = pid_gains.z_kp;
+                    config.thrust.ki = pid_gains.z_ki;
+                    config.thrust.kd = pid_gains.z_kd;
+                    config.thrust.integral_limit = pid_gains.z_integral_limit;
+                }
+
+                if (flight_reference_seq != 0) {
+                    if (flight_reference.has_q_ref) {
+                        ref.q_ref = pb_to_fc_quaternion(flight_reference.q_ref);
+                    }
+
+                    ref.z_ref = flight_reference.z_ref;
+                    ref.vz_ref = flight_reference.vz_ref;
+                }
+
+                if (vehicle_config_seq != 0) {
+                    config.thrust.m = vehicle_config.mass;
+                    config.thrust.T_min = vehicle_config.T_min;
+                    config.thrust.T_max = vehicle_config.T_max;
+                    config.gimbal.theta_min = vehicle_config.theta_min;
+                    config.gimbal.theta_max = vehicle_config.theta_max;
+                }
+
+                flight_controller_init(&config);
+            }
+
+            set_gimbal_degrees(0.0f, 0.0f);
+            servo_pair_enable(armed);
+
+            DLOG_PRINT("[CTRL] ARM: end %s sequence\r\n", armed ? "arm" : "disarm");
+
+            log_service_log_event(&(log_record_event_t){
+                .timestamp_us = timestamp_us(),
+                .event_code = LOG_EVENT_CODE_ARM_STATE,
+                .data_u16 = armed ? 1 : 0,
+            });
         }
 
-        uint32_t state_seq = state_exchange_get_state(&current_state);
+        // uint32_t state_seq = state_exchange_get_state(&current_state);
+        uint32_t state_seq = 1;
         state_exchange_get_flight_state(&flight_state);
 
-        bool armed = false;
-        state_exchange_get_armed(&armed);
+        if (armed && state_seq != 0) {
 
-        if (!config_done) {
-            flight_controller_init(&config);
-            config_done = 1;
-        }
-
-        /* Staleness: if state sequence has not changed for N ticks, treat as stale. */
-        if (state_seq == last_state_seq) {
-            stale_tick_count++;
-        } else {
-            last_state_seq = state_seq;
-            stale_tick_count = 0;
-        }
-        //bool state_stale = (stale_tick_count >= STALE_STATE_THRESHOLD_TICKS);
-
-        /* Do not run controller unless armed with valid state. */
-        if (!armed || state_seq == 0 ){//|| state_stale) {
-            memset(&control_output, 0, sizeof(control_output));
-        } else {
             flight_controller_run(&current_state, &ref, &config, &control_output, CONTROLS_DT_S);
+
+            state_exchange_publish_control_output(&control_output);
+
+            /* Log control output at 100 Hz (every 8th 800-Hz cycle). */
+            if (++ctrl_log_div >= 8U) {
+                ctrl_log_div = 0;
+                log_service_log_control_output(&(log_record_control_output_t){
+                    .timestamp_us = timestamp_us(),
+                    .T_cmd = control_output.T_cmd,
+                    .theta_x_cmd = control_output.theta_x_cmd,
+                    .theta_y_cmd = control_output.theta_y_cmd,
+                    .tau_gim_x = control_output.tau_gim[0],
+                    .tau_gim_y = control_output.tau_gim[1],
+                    .tau_gim_z = control_output.tau_gim[2],
+                    .tau_thrust = control_output.tau_thrust,
+                    .phi_x = control_output.phi_x,
+                    .phi_y = control_output.phi_y,
+                    .phi_z = control_output.phi_z,
+                    .z_pid_integral = control_output.z_pid_integral,
+                    .z_ref = ref.z_ref,
+                    .vz_ref = ref.vz_ref,
+                });
+            }
+
+            // if (flight_state == RISE) {
+            if (true) {
+                float theta_x_deg =
+                    clamp_float(control_output.theta_x_cmd * RAD_TO_DEG, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
+                float theta_y_deg =
+                    clamp_float(control_output.theta_y_cmd * RAD_TO_DEG, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
+
+                float calibrated_theta_x_deg = (SQRT_2_2) * theta_x_deg + (SQRT_2_2) * theta_y_deg; // Calibrated to match physical gimbal direction
+                float calibrated_theta_y_deg = -(SQRT_2_2) * theta_x_deg + (SQRT_2_2) * theta_y_deg; // Calibrated to match physical gimbal direction
+
+                // set_gimbal_degrees(calibrated_theta_x_deg, calibrated_theta_y_deg);
+                set_gimbal_degrees(0, 0);
+
+
+                // TODO: A function that maps RPM to thrust and torque, then use thrust and torque
+                // to calculate the necessary throttle for each motor.
+                // Use bdshot_dma_motor_set_throttle to set the throttle for each motor.
+
+                if (timestamp_us64() - bdshot_last_armed_time > BDSHOT_ARM_TIME_US) {
+                    // Functions maps thrust and torque to throttle
+                    bdshot_dma_motor_set_throttle(BDSHOT_MOTOR_INDEX_LOWER, 199); // TODO: replace 0 with calculated throttle for upper motor
+                    bdshot_dma_motor_set_throttle(BDSHOT_MOTOR_INDEX_UPPER, 199); // TODO: replace 0 with calculated throttle for upper motor
+                }
+
+            }
+            else {
+                set_gimbal_degrees(0.0f, 0.0f);
+                // servo_pair_enable(armed);
+                // esc_pair_set_force(0, 0);
+            }
         }
-        state_exchange_publish_control_output(&control_output);
-
-        /* Drive actuators only when armed. */
-        if (armed) {
-            /* Gimbal locked out post-startup: hold centre and keep disabled. */
-            set_servo_pair_degrees(0.0f, 0.0f);
-            servo_pair_enable(false);
-
-            /* ESC: arm once on RISE entry, hold min throttle for the same
-             * 7 s init window the startup sequence uses, then run at 10%.
-             * Disarm once on exit. */
-            if (flight_state == RISE) {
-                if (!esc_running) {
-                    ESC_pair_arm();
-                    esc_arm_tick = HAL_GetTick();
-                    esc_running = true;
-                }
-                if ((HAL_GetTick() - esc_arm_tick) >= 7000UL) {
-                    ESC_set_pair_thrust(0.10f, 0.10f);
-                }
-            } else {
-                if (esc_running) {
-                    ESC_set_pair_thrust(0.0f, 0.0f);
-                    ESC_pair_disarm();
-                    esc_running = false;
-                }
-            }
-        } else {
-            set_servo_pair_degrees(0.0f, 0.0f);
-            servo_pair_enable(false);
-            if (esc_running) {
-                ESC_set_pair_thrust(0.0f, 0.0f);
-                ESC_pair_disarm();
-                esc_running = false;
-            }
+        else {
+            // Not armed or no valid state — output safe (zero) controls.
+            set_gimbal_degrees(0.0f, 0.0f);
+            // servo_pair_enable(false);
+            // esc_pair_set_force(0, 0);
         }
     }
+}
+
+/**
+ * Converts a protobuf quaternion to a flight controller quaternion.
+ *
+ * @param quaternion Protobuf quaternion
+ * @return quaternion_t
+ */
+static quaternion_t pb_to_fc_quaternion(tvr_Quaternion quaternion)
+{
+    return (quaternion_t){
+        .w = quaternion.w,
+        .x = quaternion.x,
+        .y = quaternion.y,
+        .z = quaternion.z,
+    };
 }

@@ -15,6 +15,10 @@
 #include <math.h>
 #include <string.h>
 
+// change to whatever you want the EKF yaw to output
+// RADIANS
+#define FIXED_YAW 0.0f
+
 /* ========================================================================
  * Helpers
  * ====================================================================== */
@@ -38,6 +42,51 @@ typedef struct {
     float data[3];
 } timeline_event_t;
 
+static float yaw_from_quat(const float q[4])
+{
+    const float siny = 2.0f * (q[0] * q[3] + q[1] * q[2]);
+    const float cosy = 1.0f - 2.0f * (q[2] * q[2] + q[3] * q[3]);
+    return atan2f(siny, cosy);
+}
+
+static void set_quat_yaw(float q[4], float yaw_rad)
+{
+    /* Apply only nav-Z twist delta.
+     * For this attitude convention, that is equivalent to replacing yaw twist
+     * while preserving the current swing (tilt), without Euler reconstruction. */
+    normalize(q);
+
+    float yaw_delta = yaw_rad - yaw_from_quat(q);
+    const float pi = 3.14159265358979323846f;
+    const float two_pi = 2.0f * pi;
+    while (yaw_delta > pi) yaw_delta -= two_pi;
+    while (yaw_delta < -pi) yaw_delta += two_pi;
+
+    const float half_delta = 0.5f * yaw_delta;
+    quaternion_t q_delta = {
+        .w = cosf(half_delta),
+        .x = 0.0f,
+        .y = 0.0f,
+        .z = sinf(half_delta)
+    };
+
+    quaternion_t q_in = {
+        .w = q[0],
+        .x = q[1],
+        .y = q[2],
+        .z = q[3]
+    };
+
+    quaternion_t q_out;
+    quaternion_multiply(&q_delta, &q_in, &q_out);
+
+    q[0] = q_out.w;
+    q[1] = q_out.x;
+    q[2] = q_out.y;
+    q[3] = q_out.z;
+    normalize(q);
+}
+
 /* ========================================================================
  * Initialization
  * ====================================================================== */
@@ -48,6 +97,7 @@ void eskf_init(eskf_t *eskf, const eskf_config_t *config)
 
     /* Orientation: identity quaternion, zero biases */
     eskf->orientation.q_nom[0] = 1.0f;
+    eskf->orientation.yaw_nom = 0.0f;
     eskf->orientation.num_imus = config->num_imus;
 
     /* Initial covariance */
@@ -82,40 +132,116 @@ void eskf_init(eskf_t *eskf, const eskf_config_t *config)
 }
 
 /* ========================================================================
- * ESKF Orientation: Predict
+ * ESKF Orientation: Predict (sparse block formulation)
+ *
+ * F has block structure (for 1 IMU, dim=9, three 3×3 blocks per row):
+ *
+ *   F = [ F00  F01   0  ]     F00 = I - [ω]×·dt
+ *       [  0    I    0  ]     F01 = -I₃·dt
+ *       [  0    0    I  ]
+ *
+ * So F*P*F^T only modifies the blocks involving row/column 0:
+ *   P'[0,0] = F00·P00·F00^T + F00·P01·F01^T + F01·P10·F00^T + F01·P11·F01^T
+ *   P'[0,j] = F00·P0j + F01·P1j   (for j=1,2)
+ *   P'[i,0] = P'[0,i]^T            (symmetry)
+ *   P'[i,j] = P[i,j]               (for i,j >= 1, unchanged)
+ *
+ * This replaces 2 × 9×9 mat_muls (1458 FLOPs) with ~10 × 3×3 (270 FLOPs).
  * ====================================================================== */
+
+/* Extract 3×3 block (bi,bj) from a DIM×DIM matrix */
+static inline void blk_get(const float P[ESKF_ERR_DIM][ESKF_ERR_DIM],
+                           int bi, int bj, float B[3][3])
+{
+    int r0 = bi * 3, c0 = bj * 3;
+    for (int i = 0; i < 3; i++)
+        for (int j = 0; j < 3; j++)
+            B[i][j] = P[r0 + i][c0 + j];
+}
+
+/* Write 3×3 block (bi,bj) into a DIM×DIM matrix */
+static inline void blk_set(float P[ESKF_ERR_DIM][ESKF_ERR_DIM],
+                           int bi, int bj, const float B[3][3])
+{
+    int r0 = bi * 3, c0 = bj * 3;
+    for (int i = 0; i < 3; i++)
+        for (int j = 0; j < 3; j++)
+            P[r0 + i][c0 + j] = B[i][j];
+}
 
 static void orientation_predict(eskf_t *eskf, const float gyro_raw[3],
                                 float dt, uint8_t imu_idx)
 {
     orientation_eskf_state_t *ori = &eskf->orientation;
 
-    /* Correct gyro with this IMU's bias estimate */
     float gyro_corr[3] = { gyro_raw[0] - ori->b_gyro[imu_idx][0],
                            gyro_raw[1] - ori->b_gyro[imu_idx][1],
                            gyro_raw[2] - ori->b_gyro[imu_idx][2] };
 
     /* Propagate nominal quaternion */
     eskf_propagate_nominal(ori, gyro_corr, dt);
+    ori->yaw_nom = yaw_from_quat(ori->q_nom);
 
-    /* Error-state covariance prediction: P = F_d * P * F_d^T + Q */
-    float F_d[ESKF_ERR_DIM][ESKF_ERR_DIM];
-    eskf_get_F(gyro_corr, dt, F_d, imu_idx);
+    /* Build sparse F blocks directly (no full 9×9 matrix) */
+    /* F00 = I - [ω]×·dt */
+    float F00[3][3] = {
+        { 1.0f,             gyro_corr[2]*dt, -gyro_corr[1]*dt },
+        { -gyro_corr[2]*dt, 1.0f,             gyro_corr[0]*dt },
+        {  gyro_corr[1]*dt, -gyro_corr[0]*dt, 1.0f            }
+    };
 
-    float F_dT[ESKF_ERR_DIM][ESKF_ERR_DIM];
-    mat_transpose((const float *)F_d, (float *)F_dT, ESKF_ERR_DIM, ESKF_ERR_DIM);
+    /* F01 = -I₃·dt at the gyro bias columns for this IMU */
+    float F01[3][3] = {
+        { -dt,  0.0f, 0.0f },
+        { 0.0f, -dt,  0.0f },
+        { 0.0f, 0.0f, -dt  }
+    };
 
-    float FP[ESKF_ERR_DIM][ESKF_ERR_DIM];
-    mat_mul((const float *)F_d, (const float *)ori->covar, (float *)FP,
-            ESKF_ERR_DIM, ESKF_ERR_DIM, ESKF_ERR_DIM);
+    /* Number of 3×3 blocks per row/column */
+    int nblk = ESKF_ERR_DIM / 3;
+    int bg_blk = 1 + 2 * imu_idx;  /* Block index of this IMU's gyro bias */
 
-    float FPFT[ESKF_ERR_DIM][ESKF_ERR_DIM];
-    mat_mul((const float *)FP, (const float *)F_dT, (float *)FPFT,
-            ESKF_ERR_DIM, ESKF_ERR_DIM, ESKF_ERR_DIM);
+    /* Extract needed P blocks */
+    float P00[3][3], P01[3][3], P10[3][3], P11[3][3];
+    blk_get(ori->covar, 0, 0, P00);
+    blk_get(ori->covar, 0, bg_blk, P01);
+    blk_get(ori->covar, bg_blk, 0, P10);
+    blk_get(ori->covar, bg_blk, bg_blk, P11);
 
+    /* P'[0,0] = F00·P00·F00^T + F00·P01·F01^T + F01·P10·F00^T + F01·P11·F01^T */
+    float tmp[3][3], new00[3][3];
+    mat3_zero(new00);
+
+    mat3_mul(F00, P00, tmp);    mat3_mul_BT_add(tmp, F00, new00);
+    mat3_mul(F00, P01, tmp);    mat3_mul_BT_add(tmp, F01, new00);
+    mat3_mul(F01, P10, tmp);    mat3_mul_BT_add(tmp, F00, new00);
+    mat3_mul(F01, P11, tmp);    mat3_mul_BT_add(tmp, F01, new00);
+
+    blk_set(ori->covar, 0, 0, new00);
+
+    /* P'[0,j] = F00·P[0,j] + F01·P[bg_blk,j]  for j != 0 and j != bg_blk */
+    for (int j = 1; j < nblk; j++) {
+        float P0j[3][3], Pbj[3][3], new0j[3][3];
+        blk_get(ori->covar, 0, j, P0j);
+        blk_get(ori->covar, bg_blk, j, Pbj);
+
+        mat3_mul(F00, P0j, new0j);
+        mat3_mul_add(F01, Pbj, new0j);
+
+        blk_set(ori->covar, 0, j, new0j);
+
+        /* Symmetric: P'[j,0] = P'[0,j]^T */
+        float new0j_T[3][3];
+        mat3_transpose(new0j, new0j_T);
+        blk_set(ori->covar, j, 0, new0j_T);
+    }
+
+    /* All other blocks P'[i,j] for i,j >= 1 are unchanged (F is identity there) */
+
+    /* Add process noise: P += Q * dt */
     for (int i = 0; i < ESKF_ERR_DIM; i++)
         for (int j = 0; j < ESKF_ERR_DIM; j++)
-            ori->covar[i][j] = FPFT[i][j] + ori->process[i][j] * dt;
+            ori->covar[i][j] += ori->process[i][j] * dt;
 }
 
 /* ========================================================================
@@ -131,15 +257,13 @@ static void orientation_measurement_update(eskf_t *eskf,
 
     /* S = H * P * H^T + R  (3x3) */
     float HT[ESKF_ERR_DIM][3];
-    mat_transpose((const float *)H, (float *)HT, 3, ESKF_ERR_DIM);
+    matN_transpose_3xN(H, HT);
 
     float PH_T[ESKF_ERR_DIM][3];
-    mat_mul((const float *)ori->covar, (const float *)HT, (float *)PH_T,
-            ESKF_ERR_DIM, ESKF_ERR_DIM, 3);
+    matN_mul_Nx3(ori->covar, HT, PH_T);
 
     float S[3][3];
-    mat_mul((const float *)H, (const float *)PH_T, (float *)S,
-            3, ESKF_ERR_DIM, 3);
+    matN_mul_3x3(H, PH_T, S);
 
     for (int i = 0; i < 3; i++)
         for (int j = 0; j < 3; j++)
@@ -150,8 +274,7 @@ static void orientation_measurement_update(eskf_t *eskf,
 
     /* K = P * H^T * S^-1  (ESKF_ERR_DIM x 3) */
     float K[ESKF_ERR_DIM][3];
-    mat_mul((const float *)PH_T, (const float *)S_inv, (float *)K,
-            ESKF_ERR_DIM, 3, 3);
+    matN_mul_Nx3_by_3x3(PH_T, S_inv, K);
 
     /* Error correction: δx = K * innovation */
     float dx[ESKF_ERR_DIM];
@@ -190,8 +313,7 @@ static void orientation_measurement_update(eskf_t *eskf,
 
     /* Covariance update: P = (I - K*H) * P */
     float KH[ESKF_ERR_DIM][ESKF_ERR_DIM];
-    mat_mul((const float *)K, (const float *)H, (float *)KH,
-            ESKF_ERR_DIM, 3, ESKF_ERR_DIM);
+    matN_mul_Nx3_by_3xN(K, H, KH);
 
     float IKH[ESKF_ERR_DIM][ESKF_ERR_DIM];
     memset(IKH, 0, sizeof(IKH));
@@ -201,8 +323,7 @@ static void orientation_measurement_update(eskf_t *eskf,
             IKH[i][j] -= KH[i][j];
 
     float P_new[ESKF_ERR_DIM][ESKF_ERR_DIM];
-    mat_mul((const float *)IKH, (const float *)ori->covar, (float *)P_new,
-            ESKF_ERR_DIM, ESKF_ERR_DIM, ESKF_ERR_DIM);
+    matN_mul_NxN((const float *)IKH, (const float *)ori->covar, (float *)P_new);
 
     memcpy(ori->covar, P_new, sizeof(ori->covar));
 }
@@ -307,8 +428,9 @@ static void body_baro_update(eskf_t *eskf, float baro_height, float R_baro)
             Kv[i] = body->covar[i][5] * S_vel_inv;
 
         float vel_innov = 0.0f - body->velocity[2];
-        for (int i = 0; i < 3; i++)
-            body->position[i] += Kv[i] * vel_innov;
+
+        body->position[2] += Kv[2] * vel_innov;
+        
         for (int i = 0; i < 3; i++)
             body->velocity[i] += Kv[i + 3] * vel_innov;
 
@@ -371,6 +493,8 @@ static void process_accel(eskf_t *eskf, const float accel_raw[3],
                           const float R[3][3], float dt, uint8_t imu_idx)
 {
     orientation_eskf_state_t *ori = &eskf->orientation;
+    float b_gyro_prev[ESKF_MAX_IMUS][3];
+    float b_accel_prev[ESKF_MAX_IMUS][3];
 
     /* Correct accel with this IMU's bias */
     float a_corr[3] = { accel_raw[0] - ori->b_accel[imu_idx][0],
@@ -395,8 +519,16 @@ static void process_accel(eskf_t *eskf, const float accel_raw[3],
     float H[3][ESKF_ERR_DIM];
     eskf_get_H_accel(ori->q_nom, eskf->expected_g, H, imu_idx);
 
-    /* Measurement update */
+    /* Measurement update.
+     * Hard guard: accel must not inject into bias states (especially yaw via b_gz). */
+    memcpy(b_gyro_prev, ori->b_gyro, sizeof(b_gyro_prev));
+    memcpy(b_accel_prev, ori->b_accel, sizeof(b_accel_prev));
     orientation_measurement_update(eskf, innov, H, R);
+    memcpy(ori->b_gyro, b_gyro_prev, sizeof(b_gyro_prev));
+    memcpy(ori->b_accel, b_accel_prev, sizeof(b_accel_prev));
+
+    /* Restore yaw from separately tracked yaw state. */
+    set_quat_yaw(ori->q_nom, ori->yaw_nom);
 
     /* Body predict: transform accel to nav frame */
     if (dt > 0.0f) {
@@ -519,6 +651,7 @@ void eskf_process(eskf_t *eskf, const eskf_input_t *input)
                                   eskf->mag_ref, H);
 
                     orientation_measurement_update(eskf, innov, H, cfg->noise);
+                    eskf->orientation.yaw_nom = yaw_from_quat(eskf->orientation.q_nom);
                 }
             }
             break;
@@ -537,6 +670,7 @@ void eskf_get_state(const eskf_t *eskf, float quat[4], float pos[3],
                     float vel[3])
 {
     memcpy(quat, eskf->orientation.q_nom, sizeof(float) * 4);
+    set_quat_yaw(quat, FIXED_YAW);
     memcpy(pos, eskf->body.position, sizeof(float) * 3);
     memcpy(vel, eskf->body.velocity, sizeof(float) * 3);
 }

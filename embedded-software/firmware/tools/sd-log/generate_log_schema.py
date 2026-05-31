@@ -16,6 +16,7 @@ HEADER_PATH = ROOT / "libs" / "log_records" / "include" / "log_records" / "log_r
 OUTPUT_PATH = Path(__file__).resolve().parent / "log_schema.py"
 
 TYPE_FORMATS = {
+    "bool": "B",
     "uint8_t": "B",
     "int8_t": "b",
     "uint16_t": "H",
@@ -25,6 +26,7 @@ TYPE_FORMATS = {
     "uint64_t": "Q",
     "int64_t": "q",
     "float": "f",
+    "double": "d",
 }
 
 
@@ -52,9 +54,9 @@ def extract_field_macro(text: str, macro_name: str) -> str:
 
 def parse_records(text: str):
     body = extract_macro_block(text, "LOG_RECORD_LIST")
-    entries = re.findall(r"APP\(([^,]+),\s*([^,]+),\s*([^)]+)\)", body)
+    entries = re.findall(r"APP\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^)]+)\)", body)
     records = []
-    for raw_id, raw_name, raw_fields in entries:
+    for raw_id, raw_name, raw_fields, _enable in entries:
         record_id = int(raw_id.strip(), 0)
         name = raw_name.strip()
         fields_macro = raw_fields.strip()
@@ -79,7 +81,7 @@ def generate_python(records, schema_version):
     header = dedent(
         """\
         \"\"\"Auto-generated from libs/log_records/include/log_records/log_records.h
-        Do not edit manually. Run tools/logging/generate_log_schema.py instead.
+        Do not edit manually. Run tools/sd-log/generate_log_schema.py instead.
         \"\"\"
 
         from __future__ import annotations

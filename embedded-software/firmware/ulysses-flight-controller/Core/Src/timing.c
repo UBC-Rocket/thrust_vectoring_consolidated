@@ -3,30 +3,25 @@
 #include "task.h"
 #include "app_freertos.h"
 #include "motor_drivers/servo_driver.h"
-#include "motor_drivers/esc_driver.h"
 #include "sensors_init.h"
 #include "spi_drivers/ms5611_poller.h"
 #include "spi_drivers/ms5607_poller.h"
+#include "motor_drivers/dshot/bdshot_dma.h"
 
-static uint8_t esc_div = 0;
 static uint8_t servo_div = 0;
 
-void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
+void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)
+{
     if (htim->Instance == TIM4) {
         if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2) {
             /* 800 Hz — notify controls task */
             BaseType_t woken = pdFALSE;
             vTaskNotifyGiveFromISR((TaskHandle_t)ControlsHandle, &woken);
             portYIELD_FROM_ISR(woken);
-        }
-        else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_4) {
+        } else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_4) {
             /* 800 Hz base — ESC 400 Hz, servo 200 Hz, baro pollers 800 Hz */
 
-            /* ESC: 800 Hz / 2 = 400 Hz */
-            if (++esc_div >= 2) {
-                esc_div = 0;
-                ESC_apply_pair();
-            }
+            bdshot_dma_apply(); // Apply at 800 Hz for more responsive control (bdshot_dma_set_throttle is non-blocking, just updates a variable)
 
             /* Servo: 800 Hz / 4 = 200 Hz */
             if (++servo_div >= 4) {

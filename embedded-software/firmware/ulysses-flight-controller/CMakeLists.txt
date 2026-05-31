@@ -54,18 +54,6 @@ add_subdirectory(cmake/stm32cubemx)
 # Add dependencies
 include(dependencies)
 
-set(PWM_OUTPUT_SRC
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/motor_drivers/pwm_output.c
-)
-
-set(SERVO_SRC
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/motor_drivers/servo_driver.c
-)
-
-set(ESC_SRC
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/motor_drivers/esc_driver.c
-)
-
 set(DEBUG_MODULE_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/debug/log.c
 )
@@ -75,6 +63,14 @@ set(RTOS_TASKS_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/tasks/mission_manager.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/tasks/state_estimation.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/tasks/debug_logging.c
+)
+
+set(MOTOR_DRIVERS_SRC
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/motor_drivers/pwm_output.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/motor_drivers/servo_driver.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/motor_drivers/esc_driver.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/motor_drivers/dshot/dshot.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/motor_drivers/dshot/bdshot_dma.c
 )
 
 set(SPI_DRIVER_SRC
@@ -94,20 +90,12 @@ set(FW_LIBS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../libs)
 add_subdirectory(${TVR_LIBS_DIR}/rocket-protocol ${CMAKE_BINARY_DIR}/rocket-protocol)
 add_subdirectory(${FW_LIBS_DIR}/state_estimation ${CMAKE_BINARY_DIR}/state_estimation)
 add_subdirectory(${FW_LIBS_DIR}/controls ${CMAKE_BINARY_DIR}/controls)
-add_subdirectory(${FW_LIBS_DIR}/collections ${CMAKE_BINARY_DIR}/collections)
-add_subdirectory(${FW_LIBS_DIR}/gnss-protocol ${CMAKE_BINARY_DIR}/gnss-protocol)
-add_subdirectory(${FW_LIBS_DIR}/timestamp ${CMAKE_BINARY_DIR}/timestamp)
 add_subdirectory(${FW_LIBS_DIR}/sensors ${CMAKE_BINARY_DIR}/sensors)
 add_subdirectory(${FW_LIBS_DIR}/log_records ${CMAKE_BINARY_DIR}/log_records)
+add_subdirectory(${FW_LIBS_DIR}/utilities ${CMAKE_BINARY_DIR}/utilities)
 
-# Enable ARM hardware memory barrier for SPSC ring buffers.
-# Applied to the FC executable so inline ring buffer functions in headers use __DMB().
-# The sensors library itself compiles with compiler barriers only (sufficient for its .c files).
-target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE SPSC_RING_USE_ARM_BARRIER)
-
-# Timestamp library needs CMSIS headers for DWT register access
-target_link_libraries(timestamp PUBLIC stm32cubemx)
-target_compile_definitions(timestamp PRIVATE STM32H5)
+# Enable ARM hardware memory barrier for sensor ring buffers (static inline in headers)
+target_compile_definitions(sensors INTERFACE SENSORS_USE_ARM_BARRIER)
 
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
@@ -120,18 +108,19 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     ${RTOS_TASKS_SRC}
     ${SPI_DRIVER_SRC}
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/sensors_init.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/timestamp.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/state_exchange.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/utils/gnss_utils.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/interrupts.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/timing.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/SD_logging/log_writer.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/SD_logging/log_service.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/crash/crash_dump.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/trace/trace_hooks.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/trace/trace_flush_task.c
     ${DEBUG_MODULE_SRC}
     ${ALGO_SRC}
-
-    ${PWM_OUTPUT_SRC}
-    ${SERVO_SRC}
-    ${ESC_SRC}
+    ${MOTOR_DRIVERS_SRC}
 )
 
 # Add include paths
@@ -152,15 +141,11 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
     $<$<BOOL:${ULYSSES_ENABLE_DEBUG_LOGGING}>:ULYSSES_ENABLE_DEBUG_LOGGING>
 )
 
-# Only 1 IMU on this board — reduces ESKF_ERR_DIM from 15 to 9, saving ~2.3KB stack
-# Cap timeline events to 64 (~1.5KB .bss) — sufficient for 1ms task period
-# ESKF_MAX_IMUS must be PUBLIC so the flight controller sees the same struct layout as the library.
-# ESKF_MAX_TIMELINE_EVENTS can stay PRIVATE (only used in ekf.c internal static buffer).
-target_compile_definitions(state_estimation PUBLIC ESKF_MAX_IMUS=1)
-target_compile_definitions(state_estimation PRIVATE ESKF_MAX_TIMELINE_EVENTS=64)
-
-# Enable -ffast-math for EKF math sources (FMA contraction, relaxed NaN handling)
-target_compile_options(state_estimation PRIVATE -ffast-math)
+# Enable -ffast-math and aggressive optimization for EKF math sources
+# -O3: more aggressive inlining and loop optimization than -O2
+# -funroll-loops: unroll fixed-dimension matrix loops (3×3, 9×9)
+# -ffast-math: FMA contraction, relaxed NaN handling
+target_compile_options(state_estimation PRIVATE -ffast-math -O3 -funroll-loops)
 
 # Remove wrong libob.a library dependency when using cpp files
 list(REMOVE_ITEM CMAKE_C_IMPLICIT_LINK_LIBRARIES ob)
@@ -173,7 +158,6 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     controls
     sensors
     log_records
-    timestamp
 
     # Add user defined libraries
     printf::printf
