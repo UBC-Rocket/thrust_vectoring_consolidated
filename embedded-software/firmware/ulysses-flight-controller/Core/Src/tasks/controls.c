@@ -44,7 +44,7 @@
 #define SERVO_MIN_DEGREES (-30.0f)
 
 /* Time to wait after arming before sending throttle commands (ESCs need to see a few frames to arm) */
-#define BDSHOT_ARM_TIME_US (2000000U) /**< 2 seconds */
+#define BDSHOT_ARM_TIME_US (5000000U) /**< 5 seconds */
 
 static quaternion_t pb_to_fc_quaternion(tvr_Quaternion quaternion);
 
@@ -68,8 +68,8 @@ static void init_default_config(flight_controller_config_t *cfg)
     cfg->allocation.thrust_dir[2] = -1.0f;
     /* Gimbal */
     cfg->gimbal.L = 0.2f;
-    cfg->gimbal.theta_min = SERVO_GIMBAL_DEG_MIN * (3.14159265f / 180.0f);
-    cfg->gimbal.theta_max = SERVO_GIMBAL_DEG_MAX * (3.14159265f / 180.0f);
+    cfg->gimbal.theta_min = SERVO_GIMBAL_DEG_MIN * DEG_TO_RAD;
+    cfg->gimbal.theta_max = SERVO_GIMBAL_DEG_MAX * DEG_TO_RAD;
     /* Thrust */
     cfg->thrust.m = 1.0f;
     cfg->thrust.g = 9.8067f;
@@ -111,28 +111,26 @@ void controls_task_start(void *argument)
 
     control_output_t control_output = {0};
 
-    bool armed;
+    bool armed = true;
     uint32_t last_armed_seq = 0;
+
     uint64_t bdshot_last_armed_time = 0;
 
     uint8_t ctrl_log_div = 0;
 
-    // servo_pair_enable(false);
-    // esc_pair_set_armed(false);
+    servo_pair_enable(false);
 
-    state_exchange_publish_startup_test_complete(true);
-
-    // esc_pair_set_armed(true);
-    // esc_pair_set_force(0, 0);    
+    state_exchange_publish_startup_test_complete(true); 
 
     bdshot_dma_set_armed(true); // Wait for a bit before setting and applying the throttle
-    bdshot_last_armed_time = timestamp_us();
+    bdshot_last_armed_time = timestamp_us64();
 
     for (;;) {
         /* Block until TIM4 CH2 output-compare ISR fires (see timing.c) */
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
-        uint32_t armed_seq = state_exchange_get_armed(&armed);
+        // uint32_t armed_seq = state_exchange_get_armed(&armed);
+        uint32_t armed_seq = 1;
 
         // Arming status has changed
         if (armed_seq != last_armed_seq) {
@@ -194,12 +192,6 @@ void controls_task_start(void *argument)
             set_gimbal_degrees(0.0f, 0.0f);
             servo_pair_enable(armed);
 
-            // esc_pair_set_force(0, 0);
-            // esc_pair_set_armed(armed);
-
-            bdshot_dma_set_armed(armed);
-            bdshot_last_armed_time = timestamp_us();
-
             DLOG_PRINT("[CTRL] ARM: end %s sequence\r\n", armed ? "arm" : "disarm");
 
             log_service_log_event(&(log_record_event_t){
@@ -209,7 +201,8 @@ void controls_task_start(void *argument)
             });
         }
 
-        uint32_t state_seq = state_exchange_get_state(&current_state);
+        // uint32_t state_seq = state_exchange_get_state(&current_state);
+        uint32_t state_seq = 1;
         state_exchange_get_flight_state(&flight_state);
 
         if (armed && state_seq != 0) {
@@ -239,7 +232,8 @@ void controls_task_start(void *argument)
                 });
             }
 
-            if (flight_state == RISE) {
+            // if (flight_state == RISE) {
+            if (true) {
                 float theta_x_deg =
                     clamp_float(control_output.theta_x_cmd * RAD_TO_DEG, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
                 float theta_y_deg =
@@ -256,10 +250,10 @@ void controls_task_start(void *argument)
                 // to calculate the necessary throttle for each motor. 
                 // Use bdshot_dma_motor_set_throttle to set the throttle for each motor.
 
-                if (timestamp_us() - bdshot_last_armed_time > BDSHOT_ARM_TIME_US) {
+                if (timestamp_us64() - bdshot_last_armed_time > BDSHOT_ARM_TIME_US) {
                     // Functions maps thrust and torque to throttle
-                    bdshot_dma_motor_set_throttle(BDSHOT_MOTOR_INDEX_LOWER, 100); // TODO: replace 0 with calculated throttle for upper motor
-                    bdshot_dma_motor_set_throttle(BDSHOT_MOTOR_INDEX_UPPER, 300); // TODO: replace 0 with calculated throttle for upper motor
+                    bdshot_dma_motor_set_throttle(BDSHOT_MOTOR_INDEX_LOWER, 199); // TODO: replace 0 with calculated throttle for upper motor
+                    bdshot_dma_motor_set_throttle(BDSHOT_MOTOR_INDEX_UPPER, 199); // TODO: replace 0 with calculated throttle for upper motor
                 }
 
             }
