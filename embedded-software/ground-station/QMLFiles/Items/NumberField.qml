@@ -29,6 +29,20 @@ ColumnLayout {
         return isNaN(parsed) ? fallback : parsed
     }
 
+    // Refresh the displayed text from `value` only when:
+    //  - the field is not being edited, AND
+    //  - the numeric value actually differs from what's in the field.
+    // The numeric-equality check preserves user formatting (e.g. "1.200" stays
+    // "1.200" on blur even though Number("1.200") === 1.2).
+    // Done imperatively (not via a Binding) because a conditional Binding here
+    // would restore stale user input when focus is regained — Qt restores the
+    // pre-binding value when `when` flips false, which is exactly what we don't
+    // want after a preset load.
+    onValueChanged: {
+        if (!input.activeFocus && Number(input.text) !== value)
+            input.text = String(value)
+    }
+
     Text {
         text: root.label
         visible: root.label.length > 0
@@ -66,17 +80,5 @@ ColumnLayout {
 
         // User edits only (programmatic text changes don't fire onTextEdited).
         onTextEdited: root.valueEdited(root._sanitized(text, root.value))
-    }
-
-    // Refresh the displayed text from `value` only when:
-    //  - the field is not being edited, AND
-    //  - the numeric value actually differs from what's in the field.
-    // Without the numeric-equality check, blurring "1.200" would snap it to "1.2"
-    // because String(1.2) === "1.2" — the user's trailing zeros disappear.
-    Binding {
-        target: input
-        property: "text"
-        value: String(root.value)
-        when: !input.activeFocus && Number(input.text) !== root.value
     }
 }
