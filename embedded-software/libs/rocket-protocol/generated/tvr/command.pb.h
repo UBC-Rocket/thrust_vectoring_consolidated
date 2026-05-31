@@ -20,6 +20,13 @@ typedef enum _tvr_StateCommand_Type {
 } tvr_StateCommand_Type;
 
 /* Struct definitions */
+/* Target rotational speed for the two ESC-driven motors. Sent from the
+ ground station to override / drive the motor controller. Units: rev/min. */
+typedef struct _tvr_SetMotorSpeed {
+    float rpm_upper;
+    float rpm_lower;
+} tvr_SetMotorSpeed;
+
 /* Four UWB anchor positions on the ground, in nav-frame meters relative to the
  rocket's takeoff origin. The four anchors form a rectangle; there is no
  center anchor. The flight controller stores these and uses them as the
@@ -79,6 +86,7 @@ typedef struct _tvr_FlightCommand {
         tvr_SetReference set_reference;
         tvr_SetConfig set_config;
         tvr_SetProbeLayout set_probe_layout;
+        tvr_SetMotorSpeed set_motor_speed;
     } payload;
 } tvr_FlightCommand;
 
@@ -94,6 +102,7 @@ extern "C" {
 
 
 
+
 #define tvr_StateCommand_type_ENUMTYPE tvr_StateCommand_Type
 
 
@@ -102,12 +111,14 @@ extern "C" {
 
 /* Initializer values for message structs */
 #define tvr_FlightCommand_init_default           {0, {tvr_StateCommand_init_default}}
+#define tvr_SetMotorSpeed_init_default           {0, 0}
 #define tvr_SetProbeLayout_init_default          {false, tvr_Vec2_init_default, false, tvr_Vec2_init_default, false, tvr_Vec2_init_default, false, tvr_Vec2_init_default}
 #define tvr_StateCommand_init_default            {_tvr_StateCommand_Type_MIN}
 #define tvr_SetPidGains_init_default             {false, tvr_Vec3_init_default, false, tvr_Vec3_init_default, 0, 0, 0, 0}
 #define tvr_SetReference_init_default            {0, 0, false, tvr_Quaternion_init_default}
 #define tvr_SetConfig_init_default               {0, 0, 0, 0, 0}
 #define tvr_FlightCommand_init_zero              {0, {tvr_StateCommand_init_zero}}
+#define tvr_SetMotorSpeed_init_zero              {0, 0}
 #define tvr_SetProbeLayout_init_zero             {false, tvr_Vec2_init_zero, false, tvr_Vec2_init_zero, false, tvr_Vec2_init_zero, false, tvr_Vec2_init_zero}
 #define tvr_StateCommand_init_zero               {_tvr_StateCommand_Type_MIN}
 #define tvr_SetPidGains_init_zero                {false, tvr_Vec3_init_zero, false, tvr_Vec3_init_zero, 0, 0, 0, 0}
@@ -115,6 +126,8 @@ extern "C" {
 #define tvr_SetConfig_init_zero                  {0, 0, 0, 0, 0}
 
 /* Field tags (for use in manual encoding/decoding) */
+#define tvr_SetMotorSpeed_rpm_upper_tag          1
+#define tvr_SetMotorSpeed_rpm_lower_tag          2
 #define tvr_SetProbeLayout_anchor_0_tag          1
 #define tvr_SetProbeLayout_anchor_1_tag          2
 #define tvr_SetProbeLayout_anchor_2_tag          3
@@ -139,6 +152,7 @@ extern "C" {
 #define tvr_FlightCommand_set_reference_tag      3
 #define tvr_FlightCommand_set_config_tag         4
 #define tvr_FlightCommand_set_probe_layout_tag   5
+#define tvr_FlightCommand_set_motor_speed_tag    6
 
 /* Struct field encoding specification for nanopb */
 #define tvr_FlightCommand_FIELDLIST(X, a) \
@@ -146,7 +160,8 @@ X(a, STATIC,   ONEOF,    MESSAGE,  (payload,state_cmd,payload.state_cmd),   1) \
 X(a, STATIC,   ONEOF,    MESSAGE,  (payload,set_pid_gains,payload.set_pid_gains),   2) \
 X(a, STATIC,   ONEOF,    MESSAGE,  (payload,set_reference,payload.set_reference),   3) \
 X(a, STATIC,   ONEOF,    MESSAGE,  (payload,set_config,payload.set_config),   4) \
-X(a, STATIC,   ONEOF,    MESSAGE,  (payload,set_probe_layout,payload.set_probe_layout),   5)
+X(a, STATIC,   ONEOF,    MESSAGE,  (payload,set_probe_layout,payload.set_probe_layout),   5) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (payload,set_motor_speed,payload.set_motor_speed),   6)
 #define tvr_FlightCommand_CALLBACK NULL
 #define tvr_FlightCommand_DEFAULT NULL
 #define tvr_FlightCommand_payload_state_cmd_MSGTYPE tvr_StateCommand
@@ -154,6 +169,13 @@ X(a, STATIC,   ONEOF,    MESSAGE,  (payload,set_probe_layout,payload.set_probe_l
 #define tvr_FlightCommand_payload_set_reference_MSGTYPE tvr_SetReference
 #define tvr_FlightCommand_payload_set_config_MSGTYPE tvr_SetConfig
 #define tvr_FlightCommand_payload_set_probe_layout_MSGTYPE tvr_SetProbeLayout
+#define tvr_FlightCommand_payload_set_motor_speed_MSGTYPE tvr_SetMotorSpeed
+
+#define tvr_SetMotorSpeed_FIELDLIST(X, a) \
+X(a, STATIC,   SINGULAR, FLOAT,    rpm_upper,         1) \
+X(a, STATIC,   SINGULAR, FLOAT,    rpm_lower,         2)
+#define tvr_SetMotorSpeed_CALLBACK NULL
+#define tvr_SetMotorSpeed_DEFAULT NULL
 
 #define tvr_SetProbeLayout_FIELDLIST(X, a) \
 X(a, STATIC,   OPTIONAL, MESSAGE,  anchor_0,          1) \
@@ -202,6 +224,7 @@ X(a, STATIC,   SINGULAR, FLOAT,    theta_max,         5)
 #define tvr_SetConfig_DEFAULT NULL
 
 extern const pb_msgdesc_t tvr_FlightCommand_msg;
+extern const pb_msgdesc_t tvr_SetMotorSpeed_msg;
 extern const pb_msgdesc_t tvr_SetProbeLayout_msg;
 extern const pb_msgdesc_t tvr_StateCommand_msg;
 extern const pb_msgdesc_t tvr_SetPidGains_msg;
@@ -210,6 +233,7 @@ extern const pb_msgdesc_t tvr_SetConfig_msg;
 
 /* Defines for backwards compatibility with code written before nanopb-0.4.0 */
 #define tvr_FlightCommand_fields &tvr_FlightCommand_msg
+#define tvr_SetMotorSpeed_fields &tvr_SetMotorSpeed_msg
 #define tvr_SetProbeLayout_fields &tvr_SetProbeLayout_msg
 #define tvr_StateCommand_fields &tvr_StateCommand_msg
 #define tvr_SetPidGains_fields &tvr_SetPidGains_msg
@@ -220,6 +244,7 @@ extern const pb_msgdesc_t tvr_SetConfig_msg;
 #define TVR_COMMAND_PB_H_MAX_SIZE                tvr_FlightCommand_size
 #define tvr_FlightCommand_size                   56
 #define tvr_SetConfig_size                       25
+#define tvr_SetMotorSpeed_size                   10
 #define tvr_SetPidGains_size                     54
 #define tvr_SetProbeLayout_size                  48
 #define tvr_SetReference_size                    32

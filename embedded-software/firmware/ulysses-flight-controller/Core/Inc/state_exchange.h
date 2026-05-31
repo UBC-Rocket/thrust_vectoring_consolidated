@@ -145,4 +145,18 @@ uint32_t state_exchange_publish_flight_reference(tvr_SetReference reference);
  */
 uint32_t state_exchange_get_flight_reference(tvr_SetReference *reference_out);
 
+/**
+ * @brief Publish the target motor speed setpoint sent by the ground station.
+ * @param target New motor-speed setpoint (rpm_upper, rpm_lower in rev/min).
+ * @return Monotonic sequence number after publish.
+ */
+uint32_t state_exchange_publish_motor_speed_target(tvr_SetMotorSpeed target);
+
+/**
+ * @brief Copy the latest motor speed setpoint.
+ * @param target_out Destination pointer (optional).
+ * @return Sequence number associated with the returned value.
+ */
+uint32_t state_exchange_get_motor_speed_target(tvr_SetMotorSpeed *target_out);
+
 #endif /* STATE_EXCHANGE_H */

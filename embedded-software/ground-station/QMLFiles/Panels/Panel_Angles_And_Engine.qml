@@ -1,14 +1,23 @@
 import QtQuick
+import QtQuick.Layouts
 import "../Items"
 
 BasePanel {
     id: panel_Angles_And_Engine
 
     // ===== Spacing controls =====
-    property real sectionSpacing: 6                      // spacing between sections (X->Y->Z->Engine)
-    property real headerToFirstSectionSpacing: 2         // main title -> "Angles" section
+    property real sectionSpacing: 18                     // spacing between sections (X->Y->Z->Engine->Motors)
+    property real headerToFirstSectionSpacing: 6         // main title -> "Angles" section
     property real subheaderToDataSpacing: 12             // subheader -> data boxes
-    property real rowPadding: 4                          // extra padding for implicitHeight
+    property real rowPadding: 8                          // extra padding for implicitHeight
+
+    // Radio TX channel used for outgoing commands. Mirrors the operator's choice
+    // in the Diagnostics panel (same pattern as Panel_PID_Controller).
+    property int txWhich: bridge.txTo
+
+    // Editable target RPM setpoints; preserved across user typing via NumberField.
+    property double targetRpmUpper: 0.0
+    property double targetRpmLower: 0.0
 
     // Angular rates (deg/s) — raw gyro output
     property double raw_angle_x: sensorData.rawAngleX
@@ -24,6 +33,10 @@ BasePanel {
     property double thrustCmd: sensorData.thrustCmd
     property double gimbalX:   sensorData.gimbalX
     property double gimbalY:   sensorData.gimbalY
+
+    // Motor RPM from bdshot telemetry
+    property double motorRpmUpper: sensorData.motorRpmUpper
+    property double motorRpmLower: sensorData.motorRpmLower
 
     BaseHeader {
         id: header
@@ -159,6 +172,92 @@ BasePanel {
             boxHeight: 56
             dataNames: ["THRUST", "GIMBAL X", "GIMBAL Y"]
             dataValues: [thrustCmd, gimbalX, gimbalY]
+        }
+    }
+
+    Rectangle {
+        id: motors
+        color: "transparent"
+
+        implicitHeight: subheader_motors.implicitHeight
+                        + panel_Angles_And_Engine.subheaderToDataSpacing
+                        + dataBoxListMotors.height
+                        + panel_Angles_And_Engine.sectionSpacing
+                        + motorTargetRow.height
+        height: implicitHeight
+
+        anchors {
+            top: engine.bottom
+            left: parent.left
+            right: parent.right
+            topMargin: panel_Angles_And_Engine.sectionSpacing
+            leftMargin: header.anchors.leftMargin
+            rightMargin: header.anchors.leftMargin
+        }
+
+        Text {
+            id: subheader_motors
+            text: "Motor RPM (bdshot feedback)"
+            font.family: Theme.fontFamily
+            font.pixelSize: 18
+            color: Theme.textSecondary
+            y: 0
+        }
+
+        DataBoxList {
+            id: dataBoxListMotors
+            anchors.top: subheader_motors.bottom
+            anchors.topMargin: panel_Angles_And_Engine.subheaderToDataSpacing
+            width: parent.width
+
+            size: 2
+            boxHeight: 56
+            dataNames: ["RPM UPPER", "RPM LOWER"]
+            dataValues: [motorRpmUpper, motorRpmLower]
+        }
+
+        ColumnLayout {
+            id: motorTargetRow
+            anchors.top: dataBoxListMotors.bottom
+            anchors.topMargin: panel_Angles_And_Engine.sectionSpacing
+            width: parent.width
+            spacing: 4
+
+            Text {
+                text: "TARGET RPM"
+                color: Theme.textTertiary
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontCaption
+                font.bold: true
+                Layout.fillWidth: true
+                Layout.topMargin: 4
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 10
+
+                NumberField {
+                    label: "upper"
+                    value: panel_Angles_And_Engine.targetRpmUpper
+                    onValueEdited: (v) => panel_Angles_And_Engine.targetRpmUpper = v
+                }
+                NumberField {
+                    label: "lower"
+                    value: panel_Angles_And_Engine.targetRpmLower
+                    onValueEdited: (v) => panel_Angles_And_Engine.targetRpmLower = v
+                }
+            }
+
+            PrimaryButton {
+                text: "Send Motor Speed"
+                Layout.alignment: Qt.AlignRight
+                Layout.topMargin: 4
+                onClicked: commandsender.sendMotorSpeed(
+                    panel_Angles_And_Engine.txWhich,
+                    panel_Angles_And_Engine.targetRpmUpper,
+                    panel_Angles_And_Engine.targetRpmLower)
+            }
         }
     }
 }

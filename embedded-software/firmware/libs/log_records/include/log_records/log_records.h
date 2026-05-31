@@ -182,6 +182,8 @@ typedef struct __attribute__((packed)) {
     FIELD(float, thrust_cmd) \
     FIELD(float, gimbal_x) \
     FIELD(float, gimbal_y) \
+    FIELD(float, motor_rpm_upper) \
+    FIELD(float, motor_rpm_lower) \
     FIELD(uint8_t, flight_state) \
     FIELD(uint8_t, reserved1) \
     FIELD(uint16_t, reserved2)
