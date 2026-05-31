@@ -206,7 +206,6 @@ void controls_task_start(void *argument)
         state_exchange_get_flight_state(&flight_state);
 
         if (armed && state_seq != 0) {
-
             flight_controller_run(&current_state, &ref, &config, &control_output, CONTROLS_DT_S);
 
             /* Read latest bdshot telemetry; on read failure, retain previous
