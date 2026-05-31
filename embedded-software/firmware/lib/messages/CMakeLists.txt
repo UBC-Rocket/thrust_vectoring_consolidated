@@ -32,7 +32,6 @@ target_include_directories(messages
 target_link_libraries(messages
     PRIVATE
         timestamp
-        log_records
 )
 
 # Conditionally link CubeMX so any HAL bits pulled in by timestamp resolve

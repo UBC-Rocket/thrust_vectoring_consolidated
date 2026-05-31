@@ -7,10 +7,9 @@ enable_testing()
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../unity ${CMAKE_BINARY_DIR}/unity)
 
 # We deliberately do NOT add_subdirectory(messages). The lib's CMakeLists
-# pulls in timestamp + log_records (firmware deps that require HAL include
-# paths to build). For the host-side test we build the source files
-# directly so we can swap in our fakes for `generated/messages/*` and
-# `timestamp/`.
+# pulls in timestamp (a firmware dep that requires HAL include paths to
+# build). For the host-side test we build the source files directly so we
+# can swap in our fakes for `generated/messages/*` and `timestamp/`.
 add_executable(test_messages
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/messages.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/crc16.c

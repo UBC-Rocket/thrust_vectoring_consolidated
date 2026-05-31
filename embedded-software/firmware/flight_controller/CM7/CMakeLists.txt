@@ -44,7 +44,6 @@ add_subdirectory(${IO_DIR}/io_intercore_slot io_intercore_slot_build)
 # Utility libs
 add_subdirectory(${LIB_DIR}/collections      collections_build)
 add_subdirectory(${LIB_DIR}/timestamp        timestamp_build)
-add_subdirectory(${LIB_DIR}/log_records      log_records_build)
 add_subdirectory(${LIB_DIR}/state_estimation state_estimation_build)
 add_subdirectory(${LIB_DIR}/controls         controls_build)
 add_subdirectory(${LIB_DIR}/messages         messages_build)
@@ -84,7 +83,6 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     io_intercore_slot
     controls
     state_estimation
-    log_records
     timestamp
     collections
     messages

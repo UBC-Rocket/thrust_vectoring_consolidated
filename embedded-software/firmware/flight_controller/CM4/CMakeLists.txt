@@ -60,7 +60,6 @@ add_subdirectory(${IO_DIR}/io_intercore_slot io_intercore_slot_build)
 # ------------------------------------------------------------------
 add_subdirectory(${LIB_DIR}/collections      collections_build)
 add_subdirectory(${LIB_DIR}/timestamp        timestamp_build)
-add_subdirectory(${LIB_DIR}/log_records      log_records_build)
 add_subdirectory(${LIB_DIR}/sensors          sensors_build)
 add_subdirectory(${LIB_DIR}/state_estimation state_estimation_build)
 add_subdirectory(${LIB_DIR}/controls         controls_build)
@@ -117,7 +116,6 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     sensors
     state_estimation
     controls
-    log_records
     timestamp
     collections
     lwgps

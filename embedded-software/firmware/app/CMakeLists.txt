@@ -18,7 +18,6 @@ target_link_libraries(app_shared
     PUBLIC
         state_estimation
         controls
-        log_records
         io_intercore_slot
         io_sys             # APP only depends on system services, not transports
 )

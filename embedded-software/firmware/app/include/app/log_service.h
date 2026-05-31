@@ -1,10 +1,17 @@
 /**
  * @file    log_service.h
- * @brief   Per-core record producer for the unified SD log.
+ * @brief   Per-core staging buffer behind the messages-runtime SD sink.
  *
- * On CM4 the service pushes records directly into the SD log task's staging
- * buffer. On CM7 records are pushed into a CM7-local staging buffer that is
- * handed off to CM4 via the intercore log-buffer slot + HSEM notification.
+ * The old typed-record APIs (one log_service_log_<name> per LOG_RECORD_LIST
+ * entry) were removed when the message registry became the single schema
+ * source — log lines are now PUB_<MODULE>_<NAME>(...) calls (see
+ * generated/messages/publish.h), which the messages runtime hands here as
+ * already-framed envelope bytes via the sink installed by
+ * messages_sd_sink_set().
+ *
+ * This service owns the staging buffer the sd_log_task drains onto the
+ * SD card. Phase-1 implementation just counts bytes appended + drops;
+ * the real ring lands when SD writing comes online.
  *
  * UBC Rocket, 2026
  */
@@ -13,10 +20,6 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-
-#include "log_records/log_records.h"
-#include "state_estimation/state.h"
-#include "app/state_exchange.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -45,18 +48,6 @@ uint32_t log_service_raw_bytes_appended(void);
 
 /** Cumulative bytes dropped at log_service_append_raw (sink full). */
 uint32_t log_service_raw_bytes_dropped(void);
-
-/* One log function per record type, auto-generated from LOG_RECORD_LIST. */
-#define APP_LOG_DECLARE_FN_(id, name, fields, enable) \
-    void log_service_log_##name(const log_record_##name##_t *record);
-LOG_RECORD_LIST(APP_LOG_DECLARE_FN_)
-#undef APP_LOG_DECLARE_FN_
-
-/**
- * @brief Convenience: map state_t + flight_state to a state-snapshot record
- *        and enqueue it.
- */
-void log_service_log_state(const state_t *state, app_flight_state_t flight_state);
 
 #ifdef __cplusplus
 }
