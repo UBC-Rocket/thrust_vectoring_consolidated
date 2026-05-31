@@ -267,5 +267,59 @@ class TestCLI(unittest.TestCase):
         self.assertIn("4.0", lines[2])
 
 
+class TestEncoderRoundTrip(unittest.TestCase):
+    """Encode a command request, then decode it back through the same
+    descriptor — the encoder + wire_pb decoder are an inverse pair."""
+
+    def setUp(self):
+        self.registry = load_registry(REGISTRY_PATH)
+
+    def test_set_route_roundtrip(self):
+        from messages_decoder.encoder import (
+            CLASS_CMD_REQ,
+            encode_command_request,
+        )
+        from messages_decoder.wire_pb import decode_message
+        from messages_decoder.types import _build_pb_descriptor
+
+        # Build a request with all four fields set.
+        frame = encode_command_request(
+            self.registry, "system", "set_route",
+            {"target_module_id": 1, "target_msg_id": 1, "channel_id": 1, "enabled": True},
+            t_us_publish=12345,
+        )
+        # Length prefix matches reality.
+        (length,) = struct.unpack("<H", frame[:2])
+        self.assertEqual(len(frame), length + 2)
+        # Class byte == CMD_REQ.
+        self.assertEqual(frame[2], CLASS_CMD_REQ)
+        # module_id = 0 (system); cmd_id = 1 (set_route)
+        self.assertEqual(frame[3], 0)
+        (cmd_id,) = struct.unpack("<H", frame[4:6])
+        self.assertEqual(cmd_id, 1)
+        # CRC verifies.
+        body = frame[2 : -2]
+        (got_crc,) = struct.unpack("<H", frame[-2:])
+        self.assertEqual(got_crc, crc16_ccitt_false(body))
+        # Decode payload, confirm fields survive the roundtrip.
+        payload = frame[2 + 12 : -2]
+        descriptor = _build_pb_descriptor(
+            self.registry.modules["system"]["commands"]["set_route"]["request"]
+        )
+        fields = decode_message(payload, descriptor)
+        self.assertEqual(fields["target_module_id"], 1)
+        self.assertEqual(fields["target_msg_id"], 1)
+        self.assertEqual(fields["channel_id"], 1)
+        self.assertEqual(fields["enabled"], True)
+
+    def test_empty_request(self):
+        from messages_decoder.encoder import encode_command_request
+        # get_build_info has no request fields — should encode to empty payload.
+        frame = encode_command_request(self.registry, "system", "get_build_info", {})
+        (length,) = struct.unpack("<H", frame[:2])
+        # Envelope (12) + crc (2) = 14, no payload.
+        self.assertEqual(length, 14)
+
+
 if __name__ == "__main__":
     unittest.main()

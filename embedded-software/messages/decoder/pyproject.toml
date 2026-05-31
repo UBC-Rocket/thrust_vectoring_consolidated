@@ -11,6 +11,7 @@ dependencies = []
 
 [project.scripts]
 messages-decoder = "messages_decoder.cli:main"
+messages-console = "messages_decoder.console:main"
 
 [project.optional-dependencies]
 dev = ["jsonschema>=4.0"]
