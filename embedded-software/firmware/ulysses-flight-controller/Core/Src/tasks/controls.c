@@ -28,6 +28,7 @@
 #include "SD_logging/log_service.h"
 #include "timestamp.h"
 #include "utilities/clamp.h"
+#include "motor_drivers/dshot/dshot.h"
 
 /* Utility macros */
 #define RAD_TO_DEG (180.0f / 3.14159265f)
@@ -38,24 +39,12 @@
 #define STALE_STATE_THRESHOLD_TICKS \
     100 /**< If state_seq unchanged for this many ticks, treat as stale and output safe (zero). */
 
-/* ── Startup test parameters ────────────────────────────────────────────── */
-#define SWEEP_RANGE_DEG   90.0f         /**< Servo sweep half-range (degrees). */
-#define SWEEP_STEP_DEG    1.0f          /**< Degrees per step. */
-#define SWEEP_STEP_MS     5             /**< Milliseconds between steps. */
-#define CIRCLE_RADIUS_DEG 72.0f         /**< Servo circle sweep radius (degrees). */
-#define CIRCLE_STEPS      72            /**< Steps per full revolution (5 deg each). */
-#define CIRCLE_STEP_MS    18            /**< Milliseconds between circle steps. */
-#define ESC_TEST_THRUST   (0.1f * 1200) /**< Motor test thrust (10%). */
-#define ESC_RAMP_STEPS    50            /**< Steps to ramp up/down. */
-#define ESC_RAMP_STEP_MS  10            /**< Milliseconds per ramp step. */
-#define ESC_HOLD_MS       500           /**< Hold at peak thrust (ms). */
-
-/* Empirical times for the ESC power on sequence*/
-#define ESC_ARM_TIME_MS      (3000) /**< Delay before PWM output */
-
 /* Empirical values for a safe operational range of the gimbal */
 #define SERVO_MAX_DEGREES (30.0f)
 #define SERVO_MIN_DEGREES (-30.0f)
+
+/* Time to wait after arming before sending throttle commands (ESCs need to see a few frames to arm) */
+#define BDSHOT_ARM_TIME_US (5000000U) /**< 5 seconds */
 
 static quaternion_t pb_to_fc_quaternion(tvr_Quaternion quaternion);
 
@@ -79,8 +68,8 @@ static void init_default_config(flight_controller_config_t *cfg)
     cfg->allocation.thrust_dir[2] = -1.0f;
     /* Gimbal */
     cfg->gimbal.L = 0.2f;
-    cfg->gimbal.theta_min = SERVO_GIMBAL_DEG_MIN * (3.14159265f / 180.0f);
-    cfg->gimbal.theta_max = SERVO_GIMBAL_DEG_MAX * (3.14159265f / 180.0f);
+    cfg->gimbal.theta_min = SERVO_GIMBAL_DEG_MIN * DEG_TO_RAD;
+    cfg->gimbal.theta_max = SERVO_GIMBAL_DEG_MAX * DEG_TO_RAD;
     /* Thrust */
     cfg->thrust.m = 1.0f;
     cfg->thrust.g = 9.8067f;
@@ -122,37 +111,26 @@ void controls_task_start(void *argument)
 
     control_output_t control_output = {0};
 
-    bool armed;
+    bool armed = true;
     uint32_t last_armed_seq = 0;
+
+    uint64_t bdshot_last_armed_time = 0;
 
     uint8_t ctrl_log_div = 0;
 
-    // servo_pair_enable(false);
-    // esc_pair_set_armed(false);
+    servo_pair_enable(false);
 
-    state_exchange_publish_startup_test_complete(true);
+    state_exchange_publish_startup_test_complete(true); 
 
-    // esc_pair_set_armed(true);
-    // esc_pair_set_force(0, 0);
-
-    bdshot_dma_motor_set_throttle(BDSHOT_MOTOR_INDEX_UPPER, 100);
-    bdshot_dma_motor_set_throttle(BDSHOT_MOTOR_INDEX_LOWER, 100);
-
-    for (;;) {
-        bdshot_dma_apply();
-        osDelay(pdMS_TO_TICKS(1));
-    }
-
-    __BKPT(0);
-
-    for (;;) {
-    }
+    bdshot_dma_set_armed(true); // Wait for a bit before setting and applying the throttle
+    bdshot_last_armed_time = timestamp_us64();
 
     for (;;) {
         /* Block until TIM4 CH2 output-compare ISR fires (see timing.c) */
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
-        uint32_t armed_seq = state_exchange_get_armed(&armed);
+        // uint32_t armed_seq = state_exchange_get_armed(&armed);
+        uint32_t armed_seq = 1;
 
         // Arming status has changed
         if (armed_seq != last_armed_seq) {
@@ -214,11 +192,6 @@ void controls_task_start(void *argument)
             set_gimbal_degrees(0.0f, 0.0f);
             servo_pair_enable(armed);
 
-            esc_pair_set_force(0, 0);
-            esc_pair_set_armed(armed);
-
-            osDelay(pdMS_TO_TICKS(ESC_ARM_TIME_MS));
-
             DLOG_PRINT("[CTRL] ARM: end %s sequence\r\n", armed ? "arm" : "disarm");
 
             log_service_log_event(&(log_record_event_t){
@@ -228,7 +201,8 @@ void controls_task_start(void *argument)
             });
         }
 
-        uint32_t state_seq = state_exchange_get_state(&current_state);
+        // uint32_t state_seq = state_exchange_get_state(&current_state);
+        uint32_t state_seq = 1;
         state_exchange_get_flight_state(&flight_state);
 
         if (armed && state_seq != 0) {
@@ -258,7 +232,8 @@ void controls_task_start(void *argument)
                 });
             }
 
-            if (flight_state == RISE) {
+            // if (flight_state == RISE) {
+            if (true) {
                 float theta_x_deg =
                     clamp_float(control_output.theta_x_cmd * RAD_TO_DEG, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
                 float theta_y_deg =
@@ -267,20 +242,32 @@ void controls_task_start(void *argument)
                 float calibrated_theta_x_deg = (SQRT_2_2) * theta_x_deg + (SQRT_2_2) * theta_y_deg; // Calibrated to match physical gimbal direction
                 float calibrated_theta_y_deg = -(SQRT_2_2) * theta_x_deg + (SQRT_2_2) * theta_y_deg; // Calibrated to match physical gimbal direction
 
-                set_gimbal_degrees(calibrated_theta_x_deg, calibrated_theta_y_deg);
-                esc_pair_set_force(control_output.T_cmd, control_output.tau_thrust);
+                // set_gimbal_degrees(calibrated_theta_x_deg, calibrated_theta_y_deg);
+                set_gimbal_degrees(0, 0);
+
+
+                // TODO: A function that maps RPM to thrust and torque, then use thrust and torque 
+                // to calculate the necessary throttle for each motor. 
+                // Use bdshot_dma_motor_set_throttle to set the throttle for each motor.
+
+                if (timestamp_us64() - bdshot_last_armed_time > BDSHOT_ARM_TIME_US) {
+                    // Functions maps thrust and torque to throttle
+                    bdshot_dma_motor_set_throttle(BDSHOT_MOTOR_INDEX_LOWER, 199); // TODO: replace 0 with calculated throttle for upper motor
+                    bdshot_dma_motor_set_throttle(BDSHOT_MOTOR_INDEX_UPPER, 199); // TODO: replace 0 with calculated throttle for upper motor
+                }
+
             }
             else {
                 set_gimbal_degrees(0.0f, 0.0f);
                 // servo_pair_enable(armed);
-                esc_pair_set_force(0, 0);
+                // esc_pair_set_force(0, 0);
             }
         }
         else {
             // Not armed or no valid state — output safe (zero) controls.
             set_gimbal_degrees(0.0f, 0.0f);
             // servo_pair_enable(false);
-            esc_pair_set_force(0, 0);
+            // esc_pair_set_force(0, 0);
         }
     }
 }
