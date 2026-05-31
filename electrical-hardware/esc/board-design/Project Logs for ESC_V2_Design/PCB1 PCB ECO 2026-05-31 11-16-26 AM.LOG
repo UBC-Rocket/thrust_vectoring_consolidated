@@ -1,0 +1,7 @@
+Added Pin To Net: NetName=AGND Pin=C19-2
+Added Pin To Net: NetName=AGND Pin=C20-2
+Added Pin To Net: NetName=AGND Pin=C21-1
+Added Pin To Net: NetName=AGND Pin=C22-2
+Added Pin To Net: NetName=AGND Pin=C23-1
+Added Pin To Net: NetName=AGND Pin=C24-2
+Added Member To Class: ClassName=Gate Drive Member=Component U2 DRV8323RSRGZR
