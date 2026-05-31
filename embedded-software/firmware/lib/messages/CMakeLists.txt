@@ -21,6 +21,7 @@ endif()
 set(MESSAGES_SOURCES
     src/messages.c
     src/crc16.c
+    src/system_commands.c
     ${MESSAGES_GENERATED_ROUTING}
 )
 if(TARGET nanopb_runtime AND EXISTS "${MESSAGES_GENERATED_PB}")

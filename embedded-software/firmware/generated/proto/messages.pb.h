@@ -64,9 +64,7 @@ typedef struct _messages_CmdSystemGetBuildInfoResponse {
     uint32_t registry_version;
     /* CRC32 of the registry.json that codegen ran over. */
     uint32_t registry_hash;
-    /* First 8 bytes of the git commit SHA. */
-    pb_callback_t git_sha;
-    /* 0=debug 1=release. */
+    /* 0=debug 1=release. (git_sha as bytes deferred until nanopb max_size annotations land in the .proto emitter.) */
     uint32_t build_flavor;
 } messages_CmdSystemGetBuildInfoResponse;
 
@@ -97,7 +95,7 @@ extern "C" {
 #define messages_CmdSystemLockRoutesRequest_init_default {0}
 #define messages_CmdSystemLockRoutesResponse_init_default {0}
 #define messages_CmdSystemGetBuildInfoRequest_init_default {0}
-#define messages_CmdSystemGetBuildInfoResponse_init_default {0, 0, {{NULL}, NULL}, 0}
+#define messages_CmdSystemGetBuildInfoResponse_init_default {0, 0, 0}
 #define messages_CmdServoTriggerSelftestRequest_init_default {0}
 #define messages_CmdServoTriggerSelftestResponse_init_default {0, 0, 0}
 #define messages_SystemLogEvent_init_zero        {0, 0, 0, {{NULL}, NULL}}
@@ -106,7 +104,7 @@ extern "C" {
 #define messages_CmdSystemLockRoutesRequest_init_zero {0}
 #define messages_CmdSystemLockRoutesResponse_init_zero {0}
 #define messages_CmdSystemGetBuildInfoRequest_init_zero {0}
-#define messages_CmdSystemGetBuildInfoResponse_init_zero {0, 0, {{NULL}, NULL}, 0}
+#define messages_CmdSystemGetBuildInfoResponse_init_zero {0, 0, 0}
 #define messages_CmdServoTriggerSelftestRequest_init_zero {0}
 #define messages_CmdServoTriggerSelftestResponse_init_zero {0, 0, 0}
 
@@ -124,8 +122,7 @@ extern "C" {
 #define messages_CmdSystemLockRoutesResponse_ok_tag 1
 #define messages_CmdSystemGetBuildInfoResponse_registry_version_tag 1
 #define messages_CmdSystemGetBuildInfoResponse_registry_hash_tag 2
-#define messages_CmdSystemGetBuildInfoResponse_git_sha_tag 3
-#define messages_CmdSystemGetBuildInfoResponse_build_flavor_tag 4
+#define messages_CmdSystemGetBuildInfoResponse_build_flavor_tag 3
 #define messages_CmdServoTriggerSelftestResponse_phase_tag 1
 #define messages_CmdServoTriggerSelftestResponse_ok_tag 2
 #define messages_CmdServoTriggerSelftestResponse_error_code_tag 3
@@ -171,9 +168,8 @@ X(a, STATIC,   SINGULAR, BOOL,     ok,                1)
 #define messages_CmdSystemGetBuildInfoResponse_FIELDLIST(X, a) \
 X(a, STATIC,   SINGULAR, UINT32,   registry_version,   1) \
 X(a, STATIC,   SINGULAR, UINT32,   registry_hash,     2) \
-X(a, CALLBACK, SINGULAR, BYTES,    git_sha,           3) \
-X(a, STATIC,   SINGULAR, UINT32,   build_flavor,      4)
-#define messages_CmdSystemGetBuildInfoResponse_CALLBACK pb_default_field_callback
+X(a, STATIC,   SINGULAR, UINT32,   build_flavor,      3)
+#define messages_CmdSystemGetBuildInfoResponse_CALLBACK NULL
 #define messages_CmdSystemGetBuildInfoResponse_DEFAULT NULL
 
 #define messages_CmdServoTriggerSelftestRequest_FIELDLIST(X, a) \
@@ -211,11 +207,11 @@ extern const pb_msgdesc_t messages_CmdServoTriggerSelftestResponse_msg;
 
 /* Maximum encoded size of messages (where known) */
 /* messages_SystemLogEvent_size depends on runtime parameters */
-/* messages_CmdSystemGetBuildInfoResponse_size depends on runtime parameters */
 #define MESSAGES_MESSAGES_PB_H_MAX_SIZE          messages_CmdSystemSetRouteRequest_size
 #define messages_CmdServoTriggerSelftestRequest_size 0
 #define messages_CmdServoTriggerSelftestResponse_size 14
 #define messages_CmdSystemGetBuildInfoRequest_size 0
+#define messages_CmdSystemGetBuildInfoResponse_size 18
 #define messages_CmdSystemLockRoutesRequest_size 0
 #define messages_CmdSystemLockRoutesResponse_size 2
 #define messages_CmdSystemSetRouteRequest_size   20

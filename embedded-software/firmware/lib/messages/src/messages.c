@@ -80,7 +80,20 @@ typedef struct {
 
 static bucket_state_t s_buckets[MESSAGES_MAX_ENTRIES][CH_COUNT];
 static uint32_t       s_drops[CH_COUNT];
-static messages_sink_fn_t s_sd_sink;
+static messages_sink_fn_t s_sinks[CH_COUNT];   /* sink per channel; NULL = drop */
+/* Alias for the SD-channel slot to keep the existing s_sd_sink references
+ * minimal — both names resolve to the same storage. */
+#define s_sd_sink (s_sinks[CH_SD])
+
+/* Command handler registry — linear scan, fine for ≤ 16 commands. */
+typedef struct {
+    uint8_t  module_id;
+    uint16_t cmd_id;
+    messages_cmd_handler_t fn;
+    bool     in_use;
+} cmd_slot_t;
+
+static cmd_slot_t s_cmd_handlers[MESSAGES_MAX_REGISTERED_COMMANDS];
 
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                    */
@@ -236,22 +249,19 @@ static size_t assemble_envelope(uint8_t *out,
  */
 static bool dispatch_to_channel(uint8_t channel_id, const uint8_t *record, size_t record_len)
 {
-    if (channel_id == CH_SD) {
-        messages_sink_fn_t fn = s_sd_sink;
-        if (fn == NULL) {
-            bump_drop(CH_SD);
-            return false;
-        }
-        if (!fn(record, record_len)) {
-            bump_drop(CH_SD);
-            return false;
-        }
-        return true;
+    if (channel_id >= CH_COUNT) {
+        return false;
     }
-
-    /* CH_VCP / CH_UDP / future channels: stub. */
-    bump_drop(channel_id);
-    return false;
+    messages_sink_fn_t fn = s_sinks[channel_id];
+    if (fn == NULL) {
+        bump_drop(channel_id);
+        return false;
+    }
+    if (!fn(record, record_len)) {
+        bump_drop(channel_id);
+        return false;
+    }
+    return true;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -262,14 +272,24 @@ void messages_init(void)
 {
     memset(s_buckets, 0, sizeof(s_buckets));
     memset(s_drops, 0, sizeof(s_drops));
-    s_sd_sink = NULL;
+    memset(s_cmd_handlers, 0, sizeof(s_cmd_handlers));
+    for (size_t i = 0U; i < CH_COUNT; ++i) {
+        s_sinks[i] = NULL;
+    }
     /* Build CRC table eagerly so the first publish doesn't pay the init cost. */
     (void)messages_crc16(NULL, 0U);
 }
 
 void messages_sd_sink_set(messages_sink_fn_t fn)
 {
-    s_sd_sink = fn;
+    s_sinks[CH_SD] = fn;
+}
+
+void messages_channel_sink_set(uint8_t channel_id, messages_sink_fn_t fn)
+{
+    if (channel_id < CH_COUNT) {
+        s_sinks[channel_id] = fn;
+    }
 }
 
 uint32_t messages_get_drops(uint8_t channel_id)
@@ -401,4 +421,108 @@ void messages_publish_drop_counters(void)
 #endif
     (void)messages_publish_a(MOD_SYSTEM, MSG_SYSTEM_DROP_COUNTER,
                              &snapshot, (uint16_t)sizeof(snapshot));
+}
+
+/* -------------------------------------------------------------------------- */
+/* Command dispatch                                                           */
+/* -------------------------------------------------------------------------- */
+
+bool messages_register_command_handler(uint8_t module_id, uint16_t cmd_id,
+                                        messages_cmd_handler_t fn)
+{
+    /* Replace existing slot first if (module_id, cmd_id) already registered. */
+    for (size_t i = 0U; i < MESSAGES_MAX_REGISTERED_COMMANDS; ++i) {
+        if (s_cmd_handlers[i].in_use
+            && s_cmd_handlers[i].module_id == module_id
+            && s_cmd_handlers[i].cmd_id == cmd_id) {
+            if (fn == NULL) {
+                s_cmd_handlers[i].in_use = false;
+            } else {
+                s_cmd_handlers[i].fn = fn;
+            }
+            return true;
+        }
+    }
+    if (fn == NULL) {
+        return true; /* deregister of unknown is a no-op success */
+    }
+    for (size_t i = 0U; i < MESSAGES_MAX_REGISTERED_COMMANDS; ++i) {
+        if (!s_cmd_handlers[i].in_use) {
+            s_cmd_handlers[i] = (cmd_slot_t){
+                .module_id = module_id, .cmd_id = cmd_id,
+                .fn = fn, .in_use = true,
+            };
+            return true;
+        }
+    }
+    return false; /* registry full */
+}
+
+messages_cmd_handler_t messages_lookup_command_handler(uint8_t module_id,
+                                                       uint16_t cmd_id)
+{
+    for (size_t i = 0U; i < MESSAGES_MAX_REGISTERED_COMMANDS; ++i) {
+        if (s_cmd_handlers[i].in_use
+            && s_cmd_handlers[i].module_id == module_id
+            && s_cmd_handlers[i].cmd_id == cmd_id) {
+            return s_cmd_handlers[i].fn;
+        }
+    }
+    return NULL;
+}
+
+bool messages_handle_inbound(uint8_t channel_id,
+                              const uint8_t *record, size_t record_len)
+{
+    /* Validate length prefix + envelope shape + CRC. */
+    if (record_len < (MESSAGES_ENVELOPE_LENGTH_SIZE + MESSAGES_ENVELOPE_HEADER_SIZE
+                       + MESSAGES_ENVELOPE_CRC_SIZE)) {
+        return false;
+    }
+    uint16_t claimed_len = (uint16_t)record[0] | ((uint16_t)record[1] << 8);
+    if ((size_t)claimed_len + MESSAGES_ENVELOPE_LENGTH_SIZE != record_len) {
+        return false;
+    }
+    const uint8_t *crc_region = &record[MESSAGES_ENVELOPE_LENGTH_SIZE];
+    size_t crc_region_len = claimed_len - MESSAGES_ENVELOPE_CRC_SIZE;
+    uint16_t got_crc = (uint16_t)record[record_len - 2]
+                     | ((uint16_t)record[record_len - 1] << 8);
+    uint16_t want_crc = messages_crc16(crc_region, crc_region_len);
+    if (got_crc != want_crc) {
+        return false;
+    }
+
+    /* Parse envelope. */
+    uint8_t  msg_class = crc_region[0];
+    uint8_t  module_id = crc_region[1];
+    uint16_t cmd_id    = (uint16_t)crc_region[2] | ((uint16_t)crc_region[3] << 8);
+    /* (t_us_publish at offset 4..11 is the host's send time — ignored here.) */
+    const uint8_t *req_payload = &crc_region[MESSAGES_ENVELOPE_HEADER_SIZE];
+    size_t req_payload_len = crc_region_len - MESSAGES_ENVELOPE_HEADER_SIZE;
+
+    if (msg_class != MSG_CLASS_CMD_REQ) {
+        return false;
+    }
+
+    messages_cmd_handler_t fn = messages_lookup_command_handler(module_id, cmd_id);
+    if (fn == NULL) {
+        return false;
+    }
+
+    /* Run the handler. */
+    uint8_t resp_payload[MESSAGES_MAX_PAYLOAD_SIZE];
+    size_t resp_len = 0U;
+    (void)fn(req_payload, req_payload_len,
+             resp_payload, sizeof(resp_payload), &resp_len);
+
+    /* Assemble + send the response on the same channel the request came in on. */
+    uint8_t resp_record[MESSAGES_ENVELOPE_LENGTH_SIZE + MESSAGES_ENVELOPE_HEADER_SIZE
+                        + MESSAGES_MAX_PAYLOAD_SIZE + MESSAGES_ENVELOPE_CRC_SIZE];
+    uint64_t now_us = timestamp_us64();
+    size_t resp_record_len = assemble_envelope(
+        resp_record, MSG_CLASS_CMD_RESP, module_id, cmd_id, now_us,
+        resp_payload, (uint16_t)resp_len);
+
+    (void)dispatch_to_channel(channel_id, resp_record, resp_record_len);
+    return true;
 }

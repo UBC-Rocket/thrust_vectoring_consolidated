@@ -107,6 +107,16 @@ void messages_init(void);
  */
 void messages_sd_sink_set(messages_sink_fn_t fn);
 
+/**
+ * @brief Register a sink for any channel by ID.
+ *
+ * Generalises messages_sd_sink_set — used by the VCP RX driver to install
+ * the response-out path for commands, and by future channels (UDP, radio,
+ * etc.). messages_sd_sink_set is now a thin wrapper that calls this with
+ * channel_id = CH_SD.
+ */
+void messages_channel_sink_set(uint8_t channel_id, messages_sink_fn_t fn);
+
 /* -------------------------------------------------------------------------- */
 /* Publish                                                                    */
 /* -------------------------------------------------------------------------- */
@@ -162,6 +172,82 @@ void messages_publish_drop_counters(void);
  * @return Number of drops on that channel since boot (or messages_init).
  */
 uint32_t messages_get_drops(uint8_t channel_id);
+
+/* -------------------------------------------------------------------------- */
+/* Command dispatch (inbound)                                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * @brief Command handler signature.
+ *
+ * The dispatcher hands the raw nanopb-encoded request bytes; the handler is
+ * responsible for nanopb-decoding them into its typed request struct (the
+ * generated messages_Cmd<Mod><Cmd>Request_t), doing the work, and nanopb-
+ * encoding a typed response into the provided buffer. Returns 0 on success,
+ * nonzero on internal error (the dispatcher then encodes an empty response
+ * payload — typically the typed response struct carries its own ok/error_code
+ * fields, which is the preferred way to surface failure).
+ *
+ * @param req_bytes  Decoded request payload (post-COBS / post-envelope).
+ * @param req_len    Length of req_bytes.
+ * @param resp_bytes Buffer for the response payload to be filled.
+ * @param resp_cap   Capacity of resp_bytes (MESSAGES_MAX_PAYLOAD_SIZE).
+ * @param resp_len   [out] Bytes written into resp_bytes.
+ */
+typedef int (*messages_cmd_handler_t)(
+    const uint8_t *req_bytes, size_t req_len,
+    uint8_t *resp_bytes, size_t resp_cap, size_t *resp_len);
+
+/** @brief Maximum number of distinct commands that can be registered. */
+#define MESSAGES_MAX_REGISTERED_COMMANDS  16U
+
+/**
+ * @brief Register a handler for one (module_id, cmd_id) pair.
+ *
+ * @param module_id Module identifier (MOD_*).
+ * @param cmd_id    Command identifier (CMD_<MOD>_<NAME>).
+ * @param fn        Handler function. NULL deregisters.
+ * @return true if the slot was assigned, false if the registry is full.
+ */
+bool messages_register_command_handler(uint8_t module_id, uint16_t cmd_id,
+                                        messages_cmd_handler_t fn);
+
+/**
+ * @brief Look up the registered handler for a command.
+ *
+ * @return Handler function or NULL if no handler is registered.
+ */
+messages_cmd_handler_t messages_lookup_command_handler(uint8_t module_id,
+                                                       uint16_t cmd_id);
+
+/**
+ * @brief Dispatch one inbound command frame.
+ *
+ * Caller hands the assembled envelope (length .. crc) — same wire format that
+ * goes outbound. The dispatcher validates CRC + class + envelope, decodes
+ * the (module_id, cmd_id) tuple (commands ride the same id namespace as
+ * messages: msg_id = cmd_id for command messages), looks up the registered
+ * handler, calls it, and feeds the response envelope back into the same
+ * channel sink (so the host sees `command response` records on the wire).
+ *
+ * @param channel_id Channel the inbound frame arrived on; used to send the
+ *                   response back to the same channel.
+ * @param record     Pointer to the inbound record (length field first).
+ * @param record_len Bytes available at @p record.
+ * @return true if a handler ran (even if it returned nonzero), false if the
+ *         frame was rejected (bad CRC, unknown command, sink full).
+ */
+bool messages_handle_inbound(uint8_t channel_id,
+                              const uint8_t *record, size_t record_len);
+
+/**
+ * @brief Register the built-in system.* command handlers.
+ *
+ * Currently registers: get_build_info. Call once at boot after
+ * messages_init(). No-op if MESSAGES_HAVE_NANOPB isn't defined (the
+ * host-side test harness doesn't link nanopb).
+ */
+void messages_system_commands_register(void);
 
 #ifdef __cplusplus
 }

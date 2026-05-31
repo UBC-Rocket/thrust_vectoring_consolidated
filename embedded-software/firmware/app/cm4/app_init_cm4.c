@@ -45,6 +45,7 @@ void app_init_cm4(void) {
      * touches log_service state) and before any task starts publishing. */
     messages_init();
     messages_sd_sink_set(messages_sd_sink);
+    messages_system_commands_register();
 
     s_h_log     = xTaskCreateStatic(task_sd_log,           "sd_log",
                                     STK_SD_LOG,            NULL, 4,

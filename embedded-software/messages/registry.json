@@ -127,8 +127,7 @@
             "fields": [
               { "name": "registry_version", "type": "u16",   "description": "Registry format version this firmware was built against." },
               { "name": "registry_hash",    "type": "u32",   "description": "CRC32 of the registry.json that codegen ran over." },
-              { "name": "git_sha",          "type": "bytes", "description": "First 8 bytes of the git commit SHA." },
-              { "name": "build_flavor",     "type": "u8",    "description": "0=debug 1=release." }
+              { "name": "build_flavor",     "type": "u8",    "description": "0=debug 1=release. (git_sha as bytes deferred until nanopb max_size annotations land in the .proto emitter.)" }
             ]
           }
         }

@@ -15,8 +15,10 @@
 #define CH_UDP  2
 #define CH_COUNT 3
 
-#define MSG_CLASS_A 0x41
-#define MSG_CLASS_B 0x42
+#define MSG_CLASS_A        0x41
+#define MSG_CLASS_B        0x42
+#define MSG_CLASS_CMD_REQ  0x43
+#define MSG_CLASS_CMD_RESP 0x44
 
 /* Module IDs */
 #define MOD_SYSTEM 0
