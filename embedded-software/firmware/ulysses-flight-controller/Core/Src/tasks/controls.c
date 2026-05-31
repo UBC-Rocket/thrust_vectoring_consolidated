@@ -120,7 +120,7 @@ void controls_task_start(void *argument)
 
     servo_pair_enable(false);
 
-    state_exchange_publish_startup_test_complete(true); 
+    state_exchange_publish_startup_test_complete(true);
 
     bdshot_dma_set_armed(true); // Wait for a bit before setting and applying the throttle
     bdshot_last_armed_time = timestamp_us64();
@@ -246,8 +246,8 @@ void controls_task_start(void *argument)
                 set_gimbal_degrees(0, 0);
 
 
-                // TODO: A function that maps RPM to thrust and torque, then use thrust and torque 
-                // to calculate the necessary throttle for each motor. 
+                // TODO: A function that maps RPM to thrust and torque, then use thrust and torque
+                // to calculate the necessary throttle for each motor.
                 // Use bdshot_dma_motor_set_throttle to set the throttle for each motor.
 
                 if (timestamp_us64() - bdshot_last_armed_time > BDSHOT_ARM_TIME_US) {
