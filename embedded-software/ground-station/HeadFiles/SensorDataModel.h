@@ -34,9 +34,11 @@ public:
     Q_PROPERTY(double filteredAngleZ READ filteredAngleZ NOTIFY kalmanDataChanged)
 
     // Engine outputs
-    Q_PROPERTY(double thrustCmd READ thrustCmd NOTIFY engineDataChanged)
-    Q_PROPERTY(double gimbalX   READ gimbalX   NOTIFY engineDataChanged)
-    Q_PROPERTY(double gimbalY   READ gimbalY   NOTIFY engineDataChanged)
+    Q_PROPERTY(double thrustCmd     READ thrustCmd     NOTIFY engineDataChanged)
+    Q_PROPERTY(double gimbalX       READ gimbalX       NOTIFY engineDataChanged)
+    Q_PROPERTY(double gimbalY       READ gimbalY       NOTIFY engineDataChanged)
+    Q_PROPERTY(double motorRpmUpper READ motorRpmUpper NOTIFY engineDataChanged)
+    Q_PROPERTY(double motorRpmLower READ motorRpmLower NOTIFY engineDataChanged)
 
     // Telemetry — velocity magnitude in m/s (consistent with altitude)
     Q_PROPERTY(double velocity READ velocity NOTIFY telemetryDataChanged)
@@ -90,9 +92,11 @@ public:
     double rawAngleZ()      const { return m_rawAngleZ; }
     double filteredAngleZ() const { return m_filteredAngleZ; }
 
-    double thrustCmd() const { return m_thrustCmd; }
-    double gimbalX()   const { return m_gimbalX; }
-    double gimbalY()   const { return m_gimbalY; }
+    double thrustCmd()     const { return m_thrustCmd; }
+    double gimbalX()       const { return m_gimbalX; }
+    double gimbalY()       const { return m_gimbalY; }
+    double motorRpmUpper() const { return m_motorRpmUpper; }
+    double motorRpmLower() const { return m_motorRpmLower; }
 
     double velocity() const { return m_velocity; }
 
@@ -145,7 +149,8 @@ public slots:
     void updatePosition(double altitude, double posX = 0.0, double posY = 0.0);
 
     /// Store engine outputs and notify QML.
-    void updateEngine(double thrustCmd, double gimbalX, double gimbalY);
+    void updateEngine(double thrustCmd, double gimbalX, double gimbalY,
+                      double motorRpmUpper, double motorRpmLower);
 
     /// Store telemetry speed value and notify QML.
     void updateTelemetry(double velocity);
@@ -181,9 +186,11 @@ private:
     double m_rawAngleZ      = 0.0;
     double m_filteredAngleZ = 0.0;
 
-    double m_thrustCmd = 0.0;
-    double m_gimbalX   = 0.0;
-    double m_gimbalY   = 0.0;
+    double m_thrustCmd     = 0.0;
+    double m_gimbalX       = 0.0;
+    double m_gimbalY       = 0.0;
+    double m_motorRpmUpper = 0.0;
+    double m_motorRpmLower = 0.0;
 
     double m_velocity = 0.0;
 

@@ -209,6 +209,16 @@ void controls_task_start(void *argument)
 
             flight_controller_run(&current_state, &ref, &config, &control_output, CONTROLS_DT_S);
 
+            /* Read latest bdshot telemetry; on read failure, retain previous
+             * sample so telemetry shows last-known RPM rather than zero. */
+            bdshot_motor_telemetry_t bdshot_telem;
+            if (bdshot_dma_motor_get_telemetry(BDSHOT_MOTOR_INDEX_UPPER, &bdshot_telem)) {
+                control_output.motor_rpm_upper = bdshot_telem.rpm;
+            }
+            if (bdshot_dma_motor_get_telemetry(BDSHOT_MOTOR_INDEX_LOWER, &bdshot_telem)) {
+                control_output.motor_rpm_lower = bdshot_telem.rpm;
+            }
+
             state_exchange_publish_control_output(&control_output);
 
             /* Log control output at 100 Hz (every 8th 800-Hz cycle). */

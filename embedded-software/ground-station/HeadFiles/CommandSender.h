@@ -40,6 +40,9 @@ public:
     // with {x: float, y: float}. Sends on the bridge's currently selected TX channel.
     Q_INVOKABLE bool sendProbeLayout(const QVariantList& probes);
 
+    // Send target motor RPM setpoints for the upper and lower ESC-driven motors.
+    Q_INVOKABLE bool sendMotorSpeed(int which, double rpmUpper, double rpmLower);
+
 signals:
     // -----------------------
     // App-level signals

@@ -27,4 +27,8 @@ message TelemetryState {
   // the UWB ranging frame for that tag was usable this tick).
   Vec2 uwb_tag_0 = 10;
   Vec2 uwb_tag_1 = 11;
+
+  // Motor RPM reported by the bidirectional DShot ESC driver.
+  float motor_rpm_upper = 12;   // [rev/min]
+  float motor_rpm_lower = 13;   // [rev/min]
 }

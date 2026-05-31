@@ -323,3 +323,45 @@ bool CommandSender::sendConfigValues(int which, const QVariantList& configValues
     return true;
 
 }
+
+
+bool CommandSender::sendMotorSpeed(int which, double rpmUpper, double rpmLower) {
+    if (!validWhich(which)) {
+        emit errorOccurred("which must be 1 or 2");
+        return false;
+    }
+
+    if (!m_bridge) {
+        emit errorOccurred("No bridge");
+        return false;
+    }
+
+    tvr_FlightCommand cmd = tvr_FlightCommand_init_zero;
+    cmd.which_payload = tvr_FlightCommand_set_motor_speed_tag;
+    cmd.payload.set_motor_speed.rpm_upper = static_cast<float>(rpmUpper);
+    cmd.payload.set_motor_speed.rpm_lower = static_cast<float>(rpmLower);
+
+    uint8_t packet[300];
+    rp_packet_encode_result_t result = rp_packet_encode(
+        packet,
+        sizeof(packet),
+        tvr_FlightCommand_fields,
+        &cmd
+    );
+
+    if (result.status != RP_CODEC_OK) {
+        emit errorOccurred("Failed to encode packet");
+        return false;
+    }
+
+    QByteArray data(reinterpret_cast<const char*>(packet), result.written);
+
+    if (!m_bridge->sendBinary(which, data)) {
+        emit errorOccurred("Failed to send binary packet");
+        return false;
+    }
+
+    emit messageSent(QString("SetMotorSpeed upper=%1 lower=%2 rpm")
+                         .arg(rpmUpper).arg(rpmLower));
+    return true;
+}

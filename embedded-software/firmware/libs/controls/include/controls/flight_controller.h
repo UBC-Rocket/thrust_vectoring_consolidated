@@ -84,6 +84,8 @@ typedef struct {
     float phi_y;           /**< Attitude error vector y = 2*dq.y [rad] */
     float phi_z;           /**< Attitude error vector z = 2*dq.z [rad] */
     float z_pid_integral;  /**< Z-axis PID integral accumulator [m] */
+    float motor_rpm_upper; /**< Measured upper-motor RPM (bdshot feedback) [rev/min] */
+    float motor_rpm_lower; /**< Measured lower-motor RPM (bdshot feedback) [rev/min] */
 } control_output_t;
 
 /**

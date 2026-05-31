@@ -44,6 +44,7 @@ const char* const kCsvHeader =
     "att_w,att_x,att_y,att_z,"
     "gyro_x,gyro_y,gyro_z,"
     "thrust_cmd,gimbal_x,gimbal_y,"
+    "motor_rpm_upper,motor_rpm_lower,"
     "uwb0_x,uwb0_y,uwb1_x,uwb1_y,"
     "uptime_ms,accel_ok,gyro_ok,baro1_ok,baro2_ok,"
     "gps_connected,radio_rx_count,radio_tx_count,cmd_rx_count";
@@ -176,12 +177,14 @@ void SensorDataModel::onBinaryPacketReceived(int which, const QByteArray& packet
     // Log decoded fields as readable text
     if (downlink.which_payload == tvr_Downlink_telemetry_tag) {
         const tvr_TelemetryState* t = &downlink.payload.telemetry;
-        QString line = QStringLiteral("TELEM t=%1 state=%2 thrust=%3 gx=%4 gy=%5")
+        QString line = QStringLiteral("TELEM t=%1 state=%2 thrust=%3 gx=%4 gy=%5 rpmU=%6 rpmL=%7")
             .arg(t->timestamp_ms)
             .arg(t->flight_state)
             .arg(static_cast<double>(t->thrust_cmd))
             .arg(static_cast<double>(t->gimbal_x))
-            .arg(static_cast<double>(t->gimbal_y));
+            .arg(static_cast<double>(t->gimbal_y))
+            .arg(static_cast<double>(t->motor_rpm_upper))
+            .arg(static_cast<double>(t->motor_rpm_lower));
         if (t->has_position)
             line += QStringLiteral(" pos=%1,%2,%3")
                 .arg(static_cast<double>(t->position.x))
@@ -257,11 +260,14 @@ void SensorDataModel::updatePosition(double altitude, double posX, double posY)
     emit baroDataChanged();
 }
 
-void SensorDataModel::updateEngine(double thrustCmd, double gimbalX, double gimbalY)
+void SensorDataModel::updateEngine(double thrustCmd, double gimbalX, double gimbalY,
+                                   double motorRpmUpper, double motorRpmLower)
 {
-    m_thrustCmd = thrustCmd;
-    m_gimbalX   = gimbalX;
-    m_gimbalY   = gimbalY;
+    m_thrustCmd     = thrustCmd;
+    m_gimbalX       = gimbalX;
+    m_gimbalY       = gimbalY;
+    m_motorRpmUpper = motorRpmUpper;
+    m_motorRpmLower = motorRpmLower;
 
     emit engineDataChanged();
 }
@@ -332,7 +338,9 @@ void SensorDataModel::applyDownlink(int which, const void* downlinkStruct)
         updateEngine(
             static_cast<double>(t->thrust_cmd),
             static_cast<double>(t->gimbal_x),
-            static_cast<double>(t->gimbal_y)
+            static_cast<double>(t->gimbal_y),
+            static_cast<double>(t->motor_rpm_upper),
+            static_cast<double>(t->motor_rpm_lower)
         );
 
         // UWB tag positions: validity = whether this frame carried that tag.
@@ -461,6 +469,8 @@ void SensorDataModel::writeCsvRow(const void* downlinkStruct)
         }
         // engine
         (*m_csvStream) << fmt(t->thrust_cmd) << ',' << fmt(t->gimbal_x) << ',' << fmt(t->gimbal_y) << ',';
+        // motor rpm (bdshot feedback)
+        (*m_csvStream) << fmt(t->motor_rpm_upper) << ',' << fmt(t->motor_rpm_lower) << ',';
         // uwb tags
         if (t->has_uwb_tag_0) {
             (*m_csvStream) << fmt(t->uwb_tag_0.x) << ',' << fmt(t->uwb_tag_0.y) << ',';
@@ -477,12 +487,13 @@ void SensorDataModel::writeCsvRow(const void* downlinkStruct)
     } else if (d->which_payload == tvr_Downlink_status_tag) {
         const tvr_SystemStatus* s = &d->payload.status;
         (*m_csvStream) << wallMs << ",STATUS," << s->timestamp_ms << ',' << s->flight_state << ',';
-        // empty telemetry columns (pos, vel, att, gyro, engine, uwb)
+        // empty telemetry columns (pos, vel, att, gyro, engine, motor_rpm, uwb)
         (*m_csvStream) << ",,,"     // pos
                        << ",,,"     // vel
                        << ",,,,"    // att
                        << ",,,"     // gyro
                        << ",,,"     // engine
+                       << ",,"      // motor_rpm_upper, motor_rpm_lower
                        << ",,,,";   // uwb0/uwb1
         (*m_csvStream) << s->uptime_ms << ','
                        << fmtBool(s->accel_ok) << ','

@@ -46,6 +46,7 @@ static bool latest_rearm_requested = false;
 static tvr_SetPidGains latest_pid_gains = {0};
 static tvr_SetReference latest_flight_reference = {0};
 static tvr_SetConfig latest_vehicle_config = {0};
+static tvr_SetMotorSpeed latest_motor_speed_target = {0};
 
 static uint32_t state_seq = 0;
 static uint32_t flight_state_seq = 0;
@@ -56,6 +57,7 @@ static uint32_t rearm_seq = 0;
 static uint32_t pid_gains_seq = 0;
 static uint32_t flight_reference_seq = 0;
 static uint32_t vehicle_config_seq = 0;
+static uint32_t motor_speed_target_seq = 0;
 
 /* -------------------------------------------------------------------------- */
 /* Private helpers                                                            */
@@ -372,6 +374,36 @@ uint32_t state_exchange_get_flight_reference(tvr_SetReference *reference_out)
         *reference_out = latest_flight_reference;
     }
     uint32_t seq = flight_reference_seq;
+    xSemaphoreGive(flight_mutex_handle);
+    return seq;
+}
+
+uint32_t state_exchange_publish_motor_speed_target(tvr_SetMotorSpeed target)
+{
+    ensure_initialized();
+    if (take_mutex_safe(flight_mutex_handle) != pdTRUE) {
+        return motor_speed_target_seq;
+    }
+    latest_motor_speed_target = target;
+    motor_speed_target_seq++;
+    uint32_t seq = motor_speed_target_seq;
+    xSemaphoreGive(flight_mutex_handle);
+    return seq;
+}
+
+uint32_t state_exchange_get_motor_speed_target(tvr_SetMotorSpeed *target_out)
+{
+    ensure_initialized();
+    if (take_mutex_safe(flight_mutex_handle) != pdTRUE) {
+        if (target_out) {
+            *target_out = latest_motor_speed_target;
+        }
+        return motor_speed_target_seq;
+    }
+    if (target_out) {
+        *target_out = latest_motor_speed_target;
+    }
+    uint32_t seq = motor_speed_target_seq;
     xSemaphoreGive(flight_mutex_handle);
     return seq;
 }
