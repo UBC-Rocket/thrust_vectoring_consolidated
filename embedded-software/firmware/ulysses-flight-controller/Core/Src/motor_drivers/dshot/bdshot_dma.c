@@ -14,8 +14,6 @@
 #include <stdint.h>
 #include <string.h>
 
-#define BYTES_TO_NIBBLES(bytes) (bytes * 2)
-
 #define MOTOR_INDEX_INVALID        (UINT32_MAX)
 #define PERIPHERAL_CHANNEL_INVALID (UINT32_MAX)
 
@@ -44,13 +42,6 @@ typedef struct bdshot_dma_timers {
     TIM_HandleTypeDef *tim;
     uint32_t active_dma_sources;
 } bdshot_dma_timers_t;
-
-static const uint8_t GCR_DECODE_TABLE[32] = {
-    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, /* 0x00-0x07 */
-    0xFF, 0x09, 0x0A, 0x0B, 0xFF, 0x0D, 0x0E, 0x0F, /* 0x08-0x0F */
-    0xFF, 0xFF, 0x02, 0x03, 0xFF, 0x05, 0x06, 0x07, /* 0x10-0x17 */
-    0xFF, 0x00, 0x08, 0x01, 0xFF, 0x04, 0x0C, 0xFF, /* 0x18-0x1F */
-};
 
 // Timers associated with all initialized motors
 static bdshot_dma_timers_t dma_timers[BDSHOT_DMA_MOTOR_COUNT];
@@ -363,21 +354,11 @@ static bool bdshot_decode_telemetry(bdshot_motor_telemetry_t *const telemetry,
         wire_frame = (wire_frame << 1) | bit;
     }
 
-    uint32_t gcr_frame = (wire_frame ^ (wire_frame >> 1)) & 0x000FFFFF;
-    uint16_t frame = 0x0000;
+    uint16_t frame;
+    bool decode_successful = bdshot_frame_decode_from_wire(&frame, wire_frame);
 
-    for (uint8_t i = 0; i < BYTES_TO_NIBBLES(sizeof(bdshot_frame_t)); i++) {
-        // Iterate from MSb to LSb in groups of 5 bits
-        uint32_t shift = 15 - (i * 5);
-
-        uint8_t symbol = (gcr_frame >> shift) & 0x1F;
-        uint8_t nibble = GCR_DECODE_TABLE[symbol];
-
-        if (nibble == 0xFF) {
-            return false;
-        }
-
-        frame = (frame << 4) | nibble;
+    if (!decode_successful) {
+        return false;
     }
 
     uint8_t received_crc = (frame & BDSHOT_CHECKSUM_MASK) >> BDSHOT_CHECKSUM_SHIFT;
@@ -555,7 +536,7 @@ bool bdshot_dma_motor_set_armed(bdshot_motor_index_t index, bool is_armed)
     // TODO: implement hardware arm/disarm (i.e. enabling and disabling PWM in its entirety), process is
     // something along the lines of aborting the current DMA transfer, removing the current channel from the
     // active dma timer sources, etc.
-    bool success = bdshot_command_frame_pack(&motor->frame, BDSHOT_COMMAND_MOTOR_STOP, true);
+    bool success = bdshot_command_frame_pack(&motor->frame, BDSHOT_COMMAND_MOTOR_STOP, false);
 
     if (!success) {
         return false;
@@ -667,7 +648,7 @@ bool bdshot_dma_apply()
     for (size_t i = 0; i < dma_timers_count; i++) {
         bdshot_dma_timers_t *timer = &dma_timers[i];
 
-        if (timer->tim == NULL) {
+        if (timer->tim == NULL || timer->active_dma_sources == 0) {
             continue;
         }
 

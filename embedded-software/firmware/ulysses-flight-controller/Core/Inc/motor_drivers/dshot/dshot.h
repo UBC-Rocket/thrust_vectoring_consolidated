@@ -53,5 +53,6 @@ bool bdshot_command_frame_pack(bdshot_frame_t *frame, bdshot_command_t command,
 uint8_t bdshot_frame_checksum(bdshot_frame_t frame, bool inverted);
 float bdshot_frame_calculate_rpm(bdshot_frame_t frame, uint8_t motor_pole_count);
 bool bdshot_frame_is_edt(bdshot_frame_t frame);
+bool bdshot_frame_decode_from_wire(bdshot_frame_t *bdshot_frame, uint32_t wire_frame);
 
 #endif // ULYSSES_MOTOR_DRIVER_PROTOCOLS_BDSHOT_H
