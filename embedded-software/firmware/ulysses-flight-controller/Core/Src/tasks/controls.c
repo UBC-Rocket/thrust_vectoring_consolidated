@@ -122,7 +122,7 @@ void controls_task_start(void *argument)
 
     state_exchange_publish_startup_test_complete(true);
 
-    bdshot_dma_set_armed(true); // Wait for a bit before setting and applying the throttle
+    bdshot_dma_set_armed(true);
     bdshot_last_armed_time = timestamp_us64();
 
     for (;;) {
