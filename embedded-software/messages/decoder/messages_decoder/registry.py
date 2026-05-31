@@ -41,15 +41,19 @@ class Registry:
         return self.raw.get("types", {})
 
 
-def registry_crc32(raw: Dict[str, Any]) -> int:
-    """Compute a reproducible CRC32 over a registry document.
+def registry_crc32(path: str) -> int:
+    """Compute CRC32 over the raw bytes of the registry.json file.
 
-    Re-serialises with ``sort_keys=True`` and compact separators so the
-    same registry data yields the same CRC regardless of whitespace.
+    This MUST match what the codegen tool bakes into firmware as
+    ``REGISTRY_CRC32``. The codegen (embedded-software/messages/codegen/
+    loader.py) reads the file bytes once and zlib.crc32's them with no
+    canonicalisation — the contract is "CRC32 of the file as it was
+    when codegen ran". Any reformat changes the hash; that's correct,
+    since codegen output also changes.
     """
 
-    canonical = json.dumps(raw, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return binascii.crc32(canonical) & 0xFFFFFFFF
+    with open(path, "rb") as f:
+        return binascii.crc32(f.read()) & 0xFFFFFFFF
 
 
 def _validate(raw: Dict[str, Any], schema_path: str) -> None:
@@ -76,4 +80,4 @@ def load_registry(path: str) -> Registry:
     if os.path.exists(schema_path):
         _validate(raw, schema_path)
 
-    return Registry(raw=raw, crc32=registry_crc32(raw), source_path=os.path.abspath(path))
+    return Registry(raw=raw, crc32=registry_crc32(path), source_path=os.path.abspath(path))

@@ -66,6 +66,7 @@ add_subdirectory(${LIB_DIR}/state_estimation state_estimation_build)
 add_subdirectory(${LIB_DIR}/controls         controls_build)
 add_subdirectory(${LIB_DIR}/gnss-protocol    gnss_protocol_build)
 add_subdirectory(${LIB_DIR}/lwgps            lwgps_build)
+add_subdirectory(${LIB_DIR}/messages         messages_build)
 
 # ------------------------------------------------------------------
 # DEV layer (CM4 owns sensing + comms)
@@ -121,6 +122,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     collections
     lwgps
     gnss-protocol
+    messages
     dev_imu_bmi088
     dev_imu_icm40609
     dev_baro_ms5611

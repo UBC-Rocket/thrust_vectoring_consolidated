@@ -47,6 +47,7 @@ add_subdirectory(${LIB_DIR}/timestamp        timestamp_build)
 add_subdirectory(${LIB_DIR}/log_records      log_records_build)
 add_subdirectory(${LIB_DIR}/state_estimation state_estimation_build)
 add_subdirectory(${LIB_DIR}/controls         controls_build)
+add_subdirectory(${LIB_DIR}/messages         messages_build)
 
 # DEV layer (CM7 owns actuators)
 add_subdirectory(${DEV_DIR}/servo_feetech dev_servo_feetech_build)
@@ -86,6 +87,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     log_records
     timestamp
     collections
+    messages
     dev_servo_feetech
     dev_esc_dshot
     app_shared
