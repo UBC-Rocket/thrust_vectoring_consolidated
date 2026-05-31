@@ -6,8 +6,10 @@ Phase 1 scope:
 - Enum-typed fields decode to a dynamically-built IntEnum subclass per
   (module, error-namespace) so the consumer gets both the numeric code
   (via ``int(value)``) and the symbolic name (via ``value.name``).
-- Class B (nanopb) records are not decoded; a sentinel
-  ``UnsupportedClassBRecord`` is yielded carrying the raw bytes.
+- Class B (nanopb/proto3) records decode via a pure-Python proto3 reader
+  driven by descriptors built from the registry; yielded as
+  ``ClassBRecord`` instances with a ``fields`` dict. Nested user types
+  decode to nested dicts.
 - CRC failures yield a ``DecodeError`` sentinel; decoding continues.
 - Unknown msg_ids yield an ``UnknownMsgRecord``; decoding continues.
 
@@ -20,6 +22,7 @@ that header yet; see ``Decoder._check_registry_crc``).
 from .registry import load_registry, Registry, registry_crc32
 from .types import build_decoder, Decoder
 from .wire import (
+    ClassBRecord,
     Record,
     UnsupportedClassBRecord,
     DecodeError,
@@ -34,6 +37,7 @@ __all__ = [
     "build_decoder",
     "Decoder",
     "Record",
+    "ClassBRecord",
     "UnsupportedClassBRecord",
     "DecodeError",
     "UnknownMsgRecord",

@@ -54,16 +54,16 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install jsonschema
-        run: pip install jsonschema
+      - name: Install codegen deps (jsonschema + protobuf for nanopb)
+        run: pip install jsonschema protobuf grpcio-tools
 
-      - name: Re-run codegen
+      - name: Re-run codegen (incl. nanopb .pb.{c,h} generation)
         working-directory: embedded-software/messages
         run: python -m codegen --registry registry.json --out ../firmware/generated/messages
 
       - name: Verify no drift
         run: |
-          if ! git diff --exit-code -- embedded-software/firmware/generated/messages; then
+          if ! git diff --exit-code -- embedded-software/firmware/generated; then
             echo ""
             echo "::error::registry.json was edited without rerunning codegen."
             echo "::error::Run: (cd embedded-software/messages && python -m codegen --registry registry.json --out ../firmware/generated/messages) and commit the diff."

@@ -1,3 +1,10 @@
+# Agent worktrees + tooling state
+.claude/
+
+# Build artifacts dropped by nanopb_generator into the vendored nanopb
+# tree when codegen runs it locally. Not part of our project sources.
+embedded-software/libs/rocket-protocol/nanopb/generator/proto/nanopb_pb2.py
+
 # Prerequisites
 *.d
 

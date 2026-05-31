@@ -67,16 +67,34 @@ class Record:
 
 @dataclass
 class UnsupportedClassBRecord:
-    """Phase-1 placeholder for nanopb records.
-
-    Carries the envelope plus the raw payload bytes so the caller can
-    reprocess once the Class B decoder lands in phase 2.
+    """Backwards-compat placeholder. No longer yielded by the decoder —
+    Class B records now decode to ``ClassBRecord``. Retained so existing
+    callers that ``isinstance(rec, UnsupportedClassBRecord)`` keep linking.
     """
 
     module_id: int
     msg_id: int
     t_us_publish: int
     payload: bytes
+
+
+@dataclass
+class ClassBRecord:
+    """Decoded Class B (nanopb/proto3) record.
+
+    Carries the envelope identifiers + a ``fields`` dict produced by the
+    pure-Python proto3 reader against a descriptor derived from the
+    registry. Nested user types decode to nested dicts; ``enum:*`` fields
+    decode as plain ``int`` (consumers can map them through the registry
+    enums if needed — kept untyped here to keep the record class
+    structurally identical across every Class B message).
+    """
+
+    module_id: int
+    msg_id: int
+    t_us_publish: int
+    full_name: str        # "<module>.<message>"
+    fields: dict          # decoded payload, keyed by field name
 
 
 @dataclass

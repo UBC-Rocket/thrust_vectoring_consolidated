@@ -33,12 +33,27 @@ from messages_decoder import (  # noqa: E402
     build_decoder,
     crc16_ccitt_false,
     load_registry,
+    ClassBRecord,
     Record,
     UnsupportedClassBRecord,
     DecodeError,
     UnknownMsgRecord,
 )
 from messages_decoder.wire import CLASS_A, CLASS_B  # noqa: E402
+
+
+def _proto3_varint(value: int) -> bytes:
+    """Encode a varint the way proto3 does (no zigzag)."""
+    out = bytearray()
+    while value > 0x7F:
+        out.append((value & 0x7F) | 0x80)
+        value >>= 7
+    out.append(value & 0x7F)
+    return bytes(out)
+
+
+def _proto3_field(number: int, wire_type: int, body: bytes) -> bytes:
+    return _proto3_varint((number << 3) | wire_type) + body
 
 
 REGISTRY_PATH = os.path.join(REPO_ROOT, "embedded-software", "messages", "registry.json")
@@ -140,18 +155,43 @@ class TestStateEstimateDecode(unittest.TestCase):
         self.assertEqual(records[0].msg_id, 42)
         self.assertEqual(records[0].payload, b"\x00\x01\x02\x03")
 
-    def test_class_b_skipped(self):
-        rec = make_record(CLASS_B, 0, 1, t_us_publish=11, payload=b"\xde\xad\xbe\xef")
+    def test_class_b_decode(self):
+        """Build a proto3-encoded system.log_event payload and confirm
+        the decoder yields a ClassBRecord with the fields populated.
+        Registry field order is (source_module_id, event_code, severity,
+        context) so field numbers are 1..4.
+        """
+        # source_module_id=2 (uint32 varint), event_code=42, severity=4,
+        # context=b'\xca\xfe'.
+        payload = (
+            _proto3_field(1, 0, _proto3_varint(2))
+            + _proto3_field(2, 0, _proto3_varint(42))
+            + _proto3_field(3, 0, _proto3_varint(4))
+            + _proto3_field(4, 2, _proto3_varint(2) + b"\xca\xfe")
+        )
+        rec = make_record(CLASS_B, 0, 1, t_us_publish=11, payload=payload)
         with warnings.catch_warnings():
-            warnings.simplefilter("always", RuntimeWarning)
-            with warnings.catch_warnings(record=True) as caught:
-                warnings.simplefilter("always", RuntimeWarning)
-                records = list(self.decoder.iter_records(io.BytesIO(rec)))
+            warnings.simplefilter("ignore", RuntimeWarning)
+            records = list(self.decoder.iter_records(io.BytesIO(rec)))
         self.assertEqual(len(records), 1)
-        self.assertIsInstance(records[0], UnsupportedClassBRecord)
-        self.assertEqual(records[0].payload, b"\xde\xad\xbe\xef")
-        # At least one RuntimeWarning should mention Class B.
-        self.assertTrue(any("Class B" in str(w.message) for w in caught))
+        self.assertIsInstance(records[0], ClassBRecord)
+        self.assertEqual(records[0].full_name, "system.log_event")
+        self.assertEqual(records[0].t_us_publish, 11)
+        self.assertEqual(records[0].fields["source_module_id"], 2)
+        self.assertEqual(records[0].fields["event_code"], 42)
+        self.assertEqual(records[0].fields["severity"], 4)
+        self.assertEqual(records[0].fields["context"], b"\xca\xfe")
+
+    def test_class_b_unknown_msg_id(self):
+        # module_id=0 exists but msg_id=99 is not in this registry.
+        rec = make_record(CLASS_B, 0, 99, t_us_publish=7, payload=b"")
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            records = list(self.decoder.iter_records(io.BytesIO(rec)))
+        self.assertEqual(len(records), 1)
+        self.assertIsInstance(records[0], UnknownMsgRecord)
+        self.assertEqual(records[0].class_byte, CLASS_B)
+        self.assertEqual(records[0].msg_id, 99)
 
     def test_truncated_input(self):
         # Just a length prefix and nothing else.

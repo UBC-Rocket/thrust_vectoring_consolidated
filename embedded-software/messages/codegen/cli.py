@@ -15,10 +15,11 @@ for phase 1; they are skipped with a warning.
 from __future__ import annotations
 
 import argparse
+import subprocess
 import sys
 from pathlib import Path
 
-from .emit_common import messages_sorted, modules_sorted
+from .emit_proto import emit as emit_proto
 from .emit_publish import emit as emit_publish
 from .emit_registry import emit as emit_registry
 from .emit_routing import emit_header as emit_routing_h
@@ -31,6 +32,12 @@ from .types_resolve import TypeResolver
 DEFAULT_REGISTRY = Path("embedded-software/messages/registry.json")
 DEFAULT_SCHEMA = Path("embedded-software/messages/registry.schema.json")
 DEFAULT_OUT = Path("embedded-software/firmware/generated/messages")
+# Resolved relative to this file so it works regardless of cwd.
+# codegen/ -> messages/ -> embedded-software/ -> repo root.
+DEFAULT_NANOPB_GEN = (
+    Path(__file__).resolve().parent.parent.parent.parent
+    / "embedded-software/libs/rocket-protocol/nanopb/generator/nanopb_generator.py"
+)
 
 
 def _write_if_changed(path: Path, content: str) -> bool:
@@ -70,6 +77,22 @@ def main(argv: list[str] | None = None) -> int:
         help=f"Output directory for generated files (default: {DEFAULT_OUT})",
     )
     parser.add_argument(
+        "--nanopb-generator",
+        type=Path,
+        default=DEFAULT_NANOPB_GEN,
+        help=(
+            "Path to nanopb_generator.py (default: vendored copy under "
+            f"{DEFAULT_NANOPB_GEN}). Used to compile messages.proto into "
+            "messages.pb.{c,h}. Needs `protobuf` + `grpcio-tools` on PYTHONPATH."
+        ),
+    )
+    parser.add_argument(
+        "--no-nanopb",
+        action="store_true",
+        help="Skip the nanopb_generator step (still emit messages.proto). "
+             "Useful when protobuf/grpcio-tools aren't installed.",
+    )
+    parser.add_argument(
         "--quiet",
         action="store_true",
         help="Suppress informational output.",
@@ -86,9 +109,6 @@ def main(argv: list[str] | None = None) -> int:
         print(str(exc), file=sys.stderr)
         return 2
 
-    # Warn about phase-2 entries we deliberately skip.
-    _warn_phase2(registry, quiet=args.quiet)
-
     resolver = TypeResolver(registry.get("types") or {})
 
     # Bus-budget linter — must pass before we emit anything.
@@ -103,18 +123,62 @@ def main(argv: list[str] | None = None) -> int:
         _print_budget(summary)
 
     # Emit.
-    files: dict[str, str] = {
-        "registry.h": emit_registry(registry, crc32),
-        "types.h": emit_types(registry, crc32, resolver),
-        "publish.h": emit_publish(registry, crc32),
-        "routing.h": emit_routing_h(registry, crc32),
-        "routing.c": emit_routing_c(registry, crc32, resolver),
+    files: dict[Path, str] = {
+        out_dir / "registry.h":  emit_registry(registry, crc32),
+        out_dir / "types.h":     emit_types(registry, crc32, resolver),
+        out_dir / "publish.h":   emit_publish(registry, crc32),
+        out_dir / "routing.h":   emit_routing_h(registry, crc32),
+        out_dir / "routing.c":   emit_routing_c(registry, crc32, resolver),
+        # .proto lives in a sibling dir so protoc/nanopb_generator can be
+        # pointed at firmware/generated/proto/ without dragging in our C
+        # headers.
+        (out_dir.parent / "proto" / "messages.proto"): emit_proto(registry, crc32),
     }
 
     changed: list[str] = []
-    for name, content in files.items():
-        if _write_if_changed(out_dir / name, content):
-            changed.append(name)
+    for path, content in files.items():
+        if _write_if_changed(path, content):
+            changed.append(path.name)
+
+    # nanopb generation: compile messages.proto -> messages.pb.{c,h}.
+    proto_path = out_dir.parent / "proto" / "messages.proto"
+    pb_h = out_dir.parent / "proto" / "messages.pb.h"
+    pb_c = out_dir.parent / "proto" / "messages.pb.c"
+    nanopb_changed = False
+    if args.no_nanopb:
+        if not args.quiet:
+            print("nanopb: skipped (--no-nanopb)")
+    elif not args.nanopb_generator.is_file():
+        print(
+            f"WARN: nanopb_generator.py not found at {args.nanopb_generator}; "
+            "skipping .pb.{c,h} generation. Pass --nanopb-generator <path> or "
+            "--no-nanopb to silence.",
+            file=sys.stderr,
+        )
+    else:
+        try:
+            # Snapshot current .pb.{c,h} so we can decide if anything drifted.
+            before = {
+                p: p.read_bytes() if p.is_file() else None
+                for p in (pb_h, pb_c)
+            }
+            subprocess.run(
+                [sys.executable, str(args.nanopb_generator), "messages.proto"],
+                cwd=proto_path.parent,
+                check=True,
+                capture_output=True,
+            )
+            for p in (pb_h, pb_c):
+                if p.is_file() and p.read_bytes() != before[p]:
+                    changed.append(p.name)
+                    nanopb_changed = True
+        except subprocess.CalledProcessError as exc:
+            print(
+                "ERROR: nanopb_generator failed.\n"
+                f"  stderr: {exc.stderr.decode('utf-8', errors='replace')}",
+                file=sys.stderr,
+            )
+            return 4
 
     if not args.quiet:
         if changed:
@@ -124,29 +188,6 @@ def main(argv: list[str] | None = None) -> int:
         print(f"registry CRC32: 0x{crc32:08X}")
 
     return 0
-
-
-def _warn_phase2(registry: dict, *, quiet: bool) -> None:
-    class_b_count = 0
-    command_count = 0
-    for modname, mod in modules_sorted(registry):
-        for _msgname, msg in messages_sorted(mod):
-            if msg["class"] == "B":
-                class_b_count += 1
-        for _cmdname in (mod.get("commands") or {}):
-            command_count += 1
-    if quiet:
-        return
-    if class_b_count:
-        print(
-            f"WARN: skipping {class_b_count} Class B message(s) — phase 2",
-            file=sys.stderr,
-        )
-    if command_count:
-        print(
-            f"WARN: skipping {command_count} command(s) — phase 2",
-            file=sys.stderr,
-        )
 
 
 def _print_budget(summary: dict) -> None:

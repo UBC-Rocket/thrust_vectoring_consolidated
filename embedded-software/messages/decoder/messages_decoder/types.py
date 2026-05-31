@@ -38,13 +38,15 @@ from .wire import (
     ENVELOPE_SIZE,
     LENGTH_PREFIX_SIZE,
     MIN_RECORD_LENGTH,
+    ClassBRecord,
     Record,
-    UnsupportedClassBRecord,
+    UnsupportedClassBRecord,  # noqa: F401  — re-exported for backwards compat
     UnknownMsgRecord,
     DecodeError,
     crc16_ccitt_false,
     _ENVELOPE_STRUCT,
 )
+from .wire_pb import ProtoDecodeError, decode_message as _pb_decode_message
 
 log = logging.getLogger(__name__)
 
@@ -158,11 +160,20 @@ class Decoder:
         # module_name -> IntEnum class (built from module.errors)
         self._enums: Dict[str, type] = {}
 
+        # Class B: (module_id, msg_id) -> proto descriptor + nested-decoder map.
+        # See _PbMsgSpec for shape.
+        self._b_by_id: Dict[Tuple[int, int], "_PbMsgSpec"] = {}
+        # User-type -> (descriptor, sub_decoder_callable). Decoder callable
+        # closes over the registry's user-type set so nested-of-nested works.
+        self._pb_composites: Dict[str, "_PbComposite"] = {}
+
         self._warned_no_header = False
 
         self._build_enums()
         self._build_composites()
         self._build_messages()
+        self._build_pb_composites()
+        self._build_pb_messages()
 
     # ---- builders --------------------------------------------------------
     def _build_enums(self) -> None:
@@ -181,7 +192,7 @@ class Decoder:
             module_id = mod["module_id"]
             for msg_name, msg in mod.get("messages", {}).items():
                 if msg["class"] != "A":
-                    continue  # phase 1: only Class A
+                    continue  # Class A only here; Class B handled in _build_pb_messages.
                 spec = _MsgSpec.build(
                     module_name=mod_name,
                     module_id=module_id,
@@ -192,6 +203,37 @@ class Decoder:
                 )
                 self._by_id[(module_id, msg["msg_id"])] = spec
                 self._by_name[(mod_name, msg_name)] = spec
+
+    def _build_pb_composites(self) -> None:
+        """Build proto3 descriptors for every user type, plus a sub-decoder
+        closure that recursively decodes nested user types."""
+        for tname, tdef in self.registry.types.items():
+            descriptor = _build_pb_descriptor(tdef["fields"])
+            self._pb_composites[tname] = _PbComposite(name=tname, descriptor=descriptor)
+
+        # Sub-decoder map closes over the full composite set so nested-of-
+        # nested works.
+        sub_decoders: Dict[str, Any] = {}
+        for tname, comp in self._pb_composites.items():
+            def make(c=comp):
+                def decode(buf: bytes) -> Dict[str, Any]:
+                    return _pb_decode_message(buf, c.descriptor, sub_decoders)
+                return decode
+            sub_decoders[tname] = make()
+        self._pb_sub_decoders = sub_decoders
+
+    def _build_pb_messages(self) -> None:
+        for mod_name, mod in self.registry.modules.items():
+            module_id = mod["module_id"]
+            for msg_name, msg in mod.get("messages", {}).items():
+                if msg["class"] != "B":
+                    continue
+                descriptor = _build_pb_descriptor(msg["fields"])
+                self._b_by_id[(module_id, msg["msg_id"])] = _PbMsgSpec(
+                    module_name=mod_name,
+                    msg_name=msg_name,
+                    descriptor=descriptor,
+                )
 
     # ---- public lookup --------------------------------------------------
     def message_specs(self) -> List["_MsgSpec"]:
@@ -280,15 +322,29 @@ class Decoder:
             class_byte, module_id, msg_id, t_us_publish = _ENVELOPE_STRUCT.unpack(envelope)
 
             if class_byte == CLASS_B:
-                warnings.warn(
-                    f"skipping Class B record module_id={module_id} msg_id={msg_id} "
-                    "(phase 2 will decode these)",
-                    RuntimeWarning,
-                    stacklevel=2,
-                )
-                yield UnsupportedClassBRecord(
+                b_spec = self._b_by_id.get((module_id, msg_id))
+                if b_spec is None:
+                    yield UnknownMsgRecord(
+                        class_byte=class_byte, module_id=module_id, msg_id=msg_id,
+                        t_us_publish=t_us_publish, payload=payload,
+                    )
+                    continue
+                try:
+                    fields = _pb_decode_message(
+                        payload, b_spec.descriptor, self._pb_sub_decoders,
+                    )
+                except ProtoDecodeError as e:
+                    yield DecodeError(
+                        offset=offset,
+                        reason=f"proto decode failed for {b_spec.full_name}: {e}",
+                        raw=body,
+                    )
+                    continue
+                yield ClassBRecord(
                     module_id=module_id, msg_id=msg_id,
-                    t_us_publish=t_us_publish, payload=payload,
+                    t_us_publish=t_us_publish,
+                    full_name=b_spec.full_name,
+                    fields=fields,
                 )
                 continue
 
@@ -567,3 +623,58 @@ def build_decoder(registry: Registry) -> Decoder:
     """
 
     return Decoder(registry)
+
+
+# ---------------------------------------------------------------------------
+# Class B (proto3 / nanopb) descriptor + spec.
+# ---------------------------------------------------------------------------
+@dataclass
+class _PbComposite:
+    name: str
+    descriptor: Dict[int, Tuple[str, str, bool]]
+
+
+@dataclass
+class _PbMsgSpec:
+    module_name: str
+    msg_name: str
+    descriptor: Dict[int, Tuple[str, str, bool]]
+
+    @property
+    def full_name(self) -> str:
+        return f"{self.module_name}.{self.msg_name}"
+
+
+# Map registry field type → (proto_kind, is_repeated). Must match what
+# codegen/emit_proto.py emits so wire-format alignment is exact.
+_PRIM_TO_PROTO: Dict[str, str] = {
+    "u8":  "uint32", "u16": "uint32", "u32": "uint32", "u64": "uint64",
+    "i8":  "int32",  "i16": "int32",  "i32": "int32",  "i64": "int64",
+    "f32": "float",  "f64": "double",
+    "bool": "bool",  "string": "string", "bytes": "bytes",
+}
+
+
+def _build_pb_descriptor(fields: List[Dict[str, Any]]) -> Dict[int, Tuple[str, str, bool]]:
+    """Produce a wire_pb-compatible descriptor.
+
+    Field numbers come from the registry's declaration order (start at 1) —
+    same convention codegen/emit_proto.py uses, so the firmware encoder and
+    this decoder agree on which number maps to which field.
+    """
+    descriptor: Dict[int, Tuple[str, str, bool]] = {}
+    for i, fld in enumerate(fields, start=1):
+        core, count = _parse_type(fld["type"])
+        is_repeated = count is not None
+        if core in _PRIM_TO_PROTO:
+            proto_kind = _PRIM_TO_PROTO[core]
+        elif core.startswith("type:"):
+            type_name = core.split(":", 1)[1]
+            proto_kind = f"message:{type_name}"
+        elif core.startswith("enum:"):
+            # Both enum:<mod>.<err> and enum:<mod>.errors encode as uint32.
+            proto_kind = "uint32"
+        else:
+            raise ValueError(f"unrecognised field core {core!r} in {fld['name']!r}")
+        descriptor[i] = (fld["name"], proto_kind, is_repeated)
+    return descriptor
