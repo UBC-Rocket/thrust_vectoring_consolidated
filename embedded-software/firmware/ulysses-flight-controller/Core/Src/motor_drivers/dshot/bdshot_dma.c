@@ -22,19 +22,28 @@ typedef enum bdshot_dma_direction {
     BDSHOT_DMA_DIRECTION_INPUT,
 } bdshot_dma_direction_t;
 
+typedef struct bdshot_send_request {
+    bool is_dirty;
+    bool is_command;
+    bdshot_frame_t frame;
+} bdshot_send_request_t;
+
 typedef struct bdshot_dma_motor {
     bool is_initialized;
     bool is_first_arm; // TODO: remove for hardware arm/disarm
     bool is_armed;
     bool is_telemetry_valid;
-    bool is_frame_dirty;
+
+    /// Is the currently sent frame a command frame?
     bool is_command_frame;
 
+    /// Index of the TIM peripheral used for DMA transfers
+    /// for this motor
     size_t dma_timer_index;
 
     bdshot_dma_direction_t direction;
     bdshot_dma_motor_config_t config;
-    bdshot_frame_t frame;
+    bdshot_send_request_t send_request;
     bdshot_motor_telemetry_t telemetry;
 } bdshot_dma_motor_t;
 
@@ -473,14 +482,14 @@ bool bdshot_dma_motor_set_throttle(bdshot_motor_index_t index, uint16_t throttle
         return false;
     }
 
-    bool success = bdshot_throttle_frame_pack(&motor->frame, throttle, true);
+    bool success = bdshot_throttle_frame_pack(&motor->send_request.frame, throttle, true);
 
     if (!success) {
         return false;
     }
 
-    motor->is_frame_dirty = true;
-    motor->is_command_frame = false;
+    motor->send_request.is_dirty = true;
+    motor->send_request.is_command = false;
 
     return true;
 }
@@ -536,14 +545,15 @@ bool bdshot_dma_motor_set_armed(bdshot_motor_index_t index, bool is_armed)
     // TODO: implement hardware arm/disarm (i.e. enabling and disabling PWM in its entirety), process is
     // something along the lines of aborting the current DMA transfer, removing the current channel from the
     // active dma timer sources, etc.
-    bool success = bdshot_command_frame_pack(&motor->frame, BDSHOT_COMMAND_MOTOR_STOP, false);
+    bool success =
+        bdshot_command_frame_pack(&motor->send_request.frame, BDSHOT_COMMAND_MOTOR_STOP, false);
 
     if (!success) {
         return false;
     }
 
-    motor->is_frame_dirty = true;
-    motor->is_command_frame = true;
+    motor->send_request.is_dirty = true;
+    motor->send_request.is_command = true;
 
     motor->is_telemetry_valid = false;
     motor->is_armed = is_armed;
@@ -571,6 +581,11 @@ bool bdshot_dma_apply()
         bdshot_dma_motor_t *motor = &motors[i];
 
         if (!motor->is_initialized || !motor->is_armed) {
+            continue;
+        }
+
+        // DShot commands don't receive telemetry
+        if (motor->is_command_frame) {
             continue;
         }
 
@@ -622,10 +637,14 @@ bool bdshot_dma_apply()
             continue;
         }
 
-        if (motor->is_frame_dirty) {
-            build_dma_tx_buffer(bdshot_dma_tx_buffer[i], motor->frame);
+        if (motor->send_request.is_dirty) {
+            build_dma_tx_buffer(bdshot_dma_tx_buffer[i], motor->send_request.frame);
 
-            motor->is_frame_dirty = false;
+            motor->send_request.is_dirty = false;
+
+            // Keep track of whether the current frame is a command
+            // so we know whether we need to receive telemetry data
+            motor->is_command_frame = motor->send_request.is_command;
         }
 
         TIM_HandleTypeDef *tim = motor->config.tim;
