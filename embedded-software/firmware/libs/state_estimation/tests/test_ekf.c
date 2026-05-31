@@ -64,20 +64,31 @@ static void euler_zyx_to_quat(float roll, float pitch, float yaw, float q[4])
     q[3] = cr * cp * sy - sr * sp * cy;
 }
 
-static float yaw_from_quat_rad(const float q[4])
+static bool extract_nav_z_twist_from_quat(const float q[4], float q_twist[4])
 {
-    const float siny = 2.0f * (q[0] * q[3] + q[1] * q[2]);
-    const float cosy = 1.0f - 2.0f * (q[2] * q[2] + q[3] * q[3]);
-    return atan2f(siny, cosy);
+    q_twist[0] = q[0];
+    q_twist[1] = 0.0f;
+    q_twist[2] = 0.0f;
+    q_twist[3] = q[3];
+
+    const float norm_sq = q_twist[0] * q_twist[0] + q_twist[3] * q_twist[3];
+    if (norm_sq < 1e-10f) {
+        return false;
+    }
+
+    const float inv_norm = 1.0f / sqrtf(norm_sq);
+    q_twist[0] *= inv_norm;
+    q_twist[3] *= inv_norm;
+    return true;
 }
 
-static float wrap_angle_pi(float angle_rad)
+static float quat_abs_dot(const float a[4], const float b[4])
 {
-    const float pi = 3.14159265358979323846f;
-    const float two_pi = 2.0f * pi;
-    while (angle_rad > pi) angle_rad -= two_pi;
-    while (angle_rad < -pi) angle_rad += two_pi;
-    return angle_rad;
+    float dot = 0.0f;
+    for (int i = 0; i < 4; i++) {
+        dot += a[i] * b[i];
+    }
+    return fabsf(dot);
 }
 
 /* ---------- eskf_init + eskf_get_state ---------- */
@@ -205,6 +216,45 @@ void test_eskf_body_zero_accel_gps_origin(void)
     }
 }
 
+void test_eskf_body_free_fall_accel_predicts_downward_motion(void)
+{
+    eskf_t eskf;
+    eskf_config_t cfg;
+    make_default_config(&cfg);
+    eskf_init(&eskf, &cfg);
+
+    const int n = 50;
+    const uint64_t dt_us = 10000;
+
+    eskf_sample_t accel_samples[n];
+    for (int i = 0; i < n; i++) {
+        accel_samples[i].timestamp_us = (uint64_t)(i + 1) * dt_us;
+        accel_samples[i].data[0] = 0.0f;
+        accel_samples[i].data[1] = 0.0f;
+        accel_samples[i].data[2] = 0.0f;
+    }
+
+    eskf_sensor_channel_t channels[] = {
+        { ESKF_SENSOR_ACCEL, 0, accel_samples, n },
+    };
+    eskf_input_t input = { channels, 1 };
+    eskf_process(&eskf, &input);
+
+    float q[4], pos[3], vel[3];
+    eskf_get_state(&eskf, q, pos, vel);
+
+    const float total_dt = (float)(n - 1) * ((float)dt_us / 1e6f);
+    const float expected_vz = -9.807f * total_dt;
+    const float expected_pz = -0.5f * 9.807f * total_dt * total_dt;
+
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, expected_vz, vel[2]);
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, expected_pz, pos[2]);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.0f, pos[0]);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.0f, pos[1]);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.0f, vel[0]);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.0f, vel[1]);
+}
+
 /* ---------- Calibration ---------- */
 
 void test_eskf_calibration_seeds_biases(void)
@@ -256,7 +306,7 @@ void test_eskf_calibration_seeds_biases(void)
     }
 }
 
-void test_eskf_yaw_lock_stable_near_vertical_pitch(void)
+void test_eskf_twist_lock_stable_near_vertical_pitch(void)
 {
     eskf_t eskf;
     eskf_config_t cfg;
@@ -265,10 +315,11 @@ void test_eskf_yaw_lock_stable_near_vertical_pitch(void)
 
     const float roll = 0.35f;
     const float pitch = 1.5533430f; /* ~89 deg, near Euler singularity */
-    const float yaw_locked = -0.70f;
+    float twist_before[4];
 
-    euler_zyx_to_quat(roll, pitch, yaw_locked, eskf.orientation.q_nom);
-    eskf.orientation.yaw_nom = yaw_locked;
+    euler_zyx_to_quat(roll, pitch, -0.70f, eskf.orientation.q_nom);
+    TEST_ASSERT_TRUE(extract_nav_z_twist_from_quat(eskf.orientation.q_nom, twist_before));
+    memcpy(eskf.orientation.q_twist_nom, twist_before, sizeof(twist_before));
 
     eskf_sample_t accel_sample = {0};
     accel_sample.timestamp_us = 10000;
@@ -293,7 +344,10 @@ void test_eskf_yaw_lock_stable_near_vertical_pitch(void)
         sqrtf(q[0]*q[0] + q[1]*q[1] + q[2]*q[2] + q[3]*q[3]);
     TEST_ASSERT_FLOAT_WITHIN(1e-4f, 1.0f, norm);
 
-    const float yaw_out = yaw_from_quat_rad(q);
-    const float yaw_err = wrap_angle_pi(yaw_out - yaw_locked);
-    TEST_ASSERT_FLOAT_WITHIN(0.05f, 0.0f, yaw_err);
+    float twist_after[4];
+    TEST_ASSERT_TRUE(extract_nav_z_twist_from_quat(q, twist_after));
+    TEST_ASSERT_FLOAT_WITHIN(1e-4f, 1.0f,
+                             quat_abs_dot(twist_before, eskf.orientation.q_twist_nom));
+    TEST_ASSERT_FLOAT_WITHIN(1e-4f, 1.0f,
+                             quat_abs_dot(twist_before, twist_after));
 }

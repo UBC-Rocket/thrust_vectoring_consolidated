@@ -103,7 +103,7 @@ typedef struct {
  */
 typedef struct {
     float q_nom[4];                        /**< Nominal quaternion [w,x,y,z] */
-    float yaw_nom;                         /**< Separately tracked yaw [rad] */
+    float q_twist_nom[4];                  /**< Separately tracked nav-Z twist [w,x,y,z] */
     float b_gyro[ESKF_MAX_IMUS][3];        /**< Per-IMU gyro bias [rad/s] */
     float b_accel[ESKF_MAX_IMUS][3];       /**< Per-IMU accel bias [g] */
     uint8_t num_imus;                      /**< Number of active IMUs */
