@@ -73,6 +73,7 @@ static bool motor_config_is_valid(bdshot_dma_motor_config_t *config);
 static void build_dma_tx_buffer(uint32_t *const buffer, bdshot_frame_t frame);
 static bool motor_switch_to_rx(bdshot_dma_motor_t *const motor);
 static bool motor_switch_to_tx(bdshot_dma_motor_t *const motor);
+static bool motor_decode_telemetry(bdshot_dma_motor_t *const motor, uint32_t *const edge_times);
 static void dma_transfer_complete_callback(DMA_HandleTypeDef *const dma);
 static bool bdshot_decode_telemetry(bdshot_motor_telemetry_t *const telemetry,
                                     const uint32_t *const edge_times, uint32_t edge_count,
@@ -270,6 +271,47 @@ static bool motor_switch_to_tx(bdshot_dma_motor_t *const motor)
     MODIFY_REG(dma->Instance->CTR2, DMA_CTR2_DREQ, LL_DMA_DIRECTION_MEMORY_TO_PERIPH);
 
     return true;
+}
+
+static bool motor_decode_telemetry(bdshot_dma_motor_t *const motor, uint32_t *const edge_times)
+{
+    DMA_HandleTypeDef *dma = motor->config.dma;
+    TIM_HandleTypeDef *tim = motor->config.tim;
+    uint32_t tim_channel = motor->config.tim_channel;
+
+    uint32_t received_edges = BDSHOT_DMA_RX_FRAME_SIZE;
+
+    // Wire bits is designed to be half the edge transitions as the GCR encoded
+    // value. So for a fixed sized DMA transfer, it is not always going to complete,
+    // so we have to abort it, but the data should still be good.
+    if (motor->direction == BDSHOT_DMA_DIRECTION_INPUT) {
+        tim_channel_dma_set_enable(tim, tim_channel, false);
+
+        uint32_t unreceived_bytes = __HAL_DMA_GET_COUNTER(dma);
+
+        // DMA peripheral provides the number of unreceived bytes, convert to
+        // number of unreceived edge times (since edge times can be more than 1 byte)
+        // and calculate the number of received edges
+        received_edges = BDSHOT_DMA_RX_FRAME_SIZE - (unreceived_bytes / sizeof(uint32_t));
+
+        // TODO: handle this HAL error properly
+        (void)HAL_DMA_Abort(dma);
+
+        (void)motor_switch_to_tx(motor);
+
+        motor->direction = BDSHOT_DMA_DIRECTION_OUTPUT;
+    }
+
+    bdshot_motor_telemetry_t telemetry;
+    bool success =
+        bdshot_decode_telemetry(&telemetry, edge_times, received_edges, motor->config.pole_count);
+
+    if (success) {
+        motor->telemetry = telemetry;
+        motor->is_telemetry_valid = true;
+    }
+
+    return success;
 }
 
 static void dma_transfer_complete_callback(DMA_HandleTypeDef *const dma)
@@ -589,40 +631,7 @@ bool bdshot_dma_apply()
             continue;
         }
 
-        DMA_HandleTypeDef *dma = motor->config.dma;
-        TIM_HandleTypeDef *tim = motor->config.tim;
-        uint32_t tim_channel = motor->config.tim_channel;
-
-        uint32_t received_edges = BDSHOT_DMA_RX_FRAME_SIZE;
-
-        // Wire bits is designed to be half the edge transitions as the GCR encoded
-        // value. So for a fixed sized DMA transfer, it is not always going to complete,
-        // so we have to abort it, but the data should still be good.
-        if (motor->direction == BDSHOT_DMA_DIRECTION_INPUT) {
-            tim_channel_dma_set_enable(tim, tim_channel, false);
-
-            uint32_t unreceived_bytes = __HAL_DMA_GET_COUNTER(dma);
-
-            // DMA peripheral provides the number of unreceived bytes, convert to
-            // number of unreceived edge times (since edge times can be more than 1 byte)
-            // and calculate the number of received edges
-            received_edges = BDSHOT_DMA_RX_FRAME_SIZE - (unreceived_bytes / sizeof(uint32_t));
-
-            HAL_DMA_Abort(dma);
-
-            (void)motor_switch_to_tx(motor);
-
-            motor->direction = BDSHOT_DMA_DIRECTION_OUTPUT;
-        }
-
-        bdshot_motor_telemetry_t telemetry;
-        bool success = bdshot_decode_telemetry(&telemetry, bdshot_dma_rx_buffer[i], received_edges,
-                                               motor->config.pole_count);
-
-        if (success) {
-            motor->is_telemetry_valid = true;
-            motor->telemetry = telemetry;
-        }
+        (void)motor_decode_telemetry(motor, bdshot_dma_rx_buffer[i]);
     }
 
     // Starts the DMA controller to begin transfers
@@ -638,9 +647,9 @@ bool bdshot_dma_apply()
         }
 
         if (motor->send_request.is_dirty) {
-            build_dma_tx_buffer(bdshot_dma_tx_buffer[i], motor->send_request.frame);
-
             motor->send_request.is_dirty = false;
+
+            build_dma_tx_buffer(bdshot_dma_tx_buffer[i], motor->send_request.frame);
 
             // Keep track of whether the current frame is a command
             // so we know whether we need to receive telemetry data
