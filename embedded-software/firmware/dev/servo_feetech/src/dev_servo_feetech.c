@@ -119,10 +119,70 @@ servo_feetech_t *servo_feetech_get(void) {
     return s_self.ready ? &s_self : NULL;
 }
 
+/* Fire-and-forget write-position packet. Identical wire format to
+ * write_pos() but uses io_uart_send_async — DMA-driven, no ACK read,
+ * ISR-safe. The Feetech protocol allows the response to be discarded;
+ * if you need to verify a servo is alive, use servo_feetech_get_pair_
+ * degrees from a low-rate task (that one still does a verified xfer). */
+static io_status_t write_pos_async(uint8_t id, uint16_t pos,
+                                    uint8_t pkt[/*9*/]) {
+    pkt[0] = 0xFF; pkt[1] = 0xFF;
+    pkt[2] = id;     pkt[3] = 5;
+    pkt[4] = FT_INST_WRITE_DATA;
+    pkt[5] = FT_REG_GOAL_POSITION;
+    pkt[6] = (uint8_t)(pos & 0xFF);
+    pkt[7] = (uint8_t)(pos >> 8);
+    pkt[8] = checksum(&pkt[2], 6);
+    return io_uart_send_async(&IO_UART_SERVO_BUS, pkt, 9);
+}
+
+/* Alternating-axis state for ISR-driven updates. Two packet buffers so
+ * the next cycle's kick has its own memory and never races a DMA still
+ * reading the previous packet (DMA on 9 bytes at 1 Mbps takes ~80 µs;
+ * ISR cycles are 1.25 ms so DMA is always done long before reuse — the
+ * separate buffers just remove the timing assumption). */
+typedef struct {
+    uint8_t pkt_x[9];
+    uint8_t pkt_y[9];
+    bool    next_is_x;
+} servo_pair_state_t;
+
+static servo_pair_state_t s_pair = { .next_is_x = true };
+IO_TEST_HOOK_RW(s_pair, servo_pair_state_t, dev_servo_feetech_pair_state)
+
+/* Called from the 800 Hz controls ISR. Each call ships ONE servo
+ * update over the half-duplex bus and alternates which axis goes
+ * next cycle — X at 400 Hz, Y at 400 Hz. Caller passes the latest
+ * target for both axes each cycle; only the alternator's pick is
+ * actually shipped, so the un-shipped axis just waits one cycle for
+ * its turn (no stale-command buildup — the LATEST value is used).
+ *
+ * 400 Hz per servo is ~8× the mechanical bandwidth of Feetech STS
+ * servos; the rate decimation has no observable tracking effect.
+ *
+ * ISR cost: one deg-to-pos conversion + one packet build + one
+ * io_uart_send_async kick ≈ 5 µs total. */
 void servo_feetech_set_pair_degrees(servo_feetech_t *d, float deg_x, float deg_y) {
     if (!d->enabled) return;
-    write_pos(SERVO_ID_X, deg_to_pos(deg_x));
-    write_pos(SERVO_ID_Y, deg_to_pos(deg_y));
+
+    uint8_t  id;
+    uint8_t *pkt;
+    uint16_t pos;
+    if (s_pair.next_is_x) {
+        id  = SERVO_ID_X;
+        pkt = s_pair.pkt_x;
+        pos = deg_to_pos(deg_x);
+    } else {
+        id  = SERVO_ID_Y;
+        pkt = s_pair.pkt_y;
+        pos = deg_to_pos(deg_y);
+    }
+    /* Fire-and-forget. IO_ERR_BUSY (previous DMA still in flight) just
+     * means we drop this cycle; the next ISR will try the other axis
+     * with a fresh target. Should never trip at 800 Hz unless something
+     * else is hogging the UART. */
+    (void)write_pos_async(id, pos, pkt);
+    s_pair.next_is_x = !s_pair.next_is_x;
 }
 
 void servo_feetech_enable(servo_feetech_t *d, bool enable) {

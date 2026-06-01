@@ -25,6 +25,23 @@ io_status_t io_uart_xfer(const io_uart_t *u,
                          uint8_t *rx, size_t rx_len,
                          uint32_t timeout_ms);
 
+/**
+ * @brief Fire-and-forget DMA transmit. Returns immediately after kicking
+ *        the DMA stream; caller does NOT block waiting for the bytes to
+ *        leave the wire. ISR-safe.
+ *
+ * Implementation note: caller owns @p data and MUST keep the buffer
+ * valid + immutable until the DMA finishes. For ISR-driven control loops
+ * the typical pattern is a small static double-buffer.
+ *
+ * Returns:
+ *   IO_OK         the DMA stream accepted the job
+ *   IO_ERR_BUSY   a previous async send hasn't completed yet
+ *   IO_ERR_PARAM  invalid handle / zero length
+ *   IO_ERR_BUS    HAL refused the kick (DMA stream config error)
+ */
+io_status_t io_uart_send_async(const io_uart_t *u, const uint8_t *data, size_t len);
+
 /* Board-wired UART ports (defined in per-target io_uart.c). MISRA 8.4. */
 extern const io_uart_t IO_UART_GPS;
 extern const io_uart_t IO_UART_RADIO;

@@ -164,6 +164,7 @@ Error_Handler();
   MX_WWDG1_Init();
   MX_ADC1_Init();
   MX_TIM16_Init();
+  MX_UART8_Init();
   /* USER CODE BEGIN 2 */
   /* Bring up the four-layer stack on CM7:
    *   IO  — attach to shared TIM13 timestamp, init HSEM + DShot
@@ -337,7 +338,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
-
+  /* TIM16 update event → CM7 800 Hz controls ISR. */
+  extern void controls_on_tim_period_elapsed(void *htim_handle);
+  controls_on_tim_period_elapsed(htim);
   /* USER CODE END Callback 1 */
 }
 
