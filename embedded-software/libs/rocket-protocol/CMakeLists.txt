@@ -20,14 +20,27 @@ target_include_directories(rp_library_interface INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-# Vendored nanopb runtime (pb_encode, pb_decode, pb_common)
-add_library(nanopb-runtime STATIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/nanopb/pb_encode.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/nanopb/pb_decode.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/nanopb/pb_common.c
-)
-target_include_directories(nanopb-runtime PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/nanopb)
-set_target_properties(nanopb-runtime PROPERTIES C_STANDARD 11)
+# Vendored nanopb runtime (pb_encode, pb_decode, pb_common).
+#
+# Single source of truth: when this lib is consumed by the firmware
+# build, `nanopb_runtime` (underscore — see firmware/comms/nanopb/
+# CMakeLists.txt) is already declared and points at THESE SAME source
+# files. ALIAS to it so rocket-protocol's link line stays unchanged
+# and we end up with exactly one nanopb in the final binary.
+#
+# Standalone or host-test builds (no firmware/comms/nanopb on the
+# build) fall through and create the local target as before.
+if(TARGET nanopb_runtime)
+    add_library(nanopb-runtime ALIAS nanopb_runtime)
+elseif(NOT TARGET nanopb-runtime)
+    add_library(nanopb-runtime STATIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/nanopb/pb_encode.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/nanopb/pb_decode.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/nanopb/pb_common.c
+    )
+    target_include_directories(nanopb-runtime PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/nanopb)
+    set_target_properties(nanopb-runtime PROPERTIES C_STANDARD 11)
+endif()
 
 # Pre-generated protobuf sources
 set(PROTOBUF_GENERATED_SRC

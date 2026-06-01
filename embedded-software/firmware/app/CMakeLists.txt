@@ -57,6 +57,10 @@ if(TARGET dev_imu_bmi088 AND TARGET dev_imu_icm40609 AND TARGET dev_baro_ms5611
             dev_gps_nmea
             dev_radio_rfd900
     )
+    # mission_manager_task decodes incoming radio frames via rp_packet_decode.
+    if(TARGET rocket-protocol)
+        target_link_libraries(app_cm4 PUBLIC rocket-protocol)
+    endif()
     # FreeRTOS + CMSIS includes for xTaskCreate / osDelay etc.
     if(TARGET stm32cubemx)
         target_link_libraries(app_cm4 PRIVATE stm32cubemx)

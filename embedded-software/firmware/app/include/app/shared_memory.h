@@ -47,6 +47,16 @@ extern "C" {
 #define APP_TIMESTAMP_UPPER_OFFSET      0x0440   /* 1088 */
 #define APP_TIMESTAMP_UPPER_PAYLOAD     8        /* uint32_t + pad */
 
+/* Per-core crash-dump slots. One fixed-size record per core; the slot survives
+ * soft reset because .shared is NOLOAD in SRAM4 and the boot code does not
+ * zero-fill NOLOAD sections. Layout of each slot is owned by crash_dump.c
+ * (struct crash_dump_record_t). 256 bytes per core is enough for the fault
+ * registers, the exception stack frame, and a 32-word stack snapshot. */
+#define APP_SLOT_CRASH_DUMP_CM4_OFFSET  0x0480   /* 1152 */
+#define APP_SLOT_CRASH_DUMP_CM4_PAYLOAD 256
+#define APP_SLOT_CRASH_DUMP_CM7_OFFSET  0x0580   /* 1408 */
+#define APP_SLOT_CRASH_DUMP_CM7_PAYLOAD 256
+
 /**
  * @brief Pointer to the base of the shared region (defined by the linker).
  */

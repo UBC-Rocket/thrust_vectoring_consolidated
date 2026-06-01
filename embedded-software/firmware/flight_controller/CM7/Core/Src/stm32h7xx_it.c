@@ -22,6 +22,7 @@
 #include "stm32h7xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "app/crash_dump.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -90,7 +91,21 @@ void NMI_Handler(void)
 void HardFault_Handler(void)
 {
   /* USER CODE BEGIN HardFault_IRQn 0 */
-
+  /* Pick the faulting SP (MSP if entered from handler mode, PSP if from
+   * thread mode — selected by bit 2 of EXC_RETURN). Shuffle args into AAPCS
+   * order matching crash_dump_record_fault(fault_id, sp, regs, regs_len).
+   * regs/regs_len are reserved (NULL/0) — the snapshot we care about lives
+   * on *sp (the 8-word exception frame). */
+  __asm volatile (
+      "tst lr, #4         \n"
+      "ite eq             \n"
+      "mrseq r1, msp      \n"
+      "mrsne r1, psp      \n"
+      "mov r0, #0         \n" /* CRASH_DUMP_FAULT_HARD */
+      "mov r2, #0         \n"
+      "mov r3, #0         \n"
+      "b crash_dump_record_fault \n"
+  );
   /* USER CODE END HardFault_IRQn 0 */
   while (1)
   {
@@ -105,7 +120,16 @@ void HardFault_Handler(void)
 void MemManage_Handler(void)
 {
   /* USER CODE BEGIN MemoryManagement_IRQn 0 */
-
+  __asm volatile (
+      "tst lr, #4         \n"
+      "ite eq             \n"
+      "mrseq r1, msp      \n"
+      "mrsne r1, psp      \n"
+      "mov r0, #1         \n" /* CRASH_DUMP_FAULT_MEM */
+      "mov r2, #0         \n"
+      "mov r3, #0         \n"
+      "b crash_dump_record_fault \n"
+  );
   /* USER CODE END MemoryManagement_IRQn 0 */
   while (1)
   {
@@ -120,7 +144,16 @@ void MemManage_Handler(void)
 void BusFault_Handler(void)
 {
   /* USER CODE BEGIN BusFault_IRQn 0 */
-
+  __asm volatile (
+      "tst lr, #4         \n"
+      "ite eq             \n"
+      "mrseq r1, msp      \n"
+      "mrsne r1, psp      \n"
+      "mov r0, #2         \n" /* CRASH_DUMP_FAULT_BUS */
+      "mov r2, #0         \n"
+      "mov r3, #0         \n"
+      "b crash_dump_record_fault \n"
+  );
   /* USER CODE END BusFault_IRQn 0 */
   while (1)
   {
@@ -135,7 +168,16 @@ void BusFault_Handler(void)
 void UsageFault_Handler(void)
 {
   /* USER CODE BEGIN UsageFault_IRQn 0 */
-
+  __asm volatile (
+      "tst lr, #4         \n"
+      "ite eq             \n"
+      "mrseq r1, msp      \n"
+      "mrsne r1, psp      \n"
+      "mov r0, #3         \n" /* CRASH_DUMP_FAULT_USAGE */
+      "mov r2, #0         \n"
+      "mov r3, #0         \n"
+      "b crash_dump_record_fault \n"
+  );
   /* USER CODE END UsageFault_IRQn 0 */
   while (1)
   {

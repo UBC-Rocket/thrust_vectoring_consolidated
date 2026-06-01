@@ -17,6 +17,17 @@
  * FreeRTOS scheduler's context-switch jitter; the solver doesn't
  * need 800 Hz cadence and is free to take its time.
  *
+ * Bring-up ordering (NEW — see controls_isr_init / task_controls below):
+ *   1. controls_isr_init (pre-scheduler, from app_init_cm7):
+ *        snapshots actuator handles, arms ESC, enables servo torque,
+ *        inits the flight controller, sets s_isr_ready.
+ *        It does NOT start TIM16 — leaving the ISR dormant so the
+ *        startup self-test owns the servo bus + ESC exclusively.
+ *   2. task_controls (post-scheduler):
+ *        runs the pre-flight self-test (servo sweep + ESC ramp),
+ *        then kicks HAL_TIM_Base_Start_IT(&htim16) to release the
+ *        800 Hz ISR, then enters the (still-stub) solver loop.
+ *
  * UBC Rocket, 2026
  */
 
@@ -145,16 +156,119 @@ void controls_isr_init(void)
 
     s_isr_ready = true;
 
-    /* Start the 800 Hz periodic interrupt that drives the ISR. */
-    HAL_TIM_Base_Start_IT(&htim16);
+    /* NOTE: TIM16 is intentionally NOT started here. task_controls owns
+     * the servo bus + ESC during the pre-flight self-test; it kicks
+     * HAL_TIM_Base_Start_IT(&htim16) after the self-test completes so
+     * the ISR doesn't fight the test for the shared actuators. */
 }
 
 /* -------------------------------------------------------------------------- */
-/* Solver task body — STUB                                                     */
+/* Pre-flight startup self-test                                                */
+/* -------------------------------------------------------------------------- */
+
+/* Servo sweep: 90° → -90° → 90° in 1° steps at 5 ms/step (~1.8 s total). */
+#define SELFTEST_SWEEP_RANGE_DEG   90.0f
+#define SELFTEST_SWEEP_STEP_DEG    1.0f
+#define SELFTEST_SWEEP_STEP_MS     5U
+
+/* Servo circle: 72 points (5° each) around a small radius at 18 ms/step
+ * (~1.3 s total) — exercises coordinated XY motion. */
+#define SELFTEST_CIRCLE_RADIUS_DEG 5.0f
+#define SELFTEST_CIRCLE_STEPS      72U
+#define SELFTEST_CIRCLE_STEP_MS    18U
+
+/* ESC: settle after power-on, then arming delay, then ramp 0 → 0.1 over
+ * 50 steps at 20 ms/step (~1 s ramp), hold, ramp back down. */
+#define SELFTEST_ESC_SETTLE_MS     3000U
+#define SELFTEST_ESC_ARM_MS        3000U
+#define SELFTEST_ESC_RAMP_STEPS    50U
+#define SELFTEST_ESC_RAMP_STEP_MS  20U
+#define SELFTEST_ESC_PEAK_THROTTLE 0.10f
+#define SELFTEST_ESC_HOLD_MS       500U
+
+/* Run the pre-flight self-test on the actuators. Blocking; must run in
+ * task context (vTaskDelay) and must complete before TIM16 is started. */
+static void controls_run_startup_selftest(void)
+{
+    if (s_servos == NULL || s_escs == NULL) return;
+
+    /* --- Servo sweep: center → +90 → -90 → center --------------------- */
+    servo_feetech_set_pair_degrees(s_servos, 0.0f, 0.0f);
+    vTaskDelay(pdMS_TO_TICKS(100));
+
+    for (float deg = 0.0f; deg <= SELFTEST_SWEEP_RANGE_DEG;
+         deg += SELFTEST_SWEEP_STEP_DEG) {
+        servo_feetech_set_pair_degrees(s_servos, deg, deg);
+        vTaskDelay(pdMS_TO_TICKS(SELFTEST_SWEEP_STEP_MS));
+    }
+    for (float deg = SELFTEST_SWEEP_RANGE_DEG;
+         deg >= -SELFTEST_SWEEP_RANGE_DEG;
+         deg -= SELFTEST_SWEEP_STEP_DEG) {
+        servo_feetech_set_pair_degrees(s_servos, deg, deg);
+        vTaskDelay(pdMS_TO_TICKS(SELFTEST_SWEEP_STEP_MS));
+    }
+    for (float deg = -SELFTEST_SWEEP_RANGE_DEG; deg <= 0.0f;
+         deg += SELFTEST_SWEEP_STEP_DEG) {
+        servo_feetech_set_pair_degrees(s_servos, deg, deg);
+        vTaskDelay(pdMS_TO_TICKS(SELFTEST_SWEEP_STEP_MS));
+    }
+
+    /* --- Servo circle: 72 points at radius 5° ------------------------- */
+    for (unsigned i = 0; i < SELFTEST_CIRCLE_STEPS; ++i) {
+        float ang = (2.0f * (float)M_PI * (float)i) /
+                    (float)SELFTEST_CIRCLE_STEPS;
+        float dx = SELFTEST_CIRCLE_RADIUS_DEG * cosf(ang);
+        float dy = SELFTEST_CIRCLE_RADIUS_DEG * sinf(ang);
+        servo_feetech_set_pair_degrees(s_servos, dx, dy);
+        vTaskDelay(pdMS_TO_TICKS(SELFTEST_CIRCLE_STEP_MS));
+    }
+
+    /* Return servos to neutral before motor test. */
+    servo_feetech_set_pair_degrees(s_servos, 0.0f, 0.0f);
+
+    /* --- ESC: settle, arm wait, ramp up, hold, ramp down -------------- */
+    /* ESC was armed in controls_isr_init; give it time to see steady
+     * idle DShot frames before commanding throttle. */
+    esc_dshot_set_throttle(s_escs, 0.0f);
+    vTaskDelay(pdMS_TO_TICKS(SELFTEST_ESC_SETTLE_MS));
+    vTaskDelay(pdMS_TO_TICKS(SELFTEST_ESC_ARM_MS));
+
+    for (unsigned i = 1; i <= SELFTEST_ESC_RAMP_STEPS; ++i) {
+        float thr = (SELFTEST_ESC_PEAK_THROTTLE * (float)i) /
+                    (float)SELFTEST_ESC_RAMP_STEPS;
+        esc_dshot_set_throttle(s_escs, thr);
+        vTaskDelay(pdMS_TO_TICKS(SELFTEST_ESC_RAMP_STEP_MS));
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(SELFTEST_ESC_HOLD_MS));
+
+    for (unsigned i = SELFTEST_ESC_RAMP_STEPS; i > 0; --i) {
+        float thr = (SELFTEST_ESC_PEAK_THROTTLE * (float)(i - 1)) /
+                    (float)SELFTEST_ESC_RAMP_STEPS;
+        esc_dshot_set_throttle(s_escs, thr);
+        vTaskDelay(pdMS_TO_TICKS(SELFTEST_ESC_RAMP_STEP_MS));
+    }
+
+    esc_dshot_set_throttle(s_escs, 0.0f);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Solver task body — STUB (with one-shot startup self-test)                   */
 /* -------------------------------------------------------------------------- */
 
 void task_controls(void *arg) {
     (void)arg;
+
+    /* Run the pre-flight self-test ONCE, before the 800 Hz ISR is live.
+     * controls_isr_init deliberately left TIM16 stopped so we own the
+     * servo bus + ESC exclusively here. */
+    controls_run_startup_selftest();
+
+    /* Self-test done — release the hard-real-time loop. From here on the
+     * TIM16 update ISR (controls_on_tim_period_elapsed) drives ESC + servo
+     * commands at 800 Hz; this task must not touch the actuators directly. */
+    HAL_TIM_Base_Start_IT(&htim16);
+
     /* TODO(solver): trajectory / MPC / whatever produces the reference
      * setpoints that the ISR's flight_controller_run consumes. Today
      * the ISR uses s_default_ref (identity attitude, zero z). When this

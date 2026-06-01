@@ -67,6 +67,10 @@ add_subdirectory(${LIB_DIR}/gnss-protocol    gnss_protocol_build)
 add_subdirectory(${LIB_DIR}/lwgps            lwgps_build)
 add_subdirectory(${FW_ROOT}/comms/nanopb     nanopb_build)
 add_subdirectory(${FW_ROOT}/comms/cobs       cobs_build)
+# rocket-protocol carries its own vendored nanopb runtime — the firmware
+# build now has TWO nanopb static libs (nanopb_runtime + nanopb-runtime).
+# Wasteful but harmless; dedup is a follow-up cleanup.
+add_subdirectory(${FW_ROOT}/../libs/rocket-protocol rocket_protocol_build)
 add_subdirectory(${LIB_DIR}/messages         messages_build)
 
 # ------------------------------------------------------------------
