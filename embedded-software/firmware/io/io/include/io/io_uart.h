@@ -29,6 +29,7 @@ io_status_t io_uart_xfer(const io_uart_t *u,
 extern const io_uart_t IO_UART_GPS;
 extern const io_uart_t IO_UART_RADIO;
 extern const io_uart_t IO_UART_MMWAVE;
+extern const io_uart_t IO_UART_DEBUG;       /* CM4: hlpuart1 — console / messages CH_VCP */
 extern const io_uart_t IO_UART_SERVO_BUS;
 
 /**

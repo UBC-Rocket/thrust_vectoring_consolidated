@@ -25,13 +25,18 @@ struct io_uart {
 };
 
 /* Per-port mutable storage. */
-static io_uart_dma_cm_t s_dma_gps, s_dma_radio, s_dma_mmwave;
+static io_uart_dma_cm_t s_dma_gps, s_dma_radio, s_dma_mmwave, s_dma_debug;
 static uint8_t       s_dma_buf_gps   [512];
 static uint8_t       s_scratch_gps   [512];
 static uint8_t       s_dma_buf_radio [1024];
 static uint8_t       s_scratch_radio [256];
 static uint8_t       s_dma_buf_mmwave[512];
 static uint8_t       s_scratch_mmwave[256];
+/* Debug port carries COBS-framed messages records — 0x00 = frame
+ * boundary. Sized for a state-estimate record (~88 B) with comfortable
+ * headroom for back-to-back frames before the task drains. */
+static uint8_t       s_dma_buf_debug [512];
+static uint8_t       s_scratch_debug [512];
 
 /* Public per-port symbols (referenced extern-const by drivers). */
 const io_uart_t IO_UART_GPS = {
@@ -51,6 +56,12 @@ const io_uart_t IO_UART_MMWAVE = {
     .runtime      = &s_dma_mmwave,
     .dma_buf      = s_dma_buf_mmwave, .dma_buf_size = sizeof(s_dma_buf_mmwave),
     .scratch      = s_scratch_mmwave, .scratch_size = sizeof(s_scratch_mmwave),
+};
+const io_uart_t IO_UART_DEBUG = {
+    .huart        = &hlpuart1, .match_byte = 0x00, .streaming = true,
+    .runtime      = &s_dma_debug,
+    .dma_buf      = s_dma_buf_debug, .dma_buf_size = sizeof(s_dma_buf_debug),
+    .scratch      = s_scratch_debug, .scratch_size = sizeof(s_scratch_debug),
 };
 /* IO_UART_SERVO_BUS lives in CM7's io_uart.c. */
 
@@ -82,7 +93,7 @@ io_status_t io_uart_xfer(const io_uart_t *u,
 
 /* IRQ glue — call from HAL_UART_IRQHandler dispatch in stm32h7xx_it.c. */
 static const io_uart_t * const s_streaming_uarts[] = {
-    &IO_UART_GPS, &IO_UART_RADIO, &IO_UART_MMWAVE,
+    &IO_UART_GPS, &IO_UART_RADIO, &IO_UART_MMWAVE, &IO_UART_DEBUG,
 };
 
 void io_uart_on_match_isr(void *huart) {

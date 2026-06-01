@@ -600,7 +600,12 @@ void BDMA_Channel1_IRQHandler(void)
 void LPUART1_IRQHandler(void)
 {
   /* USER CODE BEGIN LPUART1_IRQn 0 */
-
+  /* IO_UART_DEBUG: 0x00 = COBS frame boundary. Handle before
+   * HAL_UART_IRQHandler — HAL doesn't service CMF for us. */
+  if (__HAL_UART_GET_FLAG(&hlpuart1, UART_FLAG_CMF)) {
+    __HAL_UART_CLEAR_FLAG(&hlpuart1, UART_CLEAR_CMF);
+    io_uart_on_match_isr(&hlpuart1);
+  }
   /* USER CODE END LPUART1_IRQn 0 */
   HAL_UART_IRQHandler(&hlpuart1);
   /* USER CODE BEGIN LPUART1_IRQn 1 */

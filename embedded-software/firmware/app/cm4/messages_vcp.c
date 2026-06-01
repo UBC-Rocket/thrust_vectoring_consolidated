@@ -1,16 +1,14 @@
 /**
  * @file    messages_vcp.c
- * @brief   Bridge between the VCP UART (io_uart) and the messages runtime.
+ * @brief   Bridge between the debug UART (io_uart) and the messages runtime.
  *
  * Provides the receive path (UART RX → COBS decode → messages_handle_inbound)
  * and the transmit sink (messages publish/response → COBS encode → io_uart_send)
  * for the messages registry's "vcp" channel.
  *
- * UART pick (PHASE-2 PARKING): hosted on IO_UART_MMWAVE (huart4) because the
- * mmWave radar is not yet wired and that UART already has match_byte=0x00 in
- * the IO layer, which is exactly what COBS framing wants. When CubeMX adds a
- * dedicated console UART (or USART3 — typical ST-Link VCP route on H7 dev
- * boards), swap the IO_UART_* reference here. Nothing else needs to change.
+ * UART: IO_UART_DEBUG → hlpuart1 (LPUART1, 115200 baud, match_byte=0x00 for
+ * COBS framing). Full BDMA RX (circular) + NVIC IRQ handled by the LPUART1
+ * IRQHandler glue in stm32h7xx_it.c.
  *
  * UBC Rocket, 2026
  */
@@ -23,8 +21,7 @@
 
 #include <string.h>
 
-/* Pick the underlying UART. See file-level comment for the rationale. */
-#define VCP_UART  (&IO_UART_MMWAVE)
+#define VCP_UART  (&IO_UART_DEBUG)
 
 /* Per-frame scratch. COBS overhead is ceil(N/254)+1; for our 256-byte
  * payload + envelope budget, the encoded frame stays comfortably under
