@@ -19,11 +19,12 @@
 extern "C" {
 #endif
 
-/* Total shared region size — 4 kB out of SRAM4's 64 kB is plenty for the
- * slot payloads and any future additions. Must match the linker script. */
-#define APP_SHARED_REGION_SIZE  4096U
+/* Total shared region size — 16 kB out of SRAM4's 64 kB. The bulk of this
+ * is the CM7→CM4 log handoff ring (8 kB data + header); the seqlock slots
+ * and crash dumps occupy the first ~2 kB. Must match the linker script. */
+#define APP_SHARED_REGION_SIZE  16384U
 
-/* Slot offsets inside the shared region. Each slot begins with an
+/* Slot offsets inside the shared region. Each seqlock slot begins with an
  * io_intercore_slot_hdr_t (8 bytes) followed by payload. Keep slots 8-byte
  * aligned. */
 #define APP_SLOT_STATE_OFFSET           0x0000
@@ -38,8 +39,8 @@ extern "C" {
 #define APP_SLOT_ARMED_OFFSET           0x03C0   /* 960 */
 #define APP_SLOT_ARMED_PAYLOAD          16
 
-#define APP_SLOT_LOG_HANDOFF_OFFSET     0x0400   /* 1024 */
-#define APP_SLOT_LOG_HANDOFF_PAYLOAD    64
+/* (0x0400 was a stub LOG_HANDOFF slot in phase 1 — the real ring lives at
+ * APP_SLOT_LOG_HANDOFF_RING_OFFSET below.) */
 
 /* Shared TIM13 overflow accumulator. CM4 increments on each TIM13 update
  * IRQ; both cores read for io_timestamp_us(). 32-bit upper word + the
@@ -56,6 +57,34 @@ extern "C" {
 #define APP_SLOT_CRASH_DUMP_CM4_PAYLOAD 256
 #define APP_SLOT_CRASH_DUMP_CM7_OFFSET  0x0580   /* 1408 */
 #define APP_SLOT_CRASH_DUMP_CM7_PAYLOAD 256
+
+/* ---------------------------------------------------------------------------
+ * CM7 → CM4 log handoff ring (lock-free SPSC byte ring).
+ *
+ * Producer: CM7 messages-runtime SD sink (log_service_append_raw on CM7).
+ * Consumer: CM4 sd_log_task drain.
+ *
+ * Layout in shared memory:
+ *
+ *   +0x0000  uint32_t head      (producer-write, consumer-read)   --+
+ *   +0x0004  uint32_t tail      (consumer-write, producer-read)     |  ring
+ *   +0x0008  uint32_t drops     (producer-write, consumer-read)     |  header
+ *   +0x000C  uint32_t magic     (set once at init by CM7)         --+  (32 B)
+ *   +0x0010  uint32_t reserved[4]
+ *   +0x0020  uint8_t  data[APP_SLOT_LOG_HANDOFF_RING_BYTES]
+ *
+ * head/tail are byte-positions modulo APP_SLOT_LOG_HANDOFF_RING_BYTES.
+ * "drops" is a uint32 counter of dropped *bytes* (not records). SRAM4 is
+ * uncached on both cores; the producer/consumer pair only need DMB fences
+ * around their head/tail updates, no cache maintenance.
+ * --------------------------------------------------------------------------- */
+#define APP_SLOT_LOG_HANDOFF_RING_OFFSET  0x0800   /* 2048 */
+#define APP_SLOT_LOG_HANDOFF_RING_HDR     32U      /* must be 8-byte aligned */
+#define APP_SLOT_LOG_HANDOFF_RING_BYTES   8192U    /* 8 kB ring (power of two) */
+#define APP_SLOT_LOG_HANDOFF_RING_TOTAL \
+    (APP_SLOT_LOG_HANDOFF_RING_HDR + APP_SLOT_LOG_HANDOFF_RING_BYTES)
+/* Tail of ring: 0x0800 + 32 + 8192 = 0x2820. Leaves 16384 - 0x2820 = ~7 kB
+ * headroom for future slots. */
 
 /**
  * @brief Pointer to the base of the shared region (defined by the linker).

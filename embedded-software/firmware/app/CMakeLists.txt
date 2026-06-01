@@ -21,6 +21,13 @@ target_link_libraries(app_shared
         io_intercore_slot
         io_sys             # APP only depends on system services, not transports
 )
+# log_service.c branches on CORE_CM4 / CORE_CM7 to pick the right side of the
+# SRAM4 log-handoff ring. stm32cubemx is the INTERFACE target that injects
+# those macros (mx-generated.cmake). PRIVATE link — we don't want every
+# downstream of app_shared to also pull in CMSIS/HAL/FreeRTOS headers.
+if(TARGET stm32cubemx)
+    target_link_libraries(app_shared PRIVATE stm32cubemx)
+endif()
 set_target_properties(app_shared PROPERTIES
     C_STANDARD 11
     C_STANDARD_REQUIRED ON
