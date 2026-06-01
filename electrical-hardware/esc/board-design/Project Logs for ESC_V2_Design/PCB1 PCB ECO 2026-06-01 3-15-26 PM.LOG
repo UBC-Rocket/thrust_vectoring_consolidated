@@ -1,0 +1,2 @@
+Removed Pin From Net: NetName=AGND Pin=U1-49
+Added Member To Class: ClassName=MCU Member=Component U1 STM32G431CBU6
