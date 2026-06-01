@@ -57,15 +57,16 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define SPI_MMC5983MA hspi1
-#define SPI_MS5611 hspi2
-#define SPI_ICM40609 hspi3
 #define SPI_BMI088 hspi4
+#define UART_SAM_M10Q huart5
+#define SPI_MMC5983MA hspi1
+#define SPI_ICM40609 hspi3
 #define UART_mmWAVE huart4
 #define UART_RFD900X huart7
-#define UART_SAM_M10Q huart5
-#define UART_MaUWB_A huart1
+#define SPI_MS5611 hspi2
 #define UART_MaUWB_B huart6
+#define UART_MaUWB_A huart1
+#define UART_DEBUG hlpuart1
 #define BMI_ACC_CS_Pin GPIO_PIN_3
 #define BMI_ACC_CS_GPIO_Port GPIOE
 #define BMI_GYRO_CS_Pin GPIO_PIN_4

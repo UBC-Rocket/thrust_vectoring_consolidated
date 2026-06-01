@@ -57,6 +57,7 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define UART_SERVOS huart8
 #define LVL_SHIFT_OE_Pin GPIO_PIN_3
 #define LVL_SHIFT_OE_GPIO_Port GPIOD
 

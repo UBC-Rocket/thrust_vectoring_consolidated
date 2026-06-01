@@ -23,8 +23,8 @@
 #include "adc.h"
 #include "bdma.h"
 #include "dma.h"
-#include "eth.h"
 #include "fdcan.h"
+#include "lwip.h"
 #include "tim.h"
 #include "usart.h"
 #include "wwdg.h"
@@ -155,7 +155,6 @@ Error_Handler();
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_BDMA_Init();
-  MX_ETH_Init();
   MX_FDCAN1_Init();
   MX_TIM1_Init();
   MX_TIM2_Init();
