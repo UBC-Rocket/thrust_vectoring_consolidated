@@ -8,6 +8,7 @@
 #include "app/app_init.h"
 #include "app/sensors_init.h"
 #include "app/log_service.h"
+#include "app/messages_vcp.h"
 #include "app/state_exchange.h"
 #include "app/tasks.h"
 
@@ -46,6 +47,11 @@ void app_init_cm4(void) {
     messages_init();
     messages_sd_sink_set(messages_sd_sink);
     messages_system_commands_register();
+
+    /* Open the VCP UART, COBS-frame on RX → dispatcher, COBS-frame on TX
+     * out via the CH_VCP sink. After this, the host messages-console CLI
+     * can connect and exchange commands. */
+    messages_vcp_init();
 
     s_h_log     = xTaskCreateStatic(task_sd_log,           "sd_log",
                                     STK_SD_LOG,            NULL, 4,

@@ -48,6 +48,7 @@ from .wire import (
     _ENVELOPE_STRUCT,
     crc16_ccitt_false,
 )
+from .wire_cobs import cobs_decode, cobs_encode
 
 
 def _open_transport(spec: str) -> tuple[BinaryIO, BinaryIO]:
@@ -87,11 +88,29 @@ def _read_exact(stream: BinaryIO, n: int, timeout_s: float) -> bytes:
 
 
 def _read_frame(stream: BinaryIO, timeout_s: float) -> bytes:
-    """Read one length-prefixed record from the stream."""
+    """Read one length-prefixed record from the stream (no framing)."""
     len_bytes = _read_exact(stream, LENGTH_PREFIX_SIZE, timeout_s)
     (length,) = struct.unpack("<H", len_bytes)
     body = _read_exact(stream, length, timeout_s)
     return len_bytes + body
+
+
+def _read_cobs_frame(stream: BinaryIO, timeout_s: float) -> bytes:
+    """Read bytes until 0x00 (COBS delimiter), decode, return raw record."""
+    buf = bytearray()
+    deadline = time.monotonic() + timeout_s
+    while True:
+        if time.monotonic() > deadline:
+            raise TimeoutError(f"timed out after {timeout_s:.2f}s waiting for COBS frame (got {len(buf)} bytes)")
+        b = stream.read(1)
+        if not b:
+            time.sleep(0.005)
+            continue
+        if b == b"\x00":
+            if not buf:
+                continue  # stray delimiter; keep waiting
+            return cobs_decode(bytes(buf))
+        buf += b
 
 
 def _decode_response_frame(frame: bytes) -> tuple[int, int, int, int, bytes]:
@@ -127,6 +146,10 @@ def main(argv: list[str] | None = None) -> int:
                         help=f"Path to registry.json (default {default_registry})")
     parser.add_argument("--timeout", type=float, default=2.0,
                         help="Seconds to wait for response (default 2.0)")
+    parser.add_argument("--framing", choices=("auto", "none", "cobs"), default="auto",
+                        help="Wire framing. 'auto' picks cobs for serial transports "
+                             "and none for '-' (stdin/stdout). The firmware VCP "
+                             "channel uses cobs; matches registry.channels.vcp.framing.")
     args = parser.parse_args(argv)
 
     try:
@@ -156,15 +179,28 @@ def main(argv: list[str] | None = None) -> int:
         print(f"transport open failed: {e}", file=sys.stderr)
         return 2
 
-    writer.write(cmd_frame)
+    use_cobs = (args.framing == "cobs"
+                or (args.framing == "auto" and args.transport != "-"))
+
+    if use_cobs:
+        wire_bytes = cobs_encode(cmd_frame) + b"\x00"
+    else:
+        wire_bytes = cmd_frame
+    writer.write(wire_bytes)
     if hasattr(writer, "flush"):
         writer.flush()
 
     try:
-        frame = _read_frame(reader, args.timeout)
+        if use_cobs:
+            frame = _read_cobs_frame(reader, args.timeout)
+        else:
+            frame = _read_frame(reader, args.timeout)
     except TimeoutError as e:
         print(f"timeout: {e}", file=sys.stderr)
         return 2
+    except ValueError as e:
+        print(f"frame decode failed: {e}", file=sys.stderr)
+        return 1
 
     try:
         class_byte, module_id, cmd_id, t_us, payload = _decode_response_frame(frame)

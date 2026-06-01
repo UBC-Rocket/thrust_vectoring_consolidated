@@ -38,6 +38,7 @@ if(TARGET dev_imu_bmi088 AND TARGET dev_imu_icm40609 AND TARGET dev_baro_ms5611
         cm4/sd_log_task.c
         cm4/dev_init_cm4.c
         cm4/app_init_cm4.c
+        cm4/messages_vcp.c
     )
     target_include_directories(app_cm4
         PUBLIC
@@ -47,6 +48,8 @@ if(TARGET dev_imu_bmi088 AND TARGET dev_imu_icm40609 AND TARGET dev_baro_ms5611
         PUBLIC
             app_shared
             io_sys
+            io
+            cobs
             messages
             dev_imu_bmi088
             dev_imu_icm40609
@@ -72,6 +75,7 @@ if(TARGET dev_servo_feetech AND TARGET dev_esc_dshot)
         cm7/controls_task.c
         cm7/app_init_cm7.c
         cm7/dev_init_cm7.c
+        cm7/messages_udp.c
     )
     target_include_directories(app_cm7
         PUBLIC
@@ -81,6 +85,7 @@ if(TARGET dev_servo_feetech AND TARGET dev_esc_dshot)
         PUBLIC
             app_shared
             io_sys
+            messages
             dev_servo_feetech
             dev_esc_dshot
     )

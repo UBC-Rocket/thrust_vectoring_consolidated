@@ -267,6 +267,35 @@ class TestCLI(unittest.TestCase):
         self.assertIn("4.0", lines[2])
 
 
+class TestCOBS(unittest.TestCase):
+    """Pure-Python COBS roundtrip + a few canonical vectors. Must match
+    the firmware implementation (firmware/comms/cobs) byte-for-byte."""
+
+    def test_single_zero(self):
+        from messages_decoder.wire_cobs import cobs_encode, cobs_decode
+        self.assertEqual(cobs_encode(b"\x00"), b"\x01\x01")
+        self.assertEqual(cobs_decode(b"\x01\x01"), b"\x00")
+
+    def test_zero_in_middle(self):
+        from messages_decoder.wire_cobs import cobs_encode, cobs_decode
+        src = b"\x11\x22\x00\x33"
+        enc = cobs_encode(src)
+        self.assertEqual(enc, b"\x03\x11\x22\x02\x33")
+        self.assertEqual(cobs_decode(enc), src)
+
+    def test_roundtrip_envelope_sized(self):
+        from messages_decoder.wire_cobs import cobs_encode, cobs_decode
+        src = bytes((i * 13 + (0 if i % 17 == 0 else 7)) & 0xFF for i in range(88))
+        enc = cobs_encode(src)
+        self.assertNotIn(0, enc)
+        self.assertEqual(cobs_decode(enc), src)
+
+    def test_malformed_raises(self):
+        from messages_decoder.wire_cobs import cobs_decode
+        with self.assertRaises(ValueError):
+            cobs_decode(b"\x02\x11\x00")
+
+
 class TestEncoderRoundTrip(unittest.TestCase):
     """Encode a command request, then decode it back through the same
     descriptor — the encoder + wire_pb decoder are an inverse pair."""
