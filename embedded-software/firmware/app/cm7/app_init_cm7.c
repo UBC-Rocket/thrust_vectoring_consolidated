@@ -6,7 +6,6 @@
  * UBC Rocket, 2026
  */
 #include "app/app_init.h"
-#include "app/messages_udp.h"
 #include "app/state_exchange.h"
 #include "app/tasks.h"
 
@@ -23,11 +22,11 @@ static StackType_t  s_stk_controls[STK_CONTROLS];
 void app_init_cm7(void) {
     state_exchange_init();
 
-    /* Bring up the messages runtime so the publish path / drop counters /
-     * channel sinks all exist. UDP sink registers as a no-op until lwIP
-     * lands; see messages_udp.c. */
+    /* Bring up the messages runtime so the publish path / drop counters
+     * are usable from controls. The UDP channel sink is installed later
+     * from StartDefaultTask (after MX_LWIP_Init brings up tcpip_thread —
+     * see messages_udp_init in cm7/messages_udp.c). */
     messages_init();
-    messages_udp_init();
 
     xTaskCreateStatic(task_controls, "controls",
                       STK_CONTROLS, NULL, 7,

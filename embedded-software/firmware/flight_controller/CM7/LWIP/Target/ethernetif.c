@@ -133,7 +133,10 @@ __attribute__((section(".Rx_PoolSection"))) extern u8_t memp_memory_RX_POOL_base
 #endif
 
 /* USER CODE BEGIN 2 */
-
+/* Patch: CubeMX regen dropped the global TxConfig declaration, but
+ * low_level_init below references it to set checksum/CRC offload bits.
+ * Restoring it as a file-scope global (the standard CubeMX shape). */
+static ETH_TxPacketConfig TxConfig;
 /* USER CODE END 2 */
 
 osSemaphoreId_t RxPktSemaphore = NULL;   /* Semaphore to signal incoming packets */

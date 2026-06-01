@@ -58,7 +58,7 @@ const osThreadAttr_t defaultTask_attributes = {
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
-
+extern void messages_udp_init(void);
 /* USER CODE END FunctionPrototypes */
 
 void StartDefaultTask(void *argument);
@@ -118,6 +118,11 @@ void StartDefaultTask(void *argument)
   /* init code for LWIP */
   MX_LWIP_Init();
   /* USER CODE BEGIN StartDefaultTask */
+  /* lwIP raw API (udp_new, udp_bind, …) needs the tcpip_thread to exist.
+   * MX_LWIP_Init started it just above, so this is the earliest safe
+   * place to bring up our UDP channel for the messages runtime. */
+  messages_udp_init();
+
   /* Infinite loop */
   for(;;)
   {
