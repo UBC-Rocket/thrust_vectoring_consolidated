@@ -21,9 +21,9 @@
  *   ARMED  --CMD_ABORT-->   IDLE    (publishes armed=false)
  *   RISE   --CMD_LAND-->    DESCENT
  *   RISE   --CMD_ABORT-->   ESTOP
- *   DESCENT--landed cond--> LANDED  (TODO: real touchdown detector;
- *                                    placeholder uses CMD_NONE timeout
- *                                    once CM7 controls signal landed)
+ *   DESCENT--landed cond--> LANDED  (see mm_check_touchdown — quiescent
+ *                                    altitude + velocity for a sustained
+ *                                    window read from state_exchange)
  *   any    --CMD_ABORT-->   ESTOP   (terminal; requires reboot)
  *   ARMED  --no heartbeat--> IDLE   (watchdog disarm)
  *
@@ -35,6 +35,8 @@
 #include "app/tasks.h"
 #include "app/state_exchange.h"
 #include "app/sensors_init.h"
+
+#include "state_estimation/state.h"
 
 #include "dev_radio_rfd900.h"
 
@@ -73,13 +75,23 @@
  * mirrors a "drain everything" semantic in the common case. */
 #define MM_MAX_DRAIN_PER_TICK  8U
 
+/* Touchdown thresholds (DESCENT → LANDED). All three must hold for the
+ * sustain window before we declare landed. Tuned conservatively — better
+ * to stay in DESCENT a few hundred ms too long than to drop control
+ * authority while the rocket is still bouncing. */
+#define MM_LAND_VEL_VERT_MPS    0.5f    /* |vz| < 0.5 m/s              */
+#define MM_LAND_VEL_HORIZ_MPS   1.0f    /* sqrt(vx²+vy²) < 1.0 m/s     */
+#define MM_LAND_ALT_THRESH_M    2.0f    /* z < 2 m above launch origin */
+#define MM_LAND_SUSTAIN_MS      750U    /* hold conditions this long   */
+
 /* --------------------------------------------------------------------------
  * State
  * -------------------------------------------------------------------------- */
 
 static app_flight_state_t s_flight_state;
 static bool               s_armed;
-static TickType_t         s_last_cmd_tick;   /* of last valid command */
+static TickType_t         s_last_cmd_tick;        /* of last valid command */
+static TickType_t         s_descent_quiet_start;  /* tick when quiescent began, 0 = not yet */
 
 /* --------------------------------------------------------------------------
  * Helpers
@@ -200,6 +212,60 @@ static bool mm_drain_radio(radio_rfd900_t *radio) {
     return any_valid;
 }
 
+/* Touchdown detector. While in DESCENT, sample the EKF state via
+ * state_exchange and decide whether the rocket has actually landed.
+ *
+ * Conditions (all three must hold simultaneously):
+ *   1. |vel_z| < MM_LAND_VEL_VERT_MPS   — barely moving vertically
+ *   2. sqrt(vx² + vy²) < MM_LAND_VEL_HORIZ_MPS — barely moving laterally
+ *   3. pos_z < MM_LAND_ALT_THRESH_M      — near launch altitude
+ *
+ * They must hold for MM_LAND_SUSTAIN_MS continuously — a momentary near-
+ * zero crossing during a bounce shouldn't trip the latch. s_descent_quiet
+ * _start records when the conditions first became true; if any condition
+ * breaks we reset it. Once the elapsed window exceeds the sustain, we
+ * latch LANDED.
+ *
+ * Note: we hold armed=true through LANDED so the ESC stays disarmed by
+ * the controls ISR (it gates throttle on the armed slot). The host can
+ * issue CMD_ABORT after touchdown to disarm cleanly. */
+static void mm_check_touchdown(TickType_t now)
+{
+    if (s_flight_state != APP_FLIGHT_DESCENT) {
+        s_descent_quiet_start = 0;
+        return;
+    }
+
+    state_t state;
+    (void)state_exchange_get_state(&state);
+
+    const float vz       = state.vel[2];
+    const float vh_sq    = state.vel[0] * state.vel[0] + state.vel[1] * state.vel[1];
+    const float pz       = state.pos[2];
+    const float vh_thr_sq = MM_LAND_VEL_HORIZ_MPS * MM_LAND_VEL_HORIZ_MPS;
+
+    const bool quiescent =
+        ( (vz < MM_LAND_VEL_VERT_MPS) && (vz > -MM_LAND_VEL_VERT_MPS) ) &&
+        ( vh_sq < vh_thr_sq ) &&
+        ( pz < MM_LAND_ALT_THRESH_M );
+
+    if (!quiescent) {
+        s_descent_quiet_start = 0;
+        return;
+    }
+    if (s_descent_quiet_start == 0) {
+        s_descent_quiet_start = now;
+        return;
+    }
+    if ((now - s_descent_quiet_start) >= pdMS_TO_TICKS(MM_LAND_SUSTAIN_MS)) {
+        mm_set_state(APP_FLIGHT_LANDED);
+        /* Reset so a re-entry to DESCENT (shouldn't happen — LANDED is a
+         * one-way exit in the state machine — but defensive) starts a
+         * fresh sustain window. */
+        s_descent_quiet_start = 0;
+    }
+}
+
 /* Heartbeat watchdog. If we've been ARMED (or further along) and no
  * valid command has arrived recently, disarm and fall back to IDLE.
  * Does not apply in IDLE (nothing to disarm) or in ESTOP/LANDED
@@ -266,6 +332,7 @@ void task_mission_manager(void *arg) {
         }
 
         mm_check_watchdog(now);
+        mm_check_touchdown(now);
         mm_publish();
     }
 }
