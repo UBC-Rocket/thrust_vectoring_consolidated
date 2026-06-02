@@ -58,6 +58,7 @@ if(TARGET dev_imu_bmi088 AND TARGET dev_imu_icm40609 AND TARGET dev_baro_ms5611
             io
             cobs
             messages
+            storage
             dev_imu_bmi088
             dev_imu_icm40609
             dev_baro_ms5611

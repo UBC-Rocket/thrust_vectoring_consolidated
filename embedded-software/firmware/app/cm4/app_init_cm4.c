@@ -13,6 +13,7 @@
 #include "app/tasks.h"
 
 #include "messages/messages.h"
+#include "storage/storage.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -40,6 +41,13 @@ static bool messages_sd_sink(const uint8_t *record, size_t record_len) {
 void app_init_cm4(void) {
     state_exchange_init();
     log_service_init();
+
+    /* Bring up persistent storage. Reads both flash sectors, picks
+     * the higher-generation copy with a valid CRC, populates
+     * g_storage, spawns the storage task. STORAGE_LOAD_FRESH on first
+     * boot or both sectors corrupt — defaults are applied and the
+     * first save() will program sector A with generation = 1. */
+    (void)storage_init();
 
     /* Bring up the structured messages runtime and route the SD channel
      * into log_service. Must happen AFTER log_service_init (the sink

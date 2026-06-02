@@ -72,6 +72,7 @@ add_subdirectory(${FW_ROOT}/comms/cobs       cobs_build)
 # Wasteful but harmless; dedup is a follow-up cleanup.
 add_subdirectory(${FW_ROOT}/../libs/rocket-protocol rocket_protocol_build)
 add_subdirectory(${LIB_DIR}/messages         messages_build)
+add_subdirectory(${LIB_DIR}/storage          storage_build)
 
 # ------------------------------------------------------------------
 # DEV layer (CM4 owns sensing + comms)
@@ -129,6 +130,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     gnss-protocol
     cobs
     messages
+    storage
     dev_imu_bmi088
     dev_imu_icm40609
     dev_baro_ms5611

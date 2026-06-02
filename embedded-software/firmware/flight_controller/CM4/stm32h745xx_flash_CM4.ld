@@ -38,7 +38,11 @@ ENTRY(Reset_Handler)
 /* Specify the memory areas */
 MEMORY
 {
-FLASH (rx)      : ORIGIN = 0x08100000, LENGTH = 1024K
+/* CM4 code area: bank 2 from 0x08100000 to 0x081BFFFF = 768K.
+ * The last two sectors of bank 2 (0x081C0000 / 0x081E0000, 128K each)
+ * are carved out for the storage subsystem — see the INCLUDE of
+ * generated/storage/storage.ld below. */
+FLASH (rx)      : ORIGIN = 0x08100000, LENGTH = 768K
 RAM (xrw)      : ORIGIN = 0x10000000, LENGTH = 288K
 /* SRAM4 in the D3 domain. Both cores see this at the same physical address,
  * and it's outside the D1/D2 cache hierarchy, so no clean/invalidate dance
@@ -46,6 +50,14 @@ RAM (xrw)      : ORIGIN = 0x10000000, LENGTH = 288K
  * (__shared_region_start__ and the intercore seqlock slots). */
 SRAM4 (xrw)    : ORIGIN = 0x38000000, LENGTH = 64K
 }
+
+/* Codegen-generated storage region. INCLUDEs a MEMORY block that adds
+ * STORAGE_A + STORAGE_B alongside the regions above (GNU ld merges
+ * multiple MEMORY commands by name). The same fragment also defines
+ * .storage_a / .storage_b output sections + size ASSERTs. Regenerate
+ * via: python -m codegen --registry embedded-software/storage/registry.json
+ * from inside embedded-software/storage/. */
+INCLUDE "../../../generated/storage/storage.ld"
 /* Highest address of the user mode stack */
 _estack = 0x10048000;    /* end of RAM */
 /* Generate a link error if heap and stack don't fit into RAM */
