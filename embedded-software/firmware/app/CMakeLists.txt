@@ -38,7 +38,7 @@ set_target_properties(app_shared PROPERTIES
 # (the per-core CMakeLists adds them before invoking us).
 #
 if(TARGET dev_imu_bmi088 AND TARGET dev_imu_icm40609 AND TARGET dev_baro_ms5611
-        AND TARGET dev_gps_nmea AND TARGET dev_radio_rfd900)
+        AND TARGET dev_gps_nmea AND TARGET dev_radio_rfd900 AND TARGET dev_mag_mmc5983)
     add_library(app_cm4 STATIC
         cm4/state_estimation_task.c
         cm4/mission_manager_task.c
@@ -61,6 +61,7 @@ if(TARGET dev_imu_bmi088 AND TARGET dev_imu_icm40609 AND TARGET dev_baro_ms5611
             dev_imu_bmi088
             dev_imu_icm40609
             dev_baro_ms5611
+            dev_mag_mmc5983
             dev_gps_nmea
             dev_radio_rfd900
     )

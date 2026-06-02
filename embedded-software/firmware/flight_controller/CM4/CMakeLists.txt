@@ -79,6 +79,7 @@ add_subdirectory(${LIB_DIR}/messages         messages_build)
 add_subdirectory(${DEV_DIR}/imu_bmi088    dev_imu_bmi088_build)
 add_subdirectory(${DEV_DIR}/imu_icm40609  dev_imu_icm40609_build)
 add_subdirectory(${DEV_DIR}/baro_ms5611   dev_baro_ms5611_build)
+add_subdirectory(${DEV_DIR}/mag_mmc5983   dev_mag_mmc5983_build)
 add_subdirectory(${DEV_DIR}/gps_nmea      dev_gps_nmea_build)
 add_subdirectory(${DEV_DIR}/radio_rfd900  dev_radio_rfd900_build)
 
@@ -131,6 +132,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     dev_imu_bmi088
     dev_imu_icm40609
     dev_baro_ms5611
+    dev_mag_mmc5983
     dev_gps_nmea
     dev_radio_rfd900
     app_shared

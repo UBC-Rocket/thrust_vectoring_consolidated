@@ -23,12 +23,14 @@ void dev_init_cm4(void) {
     imu_bmi088_init();
     imu_icm40609_init();
     baro_ms5611_init();
+    mag_mmc5983_init();
     gps_nmea_init();
     radio_rfd900_init();
 
     s_handles.bmi088   = imu_bmi088_get();
     s_handles.icm40609 = imu_icm40609_get();
     s_handles.baro     = baro_ms5611_get();
+    s_handles.mag      = mag_mmc5983_get();
     s_handles.gps      = gps_nmea_get();
     s_handles.radio    = radio_rfd900_get();
     s_init_done = true;
@@ -43,5 +45,6 @@ void sensors_bind_state_estimation_task(io_task_handle_t task) {
     imu_icm40609_set_notify (s_handles.icm40609, task, SENSORS_NOTIFY_IMU_PRIMARY);
     imu_bmi088_set_notify   (s_handles.bmi088,   task, SENSORS_NOTIFY_IMU_SECONDARY);
     baro_ms5611_set_notify  (s_handles.baro,     task, SENSORS_NOTIFY_BARO);
+    mag_mmc5983_set_notify  (s_handles.mag,      task, SENSORS_NOTIFY_MAG);
     gps_nmea_set_notify     (s_handles.gps,      task, SENSORS_NOTIFY_GPS);
 }

@@ -14,6 +14,7 @@
 #include "dev_imu_bmi088.h"
 #include "dev_imu_icm40609.h"
 #include "dev_baro_ms5611.h"
+#include "dev_mag_mmc5983.h"
 #include "dev_gps_nmea.h"
 #include "dev_radio_rfd900.h"
 
@@ -25,6 +26,7 @@ typedef struct {
     imu_bmi088_t   *bmi088;
     imu_icm40609_t *icm40609;
     baro_ms5611_t  *baro;
+    mag_mmc5983_t  *mag;
     gps_nmea_t     *gps;
     radio_rfd900_t *radio;
 } sensors_t;
@@ -45,6 +47,7 @@ void sensors_bind_state_estimation_task(io_task_handle_t task);
 #define SENSORS_NOTIFY_IMU_SECONDARY  (1U << 1)   /* BMI088     */
 #define SENSORS_NOTIFY_BARO           (1U << 2)
 #define SENSORS_NOTIFY_GPS            (1U << 3)
+#define SENSORS_NOTIFY_MAG            (1U << 4)   /* MMC5983MA  */
 
 #ifdef __cplusplus
 }
