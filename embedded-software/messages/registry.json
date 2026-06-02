@@ -74,11 +74,15 @@
         "drop_counter": {
           "msg_id": 2,
           "class": "A",
-          "description": "Periodic snapshot of per-channel drop counts. Mandatory periodic so silent overruns are never invisible.",
+          "description": "Periodic snapshot of channel drop counts and SD-log writer health. Mandatory periodic so silent overruns and SD failures are never invisible.",
           "fields": [
-            { "name": "sd_drops",  "type": "u32", "description": "Cumulative messages dropped at the sd channel since boot." },
-            { "name": "vcp_drops", "type": "u32", "description": "Cumulative messages dropped at the vcp channel since boot." },
-            { "name": "udp_drops", "type": "u32", "description": "Cumulative messages dropped at the udp channel since boot." }
+            { "name": "sd_drops",            "type": "u32", "description": "Cumulative messages dropped at the sd channel since boot." },
+            { "name": "vcp_drops",           "type": "u32", "description": "Cumulative messages dropped at the vcp channel since boot." },
+            { "name": "udp_drops",           "type": "u32", "description": "Cumulative messages dropped at the udp channel since boot." },
+            { "name": "cm7_ring_pushed",     "type": "u32", "description": "Bytes successfully pushed onto the CM7→CM4 SRAM4 log handoff ring." },
+            { "name": "cm7_ring_dropped",    "type": "u32", "description": "Bytes dropped at the CM7→CM4 ring because it was full (producer back-pressure)." },
+            { "name": "sd_blocks_written",   "type": "u32", "description": "Cumulative 512-byte blocks committed to the SD card since boot." },
+            { "name": "sd_write_errors",     "type": "u32", "description": "Cumulative SD write errors observed by sd_log_task; if >0 the writer is in degraded mode and discarding blocks." }
           ],
           "routing": {
             "sd":  { "enabled": true, "max_rate_hz": 1 },

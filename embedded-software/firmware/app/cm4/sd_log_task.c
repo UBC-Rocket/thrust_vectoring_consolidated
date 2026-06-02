@@ -48,6 +48,9 @@
 #include "io_sys/io_types.h"
 
 #include "messages/messages.h"
+#include "generated/messages/registry.h"
+#include "generated/messages/publish.h"
+#include "generated/messages/types.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -341,13 +344,27 @@ void task_sd_log(void *arg)
             if (wrote == 0U) break;   /* err / busy / degraded — stop spinning */
         }
 
-        /* Periodic housekeeping: publish drop counters + flush any
-         * partial block so a clean reboot doesn't lose the tail. */
+        /* Periodic housekeeping: publish the full drop_counter snapshot
+         * (all 7 fields — channel drops + handoff ring stats + SD writer
+         * health) and flush any partial block so a clean reboot doesn't
+         * lose the tail. We assemble the record here rather than calling
+         * messages_publish_drop_counters because lib/messages can't see
+         * the app-side log_service + sd_log_task internals. */
         TickType_t now = xTaskGetTickCount();
         if ((TickType_t)(now - last_publish) >= pdMS_TO_TICKS(SD_LOG_TICK_MS)) {
             last_publish = now;
             flush_partial_block();
-            messages_publish_drop_counters();
+
+            PUB_SYSTEM_DROP_COUNTER(
+                /* sd_drops          */ messages_get_drops(CH_SD),
+                /* vcp_drops         */ messages_get_drops(CH_VCP),
+                /* udp_drops         */ messages_get_drops(CH_UDP),
+                /* cm7_ring_pushed   */ log_service_cm7_ring_bytes_pushed(),
+                /* cm7_ring_dropped  */ log_service_cm7_ring_bytes_dropped(),
+                /* sd_blocks_written */ s_sd_blocks_written,
+                /* sd_write_errors   */ s_sd_write_errors
+            );
+
             /* If we were degraded but the card came back, try recovery. */
             if (s_degraded && io_sd_card_present()) {
                 s_card_ready = true;

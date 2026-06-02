@@ -409,7 +409,12 @@ bool messages_publish_b(uint8_t module_id, uint16_t msg_id,
 
 void messages_publish_drop_counters(void)
 {
-    msg_system_drop_counter_t snapshot;
+    /* Library-side publish only fills the per-channel drop counts; the
+     * SD-log/handoff fields are zeroed because lib/messages can't see app
+     * state. App code that wants the full record (e.g. sd_log_task) should
+     * assemble a msg_system_drop_counter_t directly and call PUB_SYSTEM_
+     * DROP_COUNTER — see firmware/app/cm4/sd_log_task.c. */
+    msg_system_drop_counter_t snapshot = {0};
 #if defined(__GNUC__) || defined(__clang__)
     snapshot.sd_drops  = __atomic_load_n(&s_drops[CH_SD],  __ATOMIC_RELAXED);
     snapshot.vcp_drops = __atomic_load_n(&s_drops[CH_VCP], __ATOMIC_RELAXED);
