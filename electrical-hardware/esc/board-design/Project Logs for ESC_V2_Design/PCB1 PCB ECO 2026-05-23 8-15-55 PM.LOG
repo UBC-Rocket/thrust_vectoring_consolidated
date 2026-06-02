@@ -1,9 +1,0 @@
-Removed Pin From Net: NetName=AGND Pin=C32-1
-Removed Pin From Net: NetName=VDRAIN Pin=C32-2
-Removed Member From Class: ClassName=MCU Member=C32
-Add component: Footprint Not Found S2B-PH-K-S_LF_SN
-Add Pin To Net: Unknown Pin: Pin J1-1
-Add Pin To Net: Unknown Pin: Pin J1-2
-Added Member To Class: ClassName=Sensors Member=Component D6 BAT30KFILM
-Add Class Member: Failed to add class member : Component J1 S2B-PH-K-S(LF)(SN)
-Added Member To Class: ClassName=Sensors Member=Component R34 2.2kO 1% 0603
