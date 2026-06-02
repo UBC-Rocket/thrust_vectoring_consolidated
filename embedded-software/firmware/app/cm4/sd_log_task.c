@@ -22,15 +22,13 @@
  * which gives us a single contiguous "current log" partition per power
  * cycle.
  *
- * Per-boot rotation. We could either:
- *   - scan the card for the highest "magic" block and resume past it
- *     (a la log_NNNN.bin in the deprecated build), or
- *   - keep a small "next-start-block" cursor in SRAM4 that survives soft
- *     reset (.shared is NOLOAD), bumped per boot.
- * Phase 2 / TODO: implement the cursor. For now every boot starts at
- * SD_LOG_START_BLOCK and overwrites whatever was there — fine for bench
- * work, NOT fine for a flight. Flagged as NEEDS USER INPUT in the
- * handoff notes.
+ * Per-boot rotation. A cursor in SRAM4 (.shared, NOLOAD across soft
+ * reset) tracks the next free block — see APP_SLOT_SD_CURSOR_OFFSET +
+ * cursor_pick_start_block / cursor_commit. On cold power-up (magic
+ * mismatch) the cursor falls back to SD_LOG_START_BLOCK and stamps the
+ * magic; subsequent soft resets resume past the last write. The cursor
+ * is committed after every successful write so a power loss between
+ * checkpoints costs at most one chunk of data, not a whole log.
  *
  * Backpressure / degraded mode. If io_sd_write_blocks_async returns
  * IO_ERR_BUSY we drain into the scratch buffer until the SD signals done.
@@ -45,6 +43,7 @@
 #include "app/tasks.h"
 #include "app/log_service.h"
 #include "app/crash_dump.h"
+#include "app/shared_memory.h"
 #include "io_sys/io_sd.h"
 #include "io_sys/io_types.h"
 
@@ -108,6 +107,47 @@ static uint32_t s_sd_blocks_written;
 static uint32_t s_sd_write_errors;
 static bool     s_card_ready;
 static bool     s_degraded;
+
+/* SRAM4 cursor shape — survives soft reset (see APP_SLOT_SD_CURSOR_*). */
+typedef struct {
+    uint32_t magic;
+    uint32_t next_block;
+    uint32_t boot_count;
+    uint32_t _reserved;
+} sd_cursor_t;
+
+/* ---- Cursor (next-block) persistence in SRAM4 .shared ---- */
+
+static sd_cursor_t *cursor(void) {
+    return (sd_cursor_t *)app_shared_slot(APP_SLOT_SD_CURSOR_OFFSET);
+}
+
+/* Pick the SD block address to use for this boot. Reads the SRAM4 cursor;
+ * if the magic doesn't match (cold power-up, or first ever boot, or the
+ * .shared region got clobbered), falls back to SD_LOG_START_BLOCK and
+ * (re)initialises the slot. Either way bumps boot_count and stamps the
+ * magic so subsequent reboots can resume. */
+static uint32_t cursor_pick_start_block(void) {
+    sd_cursor_t *c = cursor();
+    uint32_t start;
+    if (c->magic == APP_SD_CURSOR_MAGIC && c->next_block >= SD_LOG_START_BLOCK) {
+        start = c->next_block;
+    } else {
+        c->magic      = APP_SD_CURSOR_MAGIC;
+        c->boot_count = 0U;
+        start         = SD_LOG_START_BLOCK;
+    }
+    c->boot_count++;
+    c->next_block = start;
+    return start;
+}
+
+/* Called after every successful write to keep the SRAM4 slot in sync.
+ * Cheap (one 32-bit store); doing it inline avoids losing the cursor
+ * if the rocket dies mid-log between checkpoints. */
+static void cursor_commit(uint32_t next_block) {
+    cursor()->next_block = next_block;
+}
 
 /* ---- Wake callback (called from HSEM IRQ) ---- */
 
@@ -227,6 +267,7 @@ static uint32_t flush_full_blocks(void)
     s_next_block += n_blocks;
     s_sd_blocks_written += n_blocks;
     s_sd_write_errors = 0U;
+    cursor_commit(s_next_block);
     return n_blocks;
 }
 
@@ -277,7 +318,7 @@ void task_sd_log(void *arg)
     /* Bring up the card. io_sd_init() was already called by io_init_cm4;
      * we just need to confirm a card is present. */
     s_card_ready  = io_sd_card_present();
-    s_next_block  = SD_LOG_START_BLOCK;
+    s_next_block  = cursor_pick_start_block();
     s_degraded    = !s_card_ready;
 
     /* From this point onward log_service_append_raw is "real" — both

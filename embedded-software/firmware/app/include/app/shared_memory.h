@@ -86,6 +86,26 @@ extern "C" {
 /* Tail of ring: 0x0800 + 32 + 8192 = 0x2820. Leaves 16384 - 0x2820 = ~7 kB
  * headroom for future slots. */
 
+/* ---------------------------------------------------------------------------
+ * SD log cursor — tracks the next SD block address to write across boots.
+ *
+ * Survives soft reset because .shared is NOLOAD (linker does not zero it).
+ * Layout:
+ *   +0x00  uint32_t magic       (must equal APP_SD_CURSOR_MAGIC)
+ *   +0x04  uint32_t next_block  (next free block on the card)
+ *   +0x08  uint32_t boot_count  (incremented each boot — diagnostic)
+ *   +0x0C  uint32_t reserved
+ *
+ * sd_log_task on CM4 reads this at boot; if magic mismatches (cold power-up,
+ * SRAM4 not preserved, or first ever boot), it falls back to SD_LOG_START_
+ * BLOCK and stamps the magic. Every write to the card advances next_block;
+ * a sustained soft-reset loop therefore still produces strictly-increasing
+ * block addresses, so previous-boot data is never overwritten in-place.
+ * --------------------------------------------------------------------------- */
+#define APP_SLOT_SD_CURSOR_OFFSET   0x2840    /* after the 8 kB log ring */
+#define APP_SLOT_SD_CURSOR_PAYLOAD  16U
+#define APP_SD_CURSOR_MAGIC         0x53444C47U  /* "SDLG" */
+
 /**
  * @brief Pointer to the base of the shared region (defined by the linker).
  */
