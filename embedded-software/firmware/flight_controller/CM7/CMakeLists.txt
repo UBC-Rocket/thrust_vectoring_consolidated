@@ -44,6 +44,7 @@ add_subdirectory(${IO_DIR}/io_intercore_slot io_intercore_slot_build)
 # Utility libs
 add_subdirectory(${LIB_DIR}/collections      collections_build)
 add_subdirectory(${LIB_DIR}/timestamp        timestamp_build)
+add_subdirectory(${LIB_DIR}/cmsis_dsp        cmsis_dsp_build)
 add_subdirectory(${LIB_DIR}/state_estimation state_estimation_build)
 add_subdirectory(${LIB_DIR}/controls         controls_build)
 add_subdirectory(${FW_ROOT}/comms/nanopb     nanopb_build)
@@ -82,6 +83,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     io
     io_sys
     io_intercore_slot
+    cmsis_dsp
     controls
     state_estimation
     timestamp

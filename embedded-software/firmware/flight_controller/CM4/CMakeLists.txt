@@ -61,6 +61,7 @@ add_subdirectory(${IO_DIR}/io_intercore_slot io_intercore_slot_build)
 add_subdirectory(${LIB_DIR}/collections      collections_build)
 add_subdirectory(${LIB_DIR}/timestamp        timestamp_build)
 add_subdirectory(${LIB_DIR}/sensors          sensors_build)
+add_subdirectory(${LIB_DIR}/cmsis_dsp        cmsis_dsp_build)
 add_subdirectory(${LIB_DIR}/state_estimation state_estimation_build)
 add_subdirectory(${LIB_DIR}/controls         controls_build)
 add_subdirectory(${LIB_DIR}/gnss-protocol    gnss_protocol_build)
@@ -122,6 +123,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     io_uart_dma_cm
     io_intercore_slot
     sensors
+    cmsis_dsp
     state_estimation
     controls
     timestamp

@@ -1,6 +1,42 @@
 #include "state_estimation/matrix.h"
 #include <math.h>
 
+/* CMSIS-DSP is only linked in for the firmware (cross-compile) builds — see
+ * state_estimation/CMakeLists.txt. On host (state_estimation_tests), the
+ * naive impls below stay in play; the firmware path delegates the two
+ * functions that actually move the EKF needle (mat_mul + mat_transpose on
+ * the 15×15 covariance) to arm_mat_mult_f32 / arm_mat_trans_f32.
+ *
+ * Skipped from the CMSIS-DSP swap:
+ *   - inverse() — 3×3 closed-form cofactor expansion beats CMSIS-DSP's
+ *     general Gauss-Jordan at this size, and arm_mat_inverse_f32 clobbers
+ *     its input (we'd have to copy first).
+ *   - transpose3x3 / 6x6 / 3x6_to_6x3 — function-call overhead dominates
+ *     at these sizes; the compiler unrolls the inline loops fine.
+ *   - normalize — 4 mults + sqrt, nothing to gain.
+ */
+#ifdef STATE_EST_USE_CMSIS_DSP
+#include "arm_math.h"
+
+void mat_mul(const float *A, const float *B, float *C, int r1, int c1, int c2)
+{
+    /* arm_matrix_instance_f32 holds pData as non-const, but the routine
+     * only reads pSrcA/pSrcB. Casting away const is the documented usage. */
+    const arm_matrix_instance_f32 mA = { (uint16_t)r1, (uint16_t)c1, (float *)A };
+    const arm_matrix_instance_f32 mB = { (uint16_t)c1, (uint16_t)c2, (float *)B };
+    arm_matrix_instance_f32       mC = { (uint16_t)r1, (uint16_t)c2, C };
+    (void)arm_mat_mult_f32(&mA, &mB, &mC);
+}
+
+void mat_transpose(const float *A, float *AT, int rows, int cols)
+{
+    const arm_matrix_instance_f32 mA  = { (uint16_t)rows, (uint16_t)cols, (float *)A };
+    arm_matrix_instance_f32       mAT = { (uint16_t)cols, (uint16_t)rows, AT };
+    (void)arm_mat_trans_f32(&mA, &mAT);
+}
+
+#else  /* host build — naive impls */
+
 void mat_mul(const float *A, const float *B, float *C, int r1, int c1, int c2)
 {
     for (int i = 0; i < r1; ++i) {
@@ -20,6 +56,8 @@ void mat_transpose(const float *A, float *AT, int rows, int cols)
         for (int j = 0; j < cols; ++j)
             AT[j * rows + i] = A[i * cols + j];
 }
+
+#endif  /* STATE_EST_USE_CMSIS_DSP */
 
 void normalize(float q[4])
 {

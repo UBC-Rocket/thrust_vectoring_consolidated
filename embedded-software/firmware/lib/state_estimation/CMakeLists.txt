@@ -18,6 +18,15 @@ target_include_directories(state_estimation
 
 target_link_libraries(state_estimation PRIVATE m)
 
+# CMSIS-DSP is only available in the firmware (cross-compile) builds — it's
+# pulled in via add_subdirectory from each per-core CMakeLists. Host tests
+# don't build CMSIS-DSP (they don't need to), so matrix.c falls back to the
+# naive impls. Gate both linkage and the #define together.
+if(TARGET cmsis_dsp)
+    target_link_libraries(state_estimation PRIVATE cmsis_dsp)
+    target_compile_definitions(state_estimation PRIVATE STATE_EST_USE_CMSIS_DSP)
+endif()
+
 # ekf.c declares `static timeline_event_t events[ESKF_MAX_TIMELINE_EVENTS]`
 # inside eskf_process. Default is 16,000 events (≈384 KB) — sized for the
 # host-side trajectory tests. On embedded we only ever see ~20 events per
