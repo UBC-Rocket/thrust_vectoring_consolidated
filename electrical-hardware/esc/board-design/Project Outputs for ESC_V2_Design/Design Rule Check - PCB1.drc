@@ -1,7 +1,7 @@
 Protel Design System Design Rule Check
 PCB File : C:\Users\kjh32\Documents\GitHub\thrust_vectoring_consolidated\electrical-hardware\esc\board-design\PCB1.PcbDoc
-Date     : 2026-06-02
-Time     : 11:55:46 PM
+Date     : 2026-06-07
+Time     : 12:12:52 PM
 
 Processing Rule : Clearance Constraint (Gap=3.937mil) (All),(All)
    Violation between Clearance Constraint: (Collision < 3.937mil) Between Pad Q6-5(478.543mil,1931.866mil) on Top Layer And Region (0 hole(s)) Top Layer 
@@ -18,9 +18,7 @@ Processing Rule : Short-Circuit Constraint (Allowed=No) (All),(All)
 Rule Violations :4
 
 Processing Rule : Un-Routed Net Constraint ( (All) )
-   Violation between Un-Routed Net Constraint: Net AGND Between Pad C29-1(-480.315mil,901.575mil) on Multi-Layer And Via (-79.993mil,505.279mil) from Top Layer to Bottom Layer 
-   Violation between Un-Routed Net Constraint: Net VDRAIN Between Pad C29-2(-480.315mil,1098.425mil) on Multi-Layer And Via (70.866mil,1566.929mil) from Top Layer to Bottom Layer 
-Rule Violations :2
+Rule Violations :0
 
 Processing Rule : Modified Polygon (Allow modified: No), (Allow shelved: No)
 Rule Violations :0
@@ -73,6 +71,6 @@ Processing Rule : Height Constraint (Min=0mil) (Max=1000mil) (Prefered=500mil) (
 Rule Violations :0
 
 
-Violations Detected : 18
+Violations Detected : 16
 Waived Violations : 0
 Time Elapsed        : 00:00:00

@@ -1,0 +1,3 @@
+Removed Pin From Net: NetName=AGND Pin=C29-1
+Removed Pin From Net: NetName=VDRAIN Pin=C29-2
+Removed Member From Class: ClassName=Gate Drive Member=C29
