@@ -379,7 +379,7 @@ static bool bdshot_decode_telemetry(bdshot_motor_telemetry_t *const telemetry,
 
     for (uint32_t i = 0; i < (edge_count - 1); i++) {
         // Written enough bits for a full frame
-        if (wire_bits_written < BDSHOT_TELEMETRY_WIRE_BITS) {
+        if (wire_bits_written >= BDSHOT_TELEMETRY_WIRE_BITS) {
             break;
         }
 
