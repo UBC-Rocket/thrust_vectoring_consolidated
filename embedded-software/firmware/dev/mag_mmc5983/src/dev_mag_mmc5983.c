@@ -386,3 +386,15 @@ void mag_mmc5983_set_notify(mag_mmc5983_t *d, io_task_handle_t t, uint32_t bit) 
     d->notify_task = t;
     d->notify_bit  = bit;
 }
+
+bool mag_mmc5983_get_offset(mag_mmc5983_t *d, float out_g[3]) {
+    if (!d || !out_g || !d->offset_valid) return false;
+    /* offset_g is updated atomically from the service task — three scalar
+     * float writes; the consumer can see a transiently mixed-axis snapshot.
+     * Acceptable for the cal-complete persistence use case (we save once
+     * per boot, off the critical path). */
+    out_g[0] = d->offset_g[0];
+    out_g[1] = d->offset_g[1];
+    out_g[2] = d->offset_g[2];
+    return true;
+}

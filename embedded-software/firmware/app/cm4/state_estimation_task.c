@@ -61,6 +61,8 @@
 #include "state_estimation/state.h"
 #include "state_estimation/body.h"  /* pressure_to_height() */
 
+#include "storage/storage.h"
+
 #include "generated/messages/publish.h"
 #include "generated/messages/types.h"
 
@@ -102,24 +104,36 @@
 
 static eskf_t s_eskf;
 
+/* Mag noise: 0.05 on the unit-normalized direction vector. The mag is
+ * fed normalized to the EKF, so noise is dimensionless. 0.05 is loose
+ * enough to ignore short-lived field anomalies (ferrous structures,
+ * motor currents) without de-tuning the yaw observability. */
 static eskf_sensor_noise_config_t s_sensor_configs[] = {
     { ESKF_SENSOR_ACCEL, 0, {{0.001f, 0, 0}, {0, 0.001f, 0}, {0, 0, 0.001f}} },
     { ESKF_SENSOR_GYRO,  0, {{0.01f,  0, 0}, {0, 0.01f,  0}, {0, 0, 0.01f }} },
     { ESKF_SENSOR_GPS,   0, {{15.0f,  0, 0}, {0, 15.0f,  0}, {0, 0, 15.0f }} },
     { ESKF_SENSOR_BARO,  0, {{0.1f,   0, 0}, {0,  0,    0}, {0, 0,  0    }} },
+    { ESKF_SENSOR_MAG,   0, {{0.05f,  0, 0}, {0, 0.05f,  0}, {0, 0, 0.05f }} },
 };
 
 /* Per-cycle scratch — kept file-static (not on the task stack) because
- * 16 * eskf_sample_t * 4 channels is ~1 KB and the task stack is 8 KB. */
+ * 16 * eskf_sample_t * 5 channels is ~1.3 KB and the task stack is 8 KB. */
 static eskf_sample_t s_accel_buf[DRAIN_BATCH];
 static eskf_sample_t s_gyro_buf [DRAIN_BATCH];
 static eskf_sample_t s_baro_buf [DRAIN_BATCH];
 static eskf_sample_t s_gps_buf  [4];
+static eskf_sample_t s_mag_buf  [DRAIN_BATCH];
 
 static icm_sample_t  s_icm_raw  [DRAIN_BATCH];
 static imu_sample_t  s_bmi_raw  [DRAIN_BATCH];
 static baro_sample_t s_baro_raw [DRAIN_BATCH];
 static gps_fix_t     s_gps_raw  [4];
+static mag_sample_t  s_mag_raw  [DRAIN_BATCH];
+
+/* Tracks the EKF's calibration latch so we only persist the mag offset
+ * once per boot. Set false at task start; flips true the first time
+ * eskf_is_calibrated() returns true after a process call. */
+static bool s_cal_persisted;
 
 static struct {
     float height_m;
@@ -237,7 +251,7 @@ void task_state_estimation(void *arg)
          * dead. */
         (void)xTaskNotifyWait(0, UINT32_MAX, &notify_bits, timeout);
 
-        size_t n_accel = 0, n_gyro = 0, n_baro = 0, n_gps = 0;
+        size_t n_accel = 0, n_gyro = 0, n_baro = 0, n_gps = 0, n_mag = 0;
 
         /* ---- Primary IMU (ICM-40609) ---------------------------------
          * We drain unconditionally — the notify bit is only a hint; the
@@ -311,6 +325,45 @@ void task_state_estimation(void *arg)
             n_baro++;
         }
 
+        /* ---- Magnetometer ---------------------------------------------
+         * The driver's ring already carries SET/RESET-differenced field
+         * samples — the (M_set + M_reset)/2 offset has been cancelled
+         * by the differencing pair. We apply per-axis soft-iron scale
+         * from storage (identity = 1,1,1 until ellipsoid-fit autocal
+         * lands) and feed into the EKF. The EKF normalizes the field
+         * internally for the unit-vector measurement model.
+         *
+         * mx/my/mz are in gauss; we publish both the field and the
+         * driver's live hard-iron offset estimate to SD for
+         * post-processing diagnostics. */
+        size_t n_mr = mag_mmc5983_drain(sensors->mag,
+                                        s_mag_raw, DRAIN_BATCH);
+        for (size_t i = 0; i < n_mr && n_mag < DRAIN_BATCH; i++) {
+            const float sx = g_storage.payload.calibration.mag_scale[0] > 0.0f
+                              ? g_storage.payload.calibration.mag_scale[0] : 1.0f;
+            const float sy = g_storage.payload.calibration.mag_scale[1] > 0.0f
+                              ? g_storage.payload.calibration.mag_scale[1] : 1.0f;
+            const float sz = g_storage.payload.calibration.mag_scale[2] > 0.0f
+                              ? g_storage.payload.calibration.mag_scale[2] : 1.0f;
+
+            s_mag_buf[n_mag].timestamp_us = s_mag_raw[i].t_us;
+            s_mag_buf[n_mag].data[0]      = s_mag_raw[i].mx * sx;
+            s_mag_buf[n_mag].data[1]      = s_mag_raw[i].my * sy;
+            s_mag_buf[n_mag].data[2]      = s_mag_raw[i].mz * sz;
+            n_mag++;
+
+            /* Snapshot the driver's live offset estimate for the SD
+             * record. Falls back to (0,0,0) if the driver hasn't
+             * completed a SET/RESET pair yet — shouldn't happen in
+             * steady state. */
+            float live_offset[3] = {0.0f, 0.0f, 0.0f};
+            (void)mag_mmc5983_get_offset(sensors->mag, live_offset);
+
+            const vec3_f32_t field  = { s_mag_raw[i].mx, s_mag_raw[i].my, s_mag_raw[i].mz };
+            const vec3_f32_t offset = { live_offset[0],  live_offset[1],  live_offset[2]  };
+            PUB_MAG_SAMPLE(s_mag_raw[i].t_us, field, offset, s_mag_raw[i].temp_c);
+        }
+
         /* ---- GPS ------------------------------------------------------
          * First valid fix sets the local-frame origin; subsequent fixes
          * become (north, east, up) metre deltas. */
@@ -339,7 +392,7 @@ void task_state_estimation(void *arg)
          * baro/GPS without IMU would just sit in their channels until
          * the next wake. */
         if (n_accel > 0 || n_gyro > 0) {
-            eskf_sensor_channel_t channels[4];
+            eskf_sensor_channel_t channels[5];
             size_t n_channels = 0;
 
             channels[n_channels++] = (eskf_sensor_channel_t){
@@ -354,9 +407,33 @@ void task_state_estimation(void *arg)
                 channels[n_channels++] = (eskf_sensor_channel_t){
                     ESKF_SENSOR_GPS, 0, s_gps_buf, n_gps };
             }
+            if (n_mag > 0) {
+                channels[n_channels++] = (eskf_sensor_channel_t){
+                    ESKF_SENSOR_MAG, 0, s_mag_buf, n_mag };
+            }
 
             eskf_input_t input = { channels, n_channels };
             eskf_process(&s_eskf, &input);
+
+            /* One-shot mag-offset persistence on cal-complete. The driver's
+             * live SET/RESET offset estimate is already as good as we'll
+             * get without a soft-iron sweep; snapshotting it to flash
+             * means next boot's first samples have a known-recent offset
+             * to compare against (diagnostic only — the runtime path keeps
+             * differencing live). storage_save_async is fire-and-forget;
+             * the storage task debounces + commits off the EKF hot path. */
+            if (!s_cal_persisted && eskf_is_calibrated(&s_eskf)) {
+                float live_offset[3];
+                if (mag_mmc5983_get_offset(sensors->mag, live_offset)) {
+                    storage_lock();
+                    g_storage.payload.calibration.mag_offset[0] = live_offset[0];
+                    g_storage.payload.calibration.mag_offset[1] = live_offset[1];
+                    g_storage.payload.calibration.mag_offset[2] = live_offset[2];
+                    storage_unlock();
+                    storage_save_async();
+                }
+                s_cal_persisted = true;
+            }
         }
 
         /* ---- Publish state -------------------------------------------

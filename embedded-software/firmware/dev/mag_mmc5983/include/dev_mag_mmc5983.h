@@ -36,6 +36,23 @@ size_t          mag_mmc5983_drain      (mag_mmc5983_t *d,
 void            mag_mmc5983_set_notify (mag_mmc5983_t *d,
                                          io_task_handle_t t, uint32_t bit);
 
+/**
+ * @brief Most recent (M_set + M_reset)/2 hard-iron offset estimate, in
+ *        gauss, sensor body frame. Updated every SET/RESET pair, ~100 Hz.
+ *
+ * @param d         Driver handle (NULL → returns false).
+ * @param out_g     Filled with the three-axis offset on success.
+ * @return          true if at least one SET/RESET pair has completed since
+ *                  init (i.e. the value in out_g is meaningful), false
+ *                  otherwise.
+ *
+ * The state-estimation task uses this for auto-calibration: once the EKF
+ * declares itself calibrated, it snapshots this value into the storage
+ * subsystem so subsequent boots come up with the offset pre-loaded
+ * instead of having to wait another cal window.
+ */
+bool            mag_mmc5983_get_offset (mag_mmc5983_t *d, float out_g[3]);
+
 #ifdef __cplusplus
 }
 #endif
