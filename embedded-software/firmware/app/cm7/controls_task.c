@@ -53,9 +53,18 @@
 
 #define CONTROLS_DT_S 0.00125f   /* 1 / 800 Hz */
 
-/* Controller config. Mirrors the deprecated H5 defaults. Future: load
- * from flash, accept system.set_param overrides at runtime. */
-static const flight_controller_config_t s_config = {
+/* Controller config — mutable, seeded with the same defaults the deprecated
+ * H5 build used. mission_manager forwards SetPidGains / SetConfig over
+ * state_exchange; task_controls polls and merges into this struct. The
+ * TIM16 ISR reads from it every cycle.
+ *
+ * Concurrency: the ISR fires at 800 Hz from TIM16, task_controls writes
+ * from FreeRTOS context at ~20 Hz. We rely on word-aligned float writes
+ * being atomic on M7 (they are — 32-bit aligned scalar stores complete in
+ * one bus cycle with no tear) and accept that a multi-field merge can
+ * straddle one ISR tick. Worst case the ISR sees half-old / half-new
+ * gains for ≤1.25 ms, which is well below the controller's bandwidth. */
+static flight_controller_config_t s_live_config = {
     .attitude = {
         .Kp = {{1.0f, 0, 0}, {0, 1.0f, 0}, {0, 0, 1.0f}},
         .Kd = {{0.1f, 0, 0}, {0, 0.1f, 0}, {0, 0, 0.1f}},
@@ -81,13 +90,19 @@ static const flight_controller_config_t s_config = {
     },
 };
 
-/* Default reference until the solver task publishes one. Identity
- * attitude (upright), z setpoint at origin, no vz. */
-static const flight_controller_ref_t s_default_ref = {
+/* Live reference. Seeded with identity attitude / zero z. Replaced by
+ * SetReference messages from the host (via mission_manager → state_exchange). */
+static flight_controller_ref_t s_live_ref = {
     .q_ref  = { .w = 1.0f, .x = 0.0f, .y = 0.0f, .z = 0.0f },
     .z_ref  = 0.0f,
     .vz_ref = 0.0f,
 };
+
+/* Cached seq numbers for the IPC slots — task_controls only re-merges
+ * when a publisher has actually moved the seq forward. */
+static uint32_t s_last_pid_seq;
+static uint32_t s_last_ref_seq;
+static uint32_t s_last_cfg_seq;
 
 /* Snapshot of actuator handles, captured once at controls_init so the
  * ISR doesn't call into actuators_handles() (which gates on a static
@@ -115,7 +130,7 @@ void controls_on_tim_period_elapsed(void *htim_handle)
     (void)state_exchange_get_state(&state);
 
     control_output_t out;
-    flight_controller_run(&state, &s_default_ref, &s_config, &out, CONTROLS_DT_S);
+    flight_controller_run(&state, &s_live_ref, &s_live_config, &out, CONTROLS_DT_S);
 
     /* Convert gimbal angles to servo degrees (config min/max are radians). */
     float deg_x = out.theta_x_cmd * 180.0f / (float)M_PI;
@@ -123,8 +138,8 @@ void controls_on_tim_period_elapsed(void *htim_handle)
     servo_feetech_set_pair_degrees(s_servos, deg_x, deg_y);
 
     /* T_cmd → throttle in [0, 1]. */
-    float throttle = (s_config.thrust.T_max > 0.0f)
-                      ? (out.T_cmd / s_config.thrust.T_max) : 0.0f;
+    float throttle = (s_live_config.thrust.T_max > 0.0f)
+                      ? (out.T_cmd / s_live_config.thrust.T_max) : 0.0f;
     if (throttle < 0.0f) throttle = 0.0f;
     if (throttle > 1.0f) throttle = 1.0f;
     esc_dshot_set_throttle(s_escs, throttle);
@@ -152,7 +167,7 @@ void controls_isr_init(void)
     esc_dshot_arm(s_escs, true);
     servo_feetech_enable(s_servos, true);
 
-    flight_controller_init(&s_config);
+    flight_controller_init(&s_live_config);
 
     s_isr_ready = true;
 
@@ -253,7 +268,79 @@ static void controls_run_startup_selftest(void)
 }
 
 /* -------------------------------------------------------------------------- */
-/* Solver task body — STUB (with one-shot startup self-test)                   */
+/* Tunable merges — task context, run between ISR ticks                        */
+/* -------------------------------------------------------------------------- */
+
+/* SetPidGains carries fields one-by-one. "0" is the wire default for an
+ * absent scalar; we read that as "unchanged" and skip the merge, which
+ * lets the host send partial-update messages without needing to repeat
+ * the full state every time. If 0 ever becomes a valid gain we'll add an
+ * explicit valid bitmask to app_pid_gains_t. */
+static inline void merge_pid_gains(const app_pid_gains_t *g) {
+    for (int i = 0; i < 3; ++i) {
+        if (g->attitude_kp[i] > 0.0f) s_live_config.attitude.Kp[i][i] = g->attitude_kp[i];
+        if (g->attitude_kd[i] > 0.0f) s_live_config.attitude.Kd[i][i] = g->attitude_kd[i];
+    }
+    if (g->z_kp             > 0.0f) s_live_config.thrust.kp             = g->z_kp;
+    if (g->z_ki             > 0.0f) s_live_config.thrust.ki             = g->z_ki;
+    if (g->z_kd             > 0.0f) s_live_config.thrust.kd             = g->z_kd;
+    if (g->z_integral_limit > 0.0f) s_live_config.thrust.integral_limit = g->z_integral_limit;
+}
+
+static inline void merge_reference(const app_reference_t *r) {
+    s_live_ref.z_ref  = r->z_ref;
+    s_live_ref.vz_ref = r->vz_ref;
+    if (r->q_valid) {
+        s_live_ref.q_ref.w = r->q_ref[0];
+        s_live_ref.q_ref.x = r->q_ref[1];
+        s_live_ref.q_ref.y = r->q_ref[2];
+        s_live_ref.q_ref.z = r->q_ref[3];
+    }
+}
+
+static inline void merge_vehicle_config(const app_vehicle_config_t *c) {
+    if (c->mass_kg   > 0.0f) s_live_config.thrust.m     = c->mass_kg;
+    if (c->T_max     > 0.0f) s_live_config.thrust.T_max = c->T_max;
+    /* T_min and gimbal limits accept any value (zero is valid for T_min;
+     * a host that wants to leave them unchanged simply omits the message). */
+    s_live_config.thrust.T_min     = c->T_min;
+    s_live_config.gimbal.theta_min = c->theta_min;
+    s_live_config.gimbal.theta_max = c->theta_max;
+}
+
+/* Poll all three IPC slots; merge any whose seq has advanced since the
+ * previous poll. Cheap — three slot reads + three compares. Runs at
+ * TUNABLE_POLL_MS cadence, so a host SetPidGains lands in the live
+ * config within that window. */
+#define TUNABLE_POLL_MS  50U
+
+static void poll_tunables(void) {
+    uint32_t seq;
+
+    app_pid_gains_t pid_gains;
+    seq = state_exchange_get_pid_gains(&pid_gains);
+    if (seq != s_last_pid_seq) {
+        merge_pid_gains(&pid_gains);
+        s_last_pid_seq = seq;
+    }
+
+    app_reference_t ref;
+    seq = state_exchange_get_reference(&ref);
+    if (seq != s_last_ref_seq) {
+        merge_reference(&ref);
+        s_last_ref_seq = seq;
+    }
+
+    app_vehicle_config_t cfg;
+    seq = state_exchange_get_vehicle_config(&cfg);
+    if (seq != s_last_cfg_seq) {
+        merge_vehicle_config(&cfg);
+        s_last_cfg_seq = seq;
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Solver task body — runs the self-test, then polls tunables                  */
 /* -------------------------------------------------------------------------- */
 
 void task_controls(void *arg) {
@@ -269,12 +356,13 @@ void task_controls(void *arg) {
      * commands at 800 Hz; this task must not touch the actuators directly. */
     HAL_TIM_Base_Start_IT(&htim16);
 
-    /* TODO(solver): trajectory / MPC / whatever produces the reference
-     * setpoints that the ISR's flight_controller_run consumes. Today
-     * the ISR uses s_default_ref (identity attitude, zero z). When this
-     * task gains a body, it should publish references into a new
-     * state_exchange slot the ISR reads. */
+    /* Poll cm4's tunable slots and merge any updates into s_live_config /
+     * s_live_ref. The ISR reads from those on every tick. When the
+     * trajectory/MPC solver lands, it'll write into s_live_ref directly
+     * from this task — the polling and the solver are not mutually
+     * exclusive. */
     for (;;) {
-        vTaskDelay(pdMS_TO_TICKS(100));
+        poll_tunables();
+        vTaskDelay(pdMS_TO_TICKS(TUNABLE_POLL_MS));
     }
 }

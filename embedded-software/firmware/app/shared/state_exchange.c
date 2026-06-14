@@ -20,6 +20,9 @@ static io_intercore_slot_t s_slot_state;
 static io_intercore_slot_t s_slot_control;
 static io_intercore_slot_t s_slot_flight;
 static io_intercore_slot_t s_slot_armed;
+static io_intercore_slot_t s_slot_pid_gains;
+static io_intercore_slot_t s_slot_reference;
+static io_intercore_slot_t s_slot_vehicle_cfg;
 
 /* Monotonic sequence numbers; one value per core, updated by each publisher.
  * Not shared across cores because each slot is only written by one core; the
@@ -29,6 +32,9 @@ static uint32_t s_state_seq;
 static uint32_t s_control_seq;
 static uint32_t s_flight_seq;
 static uint32_t s_armed_seq;
+static uint32_t s_pid_gains_seq;
+static uint32_t s_reference_seq;
+static uint32_t s_vehicle_cfg_seq;
 
 static bool s_initialised;
 
@@ -53,6 +59,15 @@ void state_exchange_init(void) {
     io_intercore_slot_init(&s_slot_armed,
                         app_shared_slot(APP_SLOT_ARMED_OFFSET),
                         sizeof(bool));
+    io_intercore_slot_init(&s_slot_pid_gains,
+                        app_shared_slot(APP_SLOT_PID_GAINS_OFFSET),
+                        sizeof(app_pid_gains_t));
+    io_intercore_slot_init(&s_slot_reference,
+                        app_shared_slot(APP_SLOT_REFERENCE_OFFSET),
+                        sizeof(app_reference_t));
+    io_intercore_slot_init(&s_slot_vehicle_cfg,
+                        app_shared_slot(APP_SLOT_VEHICLE_CONFIG_OFFSET),
+                        sizeof(app_vehicle_config_t));
     s_initialised = true;
 }
 
@@ -115,4 +130,49 @@ uint32_t state_exchange_get_armed(bool *armed_out) {
         if (armed_out) *armed_out = tmp;
     }
     return s_armed_seq;
+}
+
+uint32_t state_exchange_publish_pid_gains(const app_pid_gains_t *gains) {
+    if (!gains) return s_pid_gains_seq;
+    io_intercore_slot_publish(&s_slot_pid_gains, gains);
+    s_pid_gains_seq++;
+    return s_pid_gains_seq;
+}
+
+uint32_t state_exchange_get_pid_gains(app_pid_gains_t *out) {
+    app_pid_gains_t tmp;
+    if (io_intercore_slot_read(&s_slot_pid_gains, &tmp, NULL)) {
+        if (out) *out = tmp;
+    }
+    return s_pid_gains_seq;
+}
+
+uint32_t state_exchange_publish_reference(const app_reference_t *ref) {
+    if (!ref) return s_reference_seq;
+    io_intercore_slot_publish(&s_slot_reference, ref);
+    s_reference_seq++;
+    return s_reference_seq;
+}
+
+uint32_t state_exchange_get_reference(app_reference_t *out) {
+    app_reference_t tmp;
+    if (io_intercore_slot_read(&s_slot_reference, &tmp, NULL)) {
+        if (out) *out = tmp;
+    }
+    return s_reference_seq;
+}
+
+uint32_t state_exchange_publish_vehicle_config(const app_vehicle_config_t *cfg) {
+    if (!cfg) return s_vehicle_cfg_seq;
+    io_intercore_slot_publish(&s_slot_vehicle_cfg, cfg);
+    s_vehicle_cfg_seq++;
+    return s_vehicle_cfg_seq;
+}
+
+uint32_t state_exchange_get_vehicle_config(app_vehicle_config_t *out) {
+    app_vehicle_config_t tmp;
+    if (io_intercore_slot_read(&s_slot_vehicle_cfg, &tmp, NULL)) {
+        if (out) *out = tmp;
+    }
+    return s_vehicle_cfg_seq;
 }

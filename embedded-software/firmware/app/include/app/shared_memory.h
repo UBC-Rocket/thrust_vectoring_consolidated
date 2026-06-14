@@ -59,6 +59,24 @@ extern "C" {
 #define APP_SLOT_CRASH_DUMP_CM7_PAYLOAD 256
 
 /* ---------------------------------------------------------------------------
+ * Tunables-from-radio: PID gains, reference setpoints, vehicle physical
+ * config. mission_manager on CM4 publishes; controls_task on CM7 polls and
+ * merges into its live snapshot for the TIM16 ISR. Each slot is 128 B total
+ * (8-byte intercore header + up-to-120-byte payload), well over the actual
+ * struct sizes (40 / 36 / 20 bytes today) so adding fields later doesn't
+ * force a layout migration.
+ * --------------------------------------------------------------------------- */
+#define APP_SLOT_PID_GAINS_OFFSET       0x0680   /* 1664 — after CM7 crash dump */
+#define APP_SLOT_PID_GAINS_PAYLOAD      120
+
+#define APP_SLOT_REFERENCE_OFFSET       0x0700   /* 1792 */
+#define APP_SLOT_REFERENCE_PAYLOAD      120
+
+#define APP_SLOT_VEHICLE_CONFIG_OFFSET  0x0780   /* 1920 */
+#define APP_SLOT_VEHICLE_CONFIG_PAYLOAD 120
+/* Tail: 0x0780 + 128 = 0x0800, exactly meeting the log handoff ring. */
+
+/* ---------------------------------------------------------------------------
  * CM7 → CM4 log handoff ring (lock-free SPSC byte ring).
  *
  * Producer: CM7 messages-runtime SD sink (log_service_append_raw on CM7).

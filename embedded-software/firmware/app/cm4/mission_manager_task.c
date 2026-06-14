@@ -165,6 +165,56 @@ static bool mm_apply_state_cmd(tvr_StateCommand_Type cmd) {
     }
 }
 
+/* Translate nanopb SetPidGains → app_pid_gains_t and publish for CM7.
+ * The attitude_kp / attitude_kd are OPTIONAL — if absent, hold what CM7
+ * already has by leaving NaN markers (we use 0 to mean "unchanged"; the
+ * solver merges by checking >0). Pragmatic for v1; if zero is ever a
+ * valid gain we'll add an explicit valid bitmask. */
+static void mm_forward_pid_gains(const tvr_SetPidGains *src) {
+    app_pid_gains_t g = {0};
+    if (src->has_attitude_kp) {
+        g.attitude_kp[0] = src->attitude_kp.x;
+        g.attitude_kp[1] = src->attitude_kp.y;
+        g.attitude_kp[2] = src->attitude_kp.z;
+    }
+    if (src->has_attitude_kd) {
+        g.attitude_kd[0] = src->attitude_kd.x;
+        g.attitude_kd[1] = src->attitude_kd.y;
+        g.attitude_kd[2] = src->attitude_kd.z;
+    }
+    g.z_kp             = src->z_kp;
+    g.z_ki             = src->z_ki;
+    g.z_kd             = src->z_kd;
+    g.z_integral_limit = src->z_integral_limit;
+    (void)state_exchange_publish_pid_gains(&g);
+}
+
+static void mm_forward_reference(const tvr_SetReference *src) {
+    app_reference_t r = {0};
+    r.z_ref   = src->z_ref;
+    r.vz_ref  = src->vz_ref;
+    r.q_valid = src->has_q_ref;
+    if (src->has_q_ref) {
+        r.q_ref[0] = src->q_ref.w;
+        r.q_ref[1] = src->q_ref.x;
+        r.q_ref[2] = src->q_ref.y;
+        r.q_ref[3] = src->q_ref.z;
+    } else {
+        r.q_ref[0] = 1.0f;   /* identity placeholder — ignored by CM7 */
+    }
+    (void)state_exchange_publish_reference(&r);
+}
+
+static void mm_forward_config(const tvr_SetConfig *src) {
+    app_vehicle_config_t c = {0};
+    c.mass_kg   = src->mass;
+    c.T_min     = src->T_min;
+    c.T_max     = src->T_max;
+    c.theta_min = src->theta_min;
+    c.theta_max = src->theta_max;
+    (void)state_exchange_publish_vehicle_config(&c);
+}
+
 /* Process one decoded FlightCommand. Returns true if it should refresh
  * the heartbeat watchdog. */
 static bool mm_handle_command(const tvr_FlightCommand *cmd) {
@@ -173,13 +223,15 @@ static bool mm_handle_command(const tvr_FlightCommand *cmd) {
             return mm_apply_state_cmd(cmd->payload.state_cmd.type);
 
         case tvr_FlightCommand_set_pid_gains_tag:
+            mm_forward_pid_gains(&cmd->payload.set_pid_gains);
+            return true;
+
         case tvr_FlightCommand_set_reference_tag:
+            mm_forward_reference(&cmd->payload.set_reference);
+            return true;
+
         case tvr_FlightCommand_set_config_tag:
-            /* TODO: forward to CM7 via state_exchange when those slots
-             * exist in the new tree (deprecated had publish_pid_gains
-             * / publish_flight_reference / publish_vehicle_config). For
-             * now we accept them as valid traffic so the heartbeat
-             * watchdog stays satisfied during a tuning session. */
+            mm_forward_config(&cmd->payload.set_config);
             return true;
 
         default:
