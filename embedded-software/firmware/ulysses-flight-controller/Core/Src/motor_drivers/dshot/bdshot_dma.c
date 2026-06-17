@@ -8,6 +8,9 @@
 #include "stm32h5xx_ll_tim.h"
 #include "stm32h5xx_ll_dma.h"
 
+#include "FreeRTOS.h"
+#include "task.h"
+
 #include "motor_drivers/dshot/dshot.h"
 
 #include <math.h>
@@ -524,14 +527,20 @@ bool bdshot_dma_motor_set_throttle(bdshot_motor_index_t index, uint16_t throttle
         return false;
     }
 
-    bool success = bdshot_throttle_frame_pack(&motor->send_request.frame, throttle, true);
+    bdshot_frame_t frame;
+    bool success = bdshot_throttle_frame_pack(&frame, throttle, true);
 
     if (!success) {
         return false;
     }
 
+    taskENTER_CRITICAL();
+
+    motor->send_request.frame = frame;
     motor->send_request.is_dirty = true;
     motor->send_request.is_command = false;
+
+    taskEXIT_CRITICAL();
 
     return true;
 }
@@ -587,18 +596,23 @@ bool bdshot_dma_motor_set_armed(bdshot_motor_index_t index, bool is_armed)
     // TODO: implement hardware arm/disarm (i.e. enabling and disabling PWM in its entirety), process is
     // something along the lines of aborting the current DMA transfer, removing the current channel from the
     // active dma timer sources, etc.
-    bool success =
-        bdshot_command_frame_pack(&motor->send_request.frame, BDSHOT_COMMAND_MOTOR_STOP, false);
+    bdshot_frame_t frame;
+    bool success = bdshot_command_frame_pack(&frame, BDSHOT_COMMAND_MOTOR_STOP, false);
 
     if (!success) {
         return false;
     }
 
+    taskENTER_CRITICAL();
+
+    motor->send_request.frame = frame;
     motor->send_request.is_dirty = true;
     motor->send_request.is_command = true;
 
     motor->is_telemetry_valid = false;
     motor->is_armed = is_armed;
+
+    taskEXIT_CRITICAL();
 
     return true;
 }
@@ -646,14 +660,28 @@ bool bdshot_dma_apply()
             continue;
         }
 
-        if (motor->send_request.is_dirty) {
-            motor->send_request.is_dirty = false;
+        {
+            bool is_new_frame_requested = false;
+            bdshot_frame_t new_frame;
 
-            build_dma_tx_buffer(bdshot_dma_tx_buffer[i], motor->send_request.frame);
+            uint32_t saved_interrupt_status = taskENTER_CRITICAL_FROM_ISR();
 
-            // Keep track of whether the current frame is a command
-            // so we know whether we need to receive telemetry data
-            motor->is_command_frame = motor->send_request.is_command;
+            if (motor->send_request.is_dirty) {
+                motor->send_request.is_dirty = false;
+
+                // Keep track of whether the current frame is a command
+                // so we know whether we need to receive telemetry data
+                motor->is_command_frame = motor->send_request.is_command;
+
+                new_frame = motor->send_request.frame;
+                is_new_frame_requested = true;
+            }
+
+            taskEXIT_CRITICAL_FROM_ISR(saved_interrupt_status);
+
+            if (is_new_frame_requested) {
+                build_dma_tx_buffer(bdshot_dma_tx_buffer[i], new_frame);
+            }
         }
 
         TIM_HandleTypeDef *tim = motor->config.tim;
