@@ -26,11 +26,22 @@ Plus:
 ## Building (on-target)
 
 The CubeMX project at `flight_controller/` orchestrates two `ExternalProject`
-sub-builds (one per core):
+sub-builds (one per core) for the STM32H745 dual-core target (CM7 + CM4).
+
+```sh
+./build.sh
+./flash.sh    # requires STM32_OPENOCD_PATH and STM32_OPENOCD_SCRIPTS_PATH
+```
+
+`build.sh` accepts an optional preset (`Debug` or `Release`, default `Debug`) and
+core filter (`both`, `cm7`, or `cm4`, default `both`). `flash.sh` uses the same
+arguments to select which ELF(s) to program.
+
+Equivalent raw CMake commands:
 
 ```sh
 cd flight_controller
-cmake --preset debug && cmake --build --preset debug
+cmake --preset Debug && cmake --build --preset Debug
 ```
 
 Each per-core build pulls in `io/`, `dev/`, `app/`, and `lib/` via
