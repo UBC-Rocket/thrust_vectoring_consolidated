@@ -10,7 +10,11 @@
 #ifndef APP_ACTUATORS_INIT_H
 #define APP_ACTUATORS_INIT_H
 
+#ifdef USE_DYNAMIXEL_SERVO
+#include "dev_servo_dynamixel.h"
+#else
 #include "dev_servo_feetech.h"
+#endif
 #include "dev_esc_dshot.h"
 
 #ifdef __cplusplus
@@ -18,8 +22,12 @@ extern "C" {
 #endif
 
 typedef struct {
-    servo_feetech_t *servos;
-    esc_dshot_t     *escs;
+#ifdef USE_DYNAMIXEL_SERVO
+    servo_dynamixel_t *servos;
+#else
+    servo_feetech_t   *servos;
+#endif
+    esc_dshot_t       *escs;
 } actuators_t;
 
 /**

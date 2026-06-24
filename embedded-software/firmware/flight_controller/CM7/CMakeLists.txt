@@ -47,11 +47,18 @@ add_subdirectory(${LIB_DIR}/timestamp        timestamp_build)
 add_subdirectory(${LIB_DIR}/cmsis_dsp        cmsis_dsp_build)
 add_subdirectory(${LIB_DIR}/state_estimation state_estimation_build)
 add_subdirectory(${LIB_DIR}/controls         controls_build)
+add_subdirectory(${LIB_DIR}/dynamixel_proto dynamixel_proto_build)
 add_subdirectory(${FW_ROOT}/comms/nanopb     nanopb_build)
 add_subdirectory(${LIB_DIR}/messages         messages_build)
 
+option(USE_DYNAMIXEL_SERVO "Use Dynamixel XM430 instead of Feetech on UART8" OFF)
+
 # DEV layer (CM7 owns actuators)
-add_subdirectory(${DEV_DIR}/servo_feetech dev_servo_feetech_build)
+if(USE_DYNAMIXEL_SERVO)
+    add_subdirectory(${DEV_DIR}/servo_dynamixel dev_servo_dynamixel_build)
+else()
+    add_subdirectory(${DEV_DIR}/servo_feetech dev_servo_feetech_build)
+endif()
 add_subdirectory(${DEV_DIR}/esc_dshot     dev_esc_dshot_build)
 
 # APP layer
@@ -77,6 +84,10 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
     SENSORS_USE_ARM_BARRIER
 )
 
+if(USE_DYNAMIXEL_SERVO)
+    target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE USE_DYNAMIXEL_SERVO)
+endif()
+
 # mx-generated.cmake uses the plain target_link_libraries signature on this
 # target, so we must too (CMake forbids mixing keyword + plain on one target).
 target_link_libraries(${CMAKE_PROJECT_NAME}
@@ -89,11 +100,16 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     timestamp
     collections
     messages
-    dev_servo_feetech
     dev_esc_dshot
     app_shared
     app_cm7
 )
+
+if(USE_DYNAMIXEL_SERVO)
+    target_link_libraries(${CMAKE_PROJECT_NAME} dev_servo_dynamixel)
+else()
+    target_link_libraries(${CMAKE_PROJECT_NAME} dev_servo_feetech)
+endif()
 
 list(REMOVE_ITEM CMAKE_C_IMPLICIT_LINK_LIBRARIES ob)
 

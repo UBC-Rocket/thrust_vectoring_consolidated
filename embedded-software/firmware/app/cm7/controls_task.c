@@ -37,7 +37,11 @@
 #include "io_sys/io_timestamp.h"
 
 #include "controls/flight_controller.h"
+#ifdef USE_DYNAMIXEL_SERVO
+#include "dev_servo_dynamixel.h"
+#else
 #include "dev_servo_feetech.h"
+#endif
 #include "dev_esc_dshot.h"
 
 #include "tim.h"  /* htim16 */
@@ -107,7 +111,11 @@ static uint32_t s_last_cfg_seq;
 /* Snapshot of actuator handles, captured once at controls_init so the
  * ISR doesn't call into actuators_handles() (which gates on a static
  * init flag we don't need to re-check every cycle). */
-static servo_feetech_t *s_servos;
+#ifdef USE_DYNAMIXEL_SERVO
+static servo_dynamixel_t *s_servos;
+#else
+static servo_feetech_t   *s_servos;
+#endif
 static esc_dshot_t     *s_escs;
 static volatile bool    s_isr_ready;
 
@@ -133,9 +141,13 @@ void controls_on_tim_period_elapsed(void *htim_handle)
     flight_controller_run(&state, &s_live_ref, &s_live_config, &out, CONTROLS_DT_S);
 
     /* Convert gimbal angles to servo degrees (config min/max are radians). */
+#ifndef USE_DYNAMIXEL_SERVO
     float deg_x = out.theta_x_cmd * 180.0f / (float)M_PI;
     float deg_y = out.theta_y_cmd * 180.0f / (float)M_PI;
     servo_feetech_set_pair_degrees(s_servos, deg_x, deg_y);
+#else
+    (void)out;
+#endif
 
     /* T_cmd → throttle in [0, 1]. */
     float throttle = (s_live_config.thrust.T_max > 0.0f)
@@ -165,7 +177,9 @@ void controls_isr_init(void)
      * something useful. The ESC needs an arming gesture (idle DShot
      * frames at min throttle); doing it here keeps the ISR pure. */
     esc_dshot_arm(s_escs, true);
+#ifndef USE_DYNAMIXEL_SERVO
     servo_feetech_enable(s_servos, true);
+#endif
 
     flight_controller_init(&s_live_config);
 
@@ -207,6 +221,9 @@ static void controls_run_startup_selftest(void)
 {
     if (s_servos == NULL || s_escs == NULL) return;
 
+#ifdef USE_DYNAMIXEL_SERVO
+  servo_dynamixel_run_position_test(s_servos);
+#else
     /* --- Servo sweep: center → +90 → -90 → center --------------------- */
     servo_feetech_set_pair_degrees(s_servos, 0.0f, 0.0f);
     vTaskDelay(pdMS_TO_TICKS(100));
@@ -240,6 +257,7 @@ static void controls_run_startup_selftest(void)
 
     /* Return servos to neutral before motor test. */
     servo_feetech_set_pair_degrees(s_servos, 0.0f, 0.0f);
+#endif
 
     /* --- ESC: settle, arm wait, ramp up, hold, ramp down -------------- */
     /* ESC was armed in controls_isr_init; give it time to see steady

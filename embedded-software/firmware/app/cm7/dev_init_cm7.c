@@ -10,6 +10,13 @@
 #include "app/actuators_init.h"
 #include "io_sys/io_test_hooks.h"
 
+#ifdef USE_DYNAMIXEL_SERVO
+#include "dev_servo_dynamixel.h"
+#else
+#include "dev_servo_feetech.h"
+#endif
+#include "dev_esc_dshot.h"
+
 static actuators_t s_handles;
 static bool        s_init_done;
 
@@ -20,10 +27,18 @@ IO_TEST_HOOK_RW(s_init_done, bool,        dev_init_cm7_init_done)
 void dev_init_cm7(void) {
     if (s_init_done) return;
 
+#ifdef USE_DYNAMIXEL_SERVO
+    servo_dynamixel_init();
+#else
     servo_feetech_init();
+#endif
     esc_dshot_init();
 
+#ifdef USE_DYNAMIXEL_SERVO
+    s_handles.servos = servo_dynamixel_get();
+#else
     s_handles.servos = servo_feetech_get();
+#endif
     s_handles.escs   = esc_dshot_get();
     s_init_done = true;
 }

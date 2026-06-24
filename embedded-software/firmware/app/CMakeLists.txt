@@ -83,7 +83,7 @@ endif()
 #
 # CM7 task set. Built only if actuator driver libs are available.
 #
-if(TARGET dev_servo_feetech AND TARGET dev_esc_dshot)
+if(TARGET dev_esc_dshot AND (TARGET dev_servo_feetech OR TARGET dev_servo_dynamixel))
     add_library(app_cm7 STATIC
         cm7/controls_task.c
         cm7/app_init_cm7.c
@@ -99,9 +99,14 @@ if(TARGET dev_servo_feetech AND TARGET dev_esc_dshot)
             app_shared
             io_sys
             messages
-            dev_servo_feetech
             dev_esc_dshot
     )
+    if(TARGET dev_servo_dynamixel)
+        target_link_libraries(app_cm7 PUBLIC dev_servo_dynamixel)
+        target_compile_definitions(app_cm7 PRIVATE USE_DYNAMIXEL_SERVO)
+    else()
+        target_link_libraries(app_cm7 PUBLIC dev_servo_feetech)
+    endif()
     if(TARGET stm32cubemx)
         target_link_libraries(app_cm7 PRIVATE stm32cubemx)
     endif()
