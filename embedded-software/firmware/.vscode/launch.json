@@ -22,7 +22,7 @@
             "serverpath": "${env:STM32_OPENOCD_PATH}",
             "configFiles": [
                 "interface/stlink-dap.cfg",
-                "flight_controller.cfg"
+                "board/flight_controller.cfg"
             ],
             "svdFile": "${workspaceFolder}/platform/svd/STM32H747_CM7.svd",
             "searchDir": [
@@ -53,7 +53,7 @@
             "serverpath": "${env:STM32_OPENOCD_PATH}",
             "configFiles": [
                 "interface/stlink-dap.cfg",
-                "flight_controller.cfg"
+                "board/flight_controller.cfg"
             ],
             "svdFile": "${workspaceFolder}/platform/svd/STM32H747_CM4.svd",
             "searchDir": [
