@@ -48,6 +48,7 @@ add_subdirectory(${LIB_DIR}/cmsis_dsp        cmsis_dsp_build)
 add_subdirectory(${LIB_DIR}/state_estimation state_estimation_build)
 add_subdirectory(${LIB_DIR}/controls         controls_build)
 add_subdirectory(${LIB_DIR}/dynamixel_proto dynamixel_proto_build)
+add_subdirectory(${LIB_DIR}/dshot            dshot_build)
 add_subdirectory(${FW_ROOT}/comms/nanopb     nanopb_build)
 add_subdirectory(${LIB_DIR}/messages         messages_build)
 
