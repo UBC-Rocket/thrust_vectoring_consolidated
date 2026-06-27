@@ -58,6 +58,10 @@ void Error_Handler(void);
 
 /* Private defines -----------------------------------------------------------*/
 #define UART_SERVOS huart8
+#define ESC1_PWM_Pin GPIO_PIN_12
+#define ESC1_PWM_GPIO_Port GPIOD
+#define ESC2_PWM_Pin GPIO_PIN_13
+#define ESC2_PWM_GPIO_Port GPIOD
 #define LVL_SHIFT_OE_Pin GPIO_PIN_3
 #define LVL_SHIFT_OE_GPIO_Port GPIOD
 
