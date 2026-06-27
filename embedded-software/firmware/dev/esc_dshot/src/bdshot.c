@@ -46,9 +46,9 @@
 // The high time of a 1 bit is not well documented, but most FCs and ESCs use 75% of the bit
 // period/ticks. By the protocol definition, the high time of a 0 bit is always half that of
 // a 1 bit.
-#define BDSHOT_DMA_T1H_TICKS (625)
-#define BDSHOT_DMA_T0H_TICKS (312)
-#define BDSHOT_DMA_BIT_TICKS (833)
+#define BDSHOT_DMA_T1H_TICKS (600)
+#define BDSHOT_DMA_T0H_TICKS (300)
+#define BDSHOT_DMA_BIT_TICKS (800)
 
 // Wire telemetry message is always sent at (5/4)*(bit rate).
 #define BDSHOT_DMA_TELEMETRY_BIT_TICKS ((BDSHOT_DMA_BIT_TICKS * 4.0f) / 5.0f)
