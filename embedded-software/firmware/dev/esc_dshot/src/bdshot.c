@@ -54,6 +54,13 @@
 // Wire telemetry message is always sent at (5/4)*(bit rate).
 #define BDSHOT_DMA_TELEMETRY_BIT_TICKS ((BDSHOT_DMA_BIT_TICKS * 4.0f) / 5.0f)
 
+// BSS section is located in DTCM by default (since its small and starts at
+// the base address of RAM), need to place into another RAM section so DMA
+// peripherals can access it (DTCM is not accessible on the bus matrix).
+// We just place it in AXI SRAM since its conveniently located on the same bus
+// matrix as CM7.
+#define BDSHOT_DMA_BUFFER __attribute__((section(".axi_sram"), aligned(32)))
+
 typedef enum bdshot_dma_line_direction {
     BDSHOT_DMA_LINE_DIRECTION_OUTPUT,
     BDSHOT_DMA_LINE_DIRECTION_INPUT,
@@ -96,8 +103,10 @@ static size_t dma_timers_count = 0;
 /// Configuration of motors
 static bdshot_esc_motor_t motors[ESC_MOTOR_ID_COUNT];
 
-static uint32_t bdshot_dma_tx_buffer[ESC_MOTOR_ID_COUNT][BDSHOT_DMA_TX_FRAME_SIZE];
-static uint32_t bdshot_dma_rx_buffer[ESC_MOTOR_ID_COUNT][BDSHOT_DMA_RX_FRAME_SIZE];
+static uint32_t bdshot_dma_tx_buffer[ESC_MOTOR_ID_COUNT]
+                                    [BDSHOT_DMA_TX_FRAME_SIZE] BDSHOT_DMA_BUFFER;
+static uint32_t bdshot_dma_rx_buffer[ESC_MOTOR_ID_COUNT]
+                                    [BDSHOT_DMA_RX_FRAME_SIZE] BDSHOT_DMA_BUFFER;
 
 static bool motor_config_is_valid(const esc_motor_config_t *config);
 static bool is_valid_motor_id(esc_motor_id_t id);
@@ -412,7 +421,7 @@ static void dma_transfer_complete_callback(DMA_HandleTypeDef *dma)
         }
 
         (void)HAL_DMA_Start_IT(dma, (uint32_t)ccrx, (uint32_t)bdshot_dma_rx_buffer[motor->id],
-                               sizeof(bdshot_dma_rx_buffer[motor->id]));
+                               BDSHOT_DMA_RX_FRAME_SIZE);
 
         (void)ral_tim_channel_dma_set_enabled(tim, hal_tim_channel, true);
 
@@ -493,6 +502,7 @@ bool esc_dshot_update()
 
             if (is_new_frame_requested) {
                 build_dma_tx_buffer(bdshot_dma_tx_buffer[id], new_frame);
+                SCB_CleanDCache_by_Addr(bdshot_dma_tx_buffer[id], BDSHOT_DMA_TX_FRAME_SIZE);
             }
         }
 
@@ -509,7 +519,7 @@ bool esc_dshot_update()
         }
 
         HAL_DMA_Start_IT(io_handle->dma, (uint32_t)bdshot_dma_tx_buffer[id], (uint32_t)ccrx,
-                         sizeof(bdshot_dma_tx_buffer[id]));
+                         BDSHOT_DMA_TX_FRAME_SIZE);
     }
 
     // Enable DMA transfers from the timers.
@@ -601,6 +611,7 @@ bool esc_dshot_motor_init(esc_motor_id_t motor_id, const esc_motor_config_t *con
             ral_get_tim_channel_dma_src(io_handle->tim, io_handle->tim_channel);
 
         found_timer = true;
+        break;
     }
 
     // Should not happen at all, could indicate a mismatched size between the
