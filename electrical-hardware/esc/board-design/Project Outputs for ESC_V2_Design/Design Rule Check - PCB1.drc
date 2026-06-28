@@ -1,20 +1,23 @@
 Protel Design System Design Rule Check
 PCB File : C:\Users\kjh32\Documents\GitHub\thrust_vectoring_consolidated\electrical-hardware\esc\board-design\PCB1.PcbDoc
-Date     : 2026-06-07
-Time     : 12:12:52 PM
+Date     : 2026-06-28
+Time     : 2:24:40 PM
 
 Processing Rule : Clearance Constraint (Gap=3.937mil) (All),(All)
-   Violation between Clearance Constraint: (Collision < 3.937mil) Between Pad Q6-5(478.543mil,1931.866mil) on Top Layer And Region (0 hole(s)) Top Layer 
-   Violation between Clearance Constraint: (Collision < 3.937mil) Between Pad Q6-6(428.543mil,1931.866mil) on Top Layer And Region (0 hole(s)) Top Layer 
-   Violation between Clearance Constraint: (Collision < 3.937mil) Between Pad Q6-7(378.543mil,1931.866mil) on Top Layer And Region (0 hole(s)) Top Layer 
-   Violation between Clearance Constraint: (Collision < 3.937mil) Between Pad Q6-8(328.543mil,1931.866mil) on Top Layer And Region (0 hole(s)) Top Layer 
+Rule Violations :0
+
+Processing Rule : Clearance Constraint (Gap=3.937mil) (All),(All)
+   Violation between Clearance Constraint: (Collision < 3.937mil) Between Pad Q6-5(579.921mil,2108.047mil) on Top Layer And Region (0 hole(s)) Top Layer 
+   Violation between Clearance Constraint: (Collision < 3.937mil) Between Pad Q6-6(529.921mil,2108.047mil) on Top Layer And Region (0 hole(s)) Top Layer 
+   Violation between Clearance Constraint: (Collision < 3.937mil) Between Pad Q6-7(479.921mil,2108.047mil) on Top Layer And Region (0 hole(s)) Top Layer 
+   Violation between Clearance Constraint: (Collision < 3.937mil) Between Pad Q6-8(429.921mil,2108.047mil) on Top Layer And Region (0 hole(s)) Top Layer 
 Rule Violations :4
 
 Processing Rule : Short-Circuit Constraint (Allowed=No) (All),(All)
-   Violation between Short-Circuit Constraint: Between Pad Q6-5(478.543mil,1931.866mil) on Top Layer And Region (0 hole(s)) Top Layer Location : [X = 4238.386mil][Y = 2515.76mil]
-   Violation between Short-Circuit Constraint: Between Pad Q6-6(428.543mil,1931.866mil) on Top Layer And Region (0 hole(s)) Top Layer Location : [X = 4188.386mil][Y = 2515.76mil]
-   Violation between Short-Circuit Constraint: Between Pad Q6-7(378.543mil,1931.866mil) on Top Layer And Region (0 hole(s)) Top Layer Location : [X = 4138.386mil][Y = 2515.76mil]
-   Violation between Short-Circuit Constraint: Between Pad Q6-8(328.543mil,1931.866mil) on Top Layer And Region (0 hole(s)) Top Layer Location : [X = 4088.386mil][Y = 2515.76mil]
+   Violation between Short-Circuit Constraint: Between Pad Q6-5(579.921mil,2108.047mil) on Top Layer And Region (0 hole(s)) Top Layer Location : [X = 4238.386mil][Y = 2515.76mil]
+   Violation between Short-Circuit Constraint: Between Pad Q6-6(529.921mil,2108.047mil) on Top Layer And Region (0 hole(s)) Top Layer Location : [X = 4188.386mil][Y = 2515.76mil]
+   Violation between Short-Circuit Constraint: Between Pad Q6-7(479.921mil,2108.047mil) on Top Layer And Region (0 hole(s)) Top Layer Location : [X = 4138.386mil][Y = 2515.76mil]
+   Violation between Short-Circuit Constraint: Between Pad Q6-8(429.921mil,2108.047mil) on Top Layer And Region (0 hole(s)) Top Layer Location : [X = 4088.386mil][Y = 2515.76mil]
 Rule Violations :4
 
 Processing Rule : Un-Routed Net Constraint ( (All) )
@@ -23,16 +26,16 @@ Rule Violations :0
 Processing Rule : Modified Polygon (Allow modified: No), (Allow shelved: No)
 Rule Violations :0
 
-Processing Rule : Width Constraint (Min=6mil) (Max=22mil) (Preferred=20mil) ((InNet('GHA') OR InNet('GLA') OR InNet('GHB') OR InNet('GLB') OR InNet('GHC') OR InNet('GLC')))
-Rule Violations :0
-
 Processing Rule : Width Constraint (Min=6mil) (Max=10mil) (Preferred=8mil) ((InNet('SPA') OR InNet('SPB') OR InNet('SPC')))
 Rule Violations :0
 
-Processing Rule : Width Constraint (Min=5.5mil) (Max=10mil) (Preferred=7mil) ((InNet('CAN_TX') OR InNet('CAN_RX') OR InNet('GPIO PB11') OR InNet('GPIO PB13') OR InNet('GPIO PC10') OR InNet('GPIO PA6') OR InNet('SCLK') OR InNet('SDI') OR InNet('SDO') OR InNet('GPIO PB12') OR InNet('ESC PWM/TIM2_CH1') OR InNet('SWCLK') OR InNet('SWDIO') OR InNet('ADC1 IN2 / COMP1 INP') OR InNet('ADC1 IN4 / COMP2 INP') OR InNet('ADC1 IN15 / COMP4 INP') OR InNet('ADC1 IN3/COMP2 INM') OR InNet('SOA') OR InNet('SOB') OR InNet('SOC') OR InNet('VBUS Sense') OR InNet('Therm') OR InNet('TIM1 CH1') OR InNet('TIM1 CH2') OR InNet('TIM1 CH3') OR InNet('TIM1 CH1N') OR InNet('TIM1 CH2N') OR InNet('TIM1 CH3N') OR InNet('UART1 RX') OR InNet('UART1 TX') OR InNet('STATUS1') OR InNet('STATUS2') Or InNet('ESC_NRST') OR InNet('+3V3')))
+Processing Rule : Width Constraint (Min=10mil) (Max=30mil) (Preferred=20mil) (InNet('VBUS'))
 Rule Violations :0
 
-Processing Rule : Width Constraint (Min=10mil) (Max=30mil) (Preferred=20mil) (InNet('VBUS'))
+Processing Rule : Width Constraint (Min=6mil) (Max=22mil) (Preferred=20mil) ((InNet('GHA') OR InNet('GLA') OR InNet('GHB') OR InNet('GLB') OR InNet('GHC') OR InNet('GLC')))
+Rule Violations :0
+
+Processing Rule : Width Constraint (Min=5.5mil) (Max=10mil) (Preferred=7mil) ((InNet('CAN_TX') OR InNet('CAN_RX') OR InNet('GPIO PB11') OR InNet('GPIO PB13') OR InNet('GPIO PC10') OR InNet('GPIO PA6') OR InNet('SCLK') OR InNet('SDI') OR InNet('SDO') OR InNet('GPIO PB12') OR InNet('ESC PWM/TIM2_CH1') OR InNet('SWCLK') OR InNet('SWDIO') OR InNet('ADC1 IN2 / COMP1 INP') OR InNet('ADC1 IN4 / COMP2 INP') OR InNet('ADC1 IN15 / COMP4 INP') OR InNet('ADC1 IN3/COMP2 INM') OR InNet('SOA') OR InNet('SOB') OR InNet('SOC') OR InNet('VBUS Sense') OR InNet('Therm') OR InNet('TIM1 CH1') OR InNet('TIM1 CH2') OR InNet('TIM1 CH3') OR InNet('TIM1 CH1N') OR InNet('TIM1 CH2N') OR InNet('TIM1 CH3N') OR InNet('UART1 RX') OR InNet('UART1 TX') OR InNet('STATUS1') OR InNet('STATUS2') Or InNet('ESC_NRST') OR InNet('+3V3')))
 Rule Violations :0
 
 Processing Rule : Routing Topology Rule(Topology=Shortest) (All)
@@ -41,27 +44,31 @@ Rule Violations :0
 Processing Rule : Power Plane Connect Rule(Direct Connect )(Expansion=20mil) (Conductor Width=10mil) (Air Gap=10mil) (Entries=4) (All)
 Rule Violations :0
 
-Processing Rule : Hole Size Constraint (Min=1mil) (Max=100mil) (All)
+Processing Rule : Hole Size Constraint (Min=1mil) (Max=130mil) (All)
 Rule Violations :0
 
 Processing Rule : Hole To Hole Clearance (Gap=10mil) (All),(All)
 Rule Violations :0
 
-Processing Rule : Minimum Solder Mask Sliver (Gap=2mil) (All),(All)
-   Violation between Minimum Solder Mask Sliver Constraint: (1.811mil < 2mil) Between Pad IC1-1(594.567mil,364.016mil) on Top Layer And Pad IC1-2(620.158mil,364.016mil) on Top Layer [Top Solder] Mask Sliver [1.811mil]
-   Violation between Minimum Solder Mask Sliver Constraint: (1.811mil < 2mil) Between Pad IC1-2(620.158mil,364.016mil) on Top Layer And Pad IC1-3(645.748mil,364.016mil) on Top Layer [Top Solder] Mask Sliver [1.811mil]
-   Violation between Minimum Solder Mask Sliver Constraint: (1.811mil < 2mil) Between Pad IC1-4(645.748mil,438.819mil) on Top Layer And Pad IC1-5(620.158mil,438.819mil) on Top Layer [Top Solder] Mask Sliver [1.811mil]
-   Violation between Minimum Solder Mask Sliver Constraint: (1.811mil < 2mil) Between Pad IC1-5(620.158mil,438.819mil) on Top Layer And Pad IC1-6(594.567mil,438.819mil) on Top Layer [Top Solder] Mask Sliver [1.811mil]
-Rule Violations :4
+Processing Rule : Minimum Solder Mask Sliver (Gap=3.937mil) (All),(All)
+   Violation between Minimum Solder Mask Sliver Constraint: (3.78mil < 3.937mil) Between Pad C13-1(916.338mil,1335.63mil) on Top Layer And Pad C13-2(853.346mil,1335.63mil) on Top Layer [Top Solder] Mask Sliver [3.78mil]
+   Violation between Minimum Solder Mask Sliver Constraint: (3.78mil < 3.937mil) Between Pad C17-1(341.535mil,1611.22mil) on Top Layer And Pad C17-2(278.543mil,1611.22mil) on Top Layer [Top Solder] Mask Sliver [3.78mil]
+   Violation between Minimum Solder Mask Sliver Constraint: (1.811mil < 3.937mil) Between Pad IC1-1(695.945mil,540.197mil) on Top Layer And Pad IC1-2(721.535mil,540.197mil) on Top Layer [Top Solder] Mask Sliver [1.811mil]
+   Violation between Minimum Solder Mask Sliver Constraint: (1.811mil < 3.937mil) Between Pad IC1-2(721.535mil,540.197mil) on Top Layer And Pad IC1-3(747.126mil,540.197mil) on Top Layer [Top Solder] Mask Sliver [1.811mil]
+   Violation between Minimum Solder Mask Sliver Constraint: (1.811mil < 3.937mil) Between Pad IC1-4(747.126mil,615mil) on Top Layer And Pad IC1-5(721.535mil,615mil) on Top Layer [Top Solder] Mask Sliver [1.811mil]
+   Violation between Minimum Solder Mask Sliver Constraint: (1.811mil < 3.937mil) Between Pad IC1-5(721.535mil,615mil) on Top Layer And Pad IC1-6(695.945mil,615mil) on Top Layer [Top Solder] Mask Sliver [1.811mil]
+   Violation between Minimum Solder Mask Sliver Constraint: (3.858mil < 3.937mil) Between Pad R28-1(1097.441mil,1418.307mil) on Top Layer And Via (1098.425mil,1383.858mil) from Top Layer to Bottom Layer [Top Solder] Mask Sliver [3.858mil]
+   Violation between Minimum Solder Mask Sliver Constraint: (2.796mil < 3.937mil) Between Pad R9-1(1568.898mil,779.528mil) on Top Layer And Via (1558.071mil,742.126mil) from Top Layer to Bottom Layer [Top Solder] Mask Sliver [2.796mil]
+Rule Violations :8
 
 Processing Rule : Silk To Solder Mask (Clearance=3mil) (IsPad),(All)
-   Violation between Silk To Solder Mask Clearance Constraint: (Collision < 3mil) Between Pad C13-1(814.961mil,1159.449mil) on Top Layer And Track (841.413mil,1046.138mil)(841.413mil,1176.303mil) on Top Overlay [Top Overlay] to [Top Solder] clearance [0mil]
-   Violation between Silk To Solder Mask Clearance Constraint: (Collision < 3mil) Between Pad C13-2(751.968mil,1159.449mil) on Top Layer And Track (732.284mil,1062.008mil)(732.284mil,1130.905mil) on Top Overlay [Top Overlay] to [Top Solder] clearance [0mil]
-   Violation between Silk To Solder Mask Clearance Constraint: (1.699mil < 3mil) Between Pad R27-1(990.158mil,1423.228mil) on Top Layer And Track (997.047mil,1404.528mil)(1063.976mil,1404.528mil) on Top Overlay [Top Overlay] to [Top Solder] clearance [1.699mil]
+   Violation between Silk To Solder Mask Clearance Constraint: (Collision < 3mil) Between Pad C13-1(916.338mil,1335.63mil) on Top Layer And Track (942.791mil,1222.319mil)(942.791mil,1352.484mil) on Top Overlay [Top Overlay] to [Top Solder] clearance [0mil]
+   Violation between Silk To Solder Mask Clearance Constraint: (Collision < 3mil) Between Pad C13-2(853.346mil,1335.63mil) on Top Layer And Track (833.662mil,1238.189mil)(833.662mil,1307.086mil) on Top Overlay [Top Overlay] to [Top Solder] clearance [0mil]
+   Violation between Silk To Solder Mask Clearance Constraint: (1.699mil < 3mil) Between Pad R27-1(1091.535mil,1599.409mil) on Top Layer And Track (1098.425mil,1580.709mil)(1165.354mil,1580.709mil) on Top Overlay [Top Overlay] to [Top Solder] clearance [1.699mil]
 Rule Violations :3
 
 Processing Rule : Silk to Silk (Clearance=10mil) (All),(All)
-   Violation between Silk To Silk Clearance Constraint: (8.218mil < 10mil) Between Text ". " (1663.386mil,718.504mil) on Top Overlay And Track (1635.77mil,663.246mil)(1716.675mil,744.151mil) on Top Overlay Silk Text to Silk Clearance [8.218mil]
+   Violation between Silk To Silk Clearance Constraint: (8.218mil < 10mil) Between Text ". " (1764.764mil,894.685mil) on Top Overlay And Track (1737.148mil,839.427mil)(1818.053mil,920.332mil) on Top Overlay Silk Text to Silk Clearance [8.218mil]
 Rule Violations :1
 
 Processing Rule : Net Antennae (Tolerance=0mil) (All)
@@ -71,6 +78,6 @@ Processing Rule : Height Constraint (Min=0mil) (Max=1000mil) (Prefered=500mil) (
 Rule Violations :0
 
 
-Violations Detected : 16
+Violations Detected : 20
 Waived Violations : 0
 Time Elapsed        : 00:00:00
