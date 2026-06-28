@@ -9,6 +9,9 @@
 PB_BIND(tvr_FlightCommand, tvr_FlightCommand, AUTO)
 
 
+PB_BIND(tvr_SetMotorSpeed, tvr_SetMotorSpeed, AUTO)
+
+
 PB_BIND(tvr_SetProbeLayout, tvr_SetProbeLayout, AUTO)
 
 

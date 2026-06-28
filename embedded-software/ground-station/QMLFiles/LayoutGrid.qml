@@ -15,10 +15,25 @@ GridLayout {
 
     // ───── Row 0 ──────────────────────────────────────────────────────────
 
+    // Top-left: stack State+Position and System_Health, each at half cell height.
     Item {
         Layout.row: 0; Layout.column: 0
         Layout.fillWidth: true; Layout.fillHeight: true
-        Panel_Angles_And_Engine { anchors.fill: parent }
+
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: Theme.gridSpacing
+
+            Item {
+                Layout.fillWidth: true; Layout.fillHeight: true
+                Panel_State_And_Position { anchors.fill: parent }
+            }
+
+            Item {
+                Layout.fillWidth: true; Layout.fillHeight: true
+                Panel_System_Health { anchors.fill: parent }
+            }
+        }
     }
 
     Item {
@@ -27,10 +42,11 @@ GridLayout {
         Panel_Rocket_Visualization { anchors.fill: parent }
     }
 
+    // Right column: Angles+Engine spans both rows (double height).
     Item {
-        Layout.row: 0; Layout.column: 3
+        Layout.row: 0; Layout.column: 3; Layout.rowSpan: 2
         Layout.fillWidth: true; Layout.fillHeight: true
-        Panel_State_And_Position { anchors.fill: parent }
+        Panel_Angles_And_Engine { anchors.fill: parent }
     }
 
     // ───── Row 1 ──────────────────────────────────────────────────────────
@@ -45,11 +61,5 @@ GridLayout {
         Layout.row: 1; Layout.column: 2
         Layout.fillWidth: true; Layout.fillHeight: true
         Panel_System_Alert { anchors.fill: parent }
-    }
-
-    Item {
-        Layout.row: 1; Layout.column: 3
-        Layout.fillWidth: true; Layout.fillHeight: true
-        Panel_System_Health { anchors.fill: parent }
     }
 }

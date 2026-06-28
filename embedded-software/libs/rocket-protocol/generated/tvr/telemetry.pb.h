@@ -38,6 +38,9 @@ typedef struct _tvr_TelemetryState {
     tvr_Vec2 uwb_tag_0;
     bool has_uwb_tag_1;
     tvr_Vec2 uwb_tag_1;
+    /* Motor RPM reported by the bidirectional DShot ESC driver. */
+    float motor_rpm_upper; /* [rev/min] */
+    float motor_rpm_lower; /* [rev/min] */
 } tvr_TelemetryState;
 
 
@@ -46,8 +49,8 @@ extern "C" {
 #endif
 
 /* Initializer values for message structs */
-#define tvr_TelemetryState_init_default          {0, false, tvr_Vec3_init_default, false, tvr_Vec3_init_default, false, tvr_Quaternion_init_default, false, tvr_Vec3_init_default, _tvr_FlightState_MIN, 0, 0, 0, false, tvr_Vec2_init_default, false, tvr_Vec2_init_default}
-#define tvr_TelemetryState_init_zero             {0, false, tvr_Vec3_init_zero, false, tvr_Vec3_init_zero, false, tvr_Quaternion_init_zero, false, tvr_Vec3_init_zero, _tvr_FlightState_MIN, 0, 0, 0, false, tvr_Vec2_init_zero, false, tvr_Vec2_init_zero}
+#define tvr_TelemetryState_init_default          {0, false, tvr_Vec3_init_default, false, tvr_Vec3_init_default, false, tvr_Quaternion_init_default, false, tvr_Vec3_init_default, _tvr_FlightState_MIN, 0, 0, 0, false, tvr_Vec2_init_default, false, tvr_Vec2_init_default, 0, 0}
+#define tvr_TelemetryState_init_zero             {0, false, tvr_Vec3_init_zero, false, tvr_Vec3_init_zero, false, tvr_Quaternion_init_zero, false, tvr_Vec3_init_zero, _tvr_FlightState_MIN, 0, 0, 0, false, tvr_Vec2_init_zero, false, tvr_Vec2_init_zero, 0, 0}
 
 /* Field tags (for use in manual encoding/decoding) */
 #define tvr_TelemetryState_timestamp_ms_tag      1
@@ -61,6 +64,8 @@ extern "C" {
 #define tvr_TelemetryState_gimbal_y_tag          9
 #define tvr_TelemetryState_uwb_tag_0_tag         10
 #define tvr_TelemetryState_uwb_tag_1_tag         11
+#define tvr_TelemetryState_motor_rpm_upper_tag   12
+#define tvr_TelemetryState_motor_rpm_lower_tag   13
 
 /* Struct field encoding specification for nanopb */
 #define tvr_TelemetryState_FIELDLIST(X, a) \
@@ -74,7 +79,9 @@ X(a, STATIC,   SINGULAR, FLOAT,    thrust_cmd,        7) \
 X(a, STATIC,   SINGULAR, FLOAT,    gimbal_x,          8) \
 X(a, STATIC,   SINGULAR, FLOAT,    gimbal_y,          9) \
 X(a, STATIC,   OPTIONAL, MESSAGE,  uwb_tag_0,        10) \
-X(a, STATIC,   OPTIONAL, MESSAGE,  uwb_tag_1,        11)
+X(a, STATIC,   OPTIONAL, MESSAGE,  uwb_tag_1,        11) \
+X(a, STATIC,   SINGULAR, FLOAT,    motor_rpm_upper,  12) \
+X(a, STATIC,   SINGULAR, FLOAT,    motor_rpm_lower,  13)
 #define tvr_TelemetryState_CALLBACK NULL
 #define tvr_TelemetryState_DEFAULT NULL
 #define tvr_TelemetryState_position_MSGTYPE tvr_Vec3
@@ -91,7 +98,7 @@ extern const pb_msgdesc_t tvr_TelemetryState_msg;
 
 /* Maximum encoded size of messages (where known) */
 #define TVR_TELEMETRY_PB_H_MAX_SIZE              tvr_TelemetryState_size
-#define tvr_TelemetryState_size                  120
+#define tvr_TelemetryState_size                  130
 
 #ifdef __cplusplus
 } /* extern "C" */

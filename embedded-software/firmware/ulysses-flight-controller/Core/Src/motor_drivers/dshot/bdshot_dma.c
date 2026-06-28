@@ -4,9 +4,14 @@
 #include "stm32h563xx.h"
 #include "stm32h5xx_hal_def.h"
 #include "stm32h5xx_hal_dma.h"
+#include "stm32h5xx_hal_gpio.h"
 #include "stm32h5xx_hal_tim.h"
 #include "stm32h5xx_ll_tim.h"
 #include "stm32h5xx_ll_dma.h"
+#include "stm32h5xx_ll_gpio.h"
+
+#include "FreeRTOS.h"
+#include "task.h"
 
 #include "motor_drivers/dshot/dshot.h"
 
@@ -41,6 +46,8 @@ typedef struct bdshot_dma_motor {
     /// for this motor
     size_t dma_timer_index;
 
+    uint32_t gpio_original_af;
+
     bdshot_dma_direction_t direction;
     bdshot_dma_motor_config_t config;
     bdshot_send_request_t send_request;
@@ -65,8 +72,11 @@ static uint32_t bdshot_dma_rx_buffer[BDSHOT_DMA_MOTOR_COUNT][BDSHOT_DMA_RX_FRAME
 static volatile uint32_t *get_timer_channel_ccrx_reg(TIM_HandleTypeDef *const tim,
                                                      uint32_t channel);
 static volatile uint32_t get_timer_channel_dma_src(TIM_HandleTypeDef *const tim, uint32_t channel);
+static uint32_t gpio_pin_convert_hal_to_ll(uint32_t hal_pin);
 static uint32_t tim_channel_convert_hal_to_ll(uint32_t hal_channel);
 static bool tim_channel_dma_set_enable(TIM_HandleTypeDef *const tim, uint32_t channel, bool enable);
+static uint32_t gpio_get_af(GPIO_TypeDef *gpio, uint32_t ll_gpio_pin);
+static void gpio_set_af(GPIO_TypeDef *gpio, uint32_t ll_gpio_pin, uint32_t ll_alternate_function);
 
 static size_t find_motor_index_from_dma(DMA_HandleTypeDef *const dma);
 static bool motor_config_is_valid(bdshot_dma_motor_config_t *config);
@@ -78,6 +88,7 @@ static void dma_transfer_complete_callback(DMA_HandleTypeDef *const dma);
 static bool bdshot_decode_telemetry(bdshot_motor_telemetry_t *const telemetry,
                                     const uint32_t *const edge_times, uint32_t edge_count,
                                     uint8_t pole_count);
+static bool motor_set_armed(bdshot_dma_motor_t *motor, bool is_armed);
 
 static volatile uint32_t *get_timer_channel_ccrx_reg(TIM_HandleTypeDef *const tim, uint32_t channel)
 {
@@ -106,6 +117,46 @@ static volatile uint32_t get_timer_channel_dma_src(TIM_HandleTypeDef *const tim,
         return TIM_DMA_CC3;
     case TIM_CHANNEL_4:
         return TIM_DMA_CC4;
+    default:
+        return PERIPHERAL_CHANNEL_INVALID;
+    }
+}
+
+static uint32_t gpio_pin_convert_hal_to_ll(uint32_t hal_pin)
+{
+    switch (hal_pin) {
+    case GPIO_PIN_0:
+        return LL_GPIO_PIN_0;
+    case GPIO_PIN_1:
+        return LL_GPIO_PIN_1;
+    case GPIO_PIN_2:
+        return LL_GPIO_PIN_2;
+    case GPIO_PIN_3:
+        return LL_GPIO_PIN_3;
+    case GPIO_PIN_4:
+        return LL_GPIO_PIN_4;
+    case GPIO_PIN_5:
+        return LL_GPIO_PIN_5;
+    case GPIO_PIN_6:
+        return LL_GPIO_PIN_6;
+    case GPIO_PIN_7:
+        return LL_GPIO_PIN_7;
+    case GPIO_PIN_8:
+        return LL_GPIO_PIN_8;
+    case GPIO_PIN_9:
+        return LL_GPIO_PIN_9;
+    case GPIO_PIN_10:
+        return LL_GPIO_PIN_10;
+    case GPIO_PIN_11:
+        return LL_GPIO_PIN_11;
+    case GPIO_PIN_12:
+        return LL_GPIO_PIN_12;
+    case GPIO_PIN_13:
+        return LL_GPIO_PIN_13;
+    case GPIO_PIN_14:
+        return LL_GPIO_PIN_14;
+    case GPIO_PIN_15:
+        return LL_GPIO_PIN_15;
     default:
         return PERIPHERAL_CHANNEL_INVALID;
     }
@@ -163,6 +214,28 @@ static bool tim_channel_dma_set_enable(TIM_HandleTypeDef *const tim, uint32_t ch
     }
 
     return true;
+}
+
+static uint32_t gpio_get_af(GPIO_TypeDef *gpio, uint32_t ll_gpio_pin)
+{
+    uint32_t alternate_function;
+
+    if (ll_gpio_pin <= LL_GPIO_PIN_7) {
+        alternate_function = LL_GPIO_GetAFPin_0_7(gpio, ll_gpio_pin);
+    } else {
+        alternate_function = LL_GPIO_GetAFPin_8_15(gpio, ll_gpio_pin);
+    }
+
+    return alternate_function;
+}
+
+static void gpio_set_af(GPIO_TypeDef *gpio, uint32_t ll_gpio_pin, uint32_t ll_alternate_function)
+{
+    if (ll_gpio_pin <= LL_GPIO_PIN_7) {
+        LL_GPIO_SetAFPin_0_7(gpio, ll_gpio_pin, ll_alternate_function);
+    } else {
+        LL_GPIO_SetAFPin_8_15(gpio, ll_gpio_pin, ll_alternate_function);
+    }
 }
 
 static size_t find_motor_index_from_dma(DMA_HandleTypeDef *const dma)
@@ -379,7 +452,7 @@ static bool bdshot_decode_telemetry(bdshot_motor_telemetry_t *const telemetry,
 
     for (uint32_t i = 0; i < (edge_count - 1); i++) {
         // Written enough bits for a full frame
-        if (wire_bits_written < BDSHOT_TELEMETRY_WIRE_BITS) {
+        if (wire_bits_written >= BDSHOT_TELEMETRY_WIRE_BITS) {
             break;
         }
 
@@ -429,6 +502,34 @@ static bool bdshot_decode_telemetry(bdshot_motor_telemetry_t *const telemetry,
     return true;
 }
 
+static bool motor_set_armed(bdshot_dma_motor_t *motor, bool is_armed)
+{
+    if (motor == NULL) {
+        return false;
+    }
+
+    TIM_HandleTypeDef *tim = motor->config.tim;
+    uint32_t tim_channel = motor->config.tim_channel;
+    GPIO_TypeDef *gpio = motor->config.gpio;
+    uint32_t ll_gpio_pin = gpio_pin_convert_hal_to_ll(motor->config.gpio_pin);
+
+    HAL_StatusTypeDef status = HAL_ERROR;
+
+    if (is_armed) {
+        gpio_set_af(gpio, ll_gpio_pin, motor->gpio_original_af);
+        LL_GPIO_SetPinMode(gpio, ll_gpio_pin, LL_GPIO_MODE_ALTERNATE);
+
+        status = HAL_TIM_PWM_Start(tim, tim_channel);
+    } else {
+        status = HAL_TIM_PWM_Stop(tim, tim_channel);
+
+        LL_GPIO_SetPinMode(gpio, ll_gpio_pin, LL_GPIO_MODE_OUTPUT);
+        LL_GPIO_ResetOutputPin(gpio, ll_gpio_pin);
+    }
+
+    return status == HAL_OK;
+}
+
 bool bdshot_dma_init()
 {
     dma_timers_count = 0;
@@ -464,6 +565,22 @@ bool bdshot_dma_motor_init(bdshot_motor_index_t index, bdshot_dma_motor_config_t
     }
 
     if (!motor_config_is_valid(config)) {
+        return false;
+    }
+
+    motor->config = *config;
+
+    uint32_t ll_gpio_pin = gpio_pin_convert_hal_to_ll(config->gpio_pin);
+
+    if (ll_gpio_pin == PERIPHERAL_CHANNEL_INVALID) {
+        return false;
+    }
+
+    motor->gpio_original_af = gpio_get_af(config->gpio, ll_gpio_pin);
+
+    bool is_disarmed = motor_set_armed(motor, false);
+
+    if (!is_disarmed) {
         return false;
     }
 
@@ -506,7 +623,6 @@ bool bdshot_dma_motor_init(bdshot_motor_index_t index, bdshot_dma_motor_config_t
         return false;
     }
 
-    motor->config = *config;
     motor->is_initialized = true;
 
     return true;
@@ -524,14 +640,20 @@ bool bdshot_dma_motor_set_throttle(bdshot_motor_index_t index, uint16_t throttle
         return false;
     }
 
-    bool success = bdshot_throttle_frame_pack(&motor->send_request.frame, throttle, true);
+    bdshot_frame_t frame;
+    bool success = bdshot_throttle_frame_pack(&frame, throttle, true);
 
     if (!success) {
         return false;
     }
 
+    taskENTER_CRITICAL();
+
+    motor->send_request.frame = frame;
     motor->send_request.is_dirty = true;
     motor->send_request.is_command = false;
+
+    taskEXIT_CRITICAL();
 
     return true;
 }
@@ -571,14 +693,12 @@ bool bdshot_dma_motor_set_armed(bdshot_motor_index_t index, bool is_armed)
         return true;
     }
 
-    if (is_armed && motor->is_first_arm) {
-        HAL_StatusTypeDef status = HAL_TIM_PWM_Start(motor->config.tim, motor->config.tim_channel);
+    bool success = false;
 
-        if (status != HAL_OK) {
-            return false;
-        }
+    success = motor_set_armed(motor, is_armed);
 
-        motor->is_first_arm = false;
+    if (!success) {
+        return false;
     }
 
     // ESC needs to receive STOP command frames for a period to arm.
@@ -587,18 +707,23 @@ bool bdshot_dma_motor_set_armed(bdshot_motor_index_t index, bool is_armed)
     // TODO: implement hardware arm/disarm (i.e. enabling and disabling PWM in its entirety), process is
     // something along the lines of aborting the current DMA transfer, removing the current channel from the
     // active dma timer sources, etc.
-    bool success =
-        bdshot_command_frame_pack(&motor->send_request.frame, BDSHOT_COMMAND_MOTOR_STOP, false);
+    bdshot_frame_t frame;
+    success = bdshot_command_frame_pack(&frame, BDSHOT_COMMAND_MOTOR_STOP, false);
 
     if (!success) {
         return false;
     }
 
+    taskENTER_CRITICAL();
+
+    motor->send_request.frame = frame;
     motor->send_request.is_dirty = true;
     motor->send_request.is_command = true;
 
     motor->is_telemetry_valid = false;
     motor->is_armed = is_armed;
+
+    taskEXIT_CRITICAL();
 
     return true;
 }
@@ -646,14 +771,28 @@ bool bdshot_dma_apply()
             continue;
         }
 
-        if (motor->send_request.is_dirty) {
-            motor->send_request.is_dirty = false;
+        {
+            bool is_new_frame_requested = false;
+            bdshot_frame_t new_frame;
 
-            build_dma_tx_buffer(bdshot_dma_tx_buffer[i], motor->send_request.frame);
+            uint32_t saved_interrupt_status = taskENTER_CRITICAL_FROM_ISR();
 
-            // Keep track of whether the current frame is a command
-            // so we know whether we need to receive telemetry data
-            motor->is_command_frame = motor->send_request.is_command;
+            if (motor->send_request.is_dirty) {
+                motor->send_request.is_dirty = false;
+
+                // Keep track of whether the current frame is a command
+                // so we know whether we need to receive telemetry data
+                motor->is_command_frame = motor->send_request.is_command;
+
+                new_frame = motor->send_request.frame;
+                is_new_frame_requested = true;
+            }
+
+            taskEXIT_CRITICAL_FROM_ISR(saved_interrupt_status);
+
+            if (is_new_frame_requested) {
+                build_dma_tx_buffer(bdshot_dma_tx_buffer[i], new_frame);
+            }
         }
 
         TIM_HandleTypeDef *tim = motor->config.tim;

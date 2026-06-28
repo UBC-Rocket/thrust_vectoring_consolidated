@@ -9,7 +9,15 @@ message FlightCommand {
     SetReference    set_reference    = 3;
     SetConfig       set_config       = 4;
     SetProbeLayout  set_probe_layout = 5;
+    SetMotorSpeed   set_motor_speed  = 6;
   }
+}
+
+// Target rotational speed for the two ESC-driven motors. Sent from the
+// ground station to override / drive the motor controller. Units: rev/min.
+message SetMotorSpeed {
+  float rpm_upper = 1;
+  float rpm_lower = 2;
 }
 
 // Four UWB anchor positions on the ground, in nav-frame meters relative to the

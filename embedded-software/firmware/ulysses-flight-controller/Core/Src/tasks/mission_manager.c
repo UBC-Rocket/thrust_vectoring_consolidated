@@ -34,6 +34,7 @@ static void handle_state_command(const tvr_StateCommand *cmd,
 static void handle_pid_gains(const tvr_SetPidGains *pid);
 static void handle_reference(const tvr_SetReference *reference);
 static void handle_configuration(const tvr_SetConfig *configuration);
+static void handle_motor_speed(const tvr_SetMotorSpeed *target);
 static void send_telemetry(const state_t *st, const control_output_t *ctrl,
                            flight_state_t flight_state);
 static void send_status(flight_state_t flight_state);
@@ -106,6 +107,12 @@ void mission_manager_task_start(void *argument) {
                             /* TODO: apply vehicle config */
                             handle_configuration(
                                 &decoded.payload.set_config);
+                            break;
+
+                        case tvr_FlightCommand_set_motor_speed_tag:
+                            cmd_rx_count++;
+                            handle_motor_speed(
+                                &decoded.payload.set_motor_speed);
                             break;
 
                         default:
@@ -212,6 +219,17 @@ static void handle_configuration(const tvr_SetConfig *configuration) {
     state_exchange_publish_vehicle_config(*configuration);
 }
 
+static void handle_motor_speed(const tvr_SetMotorSpeed *target) {
+    if (target == NULL) {
+        return;
+    }
+
+    DLOG_PRINT("[MM] SetMotorSpeed: upper=%.1f lower=%.1f rpm\r\n",
+               (double)target->rpm_upper, (double)target->rpm_lower);
+
+    state_exchange_publish_motor_speed_target(*target);
+}
+
 static void handle_state_command(const tvr_StateCommand *cmd,
                                  flight_state_t *flight_state) {
     switch (cmd->type) {
@@ -285,10 +303,12 @@ static void send_telemetry(const state_t *st, const control_output_t *ctrl,
     telem->angular_rate.y = st->omega_b[1];
     telem->angular_rate.z = st->omega_b[2];
 
-    telem->flight_state = (tvr_FlightState)flight_state;
-    telem->thrust_cmd   = ctrl->T_cmd;
-    telem->gimbal_x     = ctrl->theta_x_cmd;
-    telem->gimbal_y     = ctrl->theta_y_cmd;
+    telem->flight_state    = (tvr_FlightState)flight_state;
+    telem->thrust_cmd      = ctrl->T_cmd;
+    telem->gimbal_x        = ctrl->theta_x_cmd;
+    telem->gimbal_y        = ctrl->theta_y_cmd;
+    telem->motor_rpm_upper = ctrl->motor_rpm_upper;
+    telem->motor_rpm_lower = ctrl->motor_rpm_lower;
     const uint32_t tx_timestamp_us = telem->timestamp_ms * 1000U;
 
     uint8_t pkt[RP_PACKET_MAX_SIZE];
@@ -313,10 +333,12 @@ static void send_telemetry(const state_t *st, const control_output_t *ctrl,
                 .angular_rate_x = telem->angular_rate.x,
                 .angular_rate_y = telem->angular_rate.y,
                 .angular_rate_z = telem->angular_rate.z,
-                .thrust_cmd     = telem->thrust_cmd,
-                .gimbal_x       = telem->gimbal_x,
-                .gimbal_y       = telem->gimbal_y,
-                .flight_state   = (uint8_t)telem->flight_state,
+                .thrust_cmd      = telem->thrust_cmd,
+                .gimbal_x        = telem->gimbal_x,
+                .gimbal_y        = telem->gimbal_y,
+                .motor_rpm_upper = telem->motor_rpm_upper,
+                .motor_rpm_lower = telem->motor_rpm_lower,
+                .flight_state    = (uint8_t)telem->flight_state,
             });
             radio_tx_count++;
         }

@@ -74,11 +74,15 @@ BasePanel {
     }
 
     // ── Overall badge ──────────────────────────────────────────────────────
+    // Anchored to header.top (where the title text sits) rather than to the
+    // header rectangle's vertical center, so the badge sits at the same visual
+    // level as the "System Health" title.
     Rectangle {
         id: overallBadge
-        anchors.verticalCenter: header.verticalCenter
+        anchors.top: header.top
         anchors.right: parent.right
-        anchors.rightMargin: 15
+        anchors.topMargin: 4
+        anchors.rightMargin: 10
         height: 26
         width: overallText.implicitWidth + 20
         radius: Theme.radiusControl
@@ -99,11 +103,14 @@ BasePanel {
 
     Text {
         id: sensorLabel
+        // Anchor to parent.top + header.height (same idiom as Panel_State_And_Position).
+        // BaseHeader reserves 50px of vertical space but the title text only uses
+        // ~20px at the top; anchoring to header.bottom leaves a ~30px dead zone.
         anchors {
-            top: header.bottom
+            top: parent.top
             left: parent.left
             leftMargin: 15
-            topMargin: 6
+            topMargin: header.height
         }
         text: "Sensor Status"
         font.family: Theme.fontFamily

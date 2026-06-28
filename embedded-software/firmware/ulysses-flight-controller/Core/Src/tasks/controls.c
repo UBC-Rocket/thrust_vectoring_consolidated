@@ -33,7 +33,7 @@
 /* Utility macros */
 #define RAD_TO_DEG (180.0f / 3.14159265f)
 #define DEG_TO_RAD (3.14159265f / 180.0f);
-#define SQRT_2_2 (0.70710678f) /**< For 45 degree trim to stay within circular gimbal limits. */
+#define SQRT_2_2   (0.70710678f) /**< For 45 degree trim to stay within circular gimbal limits. */
 
 #define CONTROLS_DT_S 0.00125f /**< Control period [s] (800 Hz via TIM4 CH2). */
 #define STALE_STATE_THRESHOLD_TICKS \
@@ -122,7 +122,7 @@ void controls_task_start(void *argument)
 
     state_exchange_publish_startup_test_complete(true);
 
-    bdshot_dma_set_armed(true); // Wait for a bit before setting and applying the throttle
+    bdshot_dma_set_armed(true);
     bdshot_last_armed_time = timestamp_us64();
 
     for (;;) {
@@ -206,8 +206,17 @@ void controls_task_start(void *argument)
         state_exchange_get_flight_state(&flight_state);
 
         if (armed && state_seq != 0) {
-
             flight_controller_run(&current_state, &ref, &config, &control_output, CONTROLS_DT_S);
+
+            /* Read latest bdshot telemetry; on read failure, retain previous
+             * sample so telemetry shows last-known RPM rather than zero. */
+            bdshot_motor_telemetry_t bdshot_telem;
+            if (bdshot_dma_motor_get_telemetry(BDSHOT_MOTOR_INDEX_UPPER, &bdshot_telem)) {
+                control_output.motor_rpm_upper = bdshot_telem.rpm;
+            }
+            if (bdshot_dma_motor_get_telemetry(BDSHOT_MOTOR_INDEX_LOWER, &bdshot_telem)) {
+                control_output.motor_rpm_lower = bdshot_telem.rpm;
+            }
 
             state_exchange_publish_control_output(&control_output);
 
@@ -234,36 +243,33 @@ void controls_task_start(void *argument)
 
             // if (flight_state == RISE) {
             if (true) {
-                float theta_x_deg =
-                    clamp_float(control_output.theta_x_cmd * RAD_TO_DEG, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
-                float theta_y_deg =
-                    clamp_float(control_output.theta_y_cmd * RAD_TO_DEG, SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
+                float theta_x_deg = clamp_float(control_output.theta_x_cmd * RAD_TO_DEG,
+                                                SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
+                float theta_y_deg = clamp_float(control_output.theta_y_cmd * RAD_TO_DEG,
+                                                SERVO_MIN_DEGREES, SERVO_MAX_DEGREES);
 
-                float calibrated_theta_x_deg = (SQRT_2_2) * theta_x_deg + (SQRT_2_2) * theta_y_deg; // Calibrated to match physical gimbal direction
-                float calibrated_theta_y_deg = -(SQRT_2_2) * theta_x_deg + (SQRT_2_2) * theta_y_deg; // Calibrated to match physical gimbal direction
+                // Calibrated to match physical gimbal direction
+                float calibrated_theta_x_deg = (SQRT_2_2)*theta_x_deg + (SQRT_2_2)*theta_y_deg;
+                float calibrated_theta_y_deg = -(SQRT_2_2)*theta_x_deg + (SQRT_2_2)*theta_y_deg;
 
                 // set_gimbal_degrees(calibrated_theta_x_deg, calibrated_theta_y_deg);
                 set_gimbal_degrees(0, 0);
-
 
                 // TODO: A function that maps RPM to thrust and torque, then use thrust and torque
                 // to calculate the necessary throttle for each motor.
                 // Use bdshot_dma_motor_set_throttle to set the throttle for each motor.
 
                 if (timestamp_us64() - bdshot_last_armed_time > BDSHOT_ARM_TIME_US) {
-                    // Functions maps thrust and torque to throttle
-                    bdshot_dma_motor_set_throttle(BDSHOT_MOTOR_INDEX_LOWER, 199); // TODO: replace 0 with calculated throttle for upper motor
-                    bdshot_dma_motor_set_throttle(BDSHOT_MOTOR_INDEX_UPPER, 199); // TODO: replace 0 with calculated throttle for upper motor
+                    // TODO: replace hard coded throttle value with values from control model
+                    bdshot_dma_motor_set_throttle(BDSHOT_MOTOR_INDEX_LOWER, 199);
+                    bdshot_dma_motor_set_throttle(BDSHOT_MOTOR_INDEX_UPPER, 199);
                 }
-
-            }
-            else {
+            } else {
                 set_gimbal_degrees(0.0f, 0.0f);
                 // servo_pair_enable(armed);
                 // esc_pair_set_force(0, 0);
             }
-        }
-        else {
+        } else {
             // Not armed or no valid state — output safe (zero) controls.
             set_gimbal_degrees(0.0f, 0.0f);
             // servo_pair_enable(false);
