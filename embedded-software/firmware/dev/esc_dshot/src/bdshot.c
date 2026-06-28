@@ -466,6 +466,7 @@ bool esc_dshot_update()
             continue;
         }
 
+        SCB_InvalidateDCache_by_Addr(bdshot_dma_rx_buffer[id], BDSHOT_DMA_RX_FRAME_SIZE);
         (void)motor_decode_telemetry(motor->io_handle, motor, bdshot_dma_rx_buffer[id]);
     }
 
