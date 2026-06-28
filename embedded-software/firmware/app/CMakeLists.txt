@@ -1,6 +1,13 @@
 cmake_minimum_required(VERSION 3.22)
 project(app LANGUAGES C)
 
+# When ON (default), LPUART1/VCP is a plain-text debug console (io_debug →
+# CoolTerm at 115200 8-N-1) and the binary "messages" VCP channel is left
+# without a sink (its records still route to SD/UDP). Turn OFF to restore the
+# binary messages-console on VCP for the host messages-console CLI.
+# Only one of the two can own the single STLINK-V3 VCP at a time.
+option(DEBUG_TEXT_CONSOLE "LPUART1/VCP = plain-text debug console (CoolTerm)" ON)
+
 #
 # Shared layer — built into both cores.
 #
@@ -20,6 +27,7 @@ target_link_libraries(app_shared
         controls
         io_intercore_slot
         io_sys             # APP only depends on system services, not transports
+        io_debug           # io_debug_printf — text debug console (a system service)
 )
 # log_service.c branches on CORE_CM4 / CORE_CM7 to pick the right side of the
 # SRAM4 log-handoff ring. stm32cubemx is the INTERFACE target that injects
@@ -73,6 +81,9 @@ if(TARGET dev_imu_bmi088 AND TARGET dev_imu_icm40609 AND TARGET dev_baro_ms5611
     # FreeRTOS + CMSIS includes for xTaskCreate / osDelay etc.
     if(TARGET stm32cubemx)
         target_link_libraries(app_cm4 PRIVATE stm32cubemx)
+    endif()
+    if(DEBUG_TEXT_CONSOLE)
+        target_compile_definitions(app_cm4 PRIVATE DEBUG_TEXT_CONSOLE)
     endif()
     set_target_properties(app_cm4 PROPERTIES
         C_STANDARD 11

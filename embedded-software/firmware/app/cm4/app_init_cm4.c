@@ -15,6 +15,9 @@
 #include "messages/messages.h"
 #include "storage/storage.h"
 
+#include "io_sys/io_debug.h"
+#include "io_sys/io_status_led.h"   /* TEMP bring-up tracer */
+
 #include "FreeRTOS.h"
 #include "task.h"
 
@@ -56,10 +59,21 @@ void app_init_cm4(void) {
     messages_sd_sink_set(messages_sd_sink);
     messages_system_commands_register();
 
+#ifdef DEBUG_TEXT_CONSOLE
+    /* Bring-up / dev default: LPUART1 (PA9/PA10 → STLINK-V3 VCP) is a plain-
+     * text debug console owned by io_debug. The binary "messages" VCP channel
+     * is intentionally left without a sink here (its records still route to SD
+     * and, once lwIP is up, UDP) so a serial terminal sees clean text. Open
+     * CoolTerm on the STLINK-V3 VCP at 115200 8-N-1. Flip the DEBUG_TEXT_CONSOLE
+     * CMake option OFF to restore the binary messages-console on VCP instead. */
+    (void)io_debug_init();
+    io_debug_printf("\r\n=== Ulysses CM4 online — hello world ===\r\n");
+#else
     /* Open the VCP UART, COBS-frame on RX → dispatcher, COBS-frame on TX
      * out via the CH_VCP sink. After this, the host messages-console CLI
      * can connect and exchange commands. */
     messages_vcp_init();
+#endif
 
     s_h_log     = xTaskCreateStatic(task_sd_log,           "sd_log",
                                     STK_SD_LOG,            NULL, 4,
@@ -72,6 +86,12 @@ void app_init_cm4(void) {
                                     s_stk_state,           &s_tcb_state);
 
     sensors_bind_state_estimation_task((io_task_handle_t)s_h_state);
+
+    /* TEMP bring-up tracer: RED solid = app_init_cm4 finished (tasks created,
+     * about to start the scheduler). mission_manager then blinks RED once it
+     * runs, so RED-solid vs RED-blinking distinguishes "scheduler never started"
+     * from "scheduler + tasks running". Remove after bring-up. */
+    io_status_led_set(IO_LED_RED, true);
 }
 
 void app_start_kernel(void) {

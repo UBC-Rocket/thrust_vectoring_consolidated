@@ -48,7 +48,9 @@
 /*                             demonstration code based on hardware semaphore */
 /* This define is present in both CM7/CM4 projects                            */
 /* To comment when developping/debugging on a single core                     */
-#define DUAL_CORE_BOOT_SYNC_SEQUENCE
+/* UBC Rocket MVP bring-up: boot-sync DISABLED so the M7 runs standalone and
+ * does NOT wait on the M4 (the fragile handoff we suspect is stalling). */
+/* #define DUAL_CORE_BOOT_SYNC_SEQUENCE */
 
 #if defined(DUAL_CORE_BOOT_SYNC_SEQUENCE)
 #ifndef HSEM_ID_0
@@ -148,6 +150,14 @@ Error_Handler();
 /* USER CODE END Boot_Mode_Sequence_2 */
 
   /* USER CODE BEGIN SysInit */
+
+  /* MVP focus: hand the board to the M4 for the debug-print bring-up. The M7
+   * just idles here so it can't contend on GPIO/UART. Boot-sync is disabled
+   * above so the M7 doesn't wait on the M4. (We already proved the M7 runs our
+   * code via the register-verified LED toggle.) Remove after bring-up. */
+  for (;;) {
+    __WFI();
+  }
 
   /* USER CODE END SysInit */
 

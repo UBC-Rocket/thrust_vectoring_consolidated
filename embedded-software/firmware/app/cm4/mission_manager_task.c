@@ -43,6 +43,9 @@
 #include "rp/codec.h"
 #include "command.pb.h"
 
+#include "io_sys/io_debug.h"
+#include "io_sys/io_status_led.h"
+
 #include "FreeRTOS.h"
 #include "task.h"
 
@@ -386,5 +389,24 @@ void task_mission_manager(void *arg) {
         mm_check_watchdog(now);
         mm_check_touchdown(now);
         mm_publish();
+
+#ifdef DEBUG_TEXT_CONSOLE
+        /* Bring-up heartbeat on the text console (~1 Hz). Proves the board is
+         * alive in CoolTerm even with no sensors/radio attached and even if
+         * the terminal connects after boot (so the one-shot banner was
+         * missed). Guarded by DEBUG_TEXT_CONSOLE so it disappears entirely
+         * when the binary VCP console is selected. */
+        static TickType_t s_hb_last;
+        if ((TickType_t)(now - s_hb_last) >= pdMS_TO_TICKS(1000)) {
+            s_hb_last = now;
+            /* HW-visible proof-of-life independent of the VCP wiring. RED
+             * was lit solid by app_init; blinking it here proves the
+             * scheduler + this task loop are actually running. */
+            io_status_led_toggle(IO_LED_RED);
+            io_debug_printf("[hb] cm4 alive  state=%d armed=%d  t=%lu ms\r\n",
+                            (int)s_flight_state, (int)s_armed,
+                            (unsigned long)now);
+        }
+#endif
     }
 }

@@ -9,6 +9,7 @@
 #include "app/app_init.h"
 #include "app/sensors_init.h"
 #include "io_sys/io_test_hooks.h"
+#include "io_sys/io_status_led.h"   /* TEMP bring-up tracer */
 
 static sensors_t s_handles;
 static bool      s_init_done;
@@ -34,6 +35,10 @@ void dev_init_cm4(void) {
     s_handles.gps      = gps_nmea_get();
     s_handles.radio    = radio_rfd900_get();
     s_init_done = true;
+
+    /* TEMP bring-up tracer: YELLOW solid = dev_init_cm4 completed (no sensor
+     * init blocked). Remove after bring-up. */
+    io_status_led_set(IO_LED_YELLOW, true);
 }
 
 const sensors_t *sensors_handles(void) {
