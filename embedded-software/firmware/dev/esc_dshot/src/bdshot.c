@@ -193,8 +193,8 @@ static bool signal_line_set_to_rx(const io_bdshot_esc_t *io_handle)
 
     TIM_CCxChannelCmd(tim->Instance, hal_tim_channel, TIM_CCx_ENABLE);
 
-    ral_dma_peripheral_increment_set_enabled(dma, false);
-    ral_dma_memory_increment_set_enabled(dma, true);
+    ral_dma_peripheral_increment_set_enabled(dma, true);
+    ral_dma_memory_increment_set_enabled(dma, false);
 
     ral_dma_data_transfer_set_direction(dma, RAL_DMA_TRANSFER_PERIPH_TO_MEMORY);
 
@@ -228,8 +228,8 @@ static bool signal_line_set_to_tx(const io_bdshot_esc_t *io_handle)
 
     TIM_CCxChannelCmd(tim->Instance, hal_tim_channel, TIM_CCx_ENABLE);
 
-    ral_dma_peripheral_increment_set_enabled(dma, true);
-    ral_dma_memory_increment_set_enabled(dma, false);
+    ral_dma_peripheral_increment_set_enabled(dma, false);
+    ral_dma_memory_increment_set_enabled(dma, true);
 
     ral_dma_data_transfer_set_direction(dma, RAL_DMA_TRANSFER_MEMORY_TO_PERIPH);
 
