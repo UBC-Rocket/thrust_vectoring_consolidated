@@ -9,6 +9,7 @@ target_sources(dev_esc_dshot
         src/bdshot.c
         src/bdshot_ral.h
         src/hal_to_ll_translator.h
+        src/hw.c
 )
 
 target_include_directories(dev_esc_dshot

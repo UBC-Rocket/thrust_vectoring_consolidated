@@ -6,6 +6,7 @@
 #include "dshot/protocol/dshot.h"
 #include "dshot/protocol//bdshot.h"
 #include "hal_to_ll_translator.h"
+#include "hw.h"
 
 #pragma region IO layer migration
 #include "stm32h7xx.h"
@@ -53,26 +54,6 @@
 // Wire telemetry message is always sent at (5/4)*(bit rate).
 #define BDSHOT_DMA_TELEMETRY_BIT_TICKS ((BDSHOT_DMA_BIT_TICKS * 4.0f) / 5.0f)
 
-#pragma region IO layer migration
-typedef struct io_bdshot_esc {
-    TIM_HandleTypeDef *tim;
-    uint32_t tim_channel;
-
-    DMA_HandleTypeDef *dma;
-
-    GPIO_TypeDef *gpio;
-    uint32_t gpio_pin;
-
-    // TODO: AF is cleared during disarm as we configure GPIO
-    // pin as OUTPUT to ensure the signal line is low. Current
-    // way of restoring the correct AF to restore control by TIM
-    // is to hardcode this. Dynamically saving and restoring it
-    // was the old way. Is there a better third option? Or just
-    // decide which of the two is better.
-    uint32_t gpio_original_af;
-} io_bdshot_esc_t;
-#pragma endregion IO layer migration
-
 typedef enum bdshot_dma_line_direction {
     BDSHOT_DMA_LINE_DIRECTION_OUTPUT,
     BDSHOT_DMA_LINE_DIRECTION_INPUT,
@@ -99,7 +80,7 @@ typedef struct bdshot_esc_motor {
 
     uint32_t id;
 
-    io_bdshot_esc_t *io_handle;
+    const io_bdshot_esc_t *io_handle;
     bdshot_dma_line_direction direction;
     bdshot_set_frame_request_t set_frame_request;
     esc_motor_telemetry_t telemetry;
@@ -570,7 +551,8 @@ bool esc_dshot_set_armed(bool is_armed)
     return true;
 }
 
-bool esc_dshot_motor_init(esc_motor_id_t motor_id, const esc_motor_config_t *config)
+bool esc_dshot_motor_init(esc_motor_id_t motor_id, const esc_motor_config_t *config,
+                          const io_bdshot_esc_t *io_handle)
 {
     if (!is_valid_motor_id(motor_id)) {
         return false;
@@ -589,8 +571,7 @@ bool esc_dshot_motor_init(esc_motor_id_t motor_id, const esc_motor_config_t *con
     }
 
     motor->config = *config;
-
-    const io_bdshot_esc_t *io_handle = motor->io_handle;
+    motor->io_handle = io_handle;
 
     bool is_disarm_successful = signal_line_set_armed(io_handle, false);
 
