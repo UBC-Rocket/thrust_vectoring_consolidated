@@ -38,9 +38,10 @@ ENTRY(Reset_Handler)
 /* Specify the memory areas */
 MEMORY
 {
-FLASH (rx)      : ORIGIN = 0x08000000, LENGTH = 1024K
+FLASH (rx)     : ORIGIN = 0x08000000, LENGTH = 1024K
 RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 128K
-ITCMRAM (xrw)      : ORIGIN = 0x00000000, LENGTH = 64K
+AXI_SRAM (xrw) : ORIGIN = 0x24000000, LENGTH = 512K
+ITCMRAM (xrw)  : ORIGIN = 0x00000000, LENGTH = 64K
 /* SRAM4 in the D3 domain. Both cores see this at the same physical address,
  * and it's outside the D1/D2 cache hierarchy, so no clean/invalidate dance
  * is needed for cross-core sharing. Used for the .shared section
@@ -136,7 +137,7 @@ SECTIONS
   _sidata = LOADADDR(.data);
 
   /* Initialized data sections goes into RAM, load LMA copy after code */
-  .data : 
+  .data :
   {
     . = ALIGN(4);
     _sdata = .;        /* create a global symbol at data start */
@@ -171,7 +172,7 @@ SECTIONS
   PROVIDE( __data_source_size = __data_source_end - __data_source );
 
 
-  
+
   /* Uninitialized data section */
   /* Uninitialized TLS data section */
   .tbss (NOLOAD) : ALIGN(4)
@@ -237,7 +238,11 @@ SECTIONS
     . = ALIGN(8);
   } >SRAM4
 
-  
+  .axi_sram (NOLOAD) : ALIGN(4)
+  {
+    *(.axi_sram)
+    *(.axi_sram*)
+  } >AXI_SRAM
 
   /* Remove information from the standard libraries */
   /DISCARD/ :
@@ -249,5 +254,3 @@ SECTIONS
 
   .ARM.attributes 0 : { *(.ARM.attributes) }
 }
-
-
