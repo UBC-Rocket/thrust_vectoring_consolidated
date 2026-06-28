@@ -9,6 +9,7 @@
 #include "app/app_init.h"
 #include "app/actuators_init.h"
 #include "esc_dshot/config.h"
+#include "esc_dshot/io.h"
 #include "io_sys/io_test_hooks.h"
 
 #ifdef USE_DYNAMIXEL_SERVO
@@ -43,6 +44,8 @@ void dev_init_cm7(void)
     servo_feetech_init();
 #endif
     esc_dshot_init();
+    esc_dshot_motor_init(ESC_MOTOR_ID_UPPER, &ESC_MOTOR_CONFIG_UPPER, &IO_BDSHOT_ESC_UPPER);
+    esc_dshot_motor_init(ESC_MOTOR_ID_LOWER, &ESC_MOTOR_CONFIG_LOWER, &IO_BDSHOT_ESC_LOWER);
 
 #ifdef USE_DYNAMIXEL_SERVO
     s_handles.servos = servo_dynamixel_get();
@@ -50,8 +53,6 @@ void dev_init_cm7(void)
     s_handles.servos = servo_feetech_get();
 #endif
 
-    esc_dshot_motor_init(ESC_MOTOR_ID_UPPER, &ESC_MOTOR_CONFIG_UPPER);
-    esc_dshot_motor_init(ESC_MOTOR_ID_LOWER, &ESC_MOTOR_CONFIG_LOWER);
 
     s_init_done = true;
 }

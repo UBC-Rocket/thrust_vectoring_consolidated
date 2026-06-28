@@ -138,13 +138,13 @@ static inline void ral_gpio_set_af(GPIO_TypeDef *gpio, uint32_t hal_gpio_pin,
 
 static inline void ral_dma_peripheral_increment_set_enabled(DMA_HandleTypeDef *dma, bool is_enabled)
 {
-    MODIFY_REG(((DMA_Stream_TypeDef *)dma)->CR, DMA_SxCR_PINC,
+    MODIFY_REG(((DMA_Stream_TypeDef *)dma->Instance)->CR, DMA_SxCR_PINC,
                is_enabled ? LL_DMA_PERIPH_INCREMENT : LL_DMA_PERIPH_NOINCREMENT);
 }
 
 static inline void ral_dma_memory_increment_set_enabled(DMA_HandleTypeDef *dma, bool is_enabled)
 {
-    MODIFY_REG(((DMA_Stream_TypeDef *)dma)->CR, DMA_SxCR_MINC,
+    MODIFY_REG(((DMA_Stream_TypeDef *)dma->Instance)->CR, DMA_SxCR_MINC,
                is_enabled ? LL_DMA_MEMORY_INCREMENT : LL_DMA_MEMORY_NOINCREMENT);
 }
 
@@ -167,7 +167,7 @@ static inline void ral_dma_data_transfer_set_direction(DMA_HandleTypeDef *dma,
     }
     }
 
-    MODIFY_REG(((DMA_Stream_TypeDef *)dma)->CR, DMA_SxCR_DIR, ll_dma_transfer_direction);
+    MODIFY_REG(((DMA_Stream_TypeDef *)dma->Instance)->CR, DMA_SxCR_DIR, ll_dma_transfer_direction);
 }
 
 #endif // DEV_DSHOT_BDSHOT_RAL_H
