@@ -81,6 +81,7 @@ extern SPI_HandleTypeDef hspi2;
 extern SPI_HandleTypeDef hspi3;
 extern SPI_HandleTypeDef hspi4;
 extern TIM_HandleTypeDef htim5;
+extern TIM_HandleTypeDef htim13;   /* io_timestamp overflow source */
 
 /* USER CODE BEGIN EV */
 
@@ -656,6 +657,21 @@ void LPUART1_IRQHandler(void)
 void HSEM2_IRQHandler(void)
 {
   HAL_HSEM_IRQHandler();
+}
+
+/**
+ * @brief TIM13 update IRQ — advances io_timestamp's 48-bit upper word.
+ *
+ * TIM13 shares the TIM8_UP_TIM13 vector (TIM8 is unused here). CubeMX did not
+ * generate this handler because the TIM13 global interrupt isn't enabled in the
+ * .ioc; without it the io_timestamp overflow callback never runs and
+ * io_timestamp_us() wraps every 6.5 ms. The NVIC line is enabled in
+ * tim.c HAL_TIM_Base_MspInit (TIM13). Deliberate addition to generated code —
+ * re-apply after .ioc regeneration.
+ */
+void TIM8_UP_TIM13_IRQHandler(void)
+{
+  HAL_TIM_IRQHandler(&htim13);
 }
 
 /* USER CODE END 1 */

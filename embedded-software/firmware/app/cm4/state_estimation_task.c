@@ -56,6 +56,10 @@
 #include "app/state_exchange.h"
 #include "app/tasks.h"
 #include "io_sys/io_timestamp.h"
+#ifdef DEBUG_TEXT_CONSOLE
+#include "io_sys/io_debug.h"        /* bring-up: stream IMU samples to console */
+#include <stdio.h>                  /* snprintf for the fixed-point IMU formatter */
+#endif
 
 #include "state_estimation/ekf.h"
 #include "state_estimation/state.h"
@@ -153,6 +157,19 @@ static struct {
 } s_gps_ref = {0};
 
 /* ---- Helpers --------------------------------------------------------- */
+
+#ifdef DEBUG_TEXT_CONSOLE
+/* Format a float as a signed fixed-point string with 3 decimals. The linked
+ * printf has no %f (-u _printf_float not set), so this renders the parsed
+ * physical value directly, e.g. -9.562, instead of a scaled integer. */
+static void fmt_f3(char *buf, float v) {
+    int neg = (v < 0.0f);
+    if (neg) v = -v;
+    if (v > 9999.0f) v = 9999.0f;          /* clamp; real samples are far smaller */
+    unsigned long m = (unsigned long)(v * 1000.0f + 0.5f);   /* milli-units, rounded */
+    (void)snprintf(buf, 16, "%s%lu.%03lu", neg ? "-" : "", m / 1000UL, m % 1000UL);
+}
+#endif
 
 static void eskf_setup(void)
 {
@@ -267,6 +284,39 @@ void task_state_estimation(void *arg)
             n_gyro++;
             last_primary_imu_us = s_icm_raw[i].t_us;
         }
+
+#ifdef DEBUG_TEXT_CONSOLE
+        /* Bring-up: stream the latest ICM-40609 sample to the text console at
+         * ~5 Hz. Integer milli-units only — the linked printf has no %f
+         * (-u _printf_float is not set): accel is milli-m/s^2 (~9806 = 1 g on
+         * the up axis at rest), gyro is milli-rad/s. n_icm == 0 means the
+         * EXTI/queue path delivered nothing this window; the init=OK/FAIL tag
+         * then distinguishes "chip never came up" from "up but not streaming".
+         * io_debug_write blocks ~4 ms/line at 115200 — fine for a 5 Hz bring-up
+         * trace; the whole block compiles out when DEBUG_TEXT_CONSOLE is OFF. */
+        {
+            static uint64_t s_imu_dbg_last_us;
+            const uint64_t  t_dbg = io_timestamp_us();
+            if (t_dbg - s_imu_dbg_last_us >= 200000ULL) {   /* 200 ms ~= 5 Hz */
+                s_imu_dbg_last_us = t_dbg;
+                if (n_icm > 0) {
+                    const icm_sample_t *s = &s_icm_raw[n_icm - 1];
+                    char ax[16], ay[16], az[16], gx[16], gy[16], gz[16];
+                    fmt_f3(ax, s->ax); fmt_f3(ay, s->ay); fmt_f3(az, s->az);
+                    fmt_f3(gx, s->gx); fmt_f3(gy, s->gy); fmt_f3(gz, s->gz);
+                    io_debug_printf(
+                        "[imu] n=%u a=%s,%s,%s m/s2  g=%s,%s,%s rad/s\r\n",
+                        (unsigned)n_icm, ax, ay, az, gx, gy, gz);
+                } else {
+                    uint32_t drdy = 0, rdok = 0, rderr = 0;
+                    imu_icm40609_dbg_counts(&drdy, &rdok, &rderr);
+                    io_debug_printf("[imu] no samples  drdy=%lu rd_ok=%lu rd_err=%lu (ICM init=%s)\r\n",
+                                    (unsigned long)drdy, (unsigned long)rdok, (unsigned long)rderr,
+                                    (sensors->icm40609 != NULL) ? "OK" : "FAIL");
+                }
+            }
+        }
+#endif
 
         /* ---- Secondary IMU (BMI088) ----------------------------------
          * Always drain to keep the ring healthy. Only feed the EKF if

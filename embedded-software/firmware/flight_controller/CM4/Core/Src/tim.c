@@ -78,7 +78,15 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* tim_baseHandle)
     /* TIM13 clock enable */
     __HAL_RCC_TIM13_CLK_ENABLE();
   /* USER CODE BEGIN TIM13_MspInit 1 */
-
+    /* UBC Rocket: enable the TIM13 update IRQ so io_timestamp's overflow handler
+     * runs and the 48-bit timestamp upper word advances. CubeMX left this NVIC
+     * line disabled (no TIM13 global-interrupt entry in the .ioc), so without it
+     * io_timestamp_us() never passes ~6553 us — it wraps every 6.5 ms — and any
+     * time delay/throttle longer than that silently breaks (ICM reset/startup
+     * delays and the [imu] console throttle included). TIM13 shares the TIM8_UP
+     * vector. Deliberate edit to generated code — re-apply after .ioc regen. */
+    HAL_NVIC_SetPriority(TIM8_UP_TIM13_IRQn, 5, 0);
+    HAL_NVIC_EnableIRQ(TIM8_UP_TIM13_IRQn);
   /* USER CODE END TIM13_MspInit 1 */
   }
 }
