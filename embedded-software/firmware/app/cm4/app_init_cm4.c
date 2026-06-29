@@ -69,22 +69,13 @@ void app_init_cm4(void) {
     (void)io_debug_init();
     io_debug_printf("\r\n=== Ulysses CM4 online — hello world ===\r\n");
 
-    /* Bring-up: report the primary IMU identity check. sensors_handles()->
-     * icm40609 is non-NULL iff imu_icm40609_init() fully succeeded (which
-     * includes the WHO_AM_I == 0x3B gate). The raw byte is printed either way so
-     * a FAIL says *why*: 0xEE = SPI read never completed, 0x00/0xFF = no
-     * response / floating bus, any other = wired but mis-clocked. */
+    /* Bring-up: one-line IMU status on the console. sensors_handles()->icm40609
+     * is non-NULL iff imu_icm40609_init() fully succeeded (which includes the
+     * WHO_AM_I == 0x3B identity gate). */
     {
         const sensors_t *sn = sensors_handles();
-        const bool icm_ok = (sn != NULL) && (sn->icm40609 != NULL);
-        uint8_t icfg = 0, isrc = 0;
-        imu_icm40609_dbg_int_regs(&icfg, &isrc);
-        io_debug_printf("[init] ICM40609 %s  who_am_i=0x%02X (exp 0x3B)  fail_step=%u/11"
-                        "  int_cfg=0x%02X(exp1B) int_src0=0x%02X(exp08)\r\n",
-                        icm_ok ? "OK" : "FAIL",
-                        (unsigned)imu_icm40609_last_who_am_i(),
-                        (unsigned)imu_icm40609_init_fail_step(),
-                        (unsigned)icfg, (unsigned)isrc);
+        io_debug_printf("[init] ICM40609 %s\r\n",
+                        (sn != NULL && sn->icm40609 != NULL) ? "OK" : "FAIL");
     }
 #else
     /* Open the VCP UART, COBS-frame on RX → dispatcher, COBS-frame on TX

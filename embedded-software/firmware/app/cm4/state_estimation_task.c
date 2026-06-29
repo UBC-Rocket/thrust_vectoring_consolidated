@@ -308,10 +308,7 @@ void task_state_estimation(void *arg)
                         "[imu] n=%u a=%s,%s,%s m/s2  g=%s,%s,%s rad/s\r\n",
                         (unsigned)n_icm, ax, ay, az, gx, gy, gz);
                 } else {
-                    uint32_t drdy = 0, rdok = 0, rderr = 0;
-                    imu_icm40609_dbg_counts(&drdy, &rdok, &rderr);
-                    io_debug_printf("[imu] no samples  drdy=%lu rd_ok=%lu rd_err=%lu (ICM init=%s)\r\n",
-                                    (unsigned long)drdy, (unsigned long)rdok, (unsigned long)rderr,
+                    io_debug_printf("[imu] no samples (ICM init=%s)\r\n",
                                     (sensors->icm40609 != NULL) ? "OK" : "FAIL");
                 }
             }

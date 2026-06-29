@@ -139,7 +139,7 @@ void MX_SPI3_Init(void)
   hspi3.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi3.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi3.Init.NSS = SPI_NSS_SOFT;  /* ICM-40609 uses software GPIO chip-select on PA4 (see SPI3 MspInit); HW NSS wasn't selecting the chip (WHO_AM_I=0x00). Matches hspi4/BMI088. */
-  hspi3.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi3.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;  /* 64MHz CKPER/4 = 16MHz (ICM-40609 max SPI is 24MHz) */
   hspi3.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi3.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi3.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
