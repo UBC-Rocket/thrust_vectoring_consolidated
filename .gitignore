@@ -102,6 +102,9 @@ firmware/tools/serial/logs/
 # STM32CubeIDE
 .metadata
 
+# clangd language-server index (per-machine cache, not source)
+.cache/
+
 # Kernel Module
 .tmp_versions/
 modules.order
