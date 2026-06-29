@@ -50,7 +50,7 @@ static void ensure_queue(SPI_HandleTypeDef *hspi) {
 /* ------------------------------------------------------------------------- */
 /* Public board-wiring symbols (referenced extern-const by drivers).         */
 /* ------------------------------------------------------------------------- */
-const io_spi_dev_t IO_SPI_ICM40609    = { .hspi = &hspi3, .cs_port = NULL,                       .cs_pin = 0 };
+const io_spi_dev_t IO_SPI_ICM40609    = { .hspi = &hspi3, .cs_port = GPIOA,                      .cs_pin = GPIO_PIN_4 };  /* software CS on PA4 (HW NSS didn't select the chip) */
 const io_spi_dev_t IO_SPI_BMI088_ACC  = { .hspi = &hspi4, .cs_port = BMI_ACC_CS_GPIO_Port,       .cs_pin = BMI_ACC_CS_Pin };
 const io_spi_dev_t IO_SPI_BMI088_GYRO = { .hspi = &hspi4, .cs_port = BMI_GYRO_CS_GPIO_Port,      .cs_pin = BMI_GYRO_CS_Pin };
 const io_spi_dev_t IO_SPI_MS5611      = { .hspi = &hspi2, .cs_port = NULL,                       .cs_pin = 0 };

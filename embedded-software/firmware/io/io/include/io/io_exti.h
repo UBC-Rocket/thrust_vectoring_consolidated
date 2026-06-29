@@ -25,6 +25,7 @@ void io_exti_enable  (const io_exti_line_t *line, bool enable);
 
 /* Board-wired EXTI lines (defined in per-target io_exti.c). MISRA 8.4. */
 extern const io_exti_line_t IO_EXTI_ICM40609_INT1;
+extern const io_exti_line_t IO_EXTI_ICM40609_INT2;
 extern const io_exti_line_t IO_EXTI_BMI088_ACC_INT1;
 extern const io_exti_line_t IO_EXTI_BMI088_GYRO_INT1;
 extern const io_exti_line_t IO_EXTI_MMC_INT;

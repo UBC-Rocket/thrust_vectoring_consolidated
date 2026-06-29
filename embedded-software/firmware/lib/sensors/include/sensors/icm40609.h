@@ -48,6 +48,7 @@ extern "C" {
 #define ICM40609_INT_CONFIG1            0x64
 #define ICM40609_INT_SOURCE0            0x65
 #define ICM40609_INT_SOURCE1            0x66
+#define ICM40609_INT_SOURCE3            0x68   ///< INT2 source enables (UI_DRDY_INT2_EN = bit3)
 #define ICM40609_WHO_AM_I               0x75
 #define ICM40609_REG_BANK_SEL           0x76
 
