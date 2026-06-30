@@ -286,12 +286,11 @@ static bool motor_decode_telemetry(const io_bdshot_esc_t *io_handle, bdshot_esc_
     if (motor->direction == BDSHOT_DMA_LINE_DIRECTION_INPUT) {
         (void)ral_tim_channel_dma_set_enabled(tim, hal_tim_channel, false);
 
-        uint32_t unreceived_bytes = __HAL_DMA_GET_COUNTER(dma);
+        uint32_t unreceived_edges = __HAL_DMA_GET_COUNTER(dma);
 
-        // DMA peripheral provides the number of unreceived bytes, convert to
-        // number of unreceived edge times (since edge times can be more than 1 byte)
-        // and calculate the number of received edges
-        received_edges = BDSHOT_DMA_RX_FRAME_SIZE - (unreceived_bytes / sizeof(uint32_t));
+        // DMA peripheral provides the number of unreceived data units, each
+        // data unit is an edge time
+        received_edges = BDSHOT_DMA_RX_FRAME_SIZE - unreceived_edges;
 
         // TODO: handle this HAL error properly
         (void)HAL_DMA_Abort(dma);
