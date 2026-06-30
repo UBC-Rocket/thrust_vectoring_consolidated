@@ -300,6 +300,8 @@ static bool motor_decode_telemetry(const io_bdshot_esc_t *io_handle, bdshot_esc_
         motor->direction = BDSHOT_DMA_LINE_DIRECTION_OUTPUT;
     }
 
+    SCB_InvalidateDCache_by_Addr((void *)edge_times, BDSHOT_DMA_RX_FRAME_SIZE * sizeof(uint32_t));
+
     esc_motor_telemetry_t telemetry;
     bool success = bdshot_decode_telemetry_from_signal(&telemetry, edge_times, received_edges,
                                                        motor->config.pole_count);
@@ -465,7 +467,6 @@ bool esc_dshot_update()
             continue;
         }
 
-        SCB_InvalidateDCache_by_Addr(bdshot_dma_rx_buffer[id], BDSHOT_DMA_RX_FRAME_SIZE);
         (void)motor_decode_telemetry(motor->io_handle, motor, bdshot_dma_rx_buffer[id]);
     }
 
@@ -502,7 +503,7 @@ bool esc_dshot_update()
 
             if (is_new_frame_requested) {
                 build_dma_tx_buffer(bdshot_dma_tx_buffer[id], new_frame);
-                SCB_CleanDCache_by_Addr(bdshot_dma_tx_buffer[id], BDSHOT_DMA_TX_FRAME_SIZE);
+                SCB_CleanDCache_by_Addr(bdshot_dma_tx_buffer[id], sizeof(bdshot_dma_tx_buffer[id]));
             }
         }
 
