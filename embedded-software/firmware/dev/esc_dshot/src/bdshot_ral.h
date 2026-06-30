@@ -156,14 +156,18 @@ static inline void ral_dma_data_transfer_set_direction(DMA_HandleTypeDef *dma,
     switch (direction) {
     case RAL_DMA_TRANSFER_PERIPH_TO_MEMORY: {
         ll_dma_transfer_direction = LL_DMA_DIRECTION_PERIPH_TO_MEMORY;
+        dma->Init.Direction = DMA_PERIPH_TO_MEMORY;
         break;
     }
     case RAL_DMA_TRANSFER_MEMORY_TO_PERIPH: {
         ll_dma_transfer_direction = LL_DMA_DIRECTION_MEMORY_TO_PERIPH;
+        dma->Init.Direction = DMA_MEMORY_TO_PERIPH;
         break;
     }
     case RAL_DMA_TRANSFER_MEMORY_TO_MEMORY: {
         ll_dma_transfer_direction = LL_DMA_DIRECTION_MEMORY_TO_MEMORY;
+        dma->Init.Direction = DMA_MEMORY_TO_MEMORY;
+        break;
     }
     }
 
