@@ -92,6 +92,17 @@ int io_debug_printf(const char *fmt, ...)
  */
 io_status_t io_debug_puts(const char *s);
 
+/**
+ * @brief (CM4 only) Drain the CM7→CM4 debug-console ring and emit the bytes to
+ *        the VCP UART. Call periodically from a CM4 task so text printed via
+ *        io_debug_printf on CM7 reaches the same serial console as CM4's.
+ *
+ * No-op until both cores' io_debug_init have run (it gates on the ring magic
+ * and on CM4's own console being up). CM7 is the producer and does not provide
+ * this symbol; only CM4 code should call it.
+ */
+void io_debug_pump_remote(void);
+
 #ifdef __cplusplus
 }
 #endif

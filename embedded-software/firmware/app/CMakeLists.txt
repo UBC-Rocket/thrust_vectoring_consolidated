@@ -121,6 +121,11 @@ if(TARGET dev_esc_dshot AND (TARGET dev_servo_feetech OR TARGET dev_servo_dynami
     if(TARGET stm32cubemx)
         target_link_libraries(app_cm7 PRIVATE stm32cubemx)
     endif()
+    if(DEBUG_TEXT_CONSOLE)
+        # CM7 forwards its io_debug_printf text to CM4's VCP over the SRAM4
+        # console ring (see app_init_cm7.c / io/h747/CM7/io_debug.c).
+        target_compile_definitions(app_cm7 PRIVATE DEBUG_TEXT_CONSOLE)
+    endif()
     set_target_properties(app_cm7 PROPERTIES
         C_STANDARD 11
         C_STANDARD_REQUIRED ON

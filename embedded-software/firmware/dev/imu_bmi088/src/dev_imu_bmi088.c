@@ -104,12 +104,170 @@ static void on_gyro_drdy(void *user) {
     io_spi_submit(&IO_SPI_BMI088_GYRO, &x);
 }
 
+/* ---- Bring-up configuration -------------------------------------------- *
+ * Flight defaults: accel ±24 g @ 800 Hz (normal BW), gyro ±2000 dps @ 1 kHz.
+ * Mirrors the ICM-40609's full-scale/ODR intent; both stream into the same
+ * state-estimation drain. */
+#define BMI_ACC_CHIP_ID_VAL   0x1Eu   /* BMI088 accel CHIP_ID (reg 0x00)      */
+#define BMI_SPI_TIMEOUT_MS    100u
+
+/* init() runs once at boot before this core's scheduler, so a spin on the
+ * shared monotonic timer is acceptable and keeps the driver free of
+ * HAL_Delay / SysTick assumptions (same approach as the ICM driver). */
+static void bmi_delay_us(uint32_t us) {
+    uint64_t start = io_timestamp_us();
+    while ((io_timestamp_us() - start) < (uint64_t)us) { /* spin */ }
+}
+
+static bool acc_write(const uint8_t *tx, uint16_t len) {
+    return io_spi_xfer_blocking(&IO_SPI_BMI088_ACC, tx, NULL, len,
+                                BMI_SPI_TIMEOUT_MS) == IO_OK;
+}
+static bool gyro_write(const uint8_t *tx, uint16_t len) {
+    return io_spi_xfer_blocking(&IO_SPI_BMI088_GYRO, tx, NULL, len,
+                                BMI_SPI_TIMEOUT_MS) == IO_OK;
+}
+
+/* The build_*conf() helpers may emit several back-to-back 2-byte register
+ * writes in one buffer (e.g. power = PWR_CONF + PWR_CTRL). Each register write
+ * needs its own CS frame (no SPI auto-increment assumed), so submit one pair
+ * at a time — same split the ICM driver does for its INT1 config. */
+static bool acc_write_split(const uint8_t *tx, size_t n) {
+    for (size_t i = 0; i + 1 < n; i += 2) {
+        if (!acc_write(&tx[i], 2)) return false;
+        bmi_delay_us(1000);
+    }
+    return true;
+}
+static bool gyro_write_split(const uint8_t *tx, size_t n) {
+    for (size_t i = 0; i + 1 < n; i += 2) {
+        if (!gyro_write(&tx[i], 2)) return false;
+        bmi_delay_us(1000);
+    }
+    return true;
+}
+
+/* Accel single-register read: addr|0x80 + 1 dummy + 1 data → data in rx[2]. */
+static bool acc_read_reg(uint8_t reg, uint8_t *out) {
+    uint8_t tx[3] = { (uint8_t)(reg | 0x80), 0x00, 0x00 };
+    uint8_t rx[3] = { 0 };
+    if (io_spi_xfer_blocking(&IO_SPI_BMI088_ACC, tx, rx, 3,
+                             BMI_SPI_TIMEOUT_MS) != IO_OK) return false;
+    *out = rx[2];
+    return true;
+}
+/* Gyro single-register read: addr|0x80 + 1 data → data in rx[1] (no dummy). */
+static bool gyro_read_reg(uint8_t reg, uint8_t *out) {
+    uint8_t tx[2] = { (uint8_t)(reg | 0x80), 0x00 };
+    uint8_t rx[2] = { 0 };
+    if (io_spi_xfer_blocking(&IO_SPI_BMI088_GYRO, tx, rx, 2,
+                             BMI_SPI_TIMEOUT_MS) != IO_OK) return false;
+    *out = rx[1];
+    return true;
+}
+
+static bool bmi088_accel_bringup(bmi088_accel_t *dev) {
+    uint8_t tx[8];
+    uint8_t id = 0;
+
+    /* BMI088 accel powers up in I2C mode; the first SPI access (a rising CS
+     * edge) switches it to SPI but returns invalid data, and a soft reset
+     * returns it to I2C — so issue a dummy read, reset, then dummy read again
+     * before trusting any value. */
+    (void)acc_read_reg(BMI088_ACC_CHIP_ID_REG, &id);   /* dummy: enter SPI    */
+    bmi_delay_us(1000);
+
+    bmi088_accel_build_softreset(tx);
+    if (!acc_write(tx, 2)) return false;
+    bmi_delay_us(2000);                                /* >=1 ms post-reset   */
+
+    (void)acc_read_reg(BMI088_ACC_CHIP_ID_REG, &id);   /* dummy: re-enter SPI */
+    bmi_delay_us(1000);
+    if (!acc_read_reg(BMI088_ACC_CHIP_ID_REG, &id)) return false;
+    if (id != BMI_ACC_CHIP_ID_VAL) return false;
+
+    /* Power on: PWR_CONF=0x00 (active) then PWR_CTRL=0x04 (accel enable). */
+    if (!acc_write_split(tx,
+            bmi088_accel_build_power_conf(BMI088_ACC_PWR_ACTIVE, tx, dev)))
+        return false;
+    bmi_delay_us(50000);                               /* accel start-up      */
+
+    bmi088_accel_build_range(BMI088_ACC_RANGE_24G, tx, dev);
+    if (!acc_write(tx, 2)) return false;
+    bmi_delay_us(1000);
+
+    bmi088_accel_build_odr_bw(BMI088_ACC_ODR_800_HZ, BMI088_ACC_BWP_NORMAL,
+                              tx, dev);
+    if (!acc_write(tx, 2)) return false;
+    bmi_delay_us(1000);
+
+    /* DATA_READY out on INT1: push-pull, active-high, PULSED (not latched, so
+     * the data burst-read need not also clear an int-status reg to re-arm).
+     * Matches the MCU EXTI on PC13 = rising edge / no-pull (gpio.c). */
+    bmi088_accel_build_int_pin_conf(BMI088_ACC_INT1, BMI088_ACC_INT_PUSH_PULL,
+                                    BMI088_ACC_INT_ACTIVE_HIGH, false, tx);
+    if (!acc_write(tx, 2)) return false;
+    bmi_delay_us(1000);
+
+    bmi088_accel_build_int_event_map(BMI088_ACC_INT1,
+                                     BMI088_ACC_INT_EVENT_DATA_READY, tx);
+    if (!acc_write(tx, 2)) return false;
+    bmi_delay_us(1000);
+    return true;
+}
+
+static bool bmi088_gyro_bringup(bmi088_gyro_t *dev) {
+    uint8_t tx[8];
+    uint8_t id = 0;
+
+    /* Gyro is native-SPI (no I2C/SPI mode switch like the accel). */
+    bmi088_gyro_build_softreset(tx);
+    if (!gyro_write(tx, 2)) return false;
+    bmi_delay_us(30000);                               /* >=30 ms post-reset  */
+
+    if (!gyro_read_reg(BMI088_GYRO_CHIP_ID_REG, &id)) return false;
+    if (id != BMI088_GYRO_CHIP_ID_VAL) return false;
+
+    bmi088_gyro_build_range(BMI088_GYRO_RANGE_2000DPS, tx, dev);
+    if (!gyro_write(tx, 2)) return false;
+    bmi_delay_us(1000);
+
+    bmi088_gyro_build_odr(BMI088_GYRO_ODR_1000_HZ_BW_230, tx, dev);
+    if (!gyro_write(tx, 2)) return false;
+    bmi_delay_us(1000);
+
+    bmi088_gyro_build_power_conf(BMI088_GYRO_PWR_NORMAL, tx, dev);
+    if (!gyro_write(tx, 2)) return false;
+    bmi_delay_us(30000);
+
+    /* DATA_READY out on INT3, push-pull / active-high. NOTE: the board net
+     * "BMI_GYRO_INT1" (PF10) is ASSUMED to be the gyro's physical INT3 pin.
+     * The hardware repo ships only the .ioc (no schematic/netlist), so this
+     * could not be confirmed. If the gyro IRQ never fires on hardware, its
+     * DRDY is wired to INT4 — change BMI088_GYRO_INT3 -> BMI088_GYRO_INT4 in
+     * the two calls below. */
+    bmi088_gyro_build_int_pin_conf(BMI088_GYRO_INT3, BMI088_GYRO_INT_PUSH_PULL,
+                                   BMI088_GYRO_INT_ACTIVE_HIGH, tx);
+    if (!gyro_write(tx, 2)) return false;
+    bmi_delay_us(1000);
+
+    if (!gyro_write_split(tx,
+            bmi088_gyro_build_int_event_map(
+                BMI088_GYRO_INT3, BMI088_GYRO_INT_EVENT_DATA_READY, tx)))
+        return false;
+    bmi_delay_us(1000);
+    return true;
+}
+
 bool imu_bmi088_init(void) {
     memset(&s_self, 0, sizeof(s_self));
 
-    /* TODO: bring-up via lib/sensors/ command builders +
-     *       io_spi_xfer_blocking(&IO_SPI_BMI088_{ACC,GYRO}, …). */
+    if (!bmi088_accel_bringup(&s_self.acc_dev)) return false;
+    if (!bmi088_gyro_bringup(&s_self.gyro_dev)) return false;
 
+    /* Hand both DATA_READY lines to the EXTI dispatcher; the runtime path is
+     * now interrupt-driven (on_*_drdy -> async SPI burst read -> queue ->
+     * notify), no polling. */
     io_exti_register(&IO_EXTI_BMI088_ACC_INT1,  on_acc_drdy,  &s_self);
     io_exti_register(&IO_EXTI_BMI088_GYRO_INT1, on_gyro_drdy, &s_self);
     io_exti_enable(&IO_EXTI_BMI088_ACC_INT1,  true);

@@ -15,6 +15,9 @@
  */
 #include "io_sys/io_debug.h"
 #include "io/io_uart.h"      /* IO_UART_DEBUG — io-impl files may see transports */
+#include "app/shared_memory.h"   /* CM7→CM4 console ring layout */
+
+#include "stm32h7xx.h"       /* __DMB */
 
 #include "FreeRTOS.h"
 #include "semphr.h"
@@ -70,4 +73,63 @@ io_status_t io_debug_write(const uint8_t *data, size_t len) {
         (void)xSemaphoreGive(s_tx_mutex);
     }
     return st;
+}
+
+/* ------------------------------------------------------------------------- *
+ * CM7 → CM4 console forwarding (consumer side).
+ *
+ * CM7 pushes its io_debug_printf text into a SPSC byte ring in uncached SRAM4
+ * (see shared_memory.h / io/h747/CM7/io_debug.c). io_debug_pump_remote() drains
+ * that ring and emits the bytes to LPUART1 via the same mutex-serialised path
+ * as CM4's own console writes, so the two cores' text never interleaves mid-
+ * line. A CM4 task calls this periodically (see app_init_cm4.c).
+ * ------------------------------------------------------------------------- */
+#define DBG_RING_BYTES  APP_SLOT_DEBUG_CONSOLE_RING_BYTES
+#define DBG_RING_MASK   (DBG_RING_BYTES - 1U)
+
+typedef struct {
+    volatile uint32_t head;
+    volatile uint32_t tail;
+    volatile uint32_t drops;
+    volatile uint32_t magic;
+    uint32_t          _pad[4];
+} dbg_ring_hdr_t;
+
+static dbg_ring_hdr_t   *s_rhdr;
+static volatile uint8_t *s_rdata;
+
+void io_debug_pump_remote(void) {
+    if (!s_ready) {
+        return;                        /* CM4's own LPUART console not up yet */
+    }
+    if (s_rhdr == NULL) {
+        s_rhdr  = (dbg_ring_hdr_t *)app_shared_slot(
+                      APP_SLOT_DEBUG_CONSOLE_RING_OFFSET);
+        s_rdata = (volatile uint8_t *)app_shared_slot(
+                      APP_SLOT_DEBUG_CONSOLE_RING_OFFSET + APP_SLOT_DEBUG_CONSOLE_RING_HDR);
+    }
+    if (s_rhdr->magic != APP_DEBUG_CONSOLE_RING_MAGIC) {
+        return;                        /* CM7 hasn't initialised the ring yet */
+    }
+
+    uint32_t head  = s_rhdr->head;
+    uint32_t tail  = s_rhdr->tail;
+    uint32_t avail = head - tail;      /* wrap-safe (free-running counters)   */
+    if (avail == 0U) {
+        return;
+    }
+    __DMB();                           /* see data written before head advance */
+
+    uint8_t buf[128];
+    while (avail > 0U) {
+        uint32_t n = (avail > sizeof(buf)) ? (uint32_t)sizeof(buf) : avail;
+        for (uint32_t i = 0; i < n; ++i) {
+            buf[i] = s_rdata[(tail + i) & DBG_RING_MASK];
+        }
+        (void)io_debug_write(buf, n);  /* mutex-serialised LPUART emit */
+        tail  += n;
+        avail -= n;
+    }
+    __DMB();                           /* finish reads before publishing tail  */
+    s_rhdr->tail = tail;
 }

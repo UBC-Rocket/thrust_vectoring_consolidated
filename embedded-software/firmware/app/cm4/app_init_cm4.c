@@ -33,6 +33,23 @@ static StackType_t  s_stk_log[STK_SD_LOG];
 
 static TaskHandle_t s_h_state, s_h_mission, s_h_log;
 
+#ifdef DEBUG_TEXT_CONSOLE
+/* Forwards CM7 console text to LPUART1: drains the SRAM4 console ring every
+ * 20 ms and emits via io_debug_write. Console text is low-rate and latency-
+ * tolerant, so a poll avoids adding an HSEM event for the wake. */
+#define STK_DBGPUMP  (1 * 1024 / sizeof(StackType_t))
+static StaticTask_t s_tcb_dbg;
+static StackType_t  s_stk_dbg[STK_DBGPUMP];
+
+static void task_debug_pump(void *arg) {
+    (void)arg;
+    for (;;) {
+        io_debug_pump_remote();
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
+}
+#endif
+
 /* Sink shim: hand assembled message records into log_service's raw-append
  * path. messages_sink_fn_t and log_service_append_raw use the same
  * (const uint8_t*, len, -> bool) contract, but we keep the shim so the
@@ -95,6 +112,14 @@ void app_init_cm4(void) {
                                     s_stk_state,           &s_tcb_state);
 
     sensors_bind_state_estimation_task((io_task_handle_t)s_h_state);
+
+#ifdef DEBUG_TEXT_CONSOLE
+    /* Forward CM7's debug-console text to the shared VCP. Low priority — it
+     * only shuttles bytes from the SRAM4 ring to LPUART1. */
+    (void)xTaskCreateStatic(task_debug_pump, "dbgpump",
+                            STK_DBGPUMP, NULL, 2,
+                            s_stk_dbg, &s_tcb_dbg);
+#endif
 
     /* TEMP bring-up tracer: RED solid = app_init_cm4 finished (tasks created,
      * about to start the scheduler). mission_manager then blinks RED once it

@@ -117,3 +117,4 @@ Module.symvers
 
 # EKF testing files
 *.csv
+.gstack/
