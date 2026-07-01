@@ -42,7 +42,7 @@
 #else
 #include "dev_servo_feetech.h"
 #endif
-#include "dev_esc_dshot.h"
+#include "esc_dshot/bdshot.h"
 
 #include "tim.h"  /* htim16 */
 
@@ -116,7 +116,6 @@ static servo_dynamixel_t *s_servos;
 #else
 static servo_feetech_t   *s_servos;
 #endif
-static esc_dshot_t     *s_escs;
 static volatile bool    s_isr_ready;
 
 /* -------------------------------------------------------------------------- */
@@ -154,7 +153,8 @@ void controls_on_tim_period_elapsed(void *htim_handle)
                       ? (out.T_cmd / s_live_config.thrust.T_max) : 0.0f;
     if (throttle < 0.0f) throttle = 0.0f;
     if (throttle > 1.0f) throttle = 1.0f;
-    esc_dshot_set_throttle(s_escs, throttle);
+    esc_dshot_motor_set_throttle(ESC_MOTOR_ID_LOWER, ESC_PERCENTAGE_TO_THROTTLE(throttle));
+    esc_dshot_motor_set_throttle(ESC_MOTOR_ID_UPPER, ESC_PERCENTAGE_TO_THROTTLE(throttle));
 
     /* Hand the control output back to CM4 for SD logging via state_exchange.
      * Seqlock publish from ISR context is safe — single writer, atomic
@@ -171,12 +171,11 @@ void controls_isr_init(void)
     const actuators_t *a = actuators_handles();
     if (a == NULL) return;
     s_servos = a->servos;
-    s_escs   = a->escs;
 
     /* Arm the ESC + enable servo torque so the ISR's first writes do
      * something useful. The ESC needs an arming gesture (idle DShot
      * frames at min throttle); doing it here keeps the ISR pure. */
-    esc_dshot_arm(s_escs, true);
+    esc_dshot_set_armed(true);
 #ifndef USE_DYNAMIXEL_SERVO
     servo_feetech_enable(s_servos, true);
 #endif
@@ -219,7 +218,7 @@ void controls_isr_init(void)
  * task context (vTaskDelay) and must complete before TIM16 is started. */
 static void controls_run_startup_selftest(void)
 {
-    if (s_servos == NULL || s_escs == NULL) return;
+    if (s_servos == NULL) return;
 
 #ifdef USE_DYNAMIXEL_SERVO
   servo_dynamixel_run_position_test(s_servos);
@@ -262,14 +261,19 @@ static void controls_run_startup_selftest(void)
     /* --- ESC: settle, arm wait, ramp up, hold, ramp down -------------- */
     /* ESC was armed in controls_isr_init; give it time to see steady
      * idle DShot frames before commanding throttle. */
-    esc_dshot_set_throttle(s_escs, 0.0f);
+    esc_dshot_motor_set_throttle(ESC_MOTOR_ID_LOWER, 0);
+    esc_dshot_motor_set_throttle(ESC_MOTOR_ID_UPPER, 0);
+
     vTaskDelay(pdMS_TO_TICKS(SELFTEST_ESC_SETTLE_MS));
     vTaskDelay(pdMS_TO_TICKS(SELFTEST_ESC_ARM_MS));
 
     for (unsigned i = 1; i <= SELFTEST_ESC_RAMP_STEPS; ++i) {
         float thr = (SELFTEST_ESC_PEAK_THROTTLE * (float)i) /
                     (float)SELFTEST_ESC_RAMP_STEPS;
-        esc_dshot_set_throttle(s_escs, thr);
+
+        esc_dshot_motor_set_throttle(ESC_MOTOR_ID_LOWER, ESC_PERCENTAGE_TO_THROTTLE(thr));
+        esc_dshot_motor_set_throttle(ESC_MOTOR_ID_UPPER, ESC_PERCENTAGE_TO_THROTTLE(thr));
+
         vTaskDelay(pdMS_TO_TICKS(SELFTEST_ESC_RAMP_STEP_MS));
     }
 
@@ -278,11 +282,15 @@ static void controls_run_startup_selftest(void)
     for (unsigned i = SELFTEST_ESC_RAMP_STEPS; i > 0; --i) {
         float thr = (SELFTEST_ESC_PEAK_THROTTLE * (float)(i - 1)) /
                     (float)SELFTEST_ESC_RAMP_STEPS;
-        esc_dshot_set_throttle(s_escs, thr);
+
+        esc_dshot_motor_set_throttle(ESC_MOTOR_ID_LOWER, ESC_PERCENTAGE_TO_THROTTLE(thr));
+        esc_dshot_motor_set_throttle(ESC_MOTOR_ID_UPPER, ESC_PERCENTAGE_TO_THROTTLE(thr));
+
         vTaskDelay(pdMS_TO_TICKS(SELFTEST_ESC_RAMP_STEP_MS));
     }
 
-    esc_dshot_set_throttle(s_escs, 0.0f);
+    esc_dshot_motor_set_throttle(ESC_MOTOR_ID_LOWER, 0);
+    esc_dshot_motor_set_throttle(ESC_MOTOR_ID_UPPER, 0);
 }
 
 /* -------------------------------------------------------------------------- */

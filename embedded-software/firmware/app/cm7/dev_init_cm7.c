@@ -8,6 +8,8 @@
  */
 #include "app/app_init.h"
 #include "app/actuators_init.h"
+#include "esc_dshot/config.h"
+#include "esc_dshot/io.h"
 #include "io_sys/io_test_hooks.h"
 
 #ifdef USE_DYNAMIXEL_SERVO
@@ -15,7 +17,7 @@
 #else
 #include "dev_servo_feetech.h"
 #endif
-#include "dev_esc_dshot.h"
+#include "esc_dshot/bdshot.h"
 
 static actuators_t s_handles;
 static bool        s_init_done;
@@ -24,7 +26,16 @@ static bool        s_init_done;
 IO_TEST_HOOK_RW(s_handles,   actuators_t, dev_init_cm7_handles)
 IO_TEST_HOOK_RW(s_init_done, bool,        dev_init_cm7_init_done)
 
-void dev_init_cm7(void) {
+static const esc_motor_config_t ESC_MOTOR_CONFIG_UPPER = {
+    .pole_count = 14,
+};
+
+static const esc_motor_config_t ESC_MOTOR_CONFIG_LOWER = {
+    .pole_count = 14,
+};
+
+void dev_init_cm7(void)
+{
     if (s_init_done) return;
 
 #ifdef USE_DYNAMIXEL_SERVO
@@ -33,13 +44,16 @@ void dev_init_cm7(void) {
     servo_feetech_init();
 #endif
     esc_dshot_init();
+    esc_dshot_motor_init(ESC_MOTOR_ID_UPPER, &ESC_MOTOR_CONFIG_UPPER, &IO_BDSHOT_ESC_UPPER);
+    esc_dshot_motor_init(ESC_MOTOR_ID_LOWER, &ESC_MOTOR_CONFIG_LOWER, &IO_BDSHOT_ESC_LOWER);
 
 #ifdef USE_DYNAMIXEL_SERVO
     s_handles.servos = servo_dynamixel_get();
 #else
     s_handles.servos = servo_feetech_get();
 #endif
-    s_handles.escs   = esc_dshot_get();
+
+
     s_init_done = true;
 }
 

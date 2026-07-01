@@ -15,7 +15,6 @@
 #else
 #include "dev_servo_feetech.h"
 #endif
-#include "dev_esc_dshot.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,7 +26,6 @@ typedef struct {
 #else
     servo_feetech_t   *servos;
 #endif
-    esc_dshot_t       *escs;
 } actuators_t;
 
 /**
