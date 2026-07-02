@@ -51,8 +51,14 @@ void io_exti_enable(const io_exti_line_t *line, bool enable) {
     s_state[line->slot].enabled = enable;
 }
 
-/* HAL weak override — wired by CubeMX from each EXTIx_IRQHandler. */
-void HAL_GPIO_EXTI_Rising_Callback(uint16_t pin) {
+/* HAL weak override — invoked by HAL_GPIO_EXTI_IRQHandler from each
+ * EXTIx_IRQHandler. NOTE: the STM32H7xx HAL on this target (DUAL_CORE/CORE_CM4)
+ * has NO rising/falling split — its IRQ handler only ever calls
+ * HAL_GPIO_EXTI_Callback() (see Drivers/.../stm32h7xx_hal_gpio.c). Overriding
+ * HAL_GPIO_EXTI_Rising_Callback (the H5/G0 name) left this dispatcher dead, so
+ * every sensor data-ready interrupt fired, cleared its flag, and reached no
+ * driver callback. Must be HAL_GPIO_EXTI_Callback for this HAL. */
+void HAL_GPIO_EXTI_Callback(uint16_t pin) {
     for (unsigned i = 0; i < NUM_LINES; ++i) {
         if (s_lines[i]->pin == pin && s_state[i].enabled && s_state[i].cb) {
             s_state[i].cb(s_state[i].user);

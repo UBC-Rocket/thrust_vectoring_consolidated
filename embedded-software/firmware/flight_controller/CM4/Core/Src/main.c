@@ -51,7 +51,10 @@
 /*                             demonstration code based on hardware semaphore */
 /* This define is present in both CM7/CM4 projects                            */
 /* To comment when developping/debugging on a single core                     */
-#define DUAL_CORE_BOOT_SYNC_SEQUENCE
+/* UBC Rocket MVP bring-up: boot-sync DISABLED so the M4 runs standalone and
+ * does NOT wait on the M7's HSEM (the fragile handoff that was stalling it).
+ * The M7 is parked in __WFI(). Re-enable on both cores for dual-core ops. */
+/* #define DUAL_CORE_BOOT_SYNC_SEQUENCE */
 
 #if defined(DUAL_CORE_BOOT_SYNC_SEQUENCE)
 #ifndef HSEM_ID_0
@@ -117,7 +120,18 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  /* Dual-core boot race (ROOT CAUSE of the silent VCP): on the H745 the system
+   * clock is configured by CM7 (SystemClock_Config). With
+   * DUAL_CORE_BOOT_SYNC_SEQUENCE disabled, CM4 runs standalone and would
+   * otherwise initialise LPUART1 *before* CM7 finishes the clock setup — so the
+   * UART baud is computed against the wrong kernel clock and nothing readable
+   * reaches the ST-Link VCP. Spin briefly to let CM7 bring the clock up first.
+   * This mirrors the known-good dual-core-logging bring-up (commit d5ba8b3);
+   * replace with DUAL_CORE_BOOT_SYNC_SEQUENCE once the STOP-mode option bytes
+   * are confirmed safe on hardware. */
+  for (volatile uint32_t d = 0; d < 50000000U; ++d) {
+    __NOP();
+  }
   /* USER CODE END Init */
 
   /* USER CODE BEGIN SysInit */
@@ -144,7 +158,15 @@ int main(void)
   MX_SPI6_Init();
   MX_LPUART1_UART_Init();
   MX_UART5_Init();
-  MX_WWDG2_Init();
+  /* MX_WWDG2_Init(); -- UBC Rocket: DISABLED for bring-up.
+   * CubeMX starts the WWDG2 window watchdog here, but NOTHING in the firmware
+   * ever calls HAL_WWDG_Refresh. An un-refreshed WWDG2 (Counter=Window=64,
+   * prescaler 1) expires within tens of microseconds, so CM4 was stuck in a
+   * continuous watchdog reset loop — never reaching io_init, never running a
+   * task, never transmitting a debug byte. Re-enable ONLY together with a real
+   * refresh strategy (a high-priority task or timer ISR calling
+   * HAL_WWDG_Refresh inside the window). Deliberate edit to CubeMX-generated
+   * code — re-apply after any .ioc regeneration. */
   MX_TIM13_Init();
   /* USER CODE BEGIN 2 */
   /* Bring up the four-layer stack on CM4 in order:

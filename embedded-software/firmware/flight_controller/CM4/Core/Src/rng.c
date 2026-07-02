@@ -41,7 +41,12 @@ void MX_RNG_Init(void)
   hrng.Init.ClockErrorDetection = RNG_CED_ENABLE;
   if (HAL_RNG_Init(&hrng) != HAL_OK)
   {
-    Error_Handler();
+    /* UBC Rocket: don't brick boot on an RNG init hiccup (e.g. the kernel clock
+     * not yet stable during the dual-core boot race). RNG initialises before
+     * LPUART1, so hanging here in Error_Handler would stop the board before it
+     * can emit a single debug byte. Continue boot instead. Deliberate edit to
+     * CubeMX-generated code — re-apply after any .ioc regeneration. */
+    return;  /* was: Error_Handler(); */
   }
   /* USER CODE BEGIN RNG_Init 2 */
 

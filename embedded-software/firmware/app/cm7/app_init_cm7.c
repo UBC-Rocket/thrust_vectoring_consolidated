@@ -10,6 +10,8 @@
 #include "app/state_exchange.h"
 #include "app/tasks.h"
 
+#include "io_sys/io_debug.h"
+
 #include "messages/messages.h"
 
 #include "FreeRTOS.h"
@@ -36,6 +38,15 @@ static bool messages_sd_sink_cm7(const uint8_t *record, size_t record_len) {
 
 void app_init_cm7(void) {
     state_exchange_init();
+
+#ifdef DEBUG_TEXT_CONSOLE
+    /* Bring up CM7's side of the shared debug console: io_debug_write() now
+     * forwards text into the SRAM4 ring that CM4 drains to LPUART1/VCP. After
+     * this, io_debug_printf() works from CM7 code and shows up in the same
+     * serial terminal as CM4's output. */
+    (void)io_debug_init();
+    io_debug_printf("\r\n=== Ulysses CM7 online ===\r\n");
+#endif
 
     /* Initialise the SRAM4 log handoff ring (CM7 is the one-shot zero of
      * the header). Must happen before messages_sd_sink_set so the first

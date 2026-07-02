@@ -46,7 +46,17 @@ void MX_SDMMC1_SD_Init(void)
   hsd1.Init.ClockDiv = 0;
   if (HAL_SD_Init(&hsd1) != HAL_OK)
   {
-    Error_Handler();
+    /* UBC Rocket: a missing or un-initialisable SD card must NOT brick the
+     * flight controller. The card is only used for logging, and sd_log_task
+     * already degrades to drain-and-discard when it is not ready. Hanging
+     * here (the CubeMX default Error_Handler) stops the board before it can
+     * boot, drive actuators, or even emit a debug line — exactly what we hit
+     * during bring-up with no card inserted. Continue boot instead.
+     *
+     * NOTE: this is a deliberate edit to CubeMX-generated code. Re-apply it
+     * after any .ioc regeneration (the SDMMC1 init is otherwise regenerated
+     * with the hanging Error_Handler() call). */
+    /* Error_Handler();  <-- intentionally removed; see comment above */
   }
   /* USER CODE BEGIN SDMMC1_Init 2 */
 

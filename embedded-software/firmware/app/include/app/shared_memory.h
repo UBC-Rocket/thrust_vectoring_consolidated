@@ -124,6 +124,28 @@ extern "C" {
 #define APP_SLOT_SD_CURSOR_PAYLOAD  16U
 #define APP_SD_CURSOR_MAGIC         0x53444C47U  /* "SDLG" */
 
+/* ---------------------------------------------------------------------------
+ * CM7 → CM4 debug-console text ring (lock-free SPSC byte ring).
+ *
+ * SEPARATE from the SD log handoff ring above on purpose: that ring carries
+ * framed messages-runtime envelopes destined for the SD card, while this one
+ * carries plain io_debug_printf text destined for the LPUART1/VCP console.
+ * Mixing the two would corrupt both streams.
+ *
+ * Producer: CM7 io_debug_write() pushes formatted console bytes.
+ * Consumer: CM4 io_debug_pump_remote() pops and emits to LPUART1 (VCP).
+ *
+ * Same 32-B header layout as the log ring (head/tail/drops/magic + pad), then
+ * data. head/tail are free-running byte counters; index = counter & (BYTES-1),
+ * so BYTES must stay a power of two. SRAM4 is uncached on both cores, so only
+ * DMB fences around head/tail updates are needed (no cache maintenance).
+ * --------------------------------------------------------------------------- */
+#define APP_SLOT_DEBUG_CONSOLE_RING_OFFSET 0x2880   /* after SD cursor (0x2850) */
+#define APP_SLOT_DEBUG_CONSOLE_RING_HDR    32U      /* 8-byte aligned header     */
+#define APP_SLOT_DEBUG_CONSOLE_RING_BYTES  2048U    /* 2 kB ring (power of two)  */
+#define APP_DEBUG_CONSOLE_RING_MAGIC       0x44424752U  /* "DBGR" */
+/* Tail: 0x2880 + 32 + 2048 = 0x30A0, inside the 16 kB shared region. */
+
 /**
  * @brief Pointer to the base of the shared region (defined by the linker).
  */

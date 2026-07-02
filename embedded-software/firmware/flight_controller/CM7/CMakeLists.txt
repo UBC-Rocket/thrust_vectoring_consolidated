@@ -40,6 +40,7 @@ set(APP_DIR ${FW_ROOT}/app)
 add_subdirectory(${IO_DIR}/io          io_build)
 add_subdirectory(${IO_DIR}/io_sys      io_sys_build)
 add_subdirectory(${IO_DIR}/io_intercore_slot io_intercore_slot_build)
+add_subdirectory(${IO_DIR}/io_debug    io_debug_build)
 
 # Utility libs
 add_subdirectory(${LIB_DIR}/collections      collections_build)
@@ -79,6 +80,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     ${IO_IMPL_DIR}/io_timestamp.c
     ${IO_IMPL_DIR}/io_intercore.c
     ${IO_IMPL_DIR}/io_init.c
+    ${IO_IMPL_DIR}/io_debug.c
 )
 
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
@@ -95,6 +97,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     io
     io_sys
     io_intercore_slot
+    io_debug
     cmsis_dsp
     controls
     state_estimation

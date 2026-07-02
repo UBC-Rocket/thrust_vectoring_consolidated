@@ -15,6 +15,9 @@
 #include "messages/messages.h"
 #include "storage/storage.h"
 
+#include "io_sys/io_debug.h"
+#include "io_sys/io_status_led.h"   /* TEMP bring-up tracer */
+
 #include "FreeRTOS.h"
 #include "task.h"
 
@@ -29,6 +32,23 @@ static StackType_t  s_stk_mission[STK_MISSION];
 static StackType_t  s_stk_log[STK_SD_LOG];
 
 static TaskHandle_t s_h_state, s_h_mission, s_h_log;
+
+#ifdef DEBUG_TEXT_CONSOLE
+/* Forwards CM7 console text to LPUART1: drains the SRAM4 console ring every
+ * 20 ms and emits via io_debug_write. Console text is low-rate and latency-
+ * tolerant, so a poll avoids adding an HSEM event for the wake. */
+#define STK_DBGPUMP  (1 * 1024 / sizeof(StackType_t))
+static StaticTask_t s_tcb_dbg;
+static StackType_t  s_stk_dbg[STK_DBGPUMP];
+
+static void task_debug_pump(void *arg) {
+    (void)arg;
+    for (;;) {
+        io_debug_pump_remote();
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
+}
+#endif
 
 /* Sink shim: hand assembled message records into log_service's raw-append
  * path. messages_sink_fn_t and log_service_append_raw use the same
@@ -56,10 +76,30 @@ void app_init_cm4(void) {
     messages_sd_sink_set(messages_sd_sink);
     messages_system_commands_register();
 
+#ifdef DEBUG_TEXT_CONSOLE
+    /* Bring-up / dev default: LPUART1 (PA9/PA10 → STLINK-V3 VCP) is a plain-
+     * text debug console owned by io_debug. The binary "messages" VCP channel
+     * is intentionally left without a sink here (its records still route to SD
+     * and, once lwIP is up, UDP) so a serial terminal sees clean text. Open
+     * CoolTerm on the STLINK-V3 VCP at 115200 8-N-1. Flip the DEBUG_TEXT_CONSOLE
+     * CMake option OFF to restore the binary messages-console on VCP instead. */
+    (void)io_debug_init();
+    io_debug_printf("\r\n=== Ulysses CM4 online — hello world ===\r\n");
+
+    /* Bring-up: one-line IMU status on the console. sensors_handles()->icm40609
+     * is non-NULL iff imu_icm40609_init() fully succeeded (which includes the
+     * WHO_AM_I == 0x3B identity gate). */
+    {
+        const sensors_t *sn = sensors_handles();
+        io_debug_printf("[init] ICM40609 %s\r\n",
+                        (sn != NULL && sn->icm40609 != NULL) ? "OK" : "FAIL");
+    }
+#else
     /* Open the VCP UART, COBS-frame on RX → dispatcher, COBS-frame on TX
      * out via the CH_VCP sink. After this, the host messages-console CLI
      * can connect and exchange commands. */
     messages_vcp_init();
+#endif
 
     s_h_log     = xTaskCreateStatic(task_sd_log,           "sd_log",
                                     STK_SD_LOG,            NULL, 4,
@@ -72,6 +112,20 @@ void app_init_cm4(void) {
                                     s_stk_state,           &s_tcb_state);
 
     sensors_bind_state_estimation_task((io_task_handle_t)s_h_state);
+
+#ifdef DEBUG_TEXT_CONSOLE
+    /* Forward CM7's debug-console text to the shared VCP. Low priority — it
+     * only shuttles bytes from the SRAM4 ring to LPUART1. */
+    (void)xTaskCreateStatic(task_debug_pump, "dbgpump",
+                            STK_DBGPUMP, NULL, 2,
+                            s_stk_dbg, &s_tcb_dbg);
+#endif
+
+    /* TEMP bring-up tracer: RED solid = app_init_cm4 finished (tasks created,
+     * about to start the scheduler). mission_manager then blinks RED once it
+     * runs, so RED-solid vs RED-blinking distinguishes "scheduler never started"
+     * from "scheduler + tasks running". Remove after bring-up. */
+    io_status_led_set(IO_LED_RED, true);
 }
 
 void app_start_kernel(void) {
