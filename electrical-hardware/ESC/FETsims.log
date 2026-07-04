@@ -1,48 +1,46 @@
-LTspice 24.0.12 for Windows
-Circuit: * D:\UBC_Rocket_TVR\electrical-hardware\ESC\FETsims.asc
-Start Time: Tue May 19 19:38:35 2026
+LTspice 24.1.10 for Windows
+Circuit: C:\Users\nicho\OneDrive - UBC\GitHub\Rocket\thrust_vectoring_consolidated\electrical-hardware\ESC\FETsims.net
+Start Time: Sat Jul  4 00:48:15 2026
 solver = Normal
-Maximum thread count: 16
-
-
-
-Direct Newton iteration for .op point succeeded.
-.step chgd=1e-12
-
-
-
-.step chgd=2e-12
-
-
-
-.step chgd=3e-12
-
-
-
-.step chgd=4e-12
-
-
-
-.step chgd=5e-12
-
-
-
-.step chgd=6e-12
-
-
-
-.step chgd=7e-12
-
-
-
-.step chgd=8e-12
-
-
-
-.step chgd=9e-12
+Maximum thread count: 12
 tnom = 27
 temp = 27
-method = modified trap
+method = trap
+Early termination of direct N-R iteration.
+Direct Newton iteration failed to find .op point.  (Use ".option noopiter" to skip.)
+Starting Gmin stepping
+Gmin = 10
+Gmin = 1.07374
+Gmin = 0.115292
+Gmin = 0.0123794
+Gmin = 0.00132923
+Gmin = 0.000142725
+Gmin = 1.5325e-05
+Gmin = 1.6455e-06
+Gmin = 1.76685e-07
+Gmin = 1.89714e-08
+Gmin = 2.03704e-09
+Gmin = 2.18725e-10
+Gmin = 2.34854e-11
+Gmin = 2.52173e-12
+Gmin = 2.70769e-13
+Gmin = 0
+Gmin stepping succeeded in finding the operating point.
+
+.step chgd=1e-12
+.step chgd=2e-12
+.step chgd=3e-12
+.step chgd=4e-12
+.step chgd=5e-12
+.step chgd=6e-12
+.step chgd=7e-12
+.step chgd=8e-12
+.step chgd=9e-12
 .step chgd=1e-11
-Total elapsed time: 16.890 seconds.
+Total elapsed time: 16.915 seconds.
+
+Files loaded:
+C:\Users\nicho\OneDrive - UBC\GitHub\Rocket\thrust_vectoring_consolidated\electrical-hardware\ESC\FETsims.net
+C:\Users\nicho\AppData\Local\LTspice\lib\cmp\standard.dio
+C:\Users\nicho\OneDrive - UBC\GitHub\Rocket\thrust_vectoring_consolidated\electrical-hardware\ESC\stl130n6f7_V2.LIB
 
