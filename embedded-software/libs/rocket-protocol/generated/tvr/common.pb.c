@@ -6,6 +6,9 @@
 #error Regenerate this file with the current version of nanopb generator.
 #endif
 
+PB_BIND(tvr_Vec2, tvr_Vec2, AUTO)
+
+
 PB_BIND(tvr_Vec3, tvr_Vec3, AUTO)
 
 

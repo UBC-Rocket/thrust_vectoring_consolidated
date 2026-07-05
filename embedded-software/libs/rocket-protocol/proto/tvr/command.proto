@@ -4,11 +4,23 @@ import "common.proto";
 
 message FlightCommand {
   oneof payload {
-    StateCommand    state_cmd     = 1;
-    SetPidGains     set_pid_gains = 2;
-    SetReference    set_reference = 3;
-    SetConfig       set_config    = 4;
+    StateCommand    state_cmd        = 1;
+    SetPidGains     set_pid_gains    = 2;
+    SetReference    set_reference    = 3;
+    SetConfig       set_config       = 4;
+    SetProbeLayout  set_probe_layout = 5;
   }
+}
+
+// Four UWB anchor positions on the ground, in nav-frame meters relative to the
+// rocket's takeoff origin. The four anchors form a rectangle; there is no
+// center anchor. The flight controller stores these and uses them as the
+// known-position references for trilateration of the on-board UWB tags.
+message SetProbeLayout {
+  Vec2 anchor_0 = 1;
+  Vec2 anchor_1 = 2;
+  Vec2 anchor_2 = 3;
+  Vec2 anchor_3 = 4;
 }
 
 // High-level state transitions

@@ -1,6 +1,11 @@
 syntax = "proto3";
 package tvr;
 
+message Vec2 {
+  float x = 1;
+  float y = 2;
+}
+
 message Vec3 {
   float x = 1;
   float y = 2;
