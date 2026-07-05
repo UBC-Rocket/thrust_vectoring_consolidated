@@ -64,6 +64,7 @@
 #include "state_estimation/ekf.h"
 #include "state_estimation/state.h"
 #include "state_estimation/body.h"  /* pressure_to_height() */
+#include "state_estimation/tilt_kf.h"
 
 #include "storage/storage.h"
 
@@ -74,6 +75,10 @@
 #include "task.h"
 
 /* ---- Constants ------------------------------------------------------- */
+
+#ifndef TILT_KF_ONLY
+#define TILT_KF_ONLY              1
+#endif
 
 #define GRAV_MPS2                 9.80665f
 #define DEG2RAD                   (3.14159265358979323846 / 180.0)
@@ -106,6 +111,9 @@
 
 /* ---- File-local state ------------------------------------------------ */
 
+static tilt_kf_t s_tilt_kf;
+
+#if !TILT_KF_ONLY
 static eskf_t s_eskf;
 
 /* Mag noise: 0.05 on the unit-normalized direction vector. The mag is
@@ -128,7 +136,6 @@ static eskf_sample_t s_baro_buf [DRAIN_BATCH];
 static eskf_sample_t s_gps_buf  [4];
 static eskf_sample_t s_mag_buf  [DRAIN_BATCH];
 
-static icm_sample_t  s_icm_raw  [DRAIN_BATCH];
 static imu_sample_t  s_bmi_raw  [DRAIN_BATCH];
 static baro_sample_t s_baro_raw [DRAIN_BATCH];
 static gps_fix_t     s_gps_raw  [4];
@@ -155,6 +162,9 @@ static struct {
     float  alt_m;
     bool   set;
 } s_gps_ref = {0};
+#endif
+
+static icm_sample_t  s_icm_raw  [DRAIN_BATCH];
 
 /* ---- Helpers --------------------------------------------------------- */
 
@@ -171,6 +181,7 @@ static void fmt_f3(char *buf, float v) {
 }
 #endif
 
+#if !TILT_KF_ONLY
 static void eskf_setup(void)
 {
     eskf_config_t config = {0};
@@ -232,6 +243,7 @@ static void gps_to_local(const gps_fix_t *fix, float out[3])
     out[1] = (float)(dlon * WGS84_A * cos(s_gps_ref.lat_rad));/* East  [m] */
     out[2] = fix->altitude_m - s_gps_ref.alt_m;               /* Up    [m] */
 }
+#endif
 
 /* ---- Task entry ------------------------------------------------------ */
 
@@ -239,7 +251,11 @@ void task_state_estimation(void *arg)
 {
     (void)arg;
 
+#if TILT_KF_ONLY
+    tilt_kf_init(&s_tilt_kf);
+#else
     eskf_setup();
+#endif
 
     const sensors_t *sensors = sensors_handles();
     /* If dev_init never ran, fall back to the placeholder zero-publish
@@ -247,6 +263,11 @@ void task_state_estimation(void *arg)
      * init sequence is fixed in app_init_cm4 — but it keeps the task
      * defensive and avoids dereferencing NULL drain handles. */
     if (!sensors) {
+#if TILT_KF_ONLY
+        for (;;) {
+            vTaskDelay(pdMS_TO_TICKS(100));
+        }
+#else
         const vec3_f32_t  zero3   = {0.0f, 0.0f, 0.0f};
         const quat_wxyz_t identity = {1.0f, 0.0f, 0.0f, 0.0f};
         for (;;) {
@@ -255,9 +276,12 @@ void task_state_estimation(void *arg)
                 t_us, zero3, zero3, identity, zero3, zero3);
             vTaskDelay(pdMS_TO_TICKS(100));
         }
+#endif
     }
 
+#if !TILT_KF_ONLY
     uint64_t last_primary_imu_us = 0;
+#endif
     const TickType_t timeout = pdMS_TO_TICKS(NOTIFY_TIMEOUT_MS);
 
     for (;;) {
@@ -268,7 +292,9 @@ void task_state_estimation(void *arg)
          * dead. */
         (void)xTaskNotifyWait(0, UINT32_MAX, &notify_bits, timeout);
 
+#if !TILT_KF_ONLY
         size_t n_accel = 0, n_gyro = 0, n_baro = 0, n_gps = 0, n_mag = 0;
+#endif
 
         /* ---- Primary IMU (ICM-40609) ---------------------------------
          * We drain unconditionally — the notify bit is only a hint; the
@@ -278,7 +304,16 @@ void task_state_estimation(void *arg)
             n_icm = imu_icm40609_drain(sensors->icm40609,
                                        s_icm_raw, DRAIN_BATCH);
         }
-        for (size_t i = 0; i < n_icm && n_accel < DRAIN_BATCH; i++) {
+        for (size_t i = 0; i < n_icm; i++) {
+#if TILT_KF_ONLY
+            tilt_kf_update(&s_tilt_kf,
+                           s_icm_raw[i].t_us,
+                           s_icm_raw[i].ax, s_icm_raw[i].ay, s_icm_raw[i].az,
+                           s_icm_raw[i].gx, s_icm_raw[i].gy, s_icm_raw[i].gz);
+#else
+            if (n_accel >= DRAIN_BATCH) {
+                break;
+            }
             imu_to_eskf(s_icm_raw[i].t_us,
                         s_icm_raw[i].ax, s_icm_raw[i].ay, s_icm_raw[i].az,
                         s_icm_raw[i].gx, s_icm_raw[i].gy, s_icm_raw[i].gz,
@@ -286,8 +321,10 @@ void task_state_estimation(void *arg)
             n_accel++;
             n_gyro++;
             last_primary_imu_us = s_icm_raw[i].t_us;
+#endif
         }
 
+#if !TILT_KF_ONLY
 #ifdef DEBUG_TEXT_CONSOLE
         /* Bring-up: stream the latest ICM-40609 sample to the text console at
          * ~5 Hz. Integer milli-units only — the linked printf has no %f
@@ -317,7 +354,23 @@ void task_state_estimation(void *arg)
             }
         }
 #endif
+#endif
 
+#if TILT_KF_ONLY && defined(DEBUG_TEXT_CONSOLE)
+        {
+            static uint64_t s_tilt_dbg_last_us;
+            const uint64_t  t_dbg = io_timestamp_us();
+            if (t_dbg - s_tilt_dbg_last_us >= 200000ULL && n_icm > 0) {
+                s_tilt_dbg_last_us = t_dbg;
+                char tx[16], ty[16];
+                fmt_f3(tx, tilt_kf_angle_x_deg(&s_tilt_kf));
+                fmt_f3(ty, tilt_kf_angle_y_deg(&s_tilt_kf));
+                io_debug_printf("x=%s y=%s\r\n", tx, ty);
+            }
+        }
+#endif
+
+#if !TILT_KF_ONLY
         /* ---- Secondary IMU (BMI088) ----------------------------------
          * Always drain to keep the ring healthy. Only feed the EKF if
          * the primary IMU has gone silent for too long. */
@@ -534,5 +587,6 @@ void task_state_estimation(void *arg)
         };
         PUB_STATE_ESTIMATION_STATE_ESTIMATE(
             t_us, position, velocity, attitude, gyro_bias, accel_bias);
+#endif
     }
 }

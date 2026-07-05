@@ -9,6 +9,7 @@ add_library(state_estimation STATIC
     src/quaternion.c
     src/body.c
     src/calibration.c
+    src/tilt_kf.c
 )
 
 target_include_directories(state_estimation

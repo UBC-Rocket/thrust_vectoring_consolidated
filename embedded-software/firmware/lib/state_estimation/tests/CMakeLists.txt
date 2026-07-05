@@ -12,6 +12,7 @@ add_executable(test_state_estimation
     test_matrix.c
     test_ekf.c
     test_eskf_trajectory.c
+    test_tilt_kf.c
     test_main.c
 )
 
