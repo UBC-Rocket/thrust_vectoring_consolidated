@@ -30,14 +30,16 @@
 #define STK_MISSION    (4 * 1024 / sizeof(StackType_t))
 #define STK_SD_LOG     (4 * 1024 / sizeof(StackType_t))
 #define STK_ACTUATOR   (4 * 1024 / sizeof(StackType_t))
+#define STK_TELEMETRY  (4 * 1024 / sizeof(StackType_t))
 
-static StaticTask_t s_tcb_state, s_tcb_mission, s_tcb_log, s_tcb_actuator;
+static StaticTask_t s_tcb_state, s_tcb_mission, s_tcb_log, s_tcb_actuator, s_tcb_telem;
 static StackType_t  s_stk_state[STK_STATE_EST];
 static StackType_t  s_stk_mission[STK_MISSION];
 static StackType_t  s_stk_log[STK_SD_LOG];
 static StackType_t  s_stk_actuator[STK_ACTUATOR];
+static StackType_t  s_stk_telem[STK_TELEMETRY];
 
-static TaskHandle_t s_h_state, s_h_mission, s_h_log, s_h_actuator;
+static TaskHandle_t s_h_state, s_h_mission, s_h_log, s_h_actuator, s_h_telem;
 
 #ifdef DEBUG_TEXT_CONSOLE
 /* Forwards CM7 console text to LPUART1: drains the SRAM4 console ring every
@@ -149,6 +151,13 @@ void app_init_cm4(void) {
                                     STK_ACTUATOR,          NULL, 7,
                                     s_stk_actuator,        &s_tcb_actuator);
     (void)s_h_actuator;
+    /* Downlink: encode EKF state + health as tvr_Downlink and TX over the
+     * radio (UART7). Low priority (background) — it must never preempt
+     * estimation/mission/actuator. */
+    s_h_telem     = xTaskCreateStatic(task_telemetry,        "telemetry",
+                                    STK_TELEMETRY,         NULL, 3,
+                                    s_stk_telem,           &s_tcb_telem);
+    (void)s_h_telem;
 
     sensors_bind_state_estimation_task((io_task_handle_t)s_h_state);
 

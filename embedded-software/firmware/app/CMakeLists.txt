@@ -60,6 +60,7 @@ if(TARGET dev_imu_bmi088 AND TARGET dev_imu_icm40609 AND TARGET dev_baro_ms5611
     add_library(app_cm4 STATIC
         cm4/state_estimation_task.c
         cm4/mission_manager_task.c
+        cm4/telemetry_task.c
         cm4/sd_log_task.c
         cm4/actuator_task.c
         cm4/dev_init_cm4.c
