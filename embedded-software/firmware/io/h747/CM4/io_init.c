@@ -11,7 +11,6 @@
 #include "io_sys/io_status_led.h"
 #include "io_sys/io_timestamp.h"
 #include "io_sys/io_intercore.h"
-#include "io_sys/io_debug.h"
 
 #include "usart.h"          /* TEMP diagnostic: all CM4 UART handles */
 #include "stm32h7xx_hal.h"  /* HAL_Delay for the boot LED-identify blink */
@@ -35,8 +34,6 @@ void io_init_cm4(void) {
     io_timestamp_init();
     io_status_led_init();
     io_intercore_init();
-    io_debug_init();
-    
     io_spi_init();      /* per-bus spi_queue instances + dispatch table */
     io_sd_init();
     /* io_uart_open for streaming UARTs happens lazily from each driver.

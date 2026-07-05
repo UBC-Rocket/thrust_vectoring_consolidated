@@ -273,8 +273,11 @@ void task_state_estimation(void *arg)
         /* ---- Primary IMU (ICM-40609) ---------------------------------
          * We drain unconditionally — the notify bit is only a hint; the
          * ring may have samples even on a spurious wake. */
-        size_t n_icm = imu_icm40609_drain(sensors->icm40609,
-                                          s_icm_raw, DRAIN_BATCH);
+        size_t n_icm = 0;
+        if (sensors->icm40609 != NULL) {
+            n_icm = imu_icm40609_drain(sensors->icm40609,
+                                       s_icm_raw, DRAIN_BATCH);
+        }
         for (size_t i = 0; i < n_icm && n_accel < DRAIN_BATCH; i++) {
             imu_to_eskf(s_icm_raw[i].t_us,
                         s_icm_raw[i].ax, s_icm_raw[i].ay, s_icm_raw[i].az,
