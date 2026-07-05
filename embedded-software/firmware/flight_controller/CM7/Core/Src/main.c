@@ -151,13 +151,9 @@ Error_Handler();
 
   /* USER CODE BEGIN SysInit */
 
-  /* MVP focus: hand the board to the M4 for the debug-print bring-up. The M7
-   * just idles here so it can't contend on GPIO/UART. Boot-sync is disabled
-   * above so the M7 doesn't wait on the M4. (We already proved the M7 runs our
-   * code via the register-verified LED toggle.) Remove after bring-up. */
-  for (;;) {
-    __WFI();
-  }
+  /* Bring-up park removed: CM7 now boots fully (peripherals, io/dev/app
+   * layers, scheduler) alongside CM4. Boot-sync remains disabled on both
+   * cores — they boot in parallel with no HSEM handshake. */
 
   /* USER CODE END SysInit */
 
@@ -171,7 +167,13 @@ Error_Handler();
   MX_TIM3_Init();
   MX_USART2_UART_Init();
   MX_TIM4_Init();
-  MX_WWDG1_Init();
+  /* MX_WWDG1_Init(); -- UBC Rocket: DISABLED for bring-up.
+   * Same trap as WWDG2 on CM4 (see CM4/Core/Src/main.c): CubeMX starts the
+   * window watchdog here with Counter=Window=64, prescaler 1, and NOTHING in
+   * the firmware ever calls HAL_WWDG_Refresh — the core would reset within
+   * tens of microseconds of this line, forever. Re-introduce only together
+   * with a supervised refresh (dedicated task or timer) once bring-up is
+   * done; a flight controller should ultimately run with the watchdog on. */
   MX_ADC1_Init();
   MX_TIM16_Init();
   /* USER CODE BEGIN 2 */
