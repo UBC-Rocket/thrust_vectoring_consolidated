@@ -10,6 +10,8 @@
  */
 
 #include "io_spi_queue/io_spi_queue.h"
+#include "io_sys/io_status_led.h"
+#include "io_sys/io_debug.h"
 
 #include "stm32h7xx_hal.h"
 
@@ -130,6 +132,7 @@ static bool start_job(io_spi_queue_t *q, io_spi_queue_job_t *job) {
         if (job->done != NULL) {
             job->done(job, job->user, false);
         }
+        
         return false;
     }
     return true;
@@ -183,7 +186,8 @@ io_status_t io_spi_queue_submit(io_spi_queue_t *q, const io_spi_queue_job_t *job
         (void)start_job(q, to_start);
         /* Even on start failure, ret stays IO_OK — the caller's done()
          * callback was already invoked with ok=false inside start_job. */
-    }
+    } 
+
     return ret;
 }
 
@@ -225,7 +229,7 @@ void io_spi_queue_on_complete(io_spi_queue_t *q) {
     if (completed.done != NULL) {
         completed.done(&completed, completed.user, true);
     }
-
+    
     advance_to_next(q);
 }
 

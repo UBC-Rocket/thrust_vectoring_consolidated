@@ -34,7 +34,6 @@ void io_init_cm4(void) {
     io_timestamp_init();
     io_status_led_init();
     io_intercore_init();
-
     io_spi_init();      /* per-bus spi_queue instances + dispatch table */
     io_sd_init();
     /* io_uart_open for streaming UARTs happens lazily from each driver.
@@ -53,16 +52,16 @@ void io_init_cm4(void) {
      *     or a USB-UART adapter).
      * (c) Staged boot tracer: GREEN here = io_init done; dev_init lights
      *     YELLOW; app_init lights RED solid; mission_manager blinks RED. */
-    for (int i = 0; i < 3; ++i) {
-        io_status_led_set(IO_LED_GREEN,  true);
-        io_status_led_set(IO_LED_YELLOW, true);
-        io_status_led_set(IO_LED_RED,    true);
-        HAL_Delay(150);
-        io_status_led_set(IO_LED_GREEN,  false);
-        io_status_led_set(IO_LED_YELLOW, false);
-        io_status_led_set(IO_LED_RED,    false);
-        HAL_Delay(150);
-    }
+    // for (int i = 0; i < 3; ++i) {
+    //     io_status_led_set(IO_LED_GREEN,  true);
+    //     io_status_led_set(IO_LED_YELLOW, true);
+    //     io_status_led_set(IO_LED_RED,    true);
+    //     HAL_Delay(150);
+    //     io_status_led_set(IO_LED_GREEN,  false);
+    //     io_status_led_set(IO_LED_YELLOW, false);
+    //     io_status_led_set(IO_LED_RED,    false);
+    //     HAL_Delay(150);
+    // }
 
     io_diag_probe_uart(&hlpuart1, "PROBE LPUART1_PA9\r\n");
     io_diag_probe_uart(&huart1,   "PROBE USART1_PB14\r\n");

@@ -159,7 +159,7 @@ void MX_SPI3_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN SPI3_Init 2 */
-
+  
   /* USER CODE END SPI3_Init 2 */
 
 }

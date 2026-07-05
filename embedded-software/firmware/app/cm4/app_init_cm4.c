@@ -122,7 +122,7 @@ void app_init_cm4(void) {
      * WHO_AM_I == 0x3B identity gate). */
     {
         const sensors_t *sn = sensors_handles();
-        io_debug_printf("[init] ICM40609 %s\r\n",
+       io_debug_printf("[init] ICM40609 %s\r\n",
                         (sn != NULL && sn->icm40609 != NULL) ? "OK" : "FAIL");
     }
 

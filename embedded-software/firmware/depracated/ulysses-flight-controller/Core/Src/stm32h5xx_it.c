@@ -120,6 +120,7 @@ void HardFault_Handler(void)
       "mov r2, #0        \n" /* CRASH_FAULT_HARD */
       "b crash_dump_handler \n"
   );
+  
   /* USER CODE END HardFault_IRQn 0 */
   while (1)
   {

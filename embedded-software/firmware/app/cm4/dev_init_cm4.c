@@ -35,7 +35,9 @@ void dev_init_cm4(void) {
      * Their _get() handles stay NULL; all consumers are NULL-safe.
      * TODO: retune SPI1/SPI4 prescalers, verify on scope, then re-enable. */
     /* imu_bmi088_init(); */
-    imu_icm40609_init();
+    if (imu_icm40609_init() == false) {
+        io_status_led_set(IO_LED_YELLOW, true);
+    }
     baro_ms5611_init();
     /* mag_mmc5983_init(); */
     gps_nmea_init();
@@ -70,9 +72,14 @@ const actuators_t *actuators_handles(void) {
 
 void sensors_bind_state_estimation_task(io_task_handle_t task) {
     if (!s_init_done) return;
-    imu_icm40609_set_notify (s_sensor_handles.icm40609, task, SENSORS_NOTIFY_IMU_PRIMARY);
-    imu_bmi088_set_notify   (s_sensor_handles.bmi088,   task, SENSORS_NOTIFY_IMU_SECONDARY);
-    baro_ms5611_set_notify  (s_sensor_handles.baro,     task, SENSORS_NOTIFY_BARO);
-    mag_mmc5983_set_notify  (s_sensor_handles.mag,      task, SENSORS_NOTIFY_MAG);
-    gps_nmea_set_notify     (s_sensor_handles.gps,      task, SENSORS_NOTIFY_GPS);
+    if (s_sensor_handles.icm40609)
+        imu_icm40609_set_notify (s_sensor_handles.icm40609, task, SENSORS_NOTIFY_IMU_PRIMARY);
+    if (s_sensor_handles.bmi088)
+        imu_bmi088_set_notify   (s_sensor_handles.bmi088,   task, SENSORS_NOTIFY_IMU_SECONDARY);
+    if (s_sensor_handles.baro)
+        baro_ms5611_set_notify  (s_sensor_handles.baro,     task, SENSORS_NOTIFY_BARO);
+    if (s_sensor_handles.mag)
+        mag_mmc5983_set_notify  (s_sensor_handles.mag,      task, SENSORS_NOTIFY_MAG);
+    if (s_sensor_handles.gps)
+        gps_nmea_set_notify     (s_sensor_handles.gps,      task, SENSORS_NOTIFY_GPS);
 }

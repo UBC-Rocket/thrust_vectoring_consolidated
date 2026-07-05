@@ -43,6 +43,12 @@ void test_trajectory_vertical_ascent(void);
 void test_trajectory_dual_imu_static(void);
 void test_trajectory_dual_baro_ascent(void);
 
+/* test_tilt_kf.c */
+void test_tilt_kf_stationary_near_zero(void);
+void test_tilt_kf_real_sensor_offsets_small(void);
+void test_tilt_kf_tilt_x_converges(void);
+void test_tilt_kf_gyro_integration_tracks_rate(void);
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -86,6 +92,12 @@ int main(void)
     RUN_TEST(test_trajectory_vertical_ascent);
     RUN_TEST(test_trajectory_dual_imu_static);
     RUN_TEST(test_trajectory_dual_baro_ascent);
+
+    /* tilt kalman filter */
+    RUN_TEST(test_tilt_kf_stationary_near_zero);
+    RUN_TEST(test_tilt_kf_real_sensor_offsets_small);
+    RUN_TEST(test_tilt_kf_tilt_x_converges);
+    RUN_TEST(test_tilt_kf_gyro_integration_tracks_rate);
 
     return UNITY_END();
 }

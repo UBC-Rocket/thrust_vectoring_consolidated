@@ -7,6 +7,7 @@
  */
 #include "io_common.h"
 #include "io/io_spi.h"
+#include "io_sys/io_status_led.h"
 
 #include "spi.h"
 #include "io_spi_queue/io_spi_queue.h"
@@ -126,7 +127,15 @@ static io_spi_queue_t *queue_for(SPI_HandleTypeDef *hspi) {
     return &s_q[idx];
 }
 
-void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi) { io_spi_queue_on_complete(queue_for(hspi)); }
-void HAL_SPI_TxCpltCallback  (SPI_HandleTypeDef *hspi) { io_spi_queue_on_complete(queue_for(hspi)); }
-void HAL_SPI_RxCpltCallback  (SPI_HandleTypeDef *hspi) { io_spi_queue_on_complete(queue_for(hspi)); }
-void HAL_SPI_ErrorCallback   (SPI_HandleTypeDef *hspi) { io_spi_queue_on_error   (queue_for(hspi)); }
+void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi) { 
+    io_spi_queue_on_complete(queue_for(hspi)); 
+}
+void HAL_SPI_TxCpltCallback  (SPI_HandleTypeDef *hspi) { 
+    
+    io_spi_queue_on_complete(queue_for(hspi)); }
+void HAL_SPI_RxCpltCallback  (SPI_HandleTypeDef *hspi) { 
+    
+    io_spi_queue_on_complete(queue_for(hspi)); }
+void HAL_SPI_ErrorCallback   (SPI_HandleTypeDef *hspi) { 
+   
+    io_spi_queue_on_error   (queue_for(hspi)); }

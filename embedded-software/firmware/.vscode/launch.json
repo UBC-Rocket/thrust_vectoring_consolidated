@@ -19,15 +19,15 @@
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "openocd",
-            "serverpath": "${env:STM32_OPENOCD_PATH}",
+            "serverpath": "/Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.openocd.macosaarch64_1.0.100.202604080855/tools/bin/openocd",
             "configFiles": [
                 "interface/stlink-dap.cfg",
                 "board/flight_controller.cfg"
             ],
             "svdFile": "${workspaceFolder}/platform/svd/STM32H747_CM7.svd",
             "searchDir": [
-                "${workspaceFolder}/platform/tcl/",
-                "${env:STM32_OPENOCD_SCRIPTS_PATH}"
+                "/Users/andykim/Documents/ubc_rocket/thrust_vectoring_consolidated/embedded-software/firmware/platform/tcl/",
+                "/Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.debug.openocd_2.3.400.202606220929/resources/openocd/st_scripts/"
             ],
             "showDevDebugOutput": "vscode",
             "openOCDPreConfigLaunchCommands": [
@@ -38,7 +38,7 @@
         {
             "name": "FC-OpenOCD-Debug-CM4",
             "cwd": "${workspaceFolder}",
-            "executable": "${workspaceFolder}/flight_controller/CM7/build/ulysses-fc_CM4.elf",
+            "executable": "${workspaceFolder}/flight_controller/CM4/build/ulysses-fc_CM4.elf",
             "loadFiles": [
                 "${workspaceFolder}/flight_controller/CM7/build/ulysses-fc_CM7.elf",
                 "${workspaceFolder}/flight_controller/CM4/build/ulysses-fc_CM4.elf"
@@ -50,15 +50,15 @@
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "openocd",
-            "serverpath": "${env:STM32_OPENOCD_PATH}",
+            "serverpath": "/Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.openocd.macosaarch64_1.0.100.202604080855/tools/bin/openocd",
             "configFiles": [
                 "interface/stlink-dap.cfg",
                 "board/flight_controller.cfg"
             ],
             "svdFile": "${workspaceFolder}/platform/svd/STM32H747_CM4.svd",
             "searchDir": [
-                "${workspaceFolder}/platform/tcl/",
-                "${env:STM32_OPENOCD_SCRIPTS_PATH}"
+                "/Users/andykim/Documents/ubc_rocket/thrust_vectoring_consolidated/embedded-software/firmware/platform/tcl/",
+                "/Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.debug.openocd_2.3.400.202606220929/resources/openocd/st_scripts/"
             ],
             "showDevDebugOutput": "vscode",
             "openOCDPreConfigLaunchCommands": [

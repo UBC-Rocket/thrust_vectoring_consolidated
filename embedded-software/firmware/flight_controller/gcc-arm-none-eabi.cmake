@@ -46,3 +46,10 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-Map=${CMAKE_PROJECT_N
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--print-memory-usage")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${STM32_LINKER_OPTION}")
 set(TOOLCHAIN_LINK_LIBRARIES "m")
+
+# Define the root of the Homebrew ARM GCC installation folder
+set(TOOLCHAIN_ROOT "/opt/homebrew/Cellar/arm-none-eabi-gcc/16.1.0/arm-none-eabi")
+
+# Force GCC to locate its core libraries and system components
+add_compile_options(--sysroot=${TOOLCHAIN_ROOT})
+add_compile_options("-isystem" "${TOOLCHAIN_ROOT}/include")

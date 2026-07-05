@@ -84,7 +84,7 @@ extern SPI_HandleTypeDef hspi2;
 extern SPI_HandleTypeDef hspi3;
 extern SPI_HandleTypeDef hspi4;
 extern TIM_HandleTypeDef htim5;
-extern TIM_HandleTypeDef htim13;   /* io_timestamp overflow source */
+extern TIM_HandleTypeDef htim13;
 
 /* USER CODE BEGIN EV */
 

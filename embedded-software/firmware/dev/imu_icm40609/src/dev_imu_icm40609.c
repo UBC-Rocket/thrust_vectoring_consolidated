@@ -10,6 +10,7 @@
 #include "io/io_exti.h"
 #include "io_sys/io_timestamp.h"
 #include "io_sys/io_test_hooks.h"
+#include "io_sys/io_status_led.h"
 
 #include "sensors/icm40609.h"
 
@@ -69,15 +70,20 @@ static void on_done(const io_spi_xfer_t *x, void *user, io_status_t st) {
     notify_isr(d);
 }
 
+/* Must outlive on_drdy(): io_spi_submit's completion callback fires
+ * asynchronously from the DMA ISR, well after on_drdy (and any stack-local
+ * xfer descriptor) has returned. */
+static io_spi_xfer_t s_xfer;
+
 static void on_drdy(void *user) {
     imu_icm40609_t *d = user;
     s_tx[0] = (uint8_t)(ICM40609_ACCEL_DATA_X1 | 0x80);
-    io_spi_xfer_t x = {
+    s_xfer = (io_spi_xfer_t){
         .tx = s_tx, .rx = s_rx, .len = (uint16_t)(1 + ICM_DATA_BYTES),
         .done = on_done, .user = d,
         .t_sample = io_timestamp_us(),
     };
-    io_spi_submit(&IO_SPI_ICM40609, &x);
+    io_spi_submit(&IO_SPI_ICM40609, &s_xfer);
 }
 
 /* ---- Blocking-init SPI helpers (CS framed by the IO layer / HW NSS) ---- */

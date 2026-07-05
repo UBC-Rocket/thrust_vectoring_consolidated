@@ -10,6 +10,7 @@
 #include "io/io_exti.h"
 #include "io_sys/io_timestamp.h"
 #include "io_sys/io_test_hooks.h"
+#include "io_sys/io_status_led.h"
 
 #include "sensors/bmi088_accel.h"
 #include "sensors/bmi088_gyro.h"
@@ -82,26 +83,32 @@ static void on_gyro_done(const io_spi_xfer_t *x, void *user, io_status_t st) {
     notify_isr(d);
 }
 
+/* Must outlive on_*_drdy(): io_spi_submit's completion callback fires
+ * asynchronously from the DMA ISR, well after the *_drdy ISR (and any
+ * stack-local xfer descriptor) has returned. */
+static io_spi_xfer_t s_acc_xfer;
+static io_spi_xfer_t s_gyro_xfer;
+
 static void on_acc_drdy(void *user) {
     imu_bmi088_t *d = user;
     s_acc_tx[0] = BMI_RD(BMI088_ACC_DATA_START);
-    io_spi_xfer_t x = {
+    s_acc_xfer = (io_spi_xfer_t){
         .tx = s_acc_tx, .rx = s_acc_rx, .len = 8,
         .done = on_acc_done, .user = d,
         .t_sample = io_timestamp_us(),
     };
-    io_spi_submit(&IO_SPI_BMI088_ACC, &x);
+    io_spi_submit(&IO_SPI_BMI088_ACC, &s_acc_xfer);
 }
 
 static void on_gyro_drdy(void *user) {
     imu_bmi088_t *d = user;
     s_gyro_tx[0] = BMI_RD(BMI088_GYRO_RATE_X_LSB);
-    io_spi_xfer_t x = {
+    s_gyro_xfer = (io_spi_xfer_t){
         .tx = s_gyro_tx, .rx = s_gyro_rx, .len = 7,
         .done = on_gyro_done, .user = d,
         .t_sample = io_timestamp_us(),
     };
-    io_spi_submit(&IO_SPI_BMI088_GYRO, &x);
+    io_spi_submit(&IO_SPI_BMI088_GYRO, &s_gyro_xfer);
 }
 
 /* ---- Bring-up configuration -------------------------------------------- *
@@ -162,6 +169,7 @@ static bool gyro_read_reg(uint8_t reg, uint8_t *out) {
     uint8_t rx[2] = { 0 };
     if (io_spi_xfer_blocking(&IO_SPI_BMI088_GYRO, tx, rx, 2,
                              BMI_SPI_TIMEOUT_MS) != IO_OK) return false;
+    
     *out = rx[1];
     return true;
 }
@@ -169,14 +177,14 @@ static bool gyro_read_reg(uint8_t reg, uint8_t *out) {
 static bool bmi088_accel_bringup(bmi088_accel_t *dev) {
     uint8_t tx[8];
     uint8_t id = 0;
-
+    
     /* BMI088 accel powers up in I2C mode; the first SPI access (a rising CS
      * edge) switches it to SPI but returns invalid data, and a soft reset
      * returns it to I2C — so issue a dummy read, reset, then dummy read again
      * before trusting any value. */
     (void)acc_read_reg(BMI088_ACC_CHIP_ID_REG, &id);   /* dummy: enter SPI    */
     bmi_delay_us(1000);
-
+    
     bmi088_accel_build_softreset(tx);
     if (!acc_write(tx, 2)) return false;
     bmi_delay_us(2000);                                /* >=1 ms post-reset   */
