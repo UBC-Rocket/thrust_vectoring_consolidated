@@ -35,7 +35,9 @@ void dev_init_cm4(void) {
      * Their _get() handles stay NULL; all consumers are NULL-safe.
      * TODO: retune SPI1/SPI4 prescalers, verify on scope, then re-enable. */
     /* imu_bmi088_init(); */
-    imu_icm40609_init();
+    if (imu_icm40609_init() == false) {
+        io_status_led_set(IO_LED_YELLOW, true);
+    }
     baro_ms5611_init();
     /* mag_mmc5983_init(); */
     gps_nmea_init();

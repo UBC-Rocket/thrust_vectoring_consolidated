@@ -10,6 +10,7 @@
 #include "io_sys/io_test_hooks.h"
 
 #include "esc_dshot/bdshot.h"
+#include <stddef.h>
 
 void dev_init_cm7(void)
 {

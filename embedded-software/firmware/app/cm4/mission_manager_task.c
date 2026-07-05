@@ -48,6 +48,7 @@
 
 #include "FreeRTOS.h"
 #include "task.h"
+#include "main.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -406,6 +407,7 @@ void task_mission_manager(void *arg) {
             io_debug_printf("[hb] cm4 alive  state=%d armed=%d  t=%lu ms\r\n",
                             (int)s_flight_state, (int)s_armed,
                             (unsigned long)now);
+            
         }
 #endif
     }
