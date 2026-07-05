@@ -66,6 +66,31 @@ static bool messages_sd_sink(const uint8_t *record, size_t record_len) {
 
 void app_init_cm4(void) {
     state_exchange_init();
+
+    /* Seed every CM4-owned exchange slot with a benign default. The .shared
+     * SRAM4 section is NOLOAD on both cores and nothing zeroes it, so until
+     * a slot's first publish its seqlock header is power-on garbage — which
+     * the reader happily returns as "valid" data. CM7's controls task polls
+     * pid_gains/reference/vehicle_config and would merge random positive
+     * floats into its live gains. Publishing once here writes coherent
+     * headers before CM7's tasks ever poll. Zeros are deliberate no-ops on
+     * the CM7 side: merge_* helpers guard on > 0, and q_valid=false leaves
+     * the attitude reference at identity. */
+    {
+        const app_pid_gains_t      pid_defaults = {0};
+        const app_reference_t      ref_defaults = {0};   /* q_valid = false */
+        const app_vehicle_config_t cfg_defaults = {0};
+        state_t state_default = {0};
+        state_default.q_bn.w = 1.0f;                      /* identity attitude */
+
+        (void)state_exchange_publish_pid_gains(&pid_defaults);
+        (void)state_exchange_publish_reference(&ref_defaults);
+        (void)state_exchange_publish_vehicle_config(&cfg_defaults);
+        (void)state_exchange_publish_armed(false);
+        (void)state_exchange_publish_flight_state(APP_FLIGHT_IDLE);
+        (void)state_exchange_publish_state(&state_default);
+    }
+
     log_service_init();
 
     /* Bring up persistent storage. Reads both flash sectors, picks

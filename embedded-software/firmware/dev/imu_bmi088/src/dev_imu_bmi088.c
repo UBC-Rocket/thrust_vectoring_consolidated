@@ -282,6 +282,7 @@ imu_bmi088_t *imu_bmi088_get(void) {
 }
 
 size_t imu_bmi088_drain(imu_bmi088_t *d, imu_sample_t *out, size_t max) {
+    if (!d || !out) return 0;
     size_t n = 0;
     bmi088_accel_sample_t a;
     bmi088_gyro_sample_t  g;
@@ -298,6 +299,7 @@ size_t imu_bmi088_drain(imu_bmi088_t *d, imu_sample_t *out, size_t max) {
 }
 
 void imu_bmi088_set_notify(imu_bmi088_t *d, io_task_handle_t task, uint32_t bit) {
+    if (!d) return;
     d->notify_task = task;
     d->notify_bit  = bit;
 }

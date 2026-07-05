@@ -8,6 +8,15 @@ project(app LANGUAGES C)
 # Only one of the two can own the single STLINK-V3 VCP at a time.
 option(DEBUG_TEXT_CONSOLE "LPUART1/VCP = plain-text debug console (CoolTerm)" ON)
 
+# When ON (bring-up default), CM7 never arms the ESC driver: the 800 Hz control
+# ISR, controller math, and control_output publishing all run, but every
+# esc_dshot_motor_set_throttle() is rejected inside the driver (bdshot.c gates
+# on is_armed) so no DShot pulses reach the motors, and the boot-time ESC
+# selftest ramp is skipped. Turn OFF only for powered motor tests with props
+# removed — there is no armed-state gating in the ISR yet, and the controller
+# commands hover-level thrust (T_cmd ≈ m·g) whenever it runs.
+option(BENCH_NO_MOTORS "Bring-up: never arm ESCs; control loop runs, DShot output suppressed" ON)
+
 #
 # Shared layer — built into both cores.
 #
@@ -127,6 +136,9 @@ if(TARGET dev_esc_dshot)
         # CM7 forwards its io_debug_printf text to CM4's VCP over the SRAM4
         # console ring (see app_init_cm7.c / io/h747/CM7/io_debug.c).
         target_compile_definitions(app_cm7 PRIVATE DEBUG_TEXT_CONSOLE)
+    endif()
+    if(BENCH_NO_MOTORS)
+        target_compile_definitions(app_cm7 PRIVATE BENCH_NO_MOTORS)
     endif()
     set_target_properties(app_cm7 PROPERTIES
         C_STANDARD 11

@@ -23,6 +23,11 @@
 
 #include <math.h>
 
+#ifdef DEBUG_TEXT_CONSOLE
+#include "io_sys/io_debug.h"   /* bring-up: 1 Hz control-output trace */
+#include <stdio.h>             /* snprintf for fixed-point formatting  */
+#endif
+
 #define CONTROLS_DT_S 0.00125f
 
 static flight_controller_config_t s_live_config = {
@@ -93,11 +98,21 @@ void controls_on_tim_period_elapsed(void *htim_handle)
 
 void controls_isr_init(void)
 {
+#ifndef BENCH_NO_MOTORS
     esc_dshot_set_armed(true);
+#else
+    /* BENCH_NO_MOTORS: leave the ESC driver disarmed. The ISR still runs the
+     * full controller and publishes control_output (servos on CM4 do move),
+     * but esc_dshot_motor_set_throttle() rejects every command while
+     * disarmed, so no DShot pulses reach the motors. There is no armed-state
+     * gating in the ISR yet and the controller commands hover-level thrust
+     * (T_cmd ≈ m·g) whenever it runs — do NOT flip this off with props on. */
+#endif
     flight_controller_init(&s_live_config);
     s_isr_ready = true;
 }
 
+#ifndef BENCH_NO_MOTORS
 static void controls_run_startup_selftest(void)
 {
     esc_dshot_motor_set_throttle(ESC_MOTOR_ID_LOWER, 0);
@@ -127,6 +142,7 @@ static void controls_run_startup_selftest(void)
     esc_dshot_motor_set_throttle(ESC_MOTOR_ID_LOWER, 0);
     esc_dshot_motor_set_throttle(ESC_MOTOR_ID_UPPER, 0);
 }
+#endif /* !BENCH_NO_MOTORS */
 
 static inline void merge_pid_gains(const app_pid_gains_t *g) {
     for (int i = 0; i < 3; ++i) {
@@ -185,14 +201,52 @@ static void poll_tunables(void) {
     }
 }
 
+#ifdef DEBUG_TEXT_CONSOLE
+/* Signed fixed-point formatter (3 decimals) — the linked printf has no %f.
+ * Same shape as fmt_f3 in cm4/state_estimation_task.c. */
+static void fmt_f3(char *buf, float v) {
+    int neg = (v < 0.0f);
+    if (neg) v = -v;
+    if (v > 9999.0f) v = 9999.0f;
+    unsigned long m = (unsigned long)(v * 1000.0f + 0.5f);
+    (void)snprintf(buf, 16, "%s%lu.%03lu", neg ? "-" : "", m / 1000UL, m % 1000UL);
+}
+#endif
+
 void task_controls(void *arg) {
     (void)arg;
 
+#ifndef BENCH_NO_MOTORS
     controls_run_startup_selftest();
+#endif
     HAL_TIM_Base_Start_IT(&htim16);
+
+#ifdef DEBUG_TEXT_CONSOLE
+    unsigned dbg_tick = 0;
+#endif
 
     for (;;) {
         poll_tunables();
+
+#ifdef DEBUG_TEXT_CONSOLE
+        /* Bring-up: ~1 Hz trace of the ISR's latest published control output
+         * (read back from the exchange slot — same data CM4's actuator task
+         * consumes). Proves the CM7 loop is running on live EKF state. */
+        if (++dbg_tick >= (1000U / TUNABLE_POLL_MS)) {
+            dbg_tick = 0;
+            control_output_t out;
+            (void)state_exchange_get_control_output(&out);
+            char t[16], tx[16], ty[16], px[16], py[16];
+            fmt_f3(t,  out.T_cmd);
+            fmt_f3(tx, out.theta_x_cmd);
+            fmt_f3(ty, out.theta_y_cmd);
+            fmt_f3(px, out.phi_x);
+            fmt_f3(py, out.phi_y);
+            io_debug_printf("[ctl] T=%s N  gim=%s,%s rad  phi=%s,%s\r\n",
+                            t, tx, ty, px, py);
+        }
+#endif
+
         vTaskDelay(pdMS_TO_TICKS(TUNABLE_POLL_MS));
     }
 }
