@@ -1,6 +1,5 @@
 #include "CommandSender.h"
 #include "SerialBridge.h"
-#include <QTimer>
 extern "C" {
     #include "rp/codec.h"
     #include "command.pb.h"
@@ -8,100 +7,8 @@ extern "C" {
 
 
 CommandSender::CommandSender(SerialBridge* bridge, QObject* parent)
-    : m_bridge(bridge), QObject(parent)
+    : QObject(parent), m_bridge(bridge)
 {
-    // Channel 1 periodic sender: fires at fixed rate, sends cached payload if bridge exists.
-    m_ch1.timer.setTimerType(Qt::PreciseTimer);
-    connect(&m_ch1.timer, &QTimer::timeout, this, [this]() {
-        if (!m_bridge) { emit errorOccurred("No Bridge"); return; }
-        if (!m_ch1.payload.isEmpty()) {
-            if (m_bridge->sendText(1, m_ch1.payload))
-                emit messageSent(m_ch1.payload);
-            else
-                emit errorOccurred("Periodic send failed (P1)");
-        }
-    });
-
-
-    // Channel 2 periodic sender: same idea but for channel 2 payload.
-    m_ch2.timer.setTimerType(Qt::PreciseTimer);
-    connect(&m_ch2.timer, &QTimer::timeout, this, [this]() {
-        if (!m_bridge) { emit errorOccurred("No Bridge"); return; }
-        if (!m_ch2.payload.isEmpty()) {
-            if (m_bridge->sendText(1, m_ch2.payload))
-                emit messageSent(m_ch2.payload);
-            else
-                emit errorOccurred("Periodic send failed (P1)");
-        }
-    });
-}
-
-
-bool CommandSender::sendCode(int which, const QString& code) {
-    if (!validWhich(which)) {
-        emit errorOccurred("which must be 1 or 2");
-        return false;
-    }
-
-
-    if (!m_bridge) {
-        emit errorOccurred("No bridge");   // Cannot send without a transport.
-        return false;
-    }
-
-
-    // Delegate the actual serial write to SerialBridge.
-    bool ok = m_bridge->sendText(which, code);
-
-
-    if (ok) {
-        emit messageSent(code);            // Notify listeners what was sent.
-    } else {
-        emit errorOccurred("Failed to send code");
-    }
-    return ok;                             // Let caller know if it worked.
-}
-
-
-void CommandSender::startPeriodic(int which, const QString& code, int hz) {
-    if (!validWhich(which)) {
-        emit errorOccurred("which must be 1 or 2");
-        return;
-    }
-
-
-    if (hz <= 0) {
-        emit errorOccurred("Hz must be > 0");
-        return;
-    }
-
-
-    // Store payload and frequency, then arm the channel timer.
-    auto& c = chan(which);
-    c.payload = code;
-    c.hz = hz;
-    c.timer.start(1000 / hz);             // Simple ms interval: 1000ms / Hz.
-}
-
-
-void CommandSender::stopPeriodic(int which) {
-    if (!validWhich(which)) {
-        emit errorOccurred("which must be 1 or 2");
-        return;
-    }
-
-
-    // Just stop the underlying QTimer for that channel.
-    chan(which).timer.stop();
-}
-
-
-bool CommandSender::isPeriodicRunning(int which) const {
-    if (!validWhich(which))
-        return false;
-
-
-    return chan(which).timer.isActive();  // True if the periodic timer is currently running.
 }
 
 
@@ -302,6 +209,65 @@ bool CommandSender::sendReferenceValues(int which, const QVariantList& reference
 
 
 }
+
+bool CommandSender::sendProbeLayout(const QVariantList& probes) {
+    if (!m_bridge) {
+        emit errorOccurred("No bridge");
+        return false;
+    }
+
+    // Layout is fixed at exactly 4 ground anchors forming a rectangle.
+    // Caller (Panel_Probe_Map) hands us the 4 corner positions as
+    // {x, y} maps in nav-frame meters.
+    if (probes.size() != 4) {
+        emit errorOccurred(
+            QStringLiteral("SetProbeLayout expects 4 anchors, got %1").arg(probes.size()));
+        return false;
+    }
+
+    tvr_SetProbeLayout layout = tvr_SetProbeLayout_init_zero;
+    bool* hasArr[4]    = { &layout.has_anchor_0, &layout.has_anchor_1,
+                           &layout.has_anchor_2, &layout.has_anchor_3 };
+    tvr_Vec2* probeArr[4] = { &layout.anchor_0, &layout.anchor_1,
+                              &layout.anchor_2, &layout.anchor_3 };
+
+    for (int i = 0; i < 4; ++i) {
+        const QVariantMap entry = probes[i].toMap();
+        *hasArr[i] = true;
+        probeArr[i]->x = static_cast<float>(entry.value("x").toDouble());
+        probeArr[i]->y = static_cast<float>(entry.value("y").toDouble());
+    }
+
+    tvr_FlightCommand cmd = tvr_FlightCommand_init_zero;
+    cmd.which_payload = tvr_FlightCommand_set_probe_layout_tag;
+    cmd.payload.set_probe_layout = layout;
+
+    uint8_t packet[300];
+    rp_packet_encode_result_t result = rp_packet_encode(
+        packet,
+        sizeof(packet),
+        tvr_FlightCommand_fields,
+        &cmd
+    );
+
+    if (result.status != RP_CODEC_OK) {
+        emit errorOccurred("Failed to encode probe layout packet");
+        return false;
+    }
+
+    // Use the operator's currently selected TX channel (matches D4 — PID/Reference/
+    // Config now also bind to bridge.txTo via Panel_PID_Controller.which).
+    const int which = m_bridge->txTo();
+    QByteArray data(reinterpret_cast<const char*>(packet), result.written);
+    if (!m_bridge->sendBinary(which, data)) {
+        emit errorOccurred("Failed to send probe layout packet");
+        return false;
+    }
+
+    emit messageSent(QStringLiteral("SetProbeLayout sent (4 anchors)"));
+    return true;
+}
+
 
 bool CommandSender::sendConfigValues(int which, const QVariantList& configValues) {
 

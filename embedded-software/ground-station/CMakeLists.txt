@@ -5,6 +5,11 @@ project(ulysses_ground_control
     LANGUAGES CXX C
 )
 
+# ----------------------------------------------------------------------
+# For Linux release
+include(GNUInstallDirs)
+# ----------------------------------------------------------------------
+
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
@@ -23,6 +28,7 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../libs/rocket-protocol ${CMAKE_BIN
 find_package(Qt6 REQUIRED COMPONENTS
     Core
     Gui
+    Network
     Qml
     Quick
     QuickControls2
@@ -50,6 +56,7 @@ set(SRC_FILES
     "${SRC_DIR}/CommandSender.cpp"
     "${SRC_DIR}/AlarmReceiver.cpp"
     "${SRC_DIR}/SensorDataModel.cpp"
+    "${SRC_DIR}/PresetManager.cpp"
 )
 
 set(HDR_FILES
@@ -57,6 +64,7 @@ set(HDR_FILES
     "${HEAD_DIR}/CommandSender.h"
     "${HEAD_DIR}/AlarmReceiver.h"
     "${HEAD_DIR}/SensorDataModel.h"
+    "${HEAD_DIR}/PresetManager.h"
 )
 
 # ----------------------------------------------------------------------
@@ -69,9 +77,47 @@ qt_add_executable(ulysses_ground_control
     ${HDR_FILES}
 )
 
+# ---------------------------------------------------------------------- 
+# For Linux release
 if(UNIX AND NOT APPLE)
-    set_target_properties(ulysses_ground_control PROPERTIES OUTPUT_NAME ulysses_gcs)
+    set_target_properties(ulysses_ground_control PROPERTIES 
+    OUTPUT_NAME ulysses_gcs
+    BUILD_WITH_INSTALL_RPATH TRUE
+    INSTALL_RPATH "$ORIGIN/../lib"
+    )
 endif()
+
+install(TARGETS ulysses_ground_control
+    BUNDLE DESTINATION .
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+qt_generate_deploy_qml_app_script(
+    TARGET ulysses_ground_control
+    OUTPUT_SCRIPT deploy_script
+)
+
+install(SCRIPT ${deploy_script})
+
+get_target_property(QT6_SERIALPORT_LOCATION Qt6::SerialPort LOCATION)
+get_filename_component(QT6_LIB_DIR "${QT6_SERIALPORT_LOCATION}" DIRECTORY)
+
+file(GLOB QT6_SERIALPORT_LIBS
+    "${QT6_LIB_DIR}/libQt6SerialPort.so*"
+)
+
+install(FILES
+    ${QT6_SERIALPORT_LIBS}
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+# ----------------------------------------------------------------------
+
+
+# Preset JSON lives in the repo so the whole team shares the same presets.
+# PresetManager reads this macro at runtime.
+target_compile_definitions(ulysses_ground_control PRIVATE
+    ULYSSES_PRESETS_PATH="${CMAKE_CURRENT_SOURCE_DIR}/presets/pid_presets.json"
+)
 
 # ----------------------------------------------------------------------
 # QML module
@@ -88,22 +134,33 @@ qt_add_qml_module(ulysses_ground_control
         "${QML_DIR}/Header.qml"
         "${QML_DIR}/LayoutGrid.qml"
         "${QML_DIR}/Main.qml"
-        "${QML_DIR}/RadioOutputWindow.qml"
-        "${QML_DIR}/RadioTestWindow.qml"
         "${QML_DIR}/Shortcuts.qml"
         "${QML_DIR}/Panels/Panel_State_And_Position.qml"
         "${QML_DIR}/Panels/Panel_Control.qml"
         "${QML_DIR}/Panels/Panel_Angles_And_Engine.qml"
         "${QML_DIR}/Panels/Panel_PID_Controller.qml"
+        "${QML_DIR}/Panels/Panel_Probe_Map.qml"
+        "${QML_DIR}/Panels/Panel_Radio_Console.qml"
+        "${QML_DIR}/Panels/Panel_Radio_Output.qml"
         "${QML_DIR}/Panels/Panel_Rocket_Visualization.qml"
         "${QML_DIR}/Panels/Panel_System_Alert.qml"
         "${QML_DIR}/Panels/Panel_System_Health.qml"
+        "${QML_DIR}/Modes/Mode_Flight.qml"
+        "${QML_DIR}/Modes/Mode_Tuning.qml"
+        "${QML_DIR}/Modes/Mode_Map.qml"
+        "${QML_DIR}/Modes/Mode_Diagnostics.qml"
         "${QML_DIR}/Items/BaseHeader.qml"
         "${QML_DIR}/Items/BasePanel.qml"
         "${QML_DIR}/Items/CommandCard.qml"
         "${QML_DIR}/Items/DataBox.qml"
         "${QML_DIR}/Items/DataBoxList.qml"
+        "${QML_DIR}/Items/ModeBar.qml"
+        "${QML_DIR}/Items/NumberField.qml"
+        "${QML_DIR}/Items/PrimaryButton.qml"
         "${QML_DIR}/Items/Theme.qml"
+        "${QML_DIR}/Items/ThemedCheckBox.qml"
+        "${QML_DIR}/Items/ThemedScrollBar.qml"
+        "${QML_DIR}/Items/ThemedTabButton.qml"
     RESOURCES
         "${MESH_FILES}"
         "${QML_DIR}/Items/qmldir"
@@ -116,6 +173,7 @@ target_link_libraries(ulysses_ground_control
     PRIVATE
         Qt6::Core
         Qt6::Gui
+        Qt6::Network
         Qt6::Qml
         Qt6::Quick
         Qt6::QuickControls2
@@ -126,3 +184,17 @@ target_link_libraries(ulysses_ground_control
 
 qt_import_qml_plugins(ulysses_ground_control)
 qt_finalize_executable(ulysses_ground_control)
+
+# ----------------------------------------------------------------------
+# For Linux release
+set(CPACK_PACKAGE_NAME "ulysses-gcs")
+set(CPACK_PACKAGE_VERSION "0.1.1")  # Update this for each release
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Ulysses Ground Control")
+set(CPACK_PACKAGE_VENDOR "UBC Rocket")
+set(CPACK_PACKAGE_INSTALL_DIRECTORY ${CPACK_PACKAGE_NAME})
+set(CPACK_VERBATIM_VARIABLES ON)
+set(CPACK_PACKAGING_INSTALL_PREFIX "/opt/ulysses-gcs")
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Jimmy Pan")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6, libstdc++6, libgcc-s1, libxcb-cursor0, libxkbcommon-x11-0, qt6-wayland")
+
+include(CPack)
