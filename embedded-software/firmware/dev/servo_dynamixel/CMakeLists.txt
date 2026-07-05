@@ -3,6 +3,7 @@ project(dev_servo_dynamixel LANGUAGES C)
 
 add_library(dev_servo_dynamixel STATIC
     src/dxl_hal.c
+    src/servo_bus_gpio.c
     src/dev_servo_dynamixel.c
 )
 
@@ -19,7 +20,7 @@ target_link_libraries(dev_servo_dynamixel
         dynamixel_proto
         io_sys
     PRIVATE
-        io
+        io_debug
 )
 
 if(TARGET stm32cubemx)

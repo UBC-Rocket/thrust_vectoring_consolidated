@@ -1,6 +1,6 @@
 /**
  * @file    dxl_hal.h
- * @brief   Dynamixel HAL: UART transport over IO_UART_SERVO_BUS.
+ * @brief   Dynamixel HAL: UART8 RS485 transport via 74LVC2G241 buffer.
  *
  * UBC Rocket, 2026
  */
@@ -27,8 +27,14 @@ typedef enum {
 
 bool dxl_hal_init(void);
 
+bool dxl_hal_set_baud(uint32_t baud);
+uint32_t dxl_hal_baud(void);
+
+void dxl_hal_flush_rx(void);
+
 dxl_status_code_t dxl_hal_txrx(const uint8_t *tx, size_t tx_len,
                                uint8_t *rx, size_t rx_cap,
+                               size_t expected_rx_len,
                                dxl_status_t *status,
                                uint32_t timeout_ms);
 

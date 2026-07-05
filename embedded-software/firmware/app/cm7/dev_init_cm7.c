@@ -1,62 +1,29 @@
 /**
  * @file    dev_init_cm7.c
- * @brief   DEV-layer phase for CM7. Each driver owns its own singleton
- *          storage; this file only triggers init and assembles the
- *          ergonomic view-struct.
+ * @brief   DEV-layer phase for CM7. ESC/DShot only; servos live on CM4.
  *
  * UBC Rocket, 2026
  */
 #include "app/app_init.h"
-#include "app/actuators_init.h"
 #include "esc_dshot/config.h"
 #include "esc_dshot/io.h"
 #include "io_sys/io_test_hooks.h"
 
-#ifdef USE_DYNAMIXEL_SERVO
-#include "dev_servo_dynamixel.h"
-#else
-#include "dev_servo_feetech.h"
-#endif
 #include "esc_dshot/bdshot.h"
-
-static actuators_t s_handles;
-static bool        s_init_done;
-
-/* Test-only access to module-private state. No-op in production builds. */
-IO_TEST_HOOK_RW(s_handles,   actuators_t, dev_init_cm7_handles)
-IO_TEST_HOOK_RW(s_init_done, bool,        dev_init_cm7_init_done)
-
-static const esc_motor_config_t ESC_MOTOR_CONFIG_UPPER = {
-    .pole_count = 14,
-};
-
-static const esc_motor_config_t ESC_MOTOR_CONFIG_LOWER = {
-    .pole_count = 14,
-};
 
 void dev_init_cm7(void)
 {
+    static bool s_init_done;
+    IO_TEST_HOOK_RW(s_init_done, bool, dev_init_cm7_init_done)
+
     if (s_init_done) return;
 
-#ifdef USE_DYNAMIXEL_SERVO
-    servo_dynamixel_init();
-#else
-    servo_feetech_init();
-#endif
+    static const esc_motor_config_t ESC_MOTOR_CONFIG_UPPER = { .pole_count = 14 };
+    static const esc_motor_config_t ESC_MOTOR_CONFIG_LOWER = { .pole_count = 14 };
+
     esc_dshot_init();
     esc_dshot_motor_init(ESC_MOTOR_ID_UPPER, &ESC_MOTOR_CONFIG_UPPER, &IO_BDSHOT_ESC_UPPER);
     esc_dshot_motor_init(ESC_MOTOR_ID_LOWER, &ESC_MOTOR_CONFIG_LOWER, &IO_BDSHOT_ESC_LOWER);
 
-#ifdef USE_DYNAMIXEL_SERVO
-    s_handles.servos = servo_dynamixel_get();
-#else
-    s_handles.servos = servo_feetech_get();
-#endif
-
-
     s_init_done = true;
-}
-
-const actuators_t *actuators_handles(void) {
-    return s_init_done ? &s_handles : NULL;
 }

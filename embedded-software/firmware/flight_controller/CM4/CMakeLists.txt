@@ -76,8 +76,10 @@ add_subdirectory(${FW_ROOT}/../libs/rocket-protocol rocket_protocol_build)
 add_subdirectory(${LIB_DIR}/messages         messages_build)
 add_subdirectory(${LIB_DIR}/storage          storage_build)
 
+option(USE_DYNAMIXEL_SERVO "Use Dynamixel XM430 instead of Feetech on UART8" OFF)
+
 # ------------------------------------------------------------------
-# DEV layer (CM4 owns sensing + comms)
+# DEV layer (CM4 owns sensing, comms, and the servo bus)
 # ------------------------------------------------------------------
 add_subdirectory(${DEV_DIR}/imu_bmi088    dev_imu_bmi088_build)
 add_subdirectory(${DEV_DIR}/imu_icm40609  dev_imu_icm40609_build)
@@ -85,6 +87,13 @@ add_subdirectory(${DEV_DIR}/baro_ms5611   dev_baro_ms5611_build)
 add_subdirectory(${DEV_DIR}/mag_mmc5983   dev_mag_mmc5983_build)
 add_subdirectory(${DEV_DIR}/gps_nmea      dev_gps_nmea_build)
 add_subdirectory(${DEV_DIR}/radio_rfd900  dev_radio_rfd900_build)
+
+if(USE_DYNAMIXEL_SERVO)
+    add_subdirectory(${LIB_DIR}/dynamixel_proto dynamixel_proto_build)
+    add_subdirectory(${DEV_DIR}/servo_dynamixel dev_servo_dynamixel_build)
+else()
+    add_subdirectory(${DEV_DIR}/servo_feetech dev_servo_feetech_build)
+endif()
 
 # ------------------------------------------------------------------
 # APP layer
@@ -116,6 +125,10 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
     SENSORS_USE_ARM_BARRIER
 )
 
+if(USE_DYNAMIXEL_SERVO)
+    target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE USE_DYNAMIXEL_SERVO)
+endif()
+
 # mx-generated.cmake uses the plain target_link_libraries signature on this
 # target, so we must too (CMake forbids mixing keyword + plain on one target).
 target_link_libraries(${CMAKE_PROJECT_NAME}
@@ -144,6 +157,12 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     app_shared
     app_cm4
 )
+
+if(USE_DYNAMIXEL_SERVO)
+    target_link_libraries(${CMAKE_PROJECT_NAME} dev_servo_dynamixel)
+else()
+    target_link_libraries(${CMAKE_PROJECT_NAME} dev_servo_feetech)
+endif()
 
 list(REMOVE_ITEM CMAKE_C_IMPLICIT_LINK_LIBRARIES ob)
 

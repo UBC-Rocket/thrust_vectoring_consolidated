@@ -62,8 +62,8 @@ void app_init_cm7(void) {
     messages_sd_sink_set(messages_sd_sink_cm7);
 
     /* Hard-real-time control loop in the TIM16 ISR (800 Hz). dev_init_cm7
-     * MUST have run before this — controls_isr_init snapshots the
-     * actuator handles + arms ESC + enables servo torque. */
+     * MUST have run before this — controls_isr_init arms the ESC. Servos are
+     * driven on CM4 from control_output_t published by the ISR. */
     controls_isr_init();
 
     /* Solver task — body is a stub today; eventually publishes reference

@@ -46,11 +46,13 @@ set_target_properties(app_shared PROPERTIES
 # (the per-core CMakeLists adds them before invoking us).
 #
 if(TARGET dev_imu_bmi088 AND TARGET dev_imu_icm40609 AND TARGET dev_baro_ms5611
-        AND TARGET dev_gps_nmea AND TARGET dev_radio_rfd900 AND TARGET dev_mag_mmc5983)
+        AND TARGET dev_gps_nmea AND TARGET dev_radio_rfd900 AND TARGET dev_mag_mmc5983
+        AND (TARGET dev_servo_feetech OR TARGET dev_servo_dynamixel))
     add_library(app_cm4 STATIC
         cm4/state_estimation_task.c
         cm4/mission_manager_task.c
         cm4/sd_log_task.c
+        cm4/actuator_task.c
         cm4/dev_init_cm4.c
         cm4/app_init_cm4.c
         cm4/messages_vcp.c
@@ -74,6 +76,12 @@ if(TARGET dev_imu_bmi088 AND TARGET dev_imu_icm40609 AND TARGET dev_baro_ms5611
             dev_gps_nmea
             dev_radio_rfd900
     )
+    if(TARGET dev_servo_dynamixel)
+        target_link_libraries(app_cm4 PUBLIC dev_servo_dynamixel)
+        target_compile_definitions(app_cm4 PRIVATE USE_DYNAMIXEL_SERVO)
+    elseif(TARGET dev_servo_feetech)
+        target_link_libraries(app_cm4 PUBLIC dev_servo_feetech)
+    endif()
     # mission_manager_task decodes incoming radio frames via rp_packet_decode.
     if(TARGET rocket-protocol)
         target_link_libraries(app_cm4 PUBLIC rocket-protocol)
@@ -92,9 +100,9 @@ if(TARGET dev_imu_bmi088 AND TARGET dev_imu_icm40609 AND TARGET dev_baro_ms5611
 endif()
 
 #
-# CM7 task set. Built only if actuator driver libs are available.
+# CM7 task set. Built only if the ESC driver lib is available.
 #
-if(TARGET dev_esc_dshot AND (TARGET dev_servo_feetech OR TARGET dev_servo_dynamixel))
+if(TARGET dev_esc_dshot)
     add_library(app_cm7 STATIC
         cm7/controls_task.c
         cm7/app_init_cm7.c
@@ -112,12 +120,6 @@ if(TARGET dev_esc_dshot AND (TARGET dev_servo_feetech OR TARGET dev_servo_dynami
             messages
             dev_esc_dshot
     )
-    if(TARGET dev_servo_dynamixel)
-        target_link_libraries(app_cm7 PUBLIC dev_servo_dynamixel)
-        target_compile_definitions(app_cm7 PRIVATE USE_DYNAMIXEL_SERVO)
-    else()
-        target_link_libraries(app_cm7 PUBLIC dev_servo_feetech)
-    endif()
     if(TARGET stm32cubemx)
         target_link_libraries(app_cm7 PRIVATE stm32cubemx)
     endif()
