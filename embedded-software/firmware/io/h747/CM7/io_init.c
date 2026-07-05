@@ -17,5 +17,4 @@ void io_init_cm7(void) {
     io_status_led_init();
     io_intercore_init();
     io_dshot_init();
-    /* io_uart_xfer for the Feetech bus is on-demand; no UART open needed. */
 }

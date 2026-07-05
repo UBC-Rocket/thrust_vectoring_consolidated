@@ -158,6 +158,7 @@ int main(void)
   MX_SPI6_Init();
   MX_LPUART1_UART_Init();
   MX_UART5_Init();
+  MX_UART8_Init();
   /* MX_WWDG2_Init(); -- UBC Rocket: DISABLED for bring-up.
    * CubeMX starts the WWDG2 window watchdog here, but NOTHING in the firmware
    * ever calls HAL_WWDG_Refresh. An un-refreshed WWDG2 (Counter=Window=64,

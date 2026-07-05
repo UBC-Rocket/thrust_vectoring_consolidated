@@ -174,7 +174,6 @@ Error_Handler();
   MX_WWDG1_Init();
   MX_ADC1_Init();
   MX_TIM16_Init();
-  MX_UART8_Init();
   /* USER CODE BEGIN 2 */
   /* Bring up the four-layer stack on CM7:
    *   IO  — attach to shared TIM13 timestamp, init HSEM + DShot

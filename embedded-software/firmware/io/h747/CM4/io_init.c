@@ -37,7 +37,8 @@ void io_init_cm4(void) {
 
     io_spi_init();      /* per-bus spi_queue instances + dispatch table */
     io_sd_init();
-    /* io_uart_open / io_exti_register happen lazily from each driver. */
+    /* io_uart_open for streaming UARTs happens lazily from each driver.
+     * IO_UART_SERVO_BUS (UART8) is used on-demand by the servo drivers. */
 
     /* ===================== TEMP BRING-UP DIAGNOSTIC =====================
      * Remove this whole block after diagnosis.

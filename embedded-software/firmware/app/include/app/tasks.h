@@ -19,6 +19,7 @@ extern "C" {
 void task_state_estimation(void *arg);
 void task_mission_manager(void *arg);
 void task_sd_log(void *arg);
+void task_actuator(void *arg);
 
 /* ---- CM7 tasks ---- */
 void task_controls(void *arg);

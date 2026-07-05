@@ -1,6 +1,6 @@
 /**
  * @file    io_status_led.c
- * @brief   CM4 owns all three status LEDs on the H747 board.
+ * @brief   CM4 owns the RGB status LEDs and the dedicated STAT_LEDR on PB7.
  *
  * UBC Rocket, 2026
  */
@@ -11,8 +11,8 @@
 typedef struct { GPIO_TypeDef *port; uint16_t pin; } led_pin_t;
 
 static const led_pin_t s_leds[IO_LED_COUNT] = {
-    [IO_LED_GREEN]  = { STAT_LEDG_GPIO_Port, STAT_LEDG_Pin },
-    [IO_LED_YELLOW] = { STAT_LEDY_GPIO_Port, STAT_LEDY_Pin },
+    [IO_LED_GREEN]  = { RGB_G_GPIO_Port, RGB_G_Pin },
+    [IO_LED_YELLOW] = { RGB_B_GPIO_Port, RGB_B_Pin },
     [IO_LED_RED]    = { STAT_LEDR_GPIO_Port, STAT_LEDR_Pin },
 };
 

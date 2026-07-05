@@ -57,7 +57,6 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define UART_SERVOS huart8
 #define ESC1_PWM_Pin GPIO_PIN_12
 #define ESC1_PWM_GPIO_Port GPIOD
 #define ESC2_PWM_Pin GPIO_PIN_13

@@ -14,7 +14,7 @@ Build the STM32H745 dual-core flight controller firmware.
   Debug|Release   CMake preset (default: Debug)
   both|cm7|cm4    Cores to build (default: both)
 
-CM7 servo driver defaults to Dynamixel (USE_DYNAMIXEL_SERVO=ON).
+CM4 servo driver defaults to Dynamixel (USE_DYNAMIXEL_SERVO=ON).
 To build with Feetech instead: USE_FEETECH_SERVO=1 ./build.sh
 
 Examples:
@@ -122,7 +122,7 @@ if [[ -n "$BUILD_CONTEXT" ]]; then
 fi
 
 if [[ "$USE_DYNAMIXEL_SERVO" == "ON" ]]; then
-  echo "    CM7 servo: Dynamixel (set USE_FEETECH_SERVO=1 for Feetech)"
+  echo "    CM4 servo: Dynamixel (set USE_FEETECH_SERVO=1 for Feetech)"
 fi
 
 cmake "${CMAKE_ARGS[@]}"

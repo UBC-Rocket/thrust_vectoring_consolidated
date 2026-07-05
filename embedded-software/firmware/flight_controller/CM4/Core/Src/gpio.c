@@ -55,16 +55,16 @@ void MX_GPIO_Init(void)
                           |EXTRA_PE13_Pin|PHY_RST_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, EXTRA_PC15_Pin|GNSS_RST_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, VBAT_SENSE_EN_Pin|GNSS_RST_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOD, STAT_LEDY_Pin|EXTRA_PD11_Pin|STAT_LEDR_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOD, RGB_B_Pin|EXTRA_PD11_Pin|RGB_G_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOG, STAT_LEDG_Pin|EXTRA_PG13_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOG, RGB_R_Pin|EXTRA_PG13_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(EXTRA_PB7_GPIO_Port, EXTRA_PB7_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(STAT_LEDR_GPIO_Port, STAT_LEDR_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : BMI_ACC_CS_Pin BMI_GYRO_CS_Pin EXTRA_PE9_Pin EXTRA_PE10_Pin
                            EXTRA_PE13_Pin PHY_RST_Pin */
@@ -82,7 +82,7 @@ void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pins : EXTRA_PC15_Pin GNSS_RST_Pin */
-  GPIO_InitStruct.Pin = EXTRA_PC15_Pin|GNSS_RST_Pin;
+  GPIO_InitStruct.Pin = VBAT_SENSE_EN_Pin|GNSS_RST_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -107,7 +107,7 @@ void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pins : STAT_LEDY_Pin EXTRA_PD11_Pin STAT_LEDR_Pin */
-  GPIO_InitStruct.Pin = STAT_LEDY_Pin|EXTRA_PD11_Pin|STAT_LEDR_Pin;
+  GPIO_InitStruct.Pin = RGB_B_Pin|EXTRA_PD11_Pin|RGB_G_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -120,7 +120,7 @@ void MX_GPIO_Init(void)
   HAL_GPIO_Init(MMC_INT_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : STAT_LEDG_Pin EXTRA_PG13_Pin */
-  GPIO_InitStruct.Pin = STAT_LEDG_Pin|EXTRA_PG13_Pin;
+  GPIO_InitStruct.Pin = RGB_R_Pin|EXTRA_PG13_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -133,11 +133,11 @@ void MX_GPIO_Init(void)
   HAL_GPIO_Init(SD_CARD_DETECT_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : EXTRA_PB7_Pin */
-  GPIO_InitStruct.Pin = EXTRA_PB7_Pin;
+  GPIO_InitStruct.Pin = STAT_LEDR_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(EXTRA_PB7_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(STAT_LEDR_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI3_IRQn, 5, 0);

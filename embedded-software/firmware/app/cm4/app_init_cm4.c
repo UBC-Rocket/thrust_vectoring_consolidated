@@ -25,13 +25,15 @@
 #define STK_STATE_EST  (8 * 1024 / sizeof(StackType_t))
 #define STK_MISSION    (4 * 1024 / sizeof(StackType_t))
 #define STK_SD_LOG     (4 * 1024 / sizeof(StackType_t))
+#define STK_ACTUATOR   (4 * 1024 / sizeof(StackType_t))
 
-static StaticTask_t s_tcb_state, s_tcb_mission, s_tcb_log;
+static StaticTask_t s_tcb_state, s_tcb_mission, s_tcb_log, s_tcb_actuator;
 static StackType_t  s_stk_state[STK_STATE_EST];
 static StackType_t  s_stk_mission[STK_MISSION];
 static StackType_t  s_stk_log[STK_SD_LOG];
+static StackType_t  s_stk_actuator[STK_ACTUATOR];
 
-static TaskHandle_t s_h_state, s_h_mission, s_h_log;
+static TaskHandle_t s_h_state, s_h_mission, s_h_log, s_h_actuator;
 
 #ifdef DEBUG_TEXT_CONSOLE
 /* Forwards CM7 console text to LPUART1: drains the SRAM4 console ring every
@@ -107,9 +109,13 @@ void app_init_cm4(void) {
     s_h_mission = xTaskCreateStatic(task_mission_manager,  "mission",
                                     STK_MISSION,           NULL, 5,
                                     s_stk_mission,         &s_tcb_mission);
-    s_h_state   = xTaskCreateStatic(task_state_estimation, "state",
+    s_h_state     = xTaskCreateStatic(task_state_estimation, "state",
                                     STK_STATE_EST,         NULL, 6,
                                     s_stk_state,           &s_tcb_state);
+    s_h_actuator  = xTaskCreateStatic(task_actuator,         "actuator",
+                                    STK_ACTUATOR,          NULL, 7,
+                                    s_stk_actuator,        &s_tcb_actuator);
+    (void)s_h_actuator;
 
     sensors_bind_state_estimation_task((io_task_handle_t)s_h_state);
 

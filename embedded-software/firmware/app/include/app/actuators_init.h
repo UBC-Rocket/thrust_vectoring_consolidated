@@ -1,8 +1,8 @@
 /**
  * @file    actuators_init.h
- * @brief   View-struct for CM7 actuator driver singletons.
+ * @brief   View-struct for CM4 actuator driver singletons (servo bus).
  *
- * The drivers themselves are instantiated by @ref dev_init_cm7 (declared in
+ * The drivers themselves are instantiated by @ref dev_init_cm4 (declared in
  * app_init.h).
  *
  * UBC Rocket, 2026
@@ -29,7 +29,7 @@ typedef struct {
 } actuators_t;
 
 /**
- * @brief Return pointers to the singletons (NULL if dev_init_cm7 wasn't run).
+ * @brief Return pointers to the singletons (NULL if dev_init_cm4 wasn't run).
  */
 const actuators_t *actuators_handles(void);
 

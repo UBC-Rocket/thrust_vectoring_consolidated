@@ -57,6 +57,7 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define UART_SERVOS huart8
 #define SPI_BMI088 hspi4
 #define UART_SAM_M10Q huart5
 #define SPI_MMC5983MA hspi1
@@ -75,8 +76,8 @@ void Error_Handler(void);
 #define BMI_ACC_INT1_GPIO_Port GPIOC
 #define BMI_ACC_INT2_Pin GPIO_PIN_14
 #define BMI_ACC_INT2_GPIO_Port GPIOC
-#define EXTRA_PC15_Pin GPIO_PIN_15
-#define EXTRA_PC15_GPIO_Port GPIOC
+#define VBAT_SENSE_EN_Pin GPIO_PIN_15
+#define VBAT_SENSE_EN_GPIO_Port GPIOC
 #define BMI_GYRO_INT2_Pin GPIO_PIN_9
 #define BMI_GYRO_INT2_GPIO_Port GPIOF
 #define BMI_GYRO_INT1_Pin GPIO_PIN_10
@@ -97,22 +98,22 @@ void Error_Handler(void);
 #define PHY_RST_GPIO_Port GPIOE
 #define ICM_INT2_Pin GPIO_PIN_15
 #define ICM_INT2_GPIO_Port GPIOE
-#define STAT_LEDY_Pin GPIO_PIN_10
-#define STAT_LEDY_GPIO_Port GPIOD
+#define RGB_B_Pin GPIO_PIN_10
+#define RGB_B_GPIO_Port GPIOD
 #define EXTRA_PD11_Pin GPIO_PIN_11
 #define EXTRA_PD11_GPIO_Port GPIOD
-#define STAT_LEDR_Pin GPIO_PIN_14
-#define STAT_LEDR_GPIO_Port GPIOD
+#define RGB_G_Pin GPIO_PIN_14
+#define RGB_G_GPIO_Port GPIOD
 #define MMC_INT_Pin GPIO_PIN_6
 #define MMC_INT_GPIO_Port GPIOG
-#define STAT_LEDG_Pin GPIO_PIN_7
-#define STAT_LEDG_GPIO_Port GPIOG
+#define RGB_R_Pin GPIO_PIN_7
+#define RGB_R_GPIO_Port GPIOG
 #define SD_CARD_DETECT_Pin GPIO_PIN_4
 #define SD_CARD_DETECT_GPIO_Port GPIOD
 #define EXTRA_PG13_Pin GPIO_PIN_13
 #define EXTRA_PG13_GPIO_Port GPIOG
-#define EXTRA_PB7_Pin GPIO_PIN_7
-#define EXTRA_PB7_GPIO_Port GPIOB
+#define STAT_LEDR_Pin GPIO_PIN_7
+#define STAT_LEDR_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

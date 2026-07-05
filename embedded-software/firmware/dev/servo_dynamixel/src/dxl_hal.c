@@ -1,6 +1,6 @@
 /**
  * @file    dxl_hal.c
- * @brief   Dynamixel HAL: UART8 half-duplex at 57600 baud.
+ * @brief   Dynamixel HAL: UART8 full-duplex at 57600 baud.
  *
  * UBC Rocket, 2026
  */
@@ -22,22 +22,12 @@ bool dxl_hal_init(void) {
     }
 
     huart8.Init.BaudRate = DXL_BAUD_RATE;
-    if (HAL_HalfDuplex_Init(&huart8) != HAL_OK) {
+    if (HAL_UART_Init(&huart8) != HAL_OK) {
         return false;
     }
 
     s_ready = true;
     return true;
-}
-
-static dxl_status_code_t recv_bytes(uint8_t *dst, size_t len, uint32_t timeout_ms) {
-    if (HAL_HalfDuplex_EnableReceiver(&huart8) != HAL_OK) {
-        return DXL_ERR_BUS;
-    }
-    if (HAL_UART_Receive(&huart8, dst, (uint16_t)len, timeout_ms) != HAL_OK) {
-        return DXL_ERR_TIMEOUT;
-    }
-    return DXL_OK;
 }
 
 dxl_status_code_t dxl_hal_txrx(const uint8_t *tx, size_t tx_len,
@@ -48,16 +38,17 @@ dxl_status_code_t dxl_hal_txrx(const uint8_t *tx, size_t tx_len,
         return DXL_ERR_PARAM;
     }
 
-    if (io_uart_send(&IO_UART_SERVO_BUS, tx, tx_len, timeout_ms) != IO_OK) {
-        return DXL_ERR_TIMEOUT;
-    }
-
     if (rx_cap < DXL_PKT_MIN_SIZE) {
         return DXL_ERR_PARAM;
     }
 
-    dxl_status_code_t st = recv_bytes(rx, DXL_PKT_MIN_SIZE, timeout_ms);
-    if (st != DXL_OK) return st;
+    if (io_uart_send(&IO_UART_SERVO_BUS, tx, tx_len, timeout_ms) != IO_OK) {
+        return DXL_ERR_TIMEOUT;
+    }
+
+    if (HAL_UART_Receive(&huart8, rx, DXL_PKT_MIN_SIZE, timeout_ms) != HAL_OK) {
+        return DXL_ERR_TIMEOUT;
+    }
 
     if (rx[0] != DXL_HDR0 || rx[1] != DXL_HDR1 || rx[2] != DXL_HDR2) {
         return DXL_ERR_CRC;
@@ -70,9 +61,10 @@ dxl_status_code_t dxl_hal_txrx(const uint8_t *tx, size_t tx_len,
     }
 
     if (total > DXL_PKT_MIN_SIZE) {
-        const size_t remain = (size_t)wire_len - 1u; /* inst already in first chunk */
-        st = recv_bytes(&rx[DXL_PKT_MIN_SIZE], remain, timeout_ms);
-        if (st != DXL_OK) return st;
+        const size_t remain = (size_t)wire_len - 1u;
+        if (HAL_UART_Receive(&huart8, &rx[DXL_PKT_MIN_SIZE], (uint16_t)remain, timeout_ms) != HAL_OK) {
+            return DXL_ERR_TIMEOUT;
+        }
     }
 
     if (!dxl_pkt_parse_status(rx, total, status)) {
