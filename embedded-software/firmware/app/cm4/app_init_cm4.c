@@ -18,6 +18,10 @@
 #include "io_sys/io_debug.h"
 #include "io_sys/io_status_led.h"   /* TEMP bring-up tracer */
 
+#ifdef USE_DYNAMIXEL_SERVO
+#include "dev_servo_dynamixel.h"
+#endif
+
 #include "FreeRTOS.h"
 #include "task.h"
 
@@ -96,6 +100,10 @@ void app_init_cm4(void) {
         io_debug_printf("[init] ICM40609 %s\r\n",
                         (sn != NULL && sn->icm40609 != NULL) ? "OK" : "FAIL");
     }
+
+#ifdef USE_DYNAMIXEL_SERVO
+    servo_dynamixel_log_status();
+#endif
 #else
     /* Open the VCP UART, COBS-frame on RX → dispatcher, COBS-frame on TX
      * out via the CH_VCP sink. After this, the host messages-console CLI

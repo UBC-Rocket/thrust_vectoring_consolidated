@@ -541,7 +541,26 @@ void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
     HAL_NVIC_SetPriority(UART8_IRQn, 5, 0);
     HAL_NVIC_EnableIRQ(UART8_IRQn);
   /* USER CODE BEGIN UART8_MspInit 1 */
+#ifdef USE_DYNAMIXEL_SERVO
+    /* TTL bus idles high; weak pull-up on RX. */
+    GPIO_InitStruct.Pin = GPIO_PIN_0;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    GPIO_InitStruct.Alternate = GPIO_AF8_UART8;
+    HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
+    __HAL_RCC_GPIOD_CLK_ENABLE();
+    /**UART8 RTS (DE) Configuration
+    PD15     ------> UART8_RTS
+    */
+    GPIO_InitStruct.Pin = GPIO_PIN_15;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    GPIO_InitStruct.Alternate = GPIO_AF8_UART8;
+    HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+#endif
   /* USER CODE END UART8_MspInit 1 */
   }
   else if(uartHandle->Instance==UART4)
@@ -929,7 +948,9 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
     /* UART8 interrupt Deinit */
     HAL_NVIC_DisableIRQ(UART8_IRQn);
   /* USER CODE BEGIN UART8_MspDeInit 1 */
-
+#ifdef USE_DYNAMIXEL_SERVO
+    HAL_GPIO_DeInit(GPIOD, GPIO_PIN_15);
+#endif
   /* USER CODE END UART8_MspDeInit 1 */
   }
   else if(uartHandle->Instance==UART4)
