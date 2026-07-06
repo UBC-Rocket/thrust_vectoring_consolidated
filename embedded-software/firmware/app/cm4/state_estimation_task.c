@@ -65,6 +65,7 @@
 #include "state_estimation/state.h"
 #include "state_estimation/body.h"  /* pressure_to_height() */
 #include "state_estimation/tilt_kf.h"
+#include "tilt_state.h"
 
 #include "storage/storage.h"
 
@@ -323,6 +324,11 @@ void task_state_estimation(void *arg)
             last_primary_imu_us = s_icm_raw[i].t_us;
 #endif
         }
+#if TILT_KF_ONLY
+        if (n_icm > 0U) {
+            tilt_state_publish(&s_tilt_kf, s_icm_raw[n_icm - 1U].t_us);
+        }
+#endif
 
 #if !TILT_KF_ONLY
 #ifdef DEBUG_TEXT_CONSOLE

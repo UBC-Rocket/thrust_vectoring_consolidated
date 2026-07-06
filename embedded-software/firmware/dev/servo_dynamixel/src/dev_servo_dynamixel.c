@@ -15,6 +15,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
+#include <math.h>
 #include <string.h>
 
 #define SERVO_ID_X            1u
@@ -32,11 +33,16 @@
 #define REG_GOAL_POSITION           116u
 #define REG_PRESENT_POSITION        132u
 
-#define OP_MODE_VELOCITY            1u
+#define OP_MODE_POSITION            3u
 
-/* XM430: goal-velocity unit = 0.229 rpm.  30 deg/s ~= 5 rpm ~= 22 units. */
-#define GOAL_VEL_30DPS              22
-#define SWEEP_HALF_PERIOD_MS        1000u   /* 30 deg at 30 deg/s per half-cycle */
+#define DXL_TICKS_PER_REV           4096
+#define DXL_CENTER_TICKS            2048
+#define DXL_TEST_SWEEP_RANGE_DEG    90.0f
+#define DXL_TEST_SWEEP_STEP_DEG     1.0f
+#define DXL_TEST_SWEEP_STEP_MS      5U
+#define DXL_TEST_CIRCLE_RADIUS_DEG  5.0f
+#define DXL_TEST_CIRCLE_STEPS       72U
+#define DXL_TEST_CIRCLE_STEP_MS     18U
 #define REBOOT_DELAY_MS             500u
 #define INIT_RETRY_COUNT            3u
 
@@ -164,12 +170,19 @@ static bool ping_id(uint8_t id, uint8_t *pkt_error) {
     return true;
 }
 
-static bool setup_velocity_mode(uint8_t id) {
+static int32_t deg_to_ticks(float deg)
+{
+    return DXL_CENTER_TICKS +
+           (int32_t)(deg * (float)DXL_TICKS_PER_REV / 360.0f);
+}
+
+static bool setup_position_mode(uint8_t id)
+{
     if (!write_u8(id, REG_TORQUE_ENABLE, 0u)) return false;
     HAL_Delay(SETUP_STEP_MS);
-    if (!write_u8(id, REG_OPERATING_MODE, OP_MODE_VELOCITY)) return false;
+    if (!write_u8(id, REG_OPERATING_MODE, OP_MODE_POSITION)) return false;
     HAL_Delay(SETUP_STEP_MS);
-    if (!write_i32(id, REG_GOAL_VELOCITY, 0)) return false;
+    if (!write_i32(id, REG_GOAL_POSITION, DXL_CENTER_TICKS)) return false;
     HAL_Delay(SETUP_STEP_MS);
     if (!write_u8(id, REG_TORQUE_ENABLE, 1u)) return false;
     HAL_Delay(SETUP_STEP_MS);
@@ -204,7 +217,7 @@ static bool init_servo(uint8_t id) {
             return false;
         }
 
-        if (setup_velocity_mode(id)) {
+        if (setup_position_mode(id)) {
             return true;
         }
 
@@ -300,6 +313,25 @@ bool servo_dynamixel_set_pair_goal_position(servo_dynamixel_t *d, int32_t pos) {
     return ok;
 }
 
+bool servo_dynamixel_set_pair_degrees(servo_dynamixel_t *d, float deg_x, float deg_y)
+{
+    if (d == NULL || !d->ready) {
+        return false;
+    }
+
+    const int32_t ticks_x = deg_to_ticks(deg_x);
+    const int32_t ticks_y = deg_to_ticks(deg_y);
+    bool ok = true;
+
+    if (d->id_x_ready) {
+        ok = write_i32(SERVO_ID_X, REG_GOAL_POSITION, ticks_x) && ok;
+    }
+    if (d->id_y_ready) {
+        ok = write_i32(SERVO_ID_Y, REG_GOAL_POSITION, ticks_y) && ok;
+    }
+    return ok;
+}
+
 bool servo_dynamixel_get_present_position(servo_dynamixel_t *d, uint8_t id, int32_t *pos) {
     if (d == NULL || !d->ready || pos == NULL) return false;
     if (id == SERVO_ID_X && !d->id_x_ready) return false;
@@ -308,50 +340,47 @@ bool servo_dynamixel_get_present_position(servo_dynamixel_t *d, uint8_t id, int3
     return read_i32(id, REG_PRESENT_POSITION, pos);
 }
 
-static bool set_pair_goal_velocity(servo_dynamixel_t *d, int32_t vel) {
-    if (d == NULL || !d->ready) return false;
-    bool ok = true;
-    if (d->id_x_ready) {
-        ok = write_i32(SERVO_ID_X, REG_GOAL_VELOCITY, vel) && ok;
-    }
-    if (d->id_y_ready) {
-        ok = write_i32(SERVO_ID_Y, REG_GOAL_VELOCITY, vel) && ok;
-    }
-    return ok;
-}
-
-static void vel_pair_and_wait(servo_dynamixel_t *d, int32_t goal_vel, uint32_t hold_ms) {
-    (void)set_pair_goal_velocity(d, goal_vel);
-    vTaskDelay(pdMS_TO_TICKS(hold_ms));
-
-    int32_t vel_x = 0;
-    int32_t vel_y = 0;
-    const bool ok_x = d->id_x_ready && read_i32(SERVO_ID_X, REG_PRESENT_VELOCITY, &vel_x);
-    const bool ok_y = d->id_y_ready && read_i32(SERVO_ID_Y, REG_PRESENT_VELOCITY, &vel_y);
-
-    io_debug_printf("DXL test: vel=%4ld id1=%s%4ld id2=%s%4ld\r\n",
-                    (long)goal_vel,
-                    ok_x ? "" : "FAIL/",
-                    ok_x ? (long)vel_x : 0L,
-                    ok_y ? "" : "FAIL/",
-                    ok_y ? (long)vel_y : 0L);
-}
-
 void servo_dynamixel_run_position_test(servo_dynamixel_t *d) {
     if (d == NULL || !d->ready) {
         io_debug_printf("DXL test: skipped (servos not ready)\r\n");
         return;
     }
 
-    io_debug_printf("DXL test: velocity +/-30deg/s (id%u=%s id%u=%s)\r\n",
+    io_debug_printf("DXL test: position sweep (id%u=%s id%u=%s)\r\n",
                     (unsigned)SERVO_ID_X, d->id_x_ready ? "on" : "off",
                     (unsigned)SERVO_ID_Y, d->id_y_ready ? "on" : "off");
 
-    for (;;) {
-        (void)try_recover_servo(d, SERVO_ID_X, &d->id_x_ready);
-        (void)try_recover_servo(d, SERVO_ID_Y, &d->id_y_ready);
+    (void)try_recover_servo(d, SERVO_ID_X, &d->id_x_ready);
+    (void)try_recover_servo(d, SERVO_ID_Y, &d->id_y_ready);
 
-        vel_pair_and_wait(d, GOAL_VEL_30DPS, SWEEP_HALF_PERIOD_MS);
-        vel_pair_and_wait(d, -GOAL_VEL_30DPS, SWEEP_HALF_PERIOD_MS);
+    servo_dynamixel_set_pair_degrees(d, 0.0f, 0.0f);
+    vTaskDelay(pdMS_TO_TICKS(100));
+
+    for (float deg = 0.0f; deg <= DXL_TEST_SWEEP_RANGE_DEG;
+         deg += DXL_TEST_SWEEP_STEP_DEG) {
+        servo_dynamixel_set_pair_degrees(d, deg, deg);
+        vTaskDelay(pdMS_TO_TICKS(DXL_TEST_SWEEP_STEP_MS));
     }
+    for (float deg = DXL_TEST_SWEEP_RANGE_DEG;
+         deg >= -DXL_TEST_SWEEP_RANGE_DEG;
+         deg -= DXL_TEST_SWEEP_STEP_DEG) {
+        servo_dynamixel_set_pair_degrees(d, deg, deg);
+        vTaskDelay(pdMS_TO_TICKS(DXL_TEST_SWEEP_STEP_MS));
+    }
+    for (float deg = -DXL_TEST_SWEEP_RANGE_DEG; deg <= 0.0f;
+         deg += DXL_TEST_SWEEP_STEP_DEG) {
+        servo_dynamixel_set_pair_degrees(d, deg, deg);
+        vTaskDelay(pdMS_TO_TICKS(DXL_TEST_SWEEP_STEP_MS));
+    }
+
+    for (unsigned i = 0; i < DXL_TEST_CIRCLE_STEPS; ++i) {
+        const float ang = (2.0f * (float)M_PI * (float)i) /
+                          (float)DXL_TEST_CIRCLE_STEPS;
+        const float dx = DXL_TEST_CIRCLE_RADIUS_DEG * cosf(ang);
+        const float dy = DXL_TEST_CIRCLE_RADIUS_DEG * sinf(ang);
+        servo_dynamixel_set_pair_degrees(d, dx, dy);
+        vTaskDelay(pdMS_TO_TICKS(DXL_TEST_CIRCLE_STEP_MS));
+    }
+
+    servo_dynamixel_set_pair_degrees(d, 0.0f, 0.0f);
 }
