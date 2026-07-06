@@ -59,6 +59,23 @@ extern const io_uart_t IO_UART_SERVO_BUS;
 void io_uart_on_match_isr(void *huart);
 void io_uart_on_error_isr(void *huart);
 
+/**
+ * @brief Bring-up diagnostics: observe RAW bytes in a streaming UART's RX
+ *        circular DMA buffer, independent of 0x00 frame completion. The
+ *        character-match path only surfaces bytes once a 0x00 delimiter
+ *        arrives, so un-framed traffic (e.g. someone typing in a terminal)
+ *        is invisible to the normal RX path but visible here.
+ *
+ *  io_uart_diag_rx_index: current DMA write index in [0, buffer_size). It
+ *                         advances whenever the UART physically receives a
+ *                         byte. Frozen ⇒ nothing is arriving on the wire.
+ *  io_uart_diag_rx_copy:  copy circular bytes [from, to) into @p out (handles
+ *                         wrap). Returns bytes copied (<= max).
+ */
+uint32_t io_uart_diag_rx_index(const io_uart_t *u);
+size_t   io_uart_diag_rx_copy(const io_uart_t *u, uint32_t from, uint32_t to,
+                              uint8_t *out, size_t max);
+
 #ifdef __cplusplus
 }
 #endif

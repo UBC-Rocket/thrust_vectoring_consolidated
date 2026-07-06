@@ -439,11 +439,15 @@ void task_mission_manager(void *arg) {
                               pdMS_TO_TICKS(MM_LOOP_TIMEOUT_MS));
 
         const TickType_t now = xTaskGetTickCount();
+        (void)notify_value;   /* wake source doesn't matter — we always poll below */
 
-        if (notify_value & MM_NOTIFY_RADIO) {
-            if (sensors != NULL && mm_drain_radio(sensors->radio)) {
-                s_last_cmd_tick = now;
-            }
+        /* Pull any complete frames out of the RX DMA buffer (robust path: the
+         * character-match ISR isn't reliably delivering on this H7, but bytes
+         * DO land in the DMA ring — see radio_rfd900_poll), then drain the ring
+         * regardless of whether we woke on the notify or the timeout. */
+        radio_rfd900_poll();
+        if (sensors != NULL && mm_drain_radio(sensors->radio)) {
+            s_last_cmd_tick = now;
         }
 
         mm_check_watchdog(now);
@@ -466,7 +470,38 @@ void task_mission_manager(void *arg) {
             io_debug_printf("[hb] cm4 alive  state=%d armed=%d  t=%lu ms\r\n",
                             (int)s_flight_state, (int)s_armed,
                             (unsigned long)now);
-            
+
+            /* Raw radio RX probe: does UART7 physically receive ANY bytes,
+             * even un-framed ones? A terminal typing plain letters has no
+             * 0x00, so the normal frame path stays silent — but this catches
+             * it. rx_idx advancing ⇒ bytes ARE landing on PE7 (hexdump shows
+             * what). Frozen idx ⇒ nothing reaching the FC (wiring / RF / the
+             * ground side isn't transmitting). */
+            static uint32_t s_last_rx_idx;
+            const uint32_t rx_idx = radio_rfd900_diag_rx_index();
+            if (rx_idx != s_last_rx_idx) {
+                uint8_t raw[24];
+                const size_t k = radio_rfd900_diag_rx_copy(s_last_rx_idx, rx_idx,
+                                                           raw, sizeof(raw));
+                char hex[3 * sizeof(raw) + 1];
+                size_t hp = 0;
+                static const char HX[] = "0123456789ABCDEF";
+                for (size_t i = 0; i < k; ++i) {
+                    hex[hp++] = HX[(raw[i] >> 4) & 0x0F];
+                    hex[hp++] = HX[raw[i] & 0x0F];
+                    hex[hp++] = ' ';
+                }
+                hex[hp] = '\0';
+                io_debug_printf("[radio] *** RX BYTES *** idx %lu->%lu: %s\r\n",
+                                (unsigned long)s_last_rx_idx,
+                                (unsigned long)rx_idx, hex);
+                s_last_rx_idx = rx_idx;
+            } else {
+                io_debug_printf("[radio] RX idle  idx=%lu  rx=%lu cmd=%lu\r\n",
+                                (unsigned long)rx_idx,
+                                (unsigned long)s_radio_rx_count,
+                                (unsigned long)s_cmd_rx_count);
+            }
         }
 #endif
     }
