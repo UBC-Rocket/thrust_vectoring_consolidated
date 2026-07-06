@@ -14,9 +14,10 @@ message SystemStatus {
   bool baro1_ok  = 6;
   bool baro2_ok  = 7;
 
-  // GPS (updated as NMEA arrives)
-  bool   gps_connected = 8;    // true if any NMEA sentence received
-  // gps_fix and satellites deferred until NMEA parsing exists
+  // Field 8 was gps_connected — GPS dropped in favour of UWB probes.
+  // Reserved so the tag is never reused with a different meaning.
+  reserved 8;
+  reserved "gps_connected";
 
   // Radio link stats
   uint32 radio_tx_count = 10;  // packets sent
