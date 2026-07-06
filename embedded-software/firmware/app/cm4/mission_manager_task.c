@@ -96,6 +96,37 @@ static app_flight_state_t s_flight_state;
 static bool               s_armed;
 static TickType_t         s_last_cmd_tick;        /* of last valid command */
 static TickType_t         s_descent_quiet_start;  /* tick when quiescent began, 0 = not yet */
+static uint32_t           s_radio_rx_count;       /* frames pulled off the radio */
+static uint32_t           s_cmd_rx_count;         /* frames that decoded to a valid command */
+
+/* Read by task_telemetry (TX side) for the tvr_SystemStatus link-health fields. */
+uint32_t mission_manager_radio_rx_count(void) { return s_radio_rx_count; }
+uint32_t mission_manager_cmd_rx_count(void)   { return s_cmd_rx_count; }
+
+#ifdef DEBUG_TEXT_CONSOLE
+/* Human-readable names for the CoolTerm bring-up trace. */
+static const char *cmd_name(tvr_StateCommand_Type t) {
+    switch (t) {
+        case tvr_StateCommand_Type_CMD_ARM:    return "ARM";
+        case tvr_StateCommand_Type_CMD_LAUNCH: return "LAUNCH";
+        case tvr_StateCommand_Type_CMD_ABORT:  return "ABORT";
+        case tvr_StateCommand_Type_CMD_LAND:   return "LAND";
+        case tvr_StateCommand_Type_CMD_NONE:   return "NONE";
+        default:                               return "?";
+    }
+}
+static const char *state_name(app_flight_state_t s) {
+    switch (s) {
+        case APP_FLIGHT_IDLE:    return "IDLE";
+        case APP_FLIGHT_ARMED:   return "ARMED";
+        case APP_FLIGHT_RISE:    return "RISE";
+        case APP_FLIGHT_DESCENT: return "DESCENT";
+        case APP_FLIGHT_LANDED:  return "LANDED";
+        case APP_FLIGHT_ESTOP:   return "ESTOP";
+        default:                 return "?";
+    }
+}
+#endif
 
 /* --------------------------------------------------------------------------
  * Helpers
@@ -250,6 +281,7 @@ static bool mm_drain_radio(radio_rfd900_t *radio) {
 
     radio_frame_t frames[MM_MAX_DRAIN_PER_TICK];
     size_t n = radio_rfd900_drain_frames(radio, frames, MM_MAX_DRAIN_PER_TICK);
+    s_radio_rx_count += (uint32_t)n;
     bool any_valid = false;
 
     for (size_t i = 0; i < n; ++i) {
@@ -258,11 +290,38 @@ static bool mm_drain_radio(radio_rfd900_t *radio) {
             frames[i].payload, frames[i].len,
             tvr_FlightCommand_fields, &decoded);
 
-        if (dec.status != RP_CODEC_OK) continue;
+        if (dec.status != RP_CODEC_OK) {
+#ifdef DEBUG_TEXT_CONSOLE
+            /* Bench-bring-up trace: a frame arrived but failed to decode
+             * (bad CRC / short frame / COBS error). Proves the wire is live
+             * even when framing is wrong. */
+            io_debug_printf("[rx] frame len=%u DECODE-FAIL status=%d\r\n",
+                            (unsigned)frames[i].len, (int)dec.status);
+#endif
+            continue;
+        }
 
+        s_cmd_rx_count++;
         if (mm_handle_command(&decoded)) {
             any_valid = true;
         }
+
+#ifdef DEBUG_TEXT_CONSOLE
+        /* Layer-1 uplink test: unmistakable, human-readable banner so CoolTerm
+         * clearly shows which command arrived and the resulting FSM state. */
+        if (decoded.which_payload == tvr_FlightCommand_state_cmd_tag) {
+            io_debug_printf(
+                "\r\n>>>>>> RADIO CMD: %-6s  ==>  STATE: %-7s armed=%d  [rx=%lu cmd=%lu] <<<<<<\r\n",
+                cmd_name(decoded.payload.state_cmd.type),
+                state_name(s_flight_state), (int)s_armed,
+                (unsigned long)s_radio_rx_count, (unsigned long)s_cmd_rx_count);
+        } else {
+            io_debug_printf(
+                "\r\n>>>>>> RADIO CMD: TUNING (which=%d)  [rx=%lu cmd=%lu] <<<<<<\r\n",
+                (int)decoded.which_payload,
+                (unsigned long)s_radio_rx_count, (unsigned long)s_cmd_rx_count);
+        }
+#endif
     }
 
     return any_valid;
@@ -380,11 +439,15 @@ void task_mission_manager(void *arg) {
                               pdMS_TO_TICKS(MM_LOOP_TIMEOUT_MS));
 
         const TickType_t now = xTaskGetTickCount();
+        (void)notify_value;   /* wake source doesn't matter — we always poll below */
 
-        if (notify_value & MM_NOTIFY_RADIO) {
-            if (sensors != NULL && mm_drain_radio(sensors->radio)) {
-                s_last_cmd_tick = now;
-            }
+        /* Pull any complete frames out of the RX DMA buffer (robust path: the
+         * character-match ISR isn't reliably delivering on this H7, but bytes
+         * DO land in the DMA ring — see radio_rfd900_poll), then drain the ring
+         * regardless of whether we woke on the notify or the timeout. */
+        radio_rfd900_poll();
+        if (sensors != NULL && mm_drain_radio(sensors->radio)) {
+            s_last_cmd_tick = now;
         }
 
         mm_check_watchdog(now);
@@ -407,7 +470,38 @@ void task_mission_manager(void *arg) {
             io_debug_printf("[hb] cm4 alive  state=%d armed=%d  t=%lu ms\r\n",
                             (int)s_flight_state, (int)s_armed,
                             (unsigned long)now);
-            
+
+            /* Raw radio RX probe: does UART7 physically receive ANY bytes,
+             * even un-framed ones? A terminal typing plain letters has no
+             * 0x00, so the normal frame path stays silent — but this catches
+             * it. rx_idx advancing ⇒ bytes ARE landing on PE7 (hexdump shows
+             * what). Frozen idx ⇒ nothing reaching the FC (wiring / RF / the
+             * ground side isn't transmitting). */
+            static uint32_t s_last_rx_idx;
+            const uint32_t rx_idx = radio_rfd900_diag_rx_index();
+            if (rx_idx != s_last_rx_idx) {
+                uint8_t raw[24];
+                const size_t k = radio_rfd900_diag_rx_copy(s_last_rx_idx, rx_idx,
+                                                           raw, sizeof(raw));
+                char hex[3 * sizeof(raw) + 1];
+                size_t hp = 0;
+                static const char HX[] = "0123456789ABCDEF";
+                for (size_t i = 0; i < k; ++i) {
+                    hex[hp++] = HX[(raw[i] >> 4) & 0x0F];
+                    hex[hp++] = HX[raw[i] & 0x0F];
+                    hex[hp++] = ' ';
+                }
+                hex[hp] = '\0';
+                io_debug_printf("[radio] *** RX BYTES *** idx %lu->%lu: %s\r\n",
+                                (unsigned long)s_last_rx_idx,
+                                (unsigned long)rx_idx, hex);
+                s_last_rx_idx = rx_idx;
+            } else {
+                io_debug_printf("[radio] RX idle  idx=%lu  rx=%lu cmd=%lu\r\n",
+                                (unsigned long)rx_idx,
+                                (unsigned long)s_radio_rx_count,
+                                (unsigned long)s_cmd_rx_count);
+            }
         }
 #endif
     }

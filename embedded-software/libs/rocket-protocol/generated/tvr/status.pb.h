@@ -21,8 +21,6 @@ typedef struct _tvr_SystemStatus {
     bool gyro_ok;
     bool baro1_ok;
     bool baro2_ok;
-    /* GPS (updated as NMEA arrives) */
-    bool gps_connected; /* true if any NMEA sentence received */
     /* Radio link stats */
     uint32_t radio_tx_count; /* packets sent */
     uint32_t radio_rx_count; /* packets received */
@@ -35,8 +33,8 @@ extern "C" {
 #endif
 
 /* Initializer values for message structs */
-#define tvr_SystemStatus_init_default            {0, 0, _tvr_FlightState_MIN, 0, 0, 0, 0, 0, 0, 0, 0}
-#define tvr_SystemStatus_init_zero               {0, 0, _tvr_FlightState_MIN, 0, 0, 0, 0, 0, 0, 0, 0}
+#define tvr_SystemStatus_init_default            {0, 0, _tvr_FlightState_MIN, 0, 0, 0, 0, 0, 0, 0}
+#define tvr_SystemStatus_init_zero               {0, 0, _tvr_FlightState_MIN, 0, 0, 0, 0, 0, 0, 0}
 
 /* Field tags (for use in manual encoding/decoding) */
 #define tvr_SystemStatus_timestamp_ms_tag        1
@@ -46,7 +44,6 @@ extern "C" {
 #define tvr_SystemStatus_gyro_ok_tag             5
 #define tvr_SystemStatus_baro1_ok_tag            6
 #define tvr_SystemStatus_baro2_ok_tag            7
-#define tvr_SystemStatus_gps_connected_tag       8
 #define tvr_SystemStatus_radio_tx_count_tag      10
 #define tvr_SystemStatus_radio_rx_count_tag      11
 #define tvr_SystemStatus_cmd_rx_count_tag        12
@@ -60,7 +57,6 @@ X(a, STATIC,   SINGULAR, BOOL,     accel_ok,          4) \
 X(a, STATIC,   SINGULAR, BOOL,     gyro_ok,           5) \
 X(a, STATIC,   SINGULAR, BOOL,     baro1_ok,          6) \
 X(a, STATIC,   SINGULAR, BOOL,     baro2_ok,          7) \
-X(a, STATIC,   SINGULAR, BOOL,     gps_connected,     8) \
 X(a, STATIC,   SINGULAR, UINT32,   radio_tx_count,   10) \
 X(a, STATIC,   SINGULAR, UINT32,   radio_rx_count,   11) \
 X(a, STATIC,   SINGULAR, UINT32,   cmd_rx_count,     12)
@@ -74,7 +70,7 @@ extern const pb_msgdesc_t tvr_SystemStatus_msg;
 
 /* Maximum encoded size of messages (where known) */
 #define TVR_STATUS_PB_H_MAX_SIZE                 tvr_SystemStatus_size
-#define tvr_SystemStatus_size                    42
+#define tvr_SystemStatus_size                    40
 
 #ifdef __cplusplus
 } /* extern "C" */

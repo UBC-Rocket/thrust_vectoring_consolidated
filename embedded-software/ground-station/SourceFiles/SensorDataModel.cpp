@@ -46,7 +46,7 @@ const char* const kCsvHeader =
     "thrust_cmd,gimbal_x,gimbal_y,"
     "uwb0_x,uwb0_y,uwb1_x,uwb1_y,"
     "uptime_ms,accel_ok,gyro_ok,baro1_ok,baro2_ok,"
-    "gps_connected,radio_rx_count,radio_tx_count,cmd_rx_count";
+    "radio_rx_count,radio_tx_count,cmd_rx_count";
 
 QString fmt(double v) { return QString::number(v, 'g', 9); }
 QString fmtBool(bool v) { return v ? QStringLiteral("1") : QStringLiteral("0"); }
@@ -215,7 +215,7 @@ void SensorDataModel::onBinaryPacketReceived(int which, const QByteArray& packet
     } else if (downlink.which_payload == tvr_Downlink_status_tag) {
         const tvr_SystemStatus* s = &downlink.payload.status;
         m_rawPacketLog += QStringLiteral(
-            "STATUS t=%1 up=%2 state=%3 accel=%4 gyro=%5 b1=%6 b2=%7 gps=%8 rx=%9 tx=%10 cmd=%11\n")
+            "STATUS t=%1 up=%2 state=%3 accel=%4 gyro=%5 b1=%6 b2=%7 rx=%8 tx=%9 cmd=%10\n")
             .arg(s->timestamp_ms)
             .arg(s->uptime_ms)
             .arg(s->flight_state)
@@ -223,7 +223,6 @@ void SensorDataModel::onBinaryPacketReceived(int which, const QByteArray& packet
             .arg(s->gyro_ok)
             .arg(s->baro1_ok)
             .arg(s->baro2_ok)
-            .arg(s->gps_connected)
             .arg(s->radio_rx_count)
             .arg(s->radio_tx_count)
             .arg(s->cmd_rx_count);
@@ -360,7 +359,6 @@ void SensorDataModel::applyDownlink(int which, const void* downlinkStruct)
             qDebug() << "SystemStatus: flight_state=" << s->flight_state
                      << "accel=" << s->accel_ok << "gyro=" << s->gyro_ok
                      << "baro1=" << s->baro1_ok << "baro2=" << s->baro2_ok
-                     << "gps=" << s->gps_connected
                      << "uptime=" << s->uptime_ms;
         }
 
@@ -380,13 +378,6 @@ void SensorDataModel::applyDownlink(int which, const void* downlinkStruct)
         chipForSensor("Gyro",    m_prevGyroOk,  s->gyro_ok,       !m_haveLastStatus);
         chipForSensor("Baro1",   m_prevBaro1Ok, s->baro1_ok,      !m_haveLastStatus);
         chipForSensor("Baro2",   m_prevBaro2Ok, s->baro2_ok,      !m_haveLastStatus);
-        if (!m_haveLastStatus) {
-            if (s->gps_connected) emit alarmSuccess(QStringLiteral("GPS connected"));
-            else                  emit alarmWarning(QStringLiteral("GPS not connected"));
-        } else if (m_prevGpsConn != s->gps_connected) {
-            if (s->gps_connected) emit alarmSuccess(QStringLiteral("GPS connected"));
-            else                  emit alarmWarning(QStringLiteral("GPS lost"));
-        }
         if (m_haveLastStatus && m_prevFlightState != newState) {
             // Flight-state transitions: ESTOP=ERROR, IDLE=WARN otherwise, others=SUCCESS.
             static const char* names[] = {"IDLE","ESTOP","RISE","HOVER","LOWER"};
@@ -401,7 +392,6 @@ void SensorDataModel::applyDownlink(int which, const void* downlinkStruct)
         m_prevGyroOk    = s->gyro_ok;
         m_prevBaro1Ok   = s->baro1_ok;
         m_prevBaro2Ok   = s->baro2_ok;
-        m_prevGpsConn   = s->gps_connected;
         m_prevFlightState = newState;
         m_haveLastStatus = true;
 
@@ -411,7 +401,6 @@ void SensorDataModel::applyDownlink(int which, const void* downlinkStruct)
         m_gyroOk       = s->gyro_ok;
         m_baro1Ok      = s->baro1_ok;
         m_baro2Ok      = s->baro2_ok;
-        m_gpsConnected = s->gps_connected;
         m_radioRxCount = s->radio_rx_count;
         m_radioTxCount = s->radio_tx_count;
         m_cmdRxCount   = s->cmd_rx_count;
@@ -472,8 +461,8 @@ void SensorDataModel::writeCsvRow(const void* downlinkStruct)
         } else {
             (*m_csvStream) << ",,";
         }
-        // status columns empty
-        (*m_csvStream) << ",,,,,,,," << '\n';
+        // status columns empty (uptime, accel, gyro, baro1, baro2, rx, tx, cmd)
+        (*m_csvStream) << ",,,,,,," << '\n';
     } else if (d->which_payload == tvr_Downlink_status_tag) {
         const tvr_SystemStatus* s = &d->payload.status;
         (*m_csvStream) << wallMs << ",STATUS," << s->timestamp_ms << ',' << s->flight_state << ',';
@@ -489,7 +478,6 @@ void SensorDataModel::writeCsvRow(const void* downlinkStruct)
                        << fmtBool(s->gyro_ok) << ','
                        << fmtBool(s->baro1_ok) << ','
                        << fmtBool(s->baro2_ok) << ','
-                       << fmtBool(s->gps_connected) << ','
                        << s->radio_rx_count << ','
                        << s->radio_tx_count << ','
                        << s->cmd_rx_count

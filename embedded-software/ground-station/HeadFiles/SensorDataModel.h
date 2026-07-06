@@ -61,7 +61,6 @@ public:
     Q_PROPERTY(bool    gyroOk        READ gyroOk        NOTIFY statusReceived)
     Q_PROPERTY(bool    baro1Ok       READ baro1Ok       NOTIFY statusReceived)
     Q_PROPERTY(bool    baro2Ok       READ baro2Ok       NOTIFY statusReceived)
-    Q_PROPERTY(bool    gpsConnected  READ gpsConnected  NOTIFY statusReceived)
     Q_PROPERTY(quint32 radioRxCount  READ radioRxCount  NOTIFY statusReceived)
     Q_PROPERTY(quint32 radioTxCount  READ radioTxCount  NOTIFY statusReceived)
     Q_PROPERTY(quint32 cmdRxCount    READ cmdRxCount    NOTIFY statusReceived)
@@ -109,7 +108,6 @@ public:
     bool    gyroOk()       const { return m_gyroOk; }
     bool    baro1Ok()      const { return m_baro1Ok; }
     bool    baro2Ok()      const { return m_baro2Ok; }
-    bool    gpsConnected() const { return m_gpsConnected; }
     quint32 radioRxCount() const { return m_radioRxCount; }
     quint32 radioTxCount() const { return m_radioTxCount; }
     quint32 cmdRxCount()   const { return m_cmdRxCount; }
@@ -201,7 +199,6 @@ private:
     bool    m_gyroOk       = false;
     bool    m_baro1Ok      = false;
     bool    m_baro2Ok      = false;
-    bool    m_gpsConnected = false;
     quint32 m_radioRxCount = 0;
     quint32 m_radioTxCount = 0;
     quint32 m_cmdRxCount   = 0;
@@ -214,7 +211,6 @@ private:
     bool m_prevGyroOk     = false;
     bool m_prevBaro1Ok    = false;
     bool m_prevBaro2Ok    = false;
-    bool m_prevGpsConn    = false;
     int  m_prevFlightState = -1;
 
     // Auto-start CSV on first packet (per D6 in the review plan).

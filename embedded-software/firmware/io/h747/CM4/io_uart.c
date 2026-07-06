@@ -150,3 +150,28 @@ void io_uart_on_error_isr(void *huart) {
         }
     }
 }
+
+uint32_t io_uart_diag_rx_index(const io_uart_t *u) {
+    if (!u || !u->streaming || !u->huart || !u->huart->hdmarx) {
+        return 0;
+    }
+    const uint32_t sz = (uint32_t)u->dma_buf_size;
+    /* NDTR counts DOWN from buffer size; write index = size - remaining. */
+    return sz - (uint32_t)__HAL_DMA_GET_COUNTER(u->huart->hdmarx);
+}
+
+size_t io_uart_diag_rx_copy(const io_uart_t *u, uint32_t from, uint32_t to,
+                            uint8_t *out, size_t max) {
+    if (!u || !u->dma_buf || u->dma_buf_size == 0 || !out) {
+        return 0;
+    }
+    const uint32_t sz = (uint32_t)u->dma_buf_size;
+    size_t n = 0;
+    uint32_t i = from % sz;
+    const uint32_t end = to % sz;
+    while (i != end && n < max) {
+        out[n++] = u->dma_buf[i];
+        i = (i + 1u) % sz;
+    }
+    return n;
+}
