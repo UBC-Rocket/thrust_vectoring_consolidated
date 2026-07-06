@@ -259,7 +259,7 @@ RECORDS = {
             ("bool", "gyro_ok"),
             ("bool", "baro1_ok"),
             ("bool", "baro2_ok"),
-            ("bool", "gps_connected"),
+            ("uint8_t", "reserved0"),  # was gps_connected (GPS dropped for UWB); pad keeps layout
             ("uint16_t", "reserved"),
         ],
         "format": "<IIIIIIBBBBBBH",

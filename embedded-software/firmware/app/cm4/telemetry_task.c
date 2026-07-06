@@ -150,7 +150,6 @@ static void send_status(radio_rfd900_t *radio) {
     s->gyro_ok       = (sn != NULL && sn->icm40609 != NULL);
     s->baro1_ok      = (sn != NULL && sn->baro     != NULL);
     s->baro2_ok      = false;                 /* single baro on this board */
-    s->gps_connected = (sn != NULL && sn->gps != NULL);
 
     s->radio_tx_count = s_tx_count;
     s->radio_rx_count = mission_manager_radio_rx_count();
