@@ -23,11 +23,19 @@ extern void io_spi_init(void);   /* declared in io_spi.c */
  * regardless of the UART's configured baud. Used to find which UART (if any)
  * is physically wired to the STLINK-V3 VCP. */
 static void io_diag_probe_uart(UART_HandleTypeDef *h, const char *msg) {
+    /* Probe at 115200 to find the VCP UART, then RESTORE the UART's configured
+     * baud. Without the restore this clobbers non-115200 UARTs at runtime — in
+     * particular UART7 (radio) is 57600, so probing it here would silently drop
+     * it to 115200 and break the RFD900 link even though MX_UART7_Init set it
+     * correctly. */
+    const uint32_t saved_baud = h->Init.BaudRate;
     h->Init.BaudRate = 115200U;
     if (HAL_UART_Init(h) != HAL_OK) {
         return;
     }
     (void)HAL_UART_Transmit(h, (uint8_t *)msg, (uint16_t)strlen(msg), 100U);
+    h->Init.BaudRate = saved_baud;
+    (void)HAL_UART_Init(h);   /* leave the UART at its configured baud */
 }
 
 void io_init_cm4(void) {
