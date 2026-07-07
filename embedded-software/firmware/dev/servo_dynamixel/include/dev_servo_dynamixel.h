@@ -22,6 +22,7 @@ servo_dynamixel_t *servo_dynamixel_get(void);
 bool              servo_dynamixel_ping(servo_dynamixel_t *d);
 bool              servo_dynamixel_set_goal_position(servo_dynamixel_t *d, uint8_t id, int32_t pos);
 bool              servo_dynamixel_set_pair_goal_position(servo_dynamixel_t *d, int32_t pos);
+bool              servo_dynamixel_set_pair_degrees(servo_dynamixel_t *d, float deg_x, float deg_y);
 bool              servo_dynamixel_get_present_position(servo_dynamixel_t *d, uint8_t id, int32_t *pos);
 void              servo_dynamixel_run_position_test(servo_dynamixel_t *d);
 

@@ -1,7 +1,11 @@
 /**
  * @file    actuator_task.c
- * @brief   CM4: owns the UART8 servo bus. Consumes control_output_t from
- *          CM7 via state_exchange and drives Feetech/Dynamixel servos.
+ * @brief   CM4: owns the UART8 servo bus.
+ *
+ * Dynamixel (USE_DYNAMIXEL_SERVO): reads present position at startup and
+ * holds it (no PID). Re-asserts goal position at 50 Hz.
+ *
+ * Feetech: consumes control_output_t from CM7 via state_exchange.
  *
  * UBC Rocket, 2026
  */
@@ -32,21 +36,67 @@
 #define SELFTEST_CIRCLE_STEPS      72U
 #define SELFTEST_CIRCLE_STEP_MS    18U
 
+#ifdef USE_DYNAMIXEL_SERVO
+#define ACTUATOR_LOOP_MS  20U
+#define DXL_SERVO_ID_X    1u
+#define DXL_SERVO_ID_Y    2u
+
+static int32_t s_hold_ticks_x;
+static int32_t s_hold_ticks_y;
+static bool    s_hold_x_valid;
+static bool    s_hold_y_valid;
+
+static bool dynamixel_capture_and_hold(servo_dynamixel_t *d)
+{
+    s_hold_x_valid = servo_dynamixel_get_present_position(d, DXL_SERVO_ID_X,
+                                                          &s_hold_ticks_x);
+    s_hold_y_valid = servo_dynamixel_get_present_position(d, DXL_SERVO_ID_Y,
+                                                          &s_hold_ticks_y);
+
+    bool ok = false;
+    if (s_hold_x_valid) {
+        ok = servo_dynamixel_set_goal_position(d, DXL_SERVO_ID_X,
+                                               s_hold_ticks_x) || ok;
+    }
+    if (s_hold_y_valid) {
+        ok = servo_dynamixel_set_goal_position(d, DXL_SERVO_ID_Y,
+                                               s_hold_ticks_y) || ok;
+    }
+    return ok;
+}
+
+static void dynamixel_maintain_hold(servo_dynamixel_t *d)
+{
+    if (s_hold_x_valid) {
+        (void)servo_dynamixel_set_goal_position(d, DXL_SERVO_ID_X, s_hold_ticks_x);
+    }
+    if (s_hold_y_valid) {
+        (void)servo_dynamixel_set_goal_position(d, DXL_SERVO_ID_Y, s_hold_ticks_y);
+    }
+}
+#endif
+
+#ifndef USE_DYNAMIXEL_SERVO
 static TaskHandle_t s_h_actuator;
 
-static void on_control_output_ready(void) {
-    if (s_h_actuator == NULL) return;
+static void on_control_output_ready(void)
+{
+    if (s_h_actuator == NULL) {
+        return;
+    }
     BaseType_t hpw = pdFALSE;
     vTaskNotifyGiveFromISR(s_h_actuator, &hpw);
     portYIELD_FROM_ISR(hpw);
 }
+#endif
 
-static void actuator_run_startup_selftest(void *servos) {
-    if (servos == NULL) return;
+static void actuator_run_startup_selftest(void *servos)
+{
+    if (servos == NULL) {
+        return;
+    }
 
-#ifdef USE_DYNAMIXEL_SERVO
-    servo_dynamixel_run_position_test((servo_dynamixel_t *)servos);
-#else
+#ifndef USE_DYNAMIXEL_SERVO
     servo_feetech_t *s = (servo_feetech_t *)servos;
 
     servo_feetech_set_pair_degrees(s, 0.0f, 0.0f);
@@ -82,7 +132,8 @@ static void actuator_run_startup_selftest(void *servos) {
 #endif
 }
 
-void task_actuator(void *arg) {
+void task_actuator(void *arg)
+{
     (void)arg;
 
     const actuators_t *a = actuators_handles();
@@ -91,11 +142,18 @@ void task_actuator(void *arg) {
         return;
     }
 
+#ifdef USE_DYNAMIXEL_SERVO
+    servo_dynamixel_t *dxl = a->servos;
+    (void)dynamixel_capture_and_hold(dxl);
+
+    for (;;) {
+        dynamixel_maintain_hold(dxl);
+        vTaskDelay(pdMS_TO_TICKS(ACTUATOR_LOOP_MS));
+    }
+#else
     s_h_actuator = xTaskGetCurrentTaskHandle();
 
-#ifndef USE_DYNAMIXEL_SERVO
     servo_feetech_enable(a->servos, true);
-#endif
 
     actuator_run_startup_selftest(a->servos);
 
@@ -107,12 +165,9 @@ void task_actuator(void *arg) {
         control_output_t out;
         (void)state_exchange_get_control_output(&out);
 
-#ifndef USE_DYNAMIXEL_SERVO
         float deg_x = out.theta_x_cmd * 180.0f / (float)M_PI;
         float deg_y = out.theta_y_cmd * 180.0f / (float)M_PI;
         servo_feetech_set_pair_degrees(a->servos, deg_x, deg_y);
-#else
-        (void)out;
-#endif
     }
+#endif
 }

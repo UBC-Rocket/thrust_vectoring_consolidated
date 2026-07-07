@@ -1,6 +1,6 @@
 /**
  * @file    dxl_hal.c
- * @brief   Dynamixel HAL: UART8 @ 57600 via SN74LVC2G241 (Cedar-compatible).
+ * @brief   Dynamixel HAL: UART8 @ 57600 via SN74LVC2G241.
  *
  * PE0 = UART8_RX, PE1 = UART8_TX, PD3 = level-shifter OE,
  * PD15 = UART8_RTS (USART hardware DE).

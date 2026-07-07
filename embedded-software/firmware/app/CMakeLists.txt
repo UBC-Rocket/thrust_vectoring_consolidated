@@ -63,6 +63,7 @@ if(TARGET dev_imu_bmi088 AND TARGET dev_imu_icm40609 AND TARGET dev_baro_ms5611
         cm4/telemetry_task.c
         cm4/sd_log_task.c
         cm4/actuator_task.c
+        cm4/tilt_state.c
         cm4/dev_init_cm4.c
         cm4/app_init_cm4.c
         cm4/messages_vcp.c
@@ -70,6 +71,8 @@ if(TARGET dev_imu_bmi088 AND TARGET dev_imu_icm40609 AND TARGET dev_baro_ms5611
     target_include_directories(app_cm4
         PUBLIC
             ${CMAKE_CURRENT_SOURCE_DIR}/include
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/cm4
     )
     target_link_libraries(app_cm4
         PUBLIC
