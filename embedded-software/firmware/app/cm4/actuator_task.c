@@ -2,8 +2,8 @@
  * @file    actuator_task.c
  * @brief   CM4: owns the UART8 servo bus.
  *
- * Dynamixel (USE_DYNAMIXEL_SERVO): reads tilt_state from the state task,
- * runs simple x/y PIDs (setpoint = upright), drives goal position at 50 Hz.
+ * Dynamixel (USE_DYNAMIXEL_SERVO): reads present position at startup and
+ * holds it (no PID). Re-asserts goal position at 50 Hz.
  *
  * Feetech: consumes control_output_t from CM7 via state_exchange.
  *
@@ -18,8 +18,6 @@
 
 #ifdef USE_DYNAMIXEL_SERVO
 #include "dev_servo_dynamixel.h"
-#include "controls/pid.h"
-#include "tilt_state.h"
 #else
 #include "dev_servo_feetech.h"
 #endif
@@ -40,15 +38,41 @@
 
 #ifdef USE_DYNAMIXEL_SERVO
 #define ACTUATOR_LOOP_MS  20U
-#define RAD2DEG           (180.0f / 3.14159265f)
+#define DXL_SERVO_ID_X    1u
+#define DXL_SERVO_ID_Y    2u
 
-static pid_controller_t s_pid_x;
-static pid_controller_t s_pid_y;
+static int32_t s_hold_ticks_x;
+static int32_t s_hold_ticks_y;
+static bool    s_hold_x_valid;
+static bool    s_hold_y_valid;
 
-static void actuator_init_pid(void)
+static bool dynamixel_capture_and_hold(servo_dynamixel_t *d)
 {
-    pid_init(&s_pid_x, 2.0f, 0.0f, 0.1f, 10.0f, -90.0f, 90.0f);
-    pid_init(&s_pid_y, 2.0f, 0.0f, 0.1f, 10.0f, -90.0f, 90.0f);
+    s_hold_x_valid = servo_dynamixel_get_present_position(d, DXL_SERVO_ID_X,
+                                                          &s_hold_ticks_x);
+    s_hold_y_valid = servo_dynamixel_get_present_position(d, DXL_SERVO_ID_Y,
+                                                          &s_hold_ticks_y);
+
+    bool ok = false;
+    if (s_hold_x_valid) {
+        ok = servo_dynamixel_set_goal_position(d, DXL_SERVO_ID_X,
+                                               s_hold_ticks_x) || ok;
+    }
+    if (s_hold_y_valid) {
+        ok = servo_dynamixel_set_goal_position(d, DXL_SERVO_ID_Y,
+                                               s_hold_ticks_y) || ok;
+    }
+    return ok;
+}
+
+static void dynamixel_maintain_hold(servo_dynamixel_t *d)
+{
+    if (s_hold_x_valid) {
+        (void)servo_dynamixel_set_goal_position(d, DXL_SERVO_ID_X, s_hold_ticks_x);
+    }
+    if (s_hold_y_valid) {
+        (void)servo_dynamixel_set_goal_position(d, DXL_SERVO_ID_Y, s_hold_ticks_y);
+    }
 }
 #endif
 
@@ -72,9 +96,7 @@ static void actuator_run_startup_selftest(void *servos)
         return;
     }
 
-#ifdef USE_DYNAMIXEL_SERVO
-    servo_dynamixel_run_position_test((servo_dynamixel_t *)servos);
-#else
+#ifndef USE_DYNAMIXEL_SERVO
     servo_feetech_t *s = (servo_feetech_t *)servos;
 
     servo_feetech_set_pair_degrees(s, 0.0f, 0.0f);
@@ -121,21 +143,11 @@ void task_actuator(void *arg)
     }
 
 #ifdef USE_DYNAMIXEL_SERVO
-    actuator_run_startup_selftest(a->servos);
-    actuator_init_pid();
-
-    const float dt_s = (float)ACTUATOR_LOOP_MS / 1000.0f;
+    servo_dynamixel_t *dxl = a->servos;
+    (void)dynamixel_capture_and_hold(dxl);
 
     for (;;) {
-        tilt_state_t tilt;
-        if (tilt_state_get(&tilt)) {
-            const float deg_x_meas = tilt.tilt_x_rad * RAD2DEG;
-            const float deg_y_meas = tilt.tilt_y_rad * RAD2DEG;
-            const float cmd_x = pid_compute(&s_pid_x, 0.0f, deg_x_meas, dt_s);
-            const float cmd_y = pid_compute(&s_pid_y, 0.0f, deg_y_meas, dt_s);
-            (void)servo_dynamixel_set_pair_degrees(a->servos, cmd_x, cmd_y);
-        }
-
+        dynamixel_maintain_hold(dxl);
         vTaskDelay(pdMS_TO_TICKS(ACTUATOR_LOOP_MS));
     }
 #else

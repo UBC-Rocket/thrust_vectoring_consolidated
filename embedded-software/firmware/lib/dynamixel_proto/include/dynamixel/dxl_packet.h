@@ -2,7 +2,7 @@
  * @file    dxl_packet.h
  * @brief   Dynamixel Protocol 2.0 packet encode/decode (pure C, no HAL).
  *
- * Packet layout matches Robotis Protocol 2.0 and the Cedar reference driver:
+ * Packet layout matches Robotis Protocol 2.0:
  *   FF FF FD 00 | ID | LEN_L LEN_H | INST | PARAMS... | CRC_L CRC_H
  *
  * UBC Rocket, 2026

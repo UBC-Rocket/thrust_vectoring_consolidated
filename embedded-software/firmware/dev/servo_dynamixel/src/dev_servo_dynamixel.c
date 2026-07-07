@@ -182,7 +182,9 @@ static bool setup_position_mode(uint8_t id)
     HAL_Delay(SETUP_STEP_MS);
     if (!write_u8(id, REG_OPERATING_MODE, OP_MODE_POSITION)) return false;
     HAL_Delay(SETUP_STEP_MS);
-    if (!write_i32(id, REG_GOAL_POSITION, DXL_CENTER_TICKS)) return false;
+    int32_t present = DXL_CENTER_TICKS;
+    (void)read_i32(id, REG_PRESENT_POSITION, &present);
+    if (!write_i32(id, REG_GOAL_POSITION, present)) return false;
     HAL_Delay(SETUP_STEP_MS);
     if (!write_u8(id, REG_TORQUE_ENABLE, 1u)) return false;
     HAL_Delay(SETUP_STEP_MS);
