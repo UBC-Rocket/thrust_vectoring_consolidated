@@ -261,14 +261,14 @@ static bool signal_line_set_armed(const io_bdshot_esc_t *io_handle, bool is_arme
     HAL_StatusTypeDef status = HAL_ERROR;
 
     if (is_armed) {
-        ral_gpio_set_af(gpio, ll_gpio_pin, io_handle->gpio_original_af);
+        ral_gpio_set_af(gpio, io_handle->gpio_pin, io_handle->gpio_original_af);
         LL_GPIO_SetPinMode(gpio, ll_gpio_pin, LL_GPIO_MODE_ALTERNATE);
 
         status = HAL_TIM_PWM_Start(tim, hal_tim_channel);
     } else {
         status = HAL_TIM_PWM_Stop(tim, hal_tim_channel);
 
-        LL_GPIO_SetPinMode(gpio, ll_gpio_pin, LL_GPIO_MODE_OUTPUT);
+        LL_GPIO_SetPinMode(gpio, io_handle->gpio_pin, LL_GPIO_MODE_OUTPUT);
         LL_GPIO_ResetOutputPin(gpio, ll_gpio_pin);
     }
 
