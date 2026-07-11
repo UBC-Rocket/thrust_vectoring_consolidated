@@ -8,14 +8,16 @@ project(app LANGUAGES C)
 # Only one of the two can own the single STLINK-V3 VCP at a time.
 option(DEBUG_TEXT_CONSOLE "LPUART1/VCP = plain-text debug console (CoolTerm)" ON)
 
-# When ON (bring-up default), CM7 never arms the ESC driver: the 800 Hz control
-# ISR, controller math, and control_output publishing all run, but every
-# esc_dshot_motor_set_throttle() is rejected inside the driver (bdshot.c gates
-# on is_armed) so no DShot pulses reach the motors, and the boot-time ESC
-# selftest ramp is skipped. Turn OFF only for powered motor tests with props
-# removed — there is no armed-state gating in the ISR yet, and the controller
-# commands hover-level thrust (T_cmd ≈ m·g) whenever it runs.
-option(BENCH_NO_MOTORS "Bring-up: never arm ESCs; control loop runs, DShot output suppressed" ON)
+# Intended (bring-up default) behavior: CM7 never arms the ESC PWM channels
+# (never HAL_TIM_PWM_Start's TIM4_CH1/CH2), so the 800 Hz control ISR,
+# controller math, and control_output publishing all run but no pulses reach
+# the motors, and the boot-time ESC selftest ramp is skipped.
+# NOTE: as of the DShot -> plain-PWM switch, controls_task.c's arm call and
+# throttle writes are NOT actually gated on this macro yet (see the comment
+# in controls_isr_init()) — this option currently only skips the compiled-out
+# selftest function, it does not yet suppress motor output. Do not rely on it
+# alone with props on until that gating is wired through.
+option(BENCH_NO_MOTORS "Bring-up: never arm ESCs; control loop runs, ESC output suppressed" ON)
 
 #
 # Shared layer — built into both cores.
@@ -113,9 +115,15 @@ if(TARGET dev_imu_bmi088 AND TARGET dev_imu_icm40609 AND TARGET dev_baro_ms5611
 endif()
 
 #
-# CM7 task set. Built only if the ESC driver lib is available.
+# CM7 task set. Built only in the CM7 sub-build. ESC output is plain PWM via
+# tim.h's htim4 now (see motor_drivers/pwm_output.h) — no dev/ ESC driver
+# target to gate on anymore, so gate on CMAKE_PROJECT_NAME instead (each
+# per-core CMakeLists.txt sets it before add_subdirectory'ing here; both
+# cores' independent configure passes otherwise define their own
+# stm32cubemx target, so "if(TARGET stm32cubemx)" alone would incorrectly
+# match during the CM4 pass too).
 #
-if(TARGET dev_esc_dshot)
+if(CMAKE_PROJECT_NAME STREQUAL "ulysses-fc_CM7" AND TARGET stm32cubemx)
     add_library(app_cm7 STATIC
         cm7/controls_task.c
         cm7/app_init_cm7.c
@@ -131,11 +139,8 @@ if(TARGET dev_esc_dshot)
             app_shared
             io_sys
             messages
-            dev_esc_dshot
     )
-    if(TARGET stm32cubemx)
-        target_link_libraries(app_cm7 PRIVATE stm32cubemx)
-    endif()
+    target_link_libraries(app_cm7 PRIVATE stm32cubemx)
     if(DEBUG_TEXT_CONSOLE)
         # CM7 forwards its io_debug_printf text to CM4's VCP over the SRAM4
         # console ring (see app_init_cm7.c / io/h747/CM7/io_debug.c).
