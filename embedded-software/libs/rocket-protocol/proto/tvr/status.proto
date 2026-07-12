@@ -8,11 +8,15 @@ message SystemStatus {
   uint32 uptime_ms      = 2;   // same as timestamp_ms (alias for clarity)
   FlightState flight_state = 3;
 
-  // Sensor health (set once at startup, static after)
+  // Sensor health (set once at startup, static after). The vehicle carries a
+  // single 6-axis IMU (ICM-40609) that provides both accel and gyro.
   bool accel_ok  = 4;
   bool gyro_ok   = 5;
-  bool baro1_ok  = 6;
-  bool baro2_ok  = 7;
+
+  // Fields 6/7 were baro1_ok/baro2_ok — no barometer in the downlink
+  // contract. Reserved so the tags are never reused with a different meaning.
+  reserved 6, 7;
+  reserved "baro1_ok", "baro2_ok";
 
   // Field 8 was gps_connected — GPS dropped in favour of UWB probes.
   // Reserved so the tag is never reused with a different meaning.
