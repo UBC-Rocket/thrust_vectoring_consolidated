@@ -45,6 +45,17 @@ Pane {
         }
     }
 
+    // The log string grows without bound and the TextEdit re-lays-out the whole
+    // thing on every packet, which drags the UI down in long sessions — wipe it
+    // every 10 s. The manual Clear button still works between wipes, and CSV
+    // recording is unaffected (it writes straight to disk).
+    Timer {
+        interval: 10000
+        running: true
+        repeat: true
+        onTriggered: sensorData.clearRawPacketLog()
+    }
+
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: Theme.paddingMd

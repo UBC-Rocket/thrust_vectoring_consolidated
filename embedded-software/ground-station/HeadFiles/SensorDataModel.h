@@ -59,8 +59,6 @@ public:
     Q_PROPERTY(quint32 uptimeMs      READ uptimeMs      NOTIFY statusReceived)
     Q_PROPERTY(bool    accelOk       READ accelOk       NOTIFY statusReceived)
     Q_PROPERTY(bool    gyroOk        READ gyroOk        NOTIFY statusReceived)
-    Q_PROPERTY(bool    baro1Ok       READ baro1Ok       NOTIFY statusReceived)
-    Q_PROPERTY(bool    baro2Ok       READ baro2Ok       NOTIFY statusReceived)
     Q_PROPERTY(quint32 radioRxCount  READ radioRxCount  NOTIFY statusReceived)
     Q_PROPERTY(quint32 radioTxCount  READ radioTxCount  NOTIFY statusReceived)
     Q_PROPERTY(quint32 cmdRxCount    READ cmdRxCount    NOTIFY statusReceived)
@@ -106,8 +104,6 @@ public:
     quint32 uptimeMs()     const { return m_uptimeMs; }
     bool    accelOk()      const { return m_accelOk; }
     bool    gyroOk()       const { return m_gyroOk; }
-    bool    baro1Ok()      const { return m_baro1Ok; }
-    bool    baro2Ok()      const { return m_baro2Ok; }
     quint32 radioRxCount() const { return m_radioRxCount; }
     quint32 radioTxCount() const { return m_radioTxCount; }
     quint32 cmdRxCount()   const { return m_cmdRxCount; }
@@ -197,8 +193,6 @@ private:
     quint32 m_uptimeMs     = 0;
     bool    m_accelOk      = false;
     bool    m_gyroOk       = false;
-    bool    m_baro1Ok      = false;
-    bool    m_baro2Ok      = false;
     quint32 m_radioRxCount = 0;
     quint32 m_radioTxCount = 0;
     quint32 m_cmdRxCount   = 0;
@@ -209,8 +203,6 @@ private:
     bool m_haveLastStatus = false;
     bool m_prevAccelOk    = false;
     bool m_prevGyroOk     = false;
-    bool m_prevBaro1Ok    = false;
-    bool m_prevBaro2Ok    = false;
     int  m_prevFlightState = -1;
 
     // Auto-start CSV on first packet (per D6 in the review plan).

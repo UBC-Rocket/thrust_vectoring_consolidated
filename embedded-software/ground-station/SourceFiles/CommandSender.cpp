@@ -1,5 +1,6 @@
 #include "CommandSender.h"
 #include "SerialBridge.h"
+#include <QTimer>
 extern "C" {
     #include "rp/codec.h"
     #include "command.pb.h"
@@ -9,6 +10,40 @@ extern "C" {
 CommandSender::CommandSender(SerialBridge* bridge, QObject* parent)
     : QObject(parent), m_bridge(bridge)
 {
+    m_heartbeatTimer = new QTimer(this);
+    m_heartbeatTimer->setInterval(250);   // 2 refreshes per 500 ms FC watchdog window
+    connect(m_heartbeatTimer, &QTimer::timeout, this, &CommandSender::sendHeartbeat);
+    m_heartbeatTimer->start();
+}
+
+void CommandSender::sendHeartbeat() {
+    if (!m_bridge)
+        return;
+
+    // Prefer the operator's selected TX channel; fall back to whichever
+    // port is actually open. No port open -> nothing to keep alive.
+    int which = 0;
+    if (m_bridge->isConnected(m_bridge->txTo()))
+        which = m_bridge->txTo();
+    else if (m_bridge->isConnected(1))
+        which = 1;
+    else if (m_bridge->isConnected(2))
+        which = 2;
+    if (which == 0)
+        return;
+
+    tvr_FlightCommand cmd = tvr_FlightCommand_init_zero;
+    cmd.which_payload = tvr_FlightCommand_state_cmd_tag;
+    cmd.payload.state_cmd.type = tvr_StateCommand_Type_CMD_NONE;
+
+    uint8_t packet[64];
+    rp_packet_encode_result_t result = rp_packet_encode(
+        packet, sizeof(packet), tvr_FlightCommand_fields, &cmd);
+    if (result.status != RP_CODEC_OK)
+        return;
+
+    QByteArray data(reinterpret_cast<const char*>(packet), result.written);
+    m_bridge->sendBinary(which, data);
 }
 
 
