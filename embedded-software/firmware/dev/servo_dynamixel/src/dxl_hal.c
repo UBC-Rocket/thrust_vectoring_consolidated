@@ -18,7 +18,7 @@
 #define DXL_BAUD_RATE          57600u
 #define DXL_DE_ASSERT_BITS     0u
 #define DXL_DE_DEASSERT_BITS   1u
-#define DXL_DEFAULT_TIMEOUT_MS 50u
+#define DXL_DEFAULT_TIMEOUT_MS 20u
 
 static bool s_ready;
 
@@ -91,6 +91,19 @@ void dxl_hal_flush_rx(void) {
     }
 }
 
+void dxl_hal_recover(void)
+{
+    if (!s_ready) {
+        return;
+    }
+
+    (void)HAL_UART_Abort(&huart8);
+    flush_rx();
+    huart8.ErrorCode = HAL_UART_ERROR_NONE;
+    huart8.gState    = HAL_UART_STATE_READY;
+    huart8.RxState   = HAL_UART_STATE_READY;
+}
+
 dxl_status_code_t dxl_hal_txrx(const uint8_t *tx, size_t tx_len,
                                uint8_t *rx, size_t rx_cap,
                                size_t expected_rx_len,
@@ -113,10 +126,12 @@ dxl_status_code_t dxl_hal_txrx(const uint8_t *tx, size_t tx_len,
 
     if (HAL_UART_Transmit(&huart8, (uint8_t *)tx, (uint16_t)tx_len, tmo) !=
         HAL_OK) {
+        dxl_hal_recover();
         return DXL_ERR_TIMEOUT;
     }
 
-    flush_rx();
+    /* Do NOT flush RX here — the servo response begins arriving as soon as
+     * TX completes; draining RX would discard the status packet. */
 
     HAL_StatusTypeDef hal = HAL_UART_Receive(&huart8, rx,
                                              (uint16_t)expected_rx_len, tmo);
@@ -124,13 +139,16 @@ dxl_status_code_t dxl_hal_txrx(const uint8_t *tx, size_t tx_len,
     if (hal == HAL_TIMEOUT) {
         actual = expected_rx_len - (size_t)huart8.RxXferCount;
         if (actual == 0u) {
+            dxl_hal_recover();
             return DXL_ERR_TIMEOUT;
         }
     } else if (hal != HAL_OK) {
+        dxl_hal_recover();
         return DXL_ERR_BUS;
     }
 
     if (!dxl_pkt_parse_status(rx, actual, status)) {
+        dxl_hal_recover();
         return DXL_ERR_CRC;
     }
     if (status->error != 0u) {

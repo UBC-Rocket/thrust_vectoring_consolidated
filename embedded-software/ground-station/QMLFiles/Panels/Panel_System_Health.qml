@@ -30,7 +30,6 @@ BasePanel {
                                         && sensorData.lastStatusMs > 0
                                         && statusAgeMs < freshnessWindowMs
     readonly property bool allSensorsOk: sensorData.accelOk && sensorData.gyroOk
-                                         && sensorData.baro1Ok && sensorData.baro2Ok
 
     readonly property color overallColor:
         !linkUp        ? Theme.textTertiary
@@ -47,8 +46,6 @@ BasePanel {
         switch (name) {
         case "ACCEL":  return sensorData.accelOk
         case "GYRO":   return sensorData.gyroOk
-        case "BARO 1": return sensorData.baro1Ok
-        case "BARO 2": return sensorData.baro2Ok
         default: return false
         }
     }
@@ -125,11 +122,12 @@ BasePanel {
 
         Repeater {
             id: sensorRepeater
-            model: ["ACCEL", "GYRO", "BARO 1", "BARO 2"]
+            model: ["ACCEL", "GYRO"]
 
             delegate: Column {
                 spacing: 4
-                width: (sensorRow.width - sensorRow.spacing * 3) / 4
+                width: (sensorRow.width - sensorRow.spacing * (sensorRepeater.count - 1))
+                       / sensorRepeater.count
 
                 Rectangle {
                     width: parent.width

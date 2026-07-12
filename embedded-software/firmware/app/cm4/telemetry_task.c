@@ -92,12 +92,20 @@ static bool send_downlink(radio_rfd900_t *radio, const tvr_Downlink *dl) {
     if (ok) {
         s_tx_count++;
     }
+#ifdef DEBUG_TEXT_CONSOLE
+    else {
+        io_debug_printf("[tx] radio send FAIL len=%u\r\n", (unsigned)r.written);
+    }
+#endif
     return ok;
 }
 
 /* 10 Hz: current EKF state + control output. */
 static void send_telemetry(radio_rfd900_t *radio) {
-    state_t st;
+    /* Zero + identity attitude so a failed slot read downlinks a benign
+     * default instead of uninitialized stack bytes. */
+    state_t st = {0};
+    st.q_bn.w = 1.0f;
     (void)state_exchange_get_state(&st);
     app_flight_state_t fs = APP_FLIGHT_IDLE;
     (void)state_exchange_get_flight_state(&fs);
@@ -145,11 +153,12 @@ static void send_status(radio_rfd900_t *radio) {
     s->uptime_ms    = now_ms;
     s->flight_state = to_proto_flight_state(fs);
 
+    /* The single 6-axis ICM-40609 is both the accel and gyro source; the
+     * BMI088 is not part of this build (SPI4 bring-up skip). */
     const sensors_t *sn = sensors_handles();
-    s->accel_ok      = (sn != NULL && sn->bmi088   != NULL);
-    s->gyro_ok       = (sn != NULL && sn->icm40609 != NULL);
-    s->baro1_ok      = (sn != NULL && sn->baro     != NULL);
-    s->baro2_ok      = false;                 /* single baro on this board */
+    const bool imu_ok = (sn != NULL && sn->icm40609 != NULL);
+    s->accel_ok      = imu_ok;
+    s->gyro_ok       = imu_ok;
 
     s->radio_tx_count = s_tx_count;
     s->radio_rx_count = mission_manager_radio_rx_count();
@@ -169,11 +178,23 @@ void task_telemetry(void *arg) {
     radio_rfd900_t *radio = (sn != NULL) ? sn->radio : NULL;
 
     uint32_t tick = 0;
+    bool armed = false;
     for (;;) {
         if (radio != NULL) {
+            /* Telemetry streams unconditionally (not armed-gated) so the
+             * ground sees EKF state during bench tuning and pre-arm checks.
+             * ~100 B at 10 Hz ≈ 20% of the 57.6k link; the armed flag still
+             * rides in the 1 Hz status trace below. */
+            (void)state_exchange_get_armed(&armed);
             send_telemetry(radio);
             if ((tick % STATUS_EVERY_N_TICKS) == 0U) {
                 send_status(radio);
+#ifdef DEBUG_TEXT_CONSOLE
+                /* Bench trace: the TX side otherwise leaves no console
+                 * evidence — a healthy downlink prints this once per second. */
+                io_debug_printf("[tx] status sent  tx=%lu armed=%d\r\n",
+                                (unsigned long)s_tx_count, (int)armed);
+#endif
             }
         }
         tick++;

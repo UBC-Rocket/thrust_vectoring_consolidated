@@ -32,6 +32,9 @@ uint32_t dxl_hal_baud(void);
 
 void dxl_hal_flush_rx(void);
 
+/** Abort stuck TX/RX and drain stale bytes after a bus fault. */
+void dxl_hal_recover(void);
+
 dxl_status_code_t dxl_hal_txrx(const uint8_t *tx, size_t tx_len,
                                uint8_t *rx, size_t rx_cap,
                                size_t expected_rx_len,

@@ -12,6 +12,7 @@ extern "C" {
 }
 
 class SerialBridge;
+class QTimer;
 
 class CommandSender : public QObject {
     Q_OBJECT
@@ -61,7 +62,14 @@ private:
         return which == 1 || which == 2;
     }
 
+    /// Periodic CMD_NONE keep-alive. The FC's mission manager disarms and
+    /// drops to IDLE if no valid FlightCommand arrives within its 500 ms
+    /// heartbeat watchdog, so we refresh it at 4 Hz whenever a port is open.
+    /// Silent: emits no messageSent/errorOccurred (would spam the UI log).
+    void sendHeartbeat();
+
     SerialBridge* m_bridge = nullptr; ///< Serial transport used to send commands.
+    QTimer* m_heartbeatTimer = nullptr;
 };
 
 #endif // COMMANDSENDER_H

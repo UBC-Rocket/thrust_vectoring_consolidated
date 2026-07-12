@@ -9,6 +9,10 @@
 
 #include <string.h>
 
+#if defined(STM32H7xx) || defined(STM32H745xx) || defined(STM32H747xx)
+#include "stm32h7xx.h"
+#endif
+
 /* Portable DMB — works on both CM4 and CM7 when compiled with the CMSIS
  * device header. If that's not available (e.g. host build) fall back to the
  * GCC atomic thread fence which is almost as strong. */
@@ -33,20 +37,46 @@ void io_intercore_slot_init(io_intercore_slot_t *s, void *backing, size_t size) 
 }
 
 void io_intercore_slot_publish(io_intercore_slot_t *s, const void *src) {
-    uint32_t seq = s->hdr->seq;
-    /* Force odd to indicate write-in-progress. */
-    seq++;
+    /* Force the in-progress marker odd with |1, not ++. The .shared region
+     * is NOLOAD and never zeroed, so the first publish can find power-on
+     * garbage here; a plain ++ preserves that garbage's parity, and an odd
+     * at-rest seq makes every reader retry "writer in progress" forever.
+     * |1 guarantees odd-during-write / even-at-rest from the first publish. */
+    uint32_t seq = s->hdr->seq | 1U;
     s->hdr->seq = seq;
     IC_DMB();
 
     memcpy(s->data, src, s->size);
 
     IC_DMB();
-    s->hdr->seq = seq + 1U;   /* back to even */
+    s->hdr->seq = seq + 1U;   /* even: stable */
 }
+
+#if defined(__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U)
+#  include "cmsis_compiler.h"
+static void ic_invalidate_shared(const void *ptr, size_t len)
+{
+    if ((ptr == NULL) || (len == 0U)) {
+        return;
+    }
+    if ((SCB->CCR & SCB_CCR_DC_Msk) != 0U) {
+        const uintptr_t start = (uintptr_t)ptr & ~((uintptr_t)0x1FU);
+        const uintptr_t end   = ((uintptr_t)ptr + len + 31U) & ~((uintptr_t)0x1FU);
+        SCB_InvalidateDCache_by_Addr((volatile void *)start,
+                                     (int32_t)(end - start));
+    }
+}
+#else
+static void ic_invalidate_shared(const void *ptr, size_t len)
+{
+    (void)ptr;
+    (void)len;
+}
+#endif
 
 bool io_intercore_slot_read(io_intercore_slot_t *s, void *dst, uint32_t *out_seq) {
     for (uint32_t i = 0; i < IO_INTERCORE_SLOT_MAX_RETRIES; ++i) {
+        ic_invalidate_shared(s->hdr, sizeof(io_intercore_slot_hdr_t) + s->size);
         uint32_t seq1 = s->hdr->seq;
         if (seq1 & 1U) {
             /* Writer in progress — spin. */
