@@ -5,7 +5,8 @@
  * Dynamixel (USE_DYNAMIXEL_SERVO): reads present position at startup and
  * holds it (no PID). Re-asserts goal position at 50 Hz.
  *
- * Feetech: consumes control_output_t from CM7 via state_exchange.
+ * Feetech: consumes control_output_t from CM7 via state_exchange when in
+ * RISE/DESCENT; otherwise holds default (0°, 0°).
  *
  * UBC Rocket, 2026
  */
@@ -28,16 +29,13 @@
 #include "task.h"
 
 #include <math.h>
+#include <stdbool.h>
 
-#define SELFTEST_SWEEP_RANGE_DEG   90.0f
-#define SELFTEST_SWEEP_STEP_DEG    1.0f
-#define SELFTEST_SWEEP_STEP_MS     5U
-#define SELFTEST_CIRCLE_RADIUS_DEG 5.0f
-#define SELFTEST_CIRCLE_STEPS      72U
-#define SELFTEST_CIRCLE_STEP_MS    18U
+#define ACTUATOR_LOOP_MS           20U
+#define GIMBAL_DEFAULT_DEG_X       0.0f
+#define GIMBAL_DEFAULT_DEG_Y       0.0f
 
 #ifdef USE_DYNAMIXEL_SERVO
-#define ACTUATOR_LOOP_MS  20U
 #define DXL_SERVO_ID_X    1u
 #define DXL_SERVO_ID_Y    2u
 
@@ -88,49 +86,25 @@ static void on_control_output_ready(void)
     vTaskNotifyGiveFromISR(s_h_actuator, &hpw);
     portYIELD_FROM_ISR(hpw);
 }
-#endif
 
-static void actuator_run_startup_selftest(void *servos)
+static inline bool actuator_follows_control_output(app_flight_state_t fs)
 {
-    if (servos == NULL) {
-        return;
-    }
-
-#ifndef USE_DYNAMIXEL_SERVO
-    servo_feetech_t *s = (servo_feetech_t *)servos;
-
-    servo_feetech_set_pair_degrees(s, 0.0f, 0.0f);
-    vTaskDelay(pdMS_TO_TICKS(100));
-
-    for (float deg = 0.0f; deg <= SELFTEST_SWEEP_RANGE_DEG;
-         deg += SELFTEST_SWEEP_STEP_DEG) {
-        servo_feetech_set_pair_degrees(s, deg, deg);
-        vTaskDelay(pdMS_TO_TICKS(SELFTEST_SWEEP_STEP_MS));
-    }
-    for (float deg = SELFTEST_SWEEP_RANGE_DEG;
-         deg >= -SELFTEST_SWEEP_RANGE_DEG;
-         deg -= SELFTEST_SWEEP_STEP_DEG) {
-        servo_feetech_set_pair_degrees(s, deg, deg);
-        vTaskDelay(pdMS_TO_TICKS(SELFTEST_SWEEP_STEP_MS));
-    }
-    for (float deg = -SELFTEST_SWEEP_RANGE_DEG; deg <= 0.0f;
-         deg += SELFTEST_SWEEP_STEP_DEG) {
-        servo_feetech_set_pair_degrees(s, deg, deg);
-        vTaskDelay(pdMS_TO_TICKS(SELFTEST_SWEEP_STEP_MS));
-    }
-
-    for (unsigned i = 0; i < SELFTEST_CIRCLE_STEPS; ++i) {
-        float ang = (2.0f * (float)M_PI * (float)i) /
-                    (float)SELFTEST_CIRCLE_STEPS;
-        float dx = SELFTEST_CIRCLE_RADIUS_DEG * cosf(ang);
-        float dy = SELFTEST_CIRCLE_RADIUS_DEG * sinf(ang);
-        servo_feetech_set_pair_degrees(s, dx, dy);
-        vTaskDelay(pdMS_TO_TICKS(SELFTEST_CIRCLE_STEP_MS));
-    }
-
-    servo_feetech_set_pair_degrees(s, 0.0f, 0.0f);
-#endif
+    return fs == APP_FLIGHT_RISE || fs == APP_FLIGHT_DESCENT;
 }
+
+static void actuator_apply_gimbal(servo_feetech_t *s, app_flight_state_t fs)
+{
+    if (actuator_follows_control_output(fs)) {
+        control_output_t out;
+        (void)state_exchange_get_control_output(&out);
+        float deg_x = out.theta_x_cmd * 180.0f / (float)M_PI;
+        float deg_y = out.theta_y_cmd * 180.0f / (float)M_PI;
+        servo_feetech_set_pair_degrees(s, deg_x, deg_y);
+    } else {
+        servo_feetech_set_pair_degrees(s, GIMBAL_DEFAULT_DEG_X, GIMBAL_DEFAULT_DEG_Y);
+    }
+}
+#endif
 
 void task_actuator(void *arg)
 {
@@ -151,23 +125,20 @@ void task_actuator(void *arg)
         vTaskDelay(pdMS_TO_TICKS(ACTUATOR_LOOP_MS));
     }
 #else
+    servo_feetech_t *s = a->servos;
     s_h_actuator = xTaskGetCurrentTaskHandle();
 
-    servo_feetech_enable(a->servos, true);
-
-    actuator_run_startup_selftest(a->servos);
+    servo_feetech_enable(s, true);
+    servo_feetech_set_pair_degrees(s, GIMBAL_DEFAULT_DEG_X, GIMBAL_DEFAULT_DEG_Y);
 
     io_intercore_register_handler(IO_IC_CONTROL_OUTPUT_READY, on_control_output_ready);
 
     for (;;) {
-        (void)ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        (void)ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(ACTUATOR_LOOP_MS));
 
-        control_output_t out;
-        (void)state_exchange_get_control_output(&out);
-
-        float deg_x = out.theta_x_cmd * 180.0f / (float)M_PI;
-        float deg_y = out.theta_y_cmd * 180.0f / (float)M_PI;
-        servo_feetech_set_pair_degrees(a->servos, deg_x, deg_y);
+        app_flight_state_t fs = APP_FLIGHT_IDLE;
+        (void)state_exchange_get_flight_state(&fs);
+        actuator_apply_gimbal(s, fs);
     }
 #endif
 }

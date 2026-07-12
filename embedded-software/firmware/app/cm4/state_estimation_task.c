@@ -182,6 +182,62 @@ static void fmt_f3(char *buf, float v) {
 }
 #endif
 
+#if TILT_KF_ONLY
+/* Build body-to-nav quaternion from 2-axis tilt: q = Ry(tilt_x) * Rx(tilt_y). */
+static void tilt_to_state(const tilt_kf_t *kf,
+                          const icm_sample_t *imu,
+                          state_t *st_out)
+{
+    const float hx = kf->x.angle * 0.5f;
+    const float hy = kf->y.angle * 0.5f;
+    const float cy = cosf(hx);
+    const float sy = sinf(hx);
+    const float cx = cosf(hy);
+    const float sx = sinf(hy);
+
+    quaternion_t q = {
+        .w = cy * cx,
+        .x = cy * sx,
+        .y = sy * cx,
+        .z = -sy * sx,
+    };
+
+    const float n2 = q.w * q.w + q.x * q.x + q.y * q.y + q.z * q.z;
+    if (n2 > 1e-12f) {
+        const float inv_n = 1.0f / sqrtf(n2);
+        q.w *= inv_n;
+        q.x *= inv_n;
+        q.y *= inv_n;
+        q.z *= inv_n;
+    }
+
+    st_out->pos[0]     = 0.0f;
+    st_out->pos[1]     = 0.0f;
+    st_out->pos[2]     = 0.0f;
+    st_out->vel[0]     = 0.0f;
+    st_out->vel[1]     = 0.0f;
+    st_out->vel[2]     = 0.0f;
+    st_out->q_bn       = q;
+    st_out->omega_b[0] = imu->gx - kf->x.bias;
+    st_out->omega_b[1] = imu->gy - kf->y.bias;
+    st_out->omega_b[2] = imu->gz;
+    st_out->u_s        = imu->t_us;
+}
+
+static void tilt_publish_armed(const tilt_kf_t *kf, const icm_sample_t *imu)
+{
+    bool armed = false;
+    (void)state_exchange_get_armed(&armed);
+    if (!armed) {
+        return;
+    }
+
+    state_t st;
+    tilt_to_state(kf, imu, &st);
+    (void)state_exchange_publish_state(&st);
+}
+#endif
+
 #if !TILT_KF_ONLY
 static void eskf_setup(void)
 {
@@ -326,7 +382,9 @@ void task_state_estimation(void *arg)
         }
 #if TILT_KF_ONLY
         if (n_icm > 0U) {
-            tilt_state_publish(&s_tilt_kf, s_icm_raw[n_icm - 1U].t_us);
+            const icm_sample_t *latest = &s_icm_raw[n_icm - 1U];
+            tilt_state_publish(&s_tilt_kf, latest->t_us);
+            tilt_publish_armed(&s_tilt_kf, latest);
         }
 #endif
 

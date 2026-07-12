@@ -171,7 +171,11 @@ void task_telemetry(void *arg) {
     uint32_t tick = 0;
     for (;;) {
         if (radio != NULL) {
-            send_telemetry(radio);
+            bool armed = false;
+            (void)state_exchange_get_armed(&armed);
+            if (armed) {
+                send_telemetry(radio);
+            }
             if ((tick % STATUS_EVERY_N_TICKS) == 0U) {
                 send_status(radio);
             }
