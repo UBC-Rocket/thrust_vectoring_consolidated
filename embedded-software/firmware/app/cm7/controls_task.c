@@ -7,25 +7,14 @@
  * Servo actuation: Dynamixel gimbals are driven on CM4 (tilt KF + local PD in
  * actuator_task). CM7 publishes control_output_t for ESC / Feetech / telemetry.
  *
- * Motor actuation: standard 1000-2000 us / 400 Hz PWM (ported from the
- * deprecated ulysses-flight-controller's motor_drivers/pwm_output.c) on the
- * same TIM4_CH1 (PD12, lower) / TIM4_CH2 (PD13, upper) pins DShot used to
- * drive — see esc_init.h / dev_init_cm7.c for the wiring and tim.c's
- * MX_TIM4_Init for the timer reconfiguration. DShot's bidirectional
- * telemetry (RPM readback) has no equivalent on plain PWM; that capability
- * is gone, not just unported. dev/esc_dshot/ is left on disk (unlinked) if
- * bidirectional DShot needs to come back.
- *
  * UBC Rocket, 2026
  */
 
 #include "app/tasks.h"
 #include "app/state_exchange.h"
-#include "app/esc_init.h"
 
 #include "controls/flight_controller.h"
-#include "controls/pwm.h"
-#include "cmsis_os2.h"
+#include "esc_dshot/bdshot.h"
 
 #include "tim.h"
 
@@ -42,21 +31,8 @@
 
 #define CONTROLS_DT_S 0.00125f
 
-#define ESC_PWM_MIN_US 1000U
-#define ESC_PWM_MAX_US 2000U
-
+#define ESC_ZERO_THROTTLE 0.00f
 #define ESC_LAUNCH_THROTTLE 0.65f
-
-static inline uint16_t throttle_to_us(float throttle) {
-    if (throttle < 0.0f) throttle = 0.0f;
-    if (throttle > 1.0f) throttle = 1.0f;
-    return (uint16_t)(ESC_PWM_MIN_US +
-                      throttle * (float)(ESC_PWM_MAX_US - ESC_PWM_MIN_US));
-}
-
-static inline void esc_set_us(const pwm_output_t *pwm, uint16_t us) {
-    pwm_set_compare(pwm, pwm_clamp_ticks(pwm, pwm_us_to_ticks(pwm, us)));
-}
 
 static flight_controller_config_t s_live_config = {
     .attitude = {
@@ -107,7 +83,12 @@ void controls_on_tim_period_elapsed(void *htim_handle)
     control_output_t out;
     flight_controller_run(&state, &s_live_ref, &s_live_config, &out, CONTROLS_DT_S);
 
-    /* ESC PWM is driven by task_controls() from flight state. */
+    float throttle = (s_live_config.thrust.T_max > 0.0f)
+                      ? (out.T_cmd / s_live_config.thrust.T_max) : 0.0f;
+    if (throttle < 0.0f) throttle = 0.0f;
+    if (throttle > 1.0f) throttle = 1.0f;
+    esc_dshot_motor_set_throttle(ESC_MOTOR_ID_LOWER, ESC_PERCENTAGE_TO_THROTTLE(throttle));
+    esc_dshot_motor_set_throttle(ESC_MOTOR_ID_UPPER, ESC_PERCENTAGE_TO_THROTTLE(throttle));
 
     (void)state_exchange_publish_control_output(&out);
 }
@@ -137,34 +118,14 @@ static uint16_t controls_esc_us_for_state(app_flight_state_t fs)
     switch (fs) {
         case APP_FLIGHT_RISE:
         case APP_FLIGHT_DESCENT:
-            return throttle_to_us(ESC_LAUNCH_THROTTLE);
+            return ESC_LAUNCH_THROTTLE;
         case APP_FLIGHT_ARMED:
         case APP_FLIGHT_IDLE:
         case APP_FLIGHT_ESTOP:
         case APP_FLIGHT_LANDED:
         default:
-            return ESC_PWM_MIN_US;
+            return ESC_ZERO_THROTTLE;
     }
-}
-
-static void controls_esc_apply(const escs_t *escs, uint16_t us)
-{
-    if (escs == NULL) {
-        return;
-    }
-    esc_set_us(&escs->lower, us);
-    esc_set_us(&escs->upper, us);
-}
-
-static void controls_esc_start_pwm(const escs_t *escs)
-{
-    if (escs == NULL) {
-        return;
-    }
-    esc_set_us(&escs->lower, ESC_PWM_MIN_US);
-    esc_set_us(&escs->upper, ESC_PWM_MIN_US);
-    HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
-    HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
 }
 #endif /* !BENCH_NO_MOTORS */
 
@@ -260,9 +221,8 @@ void task_controls(void *arg) {
     app_flight_state_t prev_fs = APP_FLIGHT_IDLE;
     app_flight_state_t fs      = APP_FLIGHT_IDLE;
 #ifndef BENCH_NO_MOTORS
-    const escs_t *escs = esc_handles();
-    bool pwm_started = false;
-    uint16_t esc_us  = ESC_PWM_MIN_US;
+    bool esc_armed = false;
+    uint64_t esc_last_armed_time = 0;
 #endif
 
 #ifdef DEBUG_TEXT_CONSOLE
@@ -279,16 +239,14 @@ void task_controls(void *arg) {
         }
 
 #ifndef BENCH_NO_MOTORS
-        if (fs == APP_FLIGHT_ARMED && !pwm_started) {
-            controls_esc_start_pwm(escs);
-            pwm_started = true;
+        if (fs == APP_FLIGHT_ARMED) {
+            // TODO: arm
         }
 
-        if (pwm_started) {
+        if (esc_armed) {
             const uint16_t desired_us = controls_esc_us_for_state(fs);
             if (desired_us != esc_us) {
-                esc_us = desired_us;
-                controls_esc_apply(escs, esc_us);
+                // TODO: apply throttle
             }
         }
 #endif

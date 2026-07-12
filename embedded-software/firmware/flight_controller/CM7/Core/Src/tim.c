@@ -243,18 +243,10 @@ void MX_TIM4_Init(void)
   /* USER CODE BEGIN TIM4_Init 1 */
 
   /* USER CODE END TIM4_Init 1 */
-  /* UBC Rocket: was configured for DShot bit-banging (Prescaler=0, Period=799
-   * = one DShot bit period at full 240 MHz timer clock, PWM2 mode to match
-   * bdshot.c's LL-level bit encoding). DShot is retired — this now drives
-   * standard 1000-2000 us ESC PWM at 400 Hz (matches the deprecated
-   * esc_driver.h ESC_PWM_FREQ_HZ, and divides evenly off the existing 800 Hz
-   * control ISR). Prescaler=239 -> 1 MHz/1 us tick off the 240 MHz timer
-   * clock; Period=2499 -> 2500 us / 400 Hz frame. PWM1 (not PWM2) so the
-   * output is idle-low / pulse-high, as RC ESCs expect. */
   htim4.Instance = TIM4;
-  htim4.Init.Prescaler = 239;
+  htim4.Init.Prescaler = 0;
   htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim4.Init.Period = 2499;
+  htim4.Init.Period = 799;
   htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
@@ -276,7 +268,7 @@ void MX_TIM4_Init(void)
   {
     Error_Handler();
   }
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.OCMode = TIM_OCMODE_PWM2;
   sConfigOC.Pulse = 0;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;

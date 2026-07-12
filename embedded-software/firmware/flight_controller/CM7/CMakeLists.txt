@@ -50,11 +50,10 @@ add_subdirectory(${LIB_DIR}/state_estimation state_estimation_build)
 add_subdirectory(${LIB_DIR}/controls         controls_build)
 add_subdirectory(${FW_ROOT}/comms/nanopb     nanopb_build)
 add_subdirectory(${LIB_DIR}/messages         messages_build)
+add_subdirectory(${LIB_DIR}/dshot            dshot_build)
 
-# DEV layer (CM7 owns ESC output; servos on CM4). Plain PWM (ported from
-# depracated/ulysses-flight-controller's motor_drivers/pwm_output.c) replaced
-# DShot — dev/esc_dshot and lib/dshot stay on disk, unlinked, in case
-# bidirectional DShot needs to come back.
+# DEV layer (CM7 owns ESC/DShot only; servos on CM4)
+add_subdirectory(${DEV_DIR}/esc_dshot     dev_esc_dshot_build)
 
 # APP layer
 add_subdirectory(${APP_DIR} app_build)
@@ -73,7 +72,6 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     ${IO_IMPL_DIR}/io_intercore.c
     ${IO_IMPL_DIR}/io_init.c
     ${IO_IMPL_DIR}/io_debug.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/motor_drivers/pwm_output.c
 )
 
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
@@ -91,6 +89,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     timestamp
     collections
     messages
+    dev_esc_dshot
     app_shared
     app_cm7
 )
