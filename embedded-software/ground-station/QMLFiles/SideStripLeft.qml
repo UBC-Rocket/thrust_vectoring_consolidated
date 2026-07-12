@@ -46,6 +46,7 @@ Rectangle {
             spacing: 4
 
             Text {
+                Layout.fillWidth: true
                 text: Theme.pilotUnitKanji
                 font.family: Theme.japaneseFamilyHeavy
                 font.pixelSize: 26
@@ -53,10 +54,15 @@ Rectangle {
                 color: Theme.accent
             }
             Text {
+                // Wrap long unit labels (e.g. "DEMON SLAYER · LOVE HASHIRA")
+                // so they stay inside the strip instead of overflowing.
+                Layout.fillWidth: true
                 text: Theme.pilotUnitLabel
                 font.family: Theme.fontFamily
                 font.pixelSize: 10
                 font.letterSpacing: 3
+                lineHeight: 1.3
+                wrapMode: Text.WordWrap
                 color: Theme.textSecondary
             }
         }
@@ -83,7 +89,9 @@ Rectangle {
             Image {
                 id: pilotFigure
                 source: "../Resources/images/" + Theme.pilotImage
-                width: Theme.pilotImageWidth
+                // Cap to the strip's inner width so a wide pose keeps a
+                // margin off the accent border (never wider than handoff spec).
+                width: Math.min(Theme.pilotImageWidth, parent.width - 16)
                 fillMode: Image.PreserveAspectFit
                 // Only show once the new source resolves — avoids a
                 // broken-image flash when switching pilots.
