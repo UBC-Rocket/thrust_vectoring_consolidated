@@ -16,6 +16,7 @@
 #include "controls/flight_controller.h"
 #include "esc_dshot/bdshot.h"
 
+#include "esc_dshot/config.h"
 #include "tim.h"
 
 #include "FreeRTOS.h"
@@ -31,8 +32,8 @@
 
 #define CONTROLS_DT_S 0.00125f
 
-#define ESC_ZERO_THROTTLE 0.00f
-#define ESC_LAUNCH_THROTTLE 0.65f
+#define ESC_ZERO_THROTTLE (ESC_PERCENTAGE_TO_THROTTLE(0.00f))
+#define ESC_LAUNCH_THROTTLE (ESC_PERCENTAGE_TO_THROTTLE(0.10f))
 
 static flight_controller_config_t s_live_config = {
     .attitude = {
@@ -83,12 +84,7 @@ void controls_on_tim_period_elapsed(void *htim_handle)
     control_output_t out;
     flight_controller_run(&state, &s_live_ref, &s_live_config, &out, CONTROLS_DT_S);
 
-    float throttle = (s_live_config.thrust.T_max > 0.0f)
-                      ? (out.T_cmd / s_live_config.thrust.T_max) : 0.0f;
-    if (throttle < 0.0f) throttle = 0.0f;
-    if (throttle > 1.0f) throttle = 1.0f;
-    esc_dshot_motor_set_throttle(ESC_MOTOR_ID_LOWER, ESC_PERCENTAGE_TO_THROTTLE(throttle));
-    esc_dshot_motor_set_throttle(ESC_MOTOR_ID_UPPER, ESC_PERCENTAGE_TO_THROTTLE(throttle));
+    esc_dshot_update();
 
     (void)state_exchange_publish_control_output(&out);
 }
@@ -96,15 +92,20 @@ void controls_on_tim_period_elapsed(void *htim_handle)
 void controls_isr_init(void)
 {
     flight_controller_init(&s_live_config);
-    s_isr_ready = true;
     HAL_TIM_Base_Start_IT(&htim16);
+    s_isr_ready = true;
 }
 
-static inline bool controls_was_in_flight(app_flight_state_t fs)
+static inline bool controls_is_active_state(app_flight_state_t fs)
 {
     return fs == APP_FLIGHT_ARMED   ||
            fs == APP_FLIGHT_RISE    ||
            fs == APP_FLIGHT_DESCENT;
+}
+
+static inline bool controls_is_flight_state(app_flight_state_t fs)
+{
+    return fs == APP_FLIGHT_RISE || fs == APP_FLIGHT_DESCENT;
 }
 
 static inline bool controls_is_abort_state(app_flight_state_t fs)
@@ -113,7 +114,7 @@ static inline bool controls_is_abort_state(app_flight_state_t fs)
 }
 
 #ifndef BENCH_NO_MOTORS
-static uint16_t controls_esc_us_for_state(app_flight_state_t fs)
+static uint16_t controls_get_esc_throttle_for_state(app_flight_state_t fs)
 {
     switch (fs) {
         case APP_FLIGHT_RISE:
@@ -221,8 +222,7 @@ void task_controls(void *arg) {
     app_flight_state_t prev_fs = APP_FLIGHT_IDLE;
     app_flight_state_t fs      = APP_FLIGHT_IDLE;
 #ifndef BENCH_NO_MOTORS
-    bool esc_armed = false;
-    uint64_t esc_last_armed_time = 0;
+    uint16_t esc_active_throttle = ESC_ZERO_THROTTLE;
 #endif
 
 #ifdef DEBUG_TEXT_CONSOLE
@@ -234,19 +234,23 @@ void task_controls(void *arg) {
 
         (void)state_exchange_get_flight_state(&fs);
 
-        if (controls_is_abort_state(fs) && controls_was_in_flight(prev_fs)) {
+        if (controls_is_abort_state(fs) && controls_is_active_state(prev_fs)) {
             flight_controller_init(&s_live_config);
         }
 
 #ifndef BENCH_NO_MOTORS
         if (fs == APP_FLIGHT_ARMED) {
-            // TODO: arm
-        }
+            esc_dshot_set_armed(true);
+        } else if (fs == APP_FLIGHT_ESTOP) {
+            esc_dshot_set_armed(false);
+        } else if (controls_is_flight_state(fs)) {
+            const uint16_t throttle = controls_get_esc_throttle_for_state(fs);
 
-        if (esc_armed) {
-            const uint16_t desired_us = controls_esc_us_for_state(fs);
-            if (desired_us != esc_us) {
-                // TODO: apply throttle
+            if (throttle != esc_active_throttle) {
+                esc_active_throttle = throttle;
+
+                esc_dshot_motor_set_throttle(ESC_MOTOR_ID_LOWER, esc_active_throttle);
+                esc_dshot_motor_set_throttle(ESC_MOTOR_ID_UPPER, esc_active_throttle);
             }
         }
 #endif
@@ -264,7 +268,7 @@ void task_controls(void *arg) {
             io_debug_printf("[ctl] state=%s esc=%u us  T=%s  gim=%s,%s  z_i=%s\r\n",
                             controls_state_name(fs),
 #ifndef BENCH_NO_MOTORS
-                            (unsigned)esc_us,
+                            esc_active_throttle,
 #else
                             0U,
 #endif
