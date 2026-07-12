@@ -21,7 +21,7 @@
 #define SERVO_ID_X            1u
 #define SERVO_ID_Y            2u
 #define MODEL_NUMBER_XM430    1030u
-#define BUS_TIMEOUT_MS        50u
+#define BUS_TIMEOUT_MS        20u
 #define SETUP_STEP_MS         50u
 
 #define REG_MODEL_NUMBER            0u
@@ -30,13 +30,18 @@
 #define REG_HARDWARE_ERROR_STATUS   70u
 #define REG_GOAL_VELOCITY           104u
 #define REG_PRESENT_VELOCITY        128u
+#define REG_PROFILE_ACCELERATION    108u
+#define REG_PROFILE_VELOCITY        112u
 #define REG_GOAL_POSITION           116u
 #define REG_PRESENT_POSITION        132u
 
+#define DXL_PROFILE_VELOCITY        200u   /* ~46 rpm; 0 = unlimited on XM430 */
+#define DXL_PROFILE_ACCELERATION    75u    /* was 50; small bump for snappier moves */
+
 #define OP_MODE_POSITION            3u
+#define OP_MODE_EXTENDED_POSITION   4u
 
 #define DXL_TICKS_PER_REV           4096
-#define DXL_CENTER_TICKS            2048
 #define DXL_TEST_SWEEP_RANGE_DEG    90.0f
 #define DXL_TEST_SWEEP_STEP_DEG     1.0f
 #define DXL_TEST_SWEEP_STEP_MS      5U
@@ -59,6 +64,10 @@ static struct servo_dynamixel s_self;
 
 IO_TEST_HOOK_RW(s_self, struct servo_dynamixel, dev_servo_dynamixel_self)
 
+static void reboot_id(uint8_t id);
+static bool dxl_clear_hw_error_if_set(uint8_t id);
+static void log_hw_error(uint8_t id);
+
 static dxl_status_code_t bus_txrx(uint8_t id, const uint8_t *tx, size_t tx_len,
                                 size_t expected_rx, dxl_status_t *st) {
     (void)id;
@@ -66,6 +75,11 @@ static dxl_status_code_t bus_txrx(uint8_t id, const uint8_t *tx, size_t tx_len,
     memset(st, 0, sizeof(*st));
     return dxl_hal_txrx(tx, tx_len, rx, sizeof(rx), expected_rx, st,
                           BUS_TIMEOUT_MS);
+}
+
+void servo_dynamixel_bus_recover(void)
+{
+    dxl_hal_recover();
 }
 
 static bool bus_ok(dxl_status_code_t rc) {
@@ -76,16 +90,38 @@ static bool bus_responded(dxl_status_code_t rc) {
     return rc == DXL_OK || rc == DXL_ERR_STATUS;
 }
 
-static bool write_u8(uint8_t id, uint8_t addr, uint8_t value) {
+static void reboot_delay_ms(uint32_t ms)
+{
+    if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING) {
+        vTaskDelay(pdMS_TO_TICKS(ms));
+    } else {
+        HAL_Delay(ms);
+    }
+}
+
+static bool write_u8_inner(uint8_t id, uint8_t addr, uint8_t value, unsigned retries_left)
+{
     uint8_t tx[DXL_TX_BUF_SIZE];
     const size_t n = dxl_pkt_build_write(tx, sizeof(tx), id, addr, &value, 1);
     if (n == 0u) return false;
 
     dxl_status_t st;
-    return bus_ok(bus_txrx(id, tx, n, DXL_STATUS_MIN_LEN, &st));
+    const dxl_status_code_t rc = bus_txrx(id, tx, n, DXL_STATUS_MIN_LEN, &st);
+    if (bus_ok(rc)) {
+        return true;
+    }
+    if (retries_left > 0u && dxl_clear_hw_error_if_set(id)) {
+        return write_u8_inner(id, addr, value, retries_left - 1u);
+    }
+    return false;
 }
 
-static bool write_i32(uint8_t id, uint8_t addr, int32_t value) {
+static bool write_u8(uint8_t id, uint8_t addr, uint8_t value) {
+    return write_u8_inner(id, addr, value, 1u);
+}
+
+static bool write_i32_inner(uint8_t id, uint8_t addr, int32_t value, unsigned retries_left)
+{
     const uint8_t data[4] = {
         (uint8_t)(value & 0xFF),
         (uint8_t)((value >> 8) & 0xFF),
@@ -98,7 +134,18 @@ static bool write_i32(uint8_t id, uint8_t addr, int32_t value) {
     if (n == 0u) return false;
 
     dxl_status_t st;
-    return bus_ok(bus_txrx(id, tx, n, DXL_STATUS_MIN_LEN, &st));
+    const dxl_status_code_t rc = bus_txrx(id, tx, n, DXL_STATUS_MIN_LEN, &st);
+    if (bus_ok(rc)) {
+        return true;
+    }
+    if (retries_left > 0u && dxl_clear_hw_error_if_set(id)) {
+        return write_i32_inner(id, addr, value, retries_left - 1u);
+    }
+    return false;
+}
+
+static bool write_i32(uint8_t id, uint8_t addr, int32_t value) {
+    return write_i32_inner(id, addr, value, 1u);
 }
 
 static bool read_bytes(uint8_t id, uint8_t addr, uint16_t len, uint8_t *out) {
@@ -132,13 +179,38 @@ static bool read_i32(uint8_t id, uint8_t addr, int32_t *out) {
     return true;
 }
 
+/* Hardware Error Status (addr 70) is read-only; reboot clears latched faults. */
+static bool read_hw_error(uint8_t id, uint8_t *hw_out)
+{
+    return read_bytes(id, REG_HARDWARE_ERROR_STATUS, 1, hw_out);
+}
+
+static bool dxl_clear_hw_error_if_set(uint8_t id)
+{
+    uint8_t hw = 0;
+    if (!read_hw_error(id, &hw)) {
+        return false;
+    }
+    if (hw == 0u) {
+        return false;
+    }
+
+    io_debug_printf("DXL id%u hw_err=0x%02x, rebooting to clear\r\n",
+                    (unsigned)id, (unsigned)hw);
+    reboot_id(id);
+    return true;
+}
+
 static void log_hw_error(uint8_t id) {
     uint8_t hw = 0;
-    if (!read_bytes(id, REG_HARDWARE_ERROR_STATUS, 1, &hw)) {
+    if (!read_hw_error(id, &hw)) {
         io_debug_printf("DXL id%u hw_err=READ FAIL\r\n", (unsigned)id);
         return;
     }
     io_debug_printf("DXL id%u hw_err=0x%02x\r\n", (unsigned)id, (unsigned)hw);
+    if (hw != 0u) {
+        reboot_id(id);
+    }
 }
 
 static void reboot_id(uint8_t id) {
@@ -150,7 +222,7 @@ static void reboot_id(uint8_t id) {
 
     dxl_status_t st;
     (void)bus_txrx(id, tx, n, DXL_STATUS_MIN_LEN, &st);
-    HAL_Delay(REBOOT_DELAY_MS);
+    reboot_delay_ms(REBOOT_DELAY_MS);
 }
 
 static bool ping_id(uint8_t id, uint8_t *pkt_error) {
@@ -170,21 +242,49 @@ static bool ping_id(uint8_t id, uint8_t *pkt_error) {
     return true;
 }
 
-static int32_t deg_to_ticks(float deg)
+static int32_t zero_ticks_for_id(uint8_t id)
 {
-    return DXL_CENTER_TICKS +
+    if (id == SERVO_ID_Y) {
+        return DXL_ZERO_TICKS_Y;
+    }
+    return DXL_ZERO_TICKS_X;
+}
+
+static int32_t deg_to_ticks_x(float deg)
+{
+    return DXL_ZERO_TICKS_X +
            (int32_t)(deg * (float)DXL_TICKS_PER_REV / 360.0f);
+}
+
+static int32_t deg_to_ticks_y(float deg)
+{
+    return DXL_ZERO_TICKS_Y +
+           (int32_t)(deg * (float)DXL_TICKS_PER_REV / 360.0f);
+}
+
+static float ticks_to_deg_x(int32_t ticks)
+{
+    return (float)(ticks - DXL_ZERO_TICKS_X) * 360.0f / (float)DXL_TICKS_PER_REV;
+}
+
+static float ticks_to_deg_y(int32_t ticks)
+{
+    return (float)(ticks - DXL_ZERO_TICKS_Y) * 360.0f / (float)DXL_TICKS_PER_REV;
 }
 
 static bool setup_position_mode(uint8_t id)
 {
     if (!write_u8(id, REG_TORQUE_ENABLE, 0u)) return false;
     HAL_Delay(SETUP_STEP_MS);
-    if (!write_u8(id, REG_OPERATING_MODE, OP_MODE_POSITION)) return false;
+    /* Mode 4 (extended) accepts negative goal ticks — required for calibrated
+     * zero on Y (DXL_ZERO_TICKS_Y = -14). Mode 3 only allows 0..4095. */
+    if (!write_u8(id, REG_OPERATING_MODE, OP_MODE_EXTENDED_POSITION)) return false;
     HAL_Delay(SETUP_STEP_MS);
-    int32_t present = DXL_CENTER_TICKS;
-    (void)read_i32(id, REG_PRESENT_POSITION, &present);
-    if (!write_i32(id, REG_GOAL_POSITION, present)) return false;
+    if (!write_i32(id, REG_PROFILE_VELOCITY, (int32_t)DXL_PROFILE_VELOCITY)) return false;
+    HAL_Delay(SETUP_STEP_MS);
+    if (!write_i32(id, REG_PROFILE_ACCELERATION, (int32_t)DXL_PROFILE_ACCELERATION)) return false;
+    HAL_Delay(SETUP_STEP_MS);
+    if (!write_i32(id, REG_GOAL_POSITION, zero_ticks_for_id(id))) return false;
     HAL_Delay(SETUP_STEP_MS);
     if (!write_u8(id, REG_TORQUE_ENABLE, 1u)) return false;
     HAL_Delay(SETUP_STEP_MS);
@@ -207,8 +307,15 @@ static bool init_servo(uint8_t id) {
             continue;
         }
 
+        if (dxl_clear_hw_error_if_set(id)) {
+            continue;
+        }
+
         uint16_t model = 0;
         if (!read_u16(id, REG_MODEL_NUMBER, &model)) {
+            if (dxl_clear_hw_error_if_set(id)) {
+                continue;
+            }
             reboot_id(id);
             continue;
         }
@@ -224,10 +331,24 @@ static bool init_servo(uint8_t id) {
         }
 
         log_hw_error(id);
-        reboot_id(id);
+        if (!dxl_clear_hw_error_if_set(id)) {
+            reboot_id(id);
+        }
     }
 
     return false;
+}
+
+static void init_servo_retry_if_failed(uint8_t id, bool *ready)
+{
+    if (*ready) {
+        return;
+    }
+
+    if (ping_id(id, NULL)) {
+        (void)dxl_clear_hw_error_if_set(id);
+    }
+    *ready = init_servo(id);
 }
 
 static bool try_recover_servo(servo_dynamixel_t *d, uint8_t id, bool *ready) {
@@ -260,6 +381,9 @@ bool servo_dynamixel_init(void) {
     s_self.id_x_ready = init_servo(SERVO_ID_X);
     s_self.id_y_ready = init_servo(SERVO_ID_Y);
 
+    init_servo_retry_if_failed(SERVO_ID_X, &s_self.id_x_ready);
+    init_servo_retry_if_failed(SERVO_ID_Y, &s_self.id_y_ready);
+
     if (!s_self.id_x_ready && !s_self.id_y_ready) {
         return false;
     }
@@ -279,16 +403,18 @@ void servo_dynamixel_log_status(void) {
         return;
     }
 
-    io_debug_printf("[init] DXL id%u=%s id%u=%s\r\n",
-                    (unsigned)SERVO_ID_X, s_self.id_x_ready ? "OK" : "FAIL",
-                    (unsigned)SERVO_ID_Y, s_self.id_y_ready ? "OK" : "FAIL");
-
     if (!s_self.id_x_ready) {
         log_hw_error(SERVO_ID_X);
+        (void)try_recover_servo(&s_self, SERVO_ID_X, &s_self.id_x_ready);
     }
     if (!s_self.id_y_ready) {
         log_hw_error(SERVO_ID_Y);
+        (void)try_recover_servo(&s_self, SERVO_ID_Y, &s_self.id_y_ready);
     }
+
+    io_debug_printf("[init] DXL id%u=%s id%u=%s\r\n",
+                    (unsigned)SERVO_ID_X, s_self.id_x_ready ? "OK" : "FAIL",
+                    (unsigned)SERVO_ID_Y, s_self.id_y_ready ? "OK" : "FAIL");
 }
 
 servo_dynamixel_t *servo_dynamixel_get(void) {
@@ -315,20 +441,32 @@ bool servo_dynamixel_set_pair_goal_position(servo_dynamixel_t *d, int32_t pos) {
     return ok;
 }
 
+static void bus_inter_gap_ms(void)
+{
+    if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING) {
+        vTaskDelay(pdMS_TO_TICKS(3));
+    } else {
+        HAL_Delay(3);
+    }
+}
+
 bool servo_dynamixel_set_pair_degrees(servo_dynamixel_t *d, float deg_x, float deg_y)
 {
     if (d == NULL || !d->ready) {
         return false;
     }
 
-    const int32_t ticks_x = deg_to_ticks(deg_x);
-    const int32_t ticks_y = deg_to_ticks(deg_y);
+    const int32_t ticks_x = deg_to_ticks_x(deg_x);
+    const int32_t ticks_y = deg_to_ticks_y(deg_y);
     bool ok = true;
 
     if (d->id_x_ready) {
         ok = write_i32(SERVO_ID_X, REG_GOAL_POSITION, ticks_x) && ok;
     }
     if (d->id_y_ready) {
+        if (d->id_x_ready) {
+            bus_inter_gap_ms();
+        }
         ok = write_i32(SERVO_ID_Y, REG_GOAL_POSITION, ticks_y) && ok;
     }
     return ok;
@@ -340,6 +478,60 @@ bool servo_dynamixel_get_present_position(servo_dynamixel_t *d, uint8_t id, int3
     if (id == SERVO_ID_Y && !d->id_y_ready) return false;
     if (id != SERVO_ID_X && id != SERVO_ID_Y) return false;
     return read_i32(id, REG_PRESENT_POSITION, pos);
+}
+
+bool servo_dynamixel_get_pair_degrees(servo_dynamixel_t *d, float *deg_x, float *deg_y)
+{
+    if (d == NULL || !d->ready) {
+        return false;
+    }
+
+    int32_t tx = 0;
+    int32_t ty = 0;
+    bool ok = true;
+
+    if (d->id_x_ready) {
+        ok = read_i32(SERVO_ID_X, REG_PRESENT_POSITION, &tx) && ok;
+        if (deg_x != NULL) {
+            *deg_x = ticks_to_deg_x(tx);
+        }
+    } else if (deg_x != NULL) {
+        *deg_x = 0.0f;
+    }
+
+    if (d->id_y_ready) {
+        if (d->id_x_ready) {
+            bus_inter_gap_ms();
+        }
+        ok = read_i32(SERVO_ID_Y, REG_PRESENT_POSITION, &ty) && ok;
+        if (deg_y != NULL) {
+            *deg_y = ticks_to_deg_y(ty);
+        }
+    } else if (deg_y != NULL) {
+        *deg_y = 0.0f;
+    }
+
+    return ok;
+}
+
+bool servo_dynamixel_set_torque_enable(servo_dynamixel_t *d, uint8_t id, bool enable) {
+    if (d == NULL || !d->ready) return false;
+    if (id == SERVO_ID_X && !d->id_x_ready) return false;
+    if (id == SERVO_ID_Y && !d->id_y_ready) return false;
+    if (id != SERVO_ID_X && id != SERVO_ID_Y) return false;
+    return write_u8(id, REG_TORQUE_ENABLE, enable ? 1u : 0u);
+}
+
+bool servo_dynamixel_disable_torque_pair(servo_dynamixel_t *d) {
+    if (d == NULL || !d->ready) return false;
+    bool ok = true;
+    if (d->id_x_ready) {
+        ok = servo_dynamixel_set_torque_enable(d, SERVO_ID_X, false) && ok;
+    }
+    if (d->id_y_ready) {
+        ok = servo_dynamixel_set_torque_enable(d, SERVO_ID_Y, false) && ok;
+    }
+    return ok;
 }
 
 void servo_dynamixel_run_position_test(servo_dynamixel_t *d) {

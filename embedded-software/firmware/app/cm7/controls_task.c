@@ -4,8 +4,8 @@
  *          (800 Hz); this FreeRTOS task gates ESC PWM on flight state and
  *          polls radio tunables.
  *
- * Servo actuation lives on CM4 (UART8); the ISR publishes control_output_t
- * and CM4's actuator task drives the gimbal servos.
+ * Servo actuation: Dynamixel gimbals are driven on CM4 (tilt KF + local PD in
+ * actuator_task). CM7 publishes control_output_t for ESC / Feetech / telemetry.
  *
  * Motor actuation: standard 1000-2000 us / 400 Hz PWM (ported from the
  * deprecated ulysses-flight-controller's motor_drivers/pwm_output.c) on the
@@ -67,8 +67,8 @@ static flight_controller_config_t s_live_config = {
     .allocation = { .t_hat = { 0.0f, 0.0f, -1.0f } },
     .gimbal = {
         .L         = 0.2f,
-        .theta_min = -100.0f * (float)M_PI / 180.0f,
-        .theta_max =  100.0f * (float)M_PI / 180.0f,
+        .theta_min = -15.0f * (float)M_PI / 180.0f,
+        .theta_max =  15.0f * (float)M_PI / 180.0f,
     },
     .thrust = {
         .m              = 1.2f,
@@ -107,9 +107,7 @@ void controls_on_tim_period_elapsed(void *htim_handle)
     control_output_t out;
     flight_controller_run(&state, &s_live_ref, &s_live_config, &out, CONTROLS_DT_S);
 
-    /* ESC PWM is driven by task_controls() from flight state — fixed 65%
-     * open-loop on RISE/DESCENT. Gimbal commands are published here for
-     * CM4's actuator task (gated on flight state there). */
+    /* ESC PWM is driven by task_controls() from flight state. */
 
     (void)state_exchange_publish_control_output(&out);
 }
@@ -195,9 +193,13 @@ static inline void merge_reference(const app_reference_t *r) {
 static inline void merge_vehicle_config(const app_vehicle_config_t *c) {
     if (c->mass_kg   > 0.0f) s_live_config.thrust.m     = c->mass_kg;
     if (c->T_max     > 0.0f) s_live_config.thrust.T_max = c->T_max;
-    s_live_config.thrust.T_min     = c->T_min;
-    s_live_config.gimbal.theta_min = c->theta_min;
-    s_live_config.gimbal.theta_max = c->theta_max;
+    s_live_config.thrust.T_min = c->T_min;
+    /* Ignore unset (zero) limits — CM4 seeds cfg_defaults as {0}, which
+     * would otherwise clamp every gimbal command to 0 rad. */
+    if (c->theta_max > 0.0f) {
+        s_live_config.gimbal.theta_min = c->theta_min;
+        s_live_config.gimbal.theta_max = c->theta_max;
+    }
 }
 
 #define TUNABLE_POLL_MS  50U

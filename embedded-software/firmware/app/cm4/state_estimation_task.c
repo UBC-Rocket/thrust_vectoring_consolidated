@@ -224,14 +224,8 @@ static void tilt_to_state(const tilt_kf_t *kf,
     st_out->u_s        = imu->t_us;
 }
 
-static void tilt_publish_armed(const tilt_kf_t *kf, const icm_sample_t *imu)
+static void tilt_publish_state(const tilt_kf_t *kf, const icm_sample_t *imu)
 {
-    bool armed = false;
-    (void)state_exchange_get_armed(&armed);
-    if (!armed) {
-        return;
-    }
-
     state_t st;
     tilt_to_state(kf, imu, &st);
     (void)state_exchange_publish_state(&st);
@@ -383,8 +377,12 @@ void task_state_estimation(void *arg)
 #if TILT_KF_ONLY
         if (n_icm > 0U) {
             const icm_sample_t *latest = &s_icm_raw[n_icm - 1U];
-            tilt_state_publish(&s_tilt_kf, latest->t_us);
-            tilt_publish_armed(&s_tilt_kf, latest);
+            const float rate_x =
+                TILT_KF_X_RATE_SIGN * latest->gz - s_tilt_kf.x.bias;
+            const float rate_y =
+                TILT_KF_Y_RATE_SIGN * latest->gy - s_tilt_kf.y.bias;
+            tilt_state_publish(&s_tilt_kf, latest->t_us, rate_x, rate_y);
+            tilt_publish_state(&s_tilt_kf, latest);
         }
 #endif
 

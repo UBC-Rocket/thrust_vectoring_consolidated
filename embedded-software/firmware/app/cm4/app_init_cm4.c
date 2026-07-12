@@ -85,9 +85,12 @@ void app_init_cm4(void) {
         state_t state_default = {0};
         state_default.q_bn.w = 1.0f;                      /* identity attitude */
 
+        const control_output_t     ctl_defaults = {0};
+
         (void)state_exchange_publish_pid_gains(&pid_defaults);
         (void)state_exchange_publish_reference(&ref_defaults);
         (void)state_exchange_publish_vehicle_config(&cfg_defaults);
+        (void)state_exchange_publish_control_output(&ctl_defaults);
         (void)state_exchange_publish_armed(false);
         (void)state_exchange_publish_flight_state(APP_FLIGHT_IDLE);
         (void)state_exchange_publish_state(&state_default);
@@ -145,10 +148,10 @@ void app_init_cm4(void) {
                                     STK_MISSION,           NULL, 5,
                                     s_stk_mission,         &s_tcb_mission);
     s_h_state     = xTaskCreateStatic(task_state_estimation, "state",
-                                    STK_STATE_EST,         NULL, 6,
+                                    STK_STATE_EST,         NULL, 8,
                                     s_stk_state,           &s_tcb_state);
     s_h_actuator  = xTaskCreateStatic(task_actuator,         "actuator",
-                                    STK_ACTUATOR,          NULL, 7,
+                                    STK_ACTUATOR,          NULL, 5,
                                     s_stk_actuator,        &s_tcb_actuator);
     (void)s_h_actuator;
     /* Downlink: encode EKF state + health as tvr_Downlink and TX over the
