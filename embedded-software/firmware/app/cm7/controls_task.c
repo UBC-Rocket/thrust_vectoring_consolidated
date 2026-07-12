@@ -7,25 +7,15 @@
  * Servo actuation: Dynamixel gimbals are driven on CM4 (tilt KF + local PD in
  * actuator_task). CM7 publishes control_output_t for ESC / Feetech / telemetry.
  *
- * Motor actuation: standard 1000-2000 us / 400 Hz PWM (ported from the
- * deprecated ulysses-flight-controller's motor_drivers/pwm_output.c) on the
- * same TIM4_CH1 (PD12, lower) / TIM4_CH2 (PD13, upper) pins DShot used to
- * drive — see esc_init.h / dev_init_cm7.c for the wiring and tim.c's
- * MX_TIM4_Init for the timer reconfiguration. DShot's bidirectional
- * telemetry (RPM readback) has no equivalent on plain PWM; that capability
- * is gone, not just unported. dev/esc_dshot/ is left on disk (unlinked) if
- * bidirectional DShot needs to come back.
- *
  * UBC Rocket, 2026
  */
 
 #include "app/tasks.h"
 #include "app/state_exchange.h"
-#include "app/esc_init.h"
 
 #include "controls/flight_controller.h"
-#include "controls/pwm.h"
-#include "cmsis_os2.h"
+#include "esc_dshot/bdshot.h"
+#include "esc_dshot/config.h"
 
 #include "tim.h"
 
@@ -41,40 +31,13 @@
 
 #define CONTROLS_DT_S 0.00125f
 
-#define ESC_PWM_MIN_US 1000U
-#define ESC_PWM_MAX_US 2000U
-
 /* Bring-up: fixed throttle after ESC arm delay. Change here only — the debug
  * log and esc_set_us() both use this (the old log hardcoded 0.25f and lied).
  * After editing: rebuild + flash CM7 (./build.sh && ./flash.sh Debug cm7). */
 #define BRINGUP_ESC_THROTTLE       0.80f
 #define BRINGUP_ESC_BUILD_TAG      "esc-bringup-10pct-v3"
 
-static inline uint16_t throttle_to_us(float throttle) {
-    if (throttle < 0.0f) throttle = 0.0f;
-    if (throttle > 1.0f) throttle = 1.0f;
-    return (uint16_t)(ESC_PWM_MIN_US +
-                      throttle * (float)(ESC_PWM_MAX_US - ESC_PWM_MIN_US));
-}
-
-static inline void esc_set_us(const pwm_output_t *pwm, uint16_t us) {
-    pwm_set_compare(pwm, pwm_clamp_ticks(pwm, pwm_us_to_ticks(pwm, us)));
-}
-
-static inline uint16_t esc_get_us(const pwm_output_t *pwm) {
-    if (pwm == NULL || pwm->htim == NULL) {
-        return 0U;
-    }
-    return (uint16_t)__HAL_TIM_GET_COMPARE(pwm->htim, pwm->channel);
-}
-
-static inline void esc_apply_bringup_throttle(const escs_t *escs, uint16_t us) {
-    if (escs == NULL) {
-        return;
-    }
-    esc_set_us(&escs->lower, us);
-    esc_set_us(&escs->upper, us);
-}
+#define ESC_ZERO_THROTTLE (0.00f)
 
 static flight_controller_config_t s_live_config = {
     .attitude = {
@@ -113,8 +76,6 @@ static uint32_t s_last_ref_seq;
 static uint32_t s_last_cfg_seq;
 static volatile bool s_isr_ready;
 static volatile bool s_esc_bringup_armed;
-static const escs_t *s_escs;
-static uint16_t s_bringup_esc_us;
 
 static uint16_t esc_gated_bringup_us(void)
 {
@@ -124,8 +85,8 @@ static uint16_t esc_gated_bringup_us(void)
     (void)state_exchange_get_flight_state(&flight_state);
 
     return (flight_state == APP_FLIGHT_RISE)
-        ? s_bringup_esc_us
-        : ESC_PWM_MIN_US;
+        ? ESC_PERCENTAGE_TO_THROTTLE(BRINGUP_ESC_THROTTLE)
+        : ESC_PERCENTAGE_TO_THROTTLE(ESC_ZERO_THROTTLE);
 }
 
 void controls_on_tim_period_elapsed(void *htim_handle)
@@ -140,12 +101,7 @@ void controls_on_tim_period_elapsed(void *htim_handle)
     control_output_t out;
     flight_controller_run(&state, &s_live_ref, &s_live_config, &out, CONTROLS_DT_S);
 
-    /* Bring-up: pin ESC PWM from the 800 Hz ISR so nothing else can stomp CCR.
-     * The fixed throttle is permitted only in RISE; every other state receives
-     * minimum throttle. T_cmd / pwm_setpoint_from_forces() is not wired yet. */
-    if (s_esc_bringup_armed && s_escs != NULL) {
-        esc_apply_bringup_throttle(s_escs, esc_gated_bringup_us());
-    }
+    esc_dshot_update();
 
     (void)state_exchange_publish_control_output(&out);
 }
@@ -289,22 +245,6 @@ void task_controls(void *arg) {
             fmt_f3(tx, out.theta_x_cmd);
             fmt_f3(ty, out.theta_y_cmd);
             fmt_f3(zi, out.z_pid_integral);
-            if (s_escs != NULL && s_esc_bringup_armed) {
-                const uint16_t gated_esc_us = esc_gated_bringup_us();
-                io_debug_printf("[ctl] esc lo/hi/cmd=%u/%u/%u us  T=%s  gim=%s,%s  z_i=%s\r\n",
-                                (unsigned)esc_get_us(&s_escs->lower),
-                                (unsigned)esc_get_us(&s_escs->upper),
-                                (unsigned)gated_esc_us,
-                                t, tx, ty, zi);
-            } else if (s_escs != NULL) {
-                io_debug_printf("[ctl] esc arming lo/hi=%u/%u us  T=%s\r\n",
-                                (unsigned)esc_get_us(&s_escs->lower),
-                                (unsigned)esc_get_us(&s_escs->upper),
-                                t);
-            } else {
-                io_debug_printf("[ctl] esc=N/A  T=%s  gim=%s,%s  z_i=%s\r\n",
-                                t, tx, ty, zi);
-            }
         }
 #endif
 
