@@ -3,17 +3,26 @@ import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import "../Items"
 
-// Embedded RFD900x single/dual port terminal
+// Embedded RFD900x single/dual port terminal — EVA-02 diagnostics skin.
 Pane {
     id: radioWin
     padding: 0
     font.family: Theme.fontFamily
 
+    // EVA panel: dark red surface, 1px border, 3px red top accent. Radius 0.
     background: Rectangle {
-        color: Theme.background
+        color: Theme.surface
         border.color: Theme.border
         border.width: Theme.strokePanel
-        radius: Theme.radiusPanel
+        radius: 0
+
+        Rectangle {
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: Theme.accentStroke
+            color: Theme.accent
+        }
     }
 
     palette {
@@ -30,6 +39,51 @@ Pane {
         mid:             Theme.border
         dark:            Theme.border
         light:           Theme.borderLight
+    }
+
+    // ---------- Reusable EVA-styled controls (file-local) ----------
+
+    // Dim outline utility button (REFRESH PORTS / CLEAR RX / DISCONNECT).
+    component DimButton: ClippedButton {
+        cut: 0
+        bold: false
+        fontSize: 10
+        fontLetterSpacing: 2
+        verticalPadding: 5
+        horizontalPadding: 12
+        fillColor: "transparent"
+        hoverFillColor: "transparent"
+        textColor: Theme.btnSecondaryText
+        hoverTextColor: Theme.accentMuted
+        borderColor: Theme.btnSecondaryBorder
+        hoverBorderColor: Theme.accent
+    }
+
+    // Flat monospace combo on the deep console fill.
+    component EvaCombo: ComboBox {
+        id: ec
+        hoverEnabled: true
+        font.family: Theme.monoFamily
+        font.pixelSize: 12
+
+        background: Rectangle {
+            implicitWidth: 90
+            implicitHeight: 30
+            radius: 0
+            color: Theme.sceneBackground
+            border.width: 1
+            border.color: ec.activeFocus || ec.hovered ? Theme.accent : Theme.divider
+        }
+
+        contentItem: Text {
+            leftPadding: 8
+            rightPadding: ec.indicator.width + 6
+            text: ec.displayText
+            font: ec.font
+            color: Theme.textPrimary
+            verticalAlignment: Text.AlignVCenter
+            elide: Text.ElideRight
+        }
     }
 
     // ---------- Modes / State ----------
@@ -50,20 +104,20 @@ Pane {
 
     property var baudList: [57600, 115200]
 
-    // ---------- Toolbar title ----------
+    // ---------- Port status line ----------
 
     function titleText() {
         if (singleMode) {
             const n = bridge.portName(rxWhich) || "—"
             const b = bridge.baudRate(rxWhich) || "—"
-            return "RFD900x — Single-Port Mode  P" + rxWhich + ": " + n + "@" + b
+            return "P" + rxWhich + ": " + n + " @ " + b
         } else {
             const tn = bridge.portName(txWhich) || "—"
             const rn = bridge.portName(rxWhich) || "—"
             const tb = bridge.baudRate(txWhich) || "—"
             const rb = bridge.baudRate(rxWhich) || "—"
-            return "Dual RFD900x Chat —  TX(P" + txWhich + "): " + tn + "@" + tb +
-                   "  |  RX(P" + rxWhich + "): " + rn + "@" + rb
+            return "TX(P" + txWhich + "): " + tn + " @ " + tb +
+                   "  |  RX(P" + rxWhich + "): " + rn + " @ " + rb
         }
     }
     property string toolbarTitle: titleText()
@@ -75,9 +129,21 @@ Pane {
         x: 16; y: 16
         modal: false; focus: false
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-        contentItem: Frame {
-            padding: 10
-            Label { id: errorLabel; wrapMode: Text.Wrap; text: "" }
+        padding: 0
+        background: Rectangle {
+            radius: 0
+            color: Theme.surfaceSolid
+            border.width: 1
+            border.color: Theme.accent
+        }
+        contentItem: Label {
+            id: errorLabel
+            padding: 12
+            wrapMode: Text.Wrap
+            color: Theme.textPrimary
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontBody
+            text: ""
         }
     }
 
@@ -140,243 +206,320 @@ Pane {
 
     ColumnLayout {
         anchors.fill: parent
-        spacing: 0
+        anchors.margins: Theme.paddingMd
+        anchors.topMargin: Theme.paddingMd + Theme.accentStroke
+        spacing: 12
 
-        ToolBar {
+        // Header row: heading + JP label | mode switch | REFRESH PORTS
+        RowLayout {
             Layout.fillWidth: true
+            spacing: 12
 
-            RowLayout {
-                anchors.fill: parent
-                spacing: 12
-
-                Label {
-                    text: radioWin.toolbarTitle
-                    font.bold: true
-                    Layout.alignment: Qt.AlignVCenter
-                    padding: 8
-                    elide: Label.ElideRight
-                    Layout.fillWidth: true
-                }
-
-                // Mode switcher: Single vs Dual
-                RowLayout {
-                    spacing: 6
-                    Label { text: "Mode:"; Layout.alignment: Qt.AlignVCenter }
-                    ComboBox {
-                        id: modeBox
-                        model: ["Single Port", "Dual Port"]
-                        currentIndex: singleMode ? 0 : 1
-                        onActivated: {
-                            if (bridge.isConnected(1)) bridge.disconnectPort(1)
-                            if (bridge.isConnected(2)) bridge.disconnectPort(2)
-
-                            p1Connected = false
-                            p2Connected = false
-                            singleConnected = false
-
-                            if (typeof timerP1 !== "undefined") timerP1.stop()
-                            if (typeof timerP2 !== "undefined") timerP2.stop()
-
-                            singleMode = (currentIndex === 0)
-
-                            if (singleMode) {
-                                rxWhich = 1
-                                txWhich = 1
-                            } else {
-                                rxWhich = 1
-                                txWhich = 2
-                            }
-
-                            radioWin.toolbarTitle = radioWin.titleText()
-                        }
-                    }
-                }
-
-                Button { text: "Refresh Ports"; onClicked: bridge.refreshPorts() }
+            Text {
+                text: singleMode ? "RFD900X — SINGLE-PORT" : "RFD900X — DUAL-PORT"
+                color: Theme.accentMuted
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontH2
+                font.bold: true
+                font.letterSpacing: 2
             }
+
+            JpText {
+                text: "無線通信"
+                color: Theme.textTertiary
+            }
+
+            Item { Layout.fillWidth: true }
+
+            Text {
+                text: "MODE"
+                color: Theme.textTertiary
+                font.family: Theme.fontFamily
+                font.pixelSize: 10
+                font.letterSpacing: 2
+            }
+
+            EvaCombo {
+                id: modeBox
+                model: ["Single Port", "Dual Port"]
+                Layout.preferredWidth: 120
+                currentIndex: singleMode ? 0 : 1
+                onActivated: {
+                    if (bridge.isConnected(1)) bridge.disconnectPort(1)
+                    if (bridge.isConnected(2)) bridge.disconnectPort(2)
+
+                    p1Connected = false
+                    p2Connected = false
+                    singleConnected = false
+
+                    if (typeof timerP1 !== "undefined") timerP1.stop()
+                    if (typeof timerP2 !== "undefined") timerP2.stop()
+
+                    singleMode = (currentIndex === 0)
+
+                    if (singleMode) {
+                        rxWhich = 1
+                        txWhich = 1
+                    } else {
+                        rxWhich = 1
+                        txWhich = 2
+                    }
+
+                    radioWin.toolbarTitle = radioWin.titleText()
+                }
+            }
+
+            DimButton {
+                text: "REFRESH PORTS"
+                onClicked: bridge.refreshPorts()
+            }
+        }
+
+        // Live port status line — 'P1: cu.usbserial-BG013W95 @ 57600'
+        Text {
+            Layout.fillWidth: true
+            text: radioWin.toolbarTitle
+            color: Theme.textSecondary
+            font.family: Theme.monoFamily
+            font.pixelSize: 11
+            elide: Text.ElideRight
         }
 
         StackLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.margins: 12
             currentIndex: singleMode ? 0 : 1
 
             // ===== Page 0: Single-Port Mode =====
             Item {
                 ColumnLayout {
                     anchors.fill: parent
-                    spacing: 10
+                    spacing: 12
 
-                    Frame {
+                    // Connection bar: RX + TX | which | port | baud | CONNECTED chip | (dis)connect
+                    Rectangle {
                         Layout.fillWidth: true
-                        ColumnLayout {
+                        radius: 0
+                        color: Theme.surfaceElevated
+                        border.width: 1
+                        border.color: Theme.divider
+                        implicitHeight: connRow.implicitHeight + 20
+
+                        RowLayout {
+                            id: connRow
                             anchors.fill: parent
-                            spacing: 8
+                            anchors.leftMargin: 12
+                            anchors.rightMargin: 12
+                            spacing: 10
 
-                            Label { text: "Single-Port (RX + TX)"; font.bold: true; padding: 4 }
+                            Text {
+                                text: "RX + TX"
+                                color: Theme.textTertiary
+                                font.family: Theme.fontFamily
+                                font.pixelSize: 10
+                                font.letterSpacing: 2
+                            }
 
-                            Flow {
-                                Layout.fillWidth: true
-                                spacing: 8
-
-                                Row {
-                                    spacing: 6
-                                    Label {
-                                        text: "Use physical:"
-                                        anchors.verticalCenter: parent.verticalCenter
-                                    }
-                                    ComboBox {
-                                        id: singleWhichSel
-                                        model: [1, 2]
-                                        width: 80
-                                        Component.onCompleted: currentIndex = (rxWhich === 2 ? 1 : 0)
-                                        onActivated: {
-                                            const w = Number(currentText)
-                                            rxWhich = w
-                                            txWhich = w
-                                            if (bridge.isConnected(w)) {
-                                                bridge.setRxFrom(w)
-                                                bridge.setTxTo(w)
-                                            }
-                                            radioWin.toolbarTitle = radioWin.titleText()
-                                        }
-                                    }
-                                }
-
-                                ComboBox {
-                                    id: singlePortSel
-                                    model: bridge.ports
-                                    width: 180
-                                    Component.onCompleted: {
-                                        const name = bridge.portName(rxWhich)
-                                        const i = model.indexOf(name)
-                                        currentIndex = (i >= 0 ? i : -1)
-                                    }
-                                }
-
-                                ComboBox {
-                                    id: singleBaudSel
-                                    model: baudList
-                                    width: 110
-                                    Component.onCompleted: {
-                                        const i = baudList.indexOf(bridge.baudRate(rxWhich) || 57600)
-                                        currentIndex = (i >= 0 ? i : 0)
-                                    }
-                                }
-
-                                Button {
-                                  id: singleConnBtn
-                                  text: singleConnected ? "Disconnect" : "Connect"
-                                  onClicked: {
-                                    if (singleConnected) {
-                                      bridge.disconnectPort(rxWhich)
-                                      singleConnected = false
-                                    } else {
-                                      if (singlePortSel.currentIndex >= 0) {
-                                        if (bridge.connectPort(rxWhich, singlePortSel.currentText, Number(singleBaudSel.currentText))) {
-                                          bridge.setRxFrom(rxWhich)
-                                          bridge.setTxTo(rxWhich)
-                                          singleConnected = true
-                                        }
-                                      } else {
-                                        errorLabel.text = "Select a COM port first."
-                                        errorPopup.open()
-                                      }
+                            EvaCombo {
+                                id: singleWhichSel
+                                model: [1, 2]
+                                Layout.preferredWidth: 64
+                                Component.onCompleted: currentIndex = (rxWhich === 2 ? 1 : 0)
+                                onActivated: {
+                                    const w = Number(currentText)
+                                    rxWhich = w
+                                    txWhich = w
+                                    if (bridge.isConnected(w)) {
+                                        bridge.setRxFrom(w)
+                                        bridge.setTxTo(w)
                                     }
                                     radioWin.toolbarTitle = radioWin.titleText()
-                                  }
                                 }
+                            }
 
-                                Label {
-                                  text: singleConnected ? "Connected" : "—"
-                                  color: singleConnected ? Theme.success : Theme.textTertiary
-                                  topPadding: 6
+                            EvaCombo {
+                                id: singlePortSel
+                                model: bridge.ports
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 110
+                                Layout.maximumWidth: 200
+                                Component.onCompleted: {
+                                    const name = bridge.portName(rxWhich)
+                                    const i = model.indexOf(name)
+                                    currentIndex = (i >= 0 ? i : -1)
+                                }
+                            }
+
+                            EvaCombo {
+                                id: singleBaudSel
+                                model: baudList
+                                Layout.preferredWidth: 100
+                                Component.onCompleted: {
+                                    const i = baudList.indexOf(bridge.baudRate(rxWhich) || 57600)
+                                    currentIndex = (i >= 0 ? i : 0)
+                                }
+                            }
+
+                            Item { Layout.fillWidth: true }
+
+                            // Green CONNECTED chip (live link state)
+                            Rectangle {
+                                visible: singleConnected
+                                radius: 0
+                                color: Theme.successBg
+                                border.width: 1
+                                border.color: Theme.successBorder
+                                implicitWidth: connChipText.implicitWidth + 20
+                                implicitHeight: connChipText.implicitHeight + 6
+
+                                Text {
+                                    id: connChipText
+                                    anchors.centerIn: parent
+                                    text: "CONNECTED"
+                                    color: Theme.success
+                                    font.family: Theme.fontFamilySemiBold
+                                    font.pixelSize: 11
+                                    font.letterSpacing: 2
+                                }
+                            }
+
+                            ClippedButton {
+                                id: singleConnBtn
+                                cut: 0
+                                bold: false
+                                fontSize: 10
+                                fontLetterSpacing: 1
+                                verticalPadding: 4
+                                horizontalPadding: 10
+                                fillColor: singleConnected ? "transparent" : "#24ff3b2f"
+                                hoverFillColor: singleConnected ? "transparent" : "#4dff3b2f"
+                                borderColor: singleConnected ? Theme.btnSecondaryBorder : Theme.accent
+                                hoverBorderColor: Theme.accent
+                                textColor: singleConnected ? Theme.btnSecondaryText : Theme.accentMuted
+                                hoverTextColor: Theme.accent
+                                text: singleConnected ? "DISCONNECT" : "CONNECT"
+                                onClicked: {
+                                    if (singleConnected) {
+                                        bridge.disconnectPort(rxWhich)
+                                        singleConnected = false
+                                    } else {
+                                        if (singlePortSel.currentIndex >= 0) {
+                                            if (bridge.connectPort(rxWhich, singlePortSel.currentText, Number(singleBaudSel.currentText))) {
+                                                bridge.setRxFrom(rxWhich)
+                                                bridge.setTxTo(rxWhich)
+                                                singleConnected = true
+                                            }
+                                        } else {
+                                            errorLabel.text = "Select a COM port first."
+                                            errorPopup.open()
+                                        }
+                                    }
+                                    radioWin.toolbarTitle = radioWin.titleText()
                                 }
                             }
                         }
                     }
 
-                    Frame {
+                    // TX line
+                    ColumnLayout {
                         Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        ColumnLayout {
-                            anchors.fill: parent
-                            spacing: 8
+                        spacing: 4
 
-                            GroupBox {
-                                title: "Type & Send (press Enter)"
-                                Layout.fillWidth: true
-                                ColumnLayout {
-                                    anchors.fill: parent
-                                    spacing: 8
+                        Text {
+                            text: "TYPE & SEND (PRESS ENTER)"
+                            color: Theme.textSecondary
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 10
+                            font.letterSpacing: 2
+                        }
 
-                                    TextField {
-                                        id: singleInput
-                                        placeholderText: "Type text and press Enter…"
-                                        Layout.fillWidth: true
-                                        enabled: singleConnected
-                                        focus: true
-                                        onAccepted: {
-                                            if (text.length && bridge.isConnected(rxWhich)) {
-                                                bridge.sendText(rxWhich, text)
-                                                text = ""
-                                            }
-                                        }
-                                    }
+                        TextField {
+                            id: singleInput
+                            placeholderText: "type command and press enter…"
+                            Layout.fillWidth: true
+                            enabled: singleConnected
+                            focus: true
+                            color: Theme.textPrimary
+                            placeholderTextColor: Theme.textTertiary
+                            font.family: Theme.monoFamily
+                            font.pixelSize: 14
+                            leftPadding: 12
+                            rightPadding: 12
+                            topPadding: 10
+                            bottomPadding: 10
+                            background: Rectangle {
+                                radius: 0
+                                color: Theme.surfaceElevated
+                                border.width: 1
+                                border.color: singleInput.activeFocus ? Theme.accent : Theme.divider
+                            }
+                            onAccepted: {
+                                if (text.length && bridge.isConnected(rxWhich)) {
+                                    bridge.sendText(rxWhich, text)
+                                    text = ""
                                 }
                             }
+                        }
+                    }
 
-                            GroupBox {
-                                title: "Received"
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
+                    // RX console
+                    Text {
+                        text: "RECEIVED"
+                        color: Theme.textSecondary
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 10
+                        font.letterSpacing: 2
+                    }
 
-                                ColumnLayout {
-                                    anchors.fill: parent
-                                    spacing: 4
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        Layout.minimumHeight: 320
+                        radius: 0
+                        color: Theme.sceneBackground
+                        border.width: 1
+                        border.color: Theme.divider
 
-                                    Flickable {
-                                        id: flickSingle
-                                        Layout.fillWidth: true
-                                        Layout.fillHeight: true
-                                        clip: true
+                        Flickable {
+                            id: flickSingle
+                            anchors.fill: parent
+                            anchors.margins: 10
+                            clip: true
 
-                                        contentWidth: singleRxText.paintedWidth
-                                        contentHeight: singleRxText.paintedHeight
+                            contentWidth: singleRxText.paintedWidth
+                            contentHeight: singleRxText.paintedHeight
 
-                                        ScrollBar.vertical: ScrollBar {
-                                            policy: ScrollBar.AsNeeded
-                                        }
+                            ScrollBar.vertical: ThemedScrollBar { }
 
-                                        TextEdit {
-                                            id: singleRxText
-                                            readOnly: true
-                                            wrapMode: TextEdit.Wrap
-                                            width: flickSingle.width
-                                            font.family: Theme.monoFamily
-                                            color: Theme.textPrimary
-                                            text: (rxWhich === 1 ? rxLogP1 : rxLogP2)
+                            TextEdit {
+                                id: singleRxText
+                                readOnly: true
+                                wrapMode: TextEdit.Wrap
+                                width: flickSingle.width
+                                font.family: Theme.monoFamily
+                                font.pixelSize: 12
+                                color: Theme.success
+                                text: (rxWhich === 1 ? rxLogP1 : rxLogP2)
 
-                                            onTextChanged: {
-                                                flickSingle.contentY = Math.max(0, flickSingle.contentHeight - flickSingle.height)
-                                            }
-                                        }
-                                    }
-
-                                    RowLayout {
-                                        Layout.alignment: Qt.AlignRight
-                                        Button {
-                                            text: "Clear RX"
-                                            onClicked: {
-                                                if (rxWhich === 1)
-                                                    rxLogP1 = ""
-                                                else
-                                                    rxLogP2 = ""
-                                            }
-                                        }
-                                    }
+                                onTextChanged: {
+                                    flickSingle.contentY = Math.max(0, flickSingle.contentHeight - flickSingle.height)
                                 }
+                            }
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+
+                        Item { Layout.fillWidth: true }
+
+                        DimButton {
+                            text: "CLEAR RX"
+                            onClicked: {
+                                if (rxWhich === 1)
+                                    rxLogP1 = ""
+                                else
+                                    rxLogP2 = ""
                             }
                         }
                     }
@@ -394,7 +537,6 @@ Pane {
 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.margins: 12
                     spacing: 12
 
                     // ------------------- PORT 1 COLUMN -------------------
@@ -412,7 +554,7 @@ Pane {
                                 Layout.fillWidth: true
                                 spacing: 8
 
-                                ComboBox {
+                                EvaCombo {
                                     id: portSel1
                                     model: bridge.ports
                                     width: 150
@@ -423,7 +565,7 @@ Pane {
                                     }
                                 }
 
-                                ComboBox {
+                                EvaCombo {
                                     id: baudSel1
                                     model: [57600, 115200]
                                     width: 90
@@ -549,7 +691,7 @@ Pane {
                                         contentWidth: rxTextP1.paintedWidth
                                         contentHeight: rxTextP1.paintedHeight
 
-                                        ScrollBar.vertical: ScrollBar {
+                                        ScrollBar.vertical: ThemedScrollBar {
                                             policy: ScrollBar.AsNeeded
                                         }
 
@@ -559,7 +701,7 @@ Pane {
                                             wrapMode: TextEdit.Wrap
                                             width: flickP1.width
                                             font.family: Theme.monoFamily
-                                            color: Theme.textPrimary
+                                            color: Theme.success
                                             text: rxLogP1
 
                                             onTextChanged: {
@@ -570,8 +712,8 @@ Pane {
 
                                     RowLayout {
                                         Layout.alignment: Qt.AlignRight
-                                        Button {
-                                            text: "Clear"
+                                        DimButton {
+                                            text: "CLEAR"
                                             onClicked: rxLogP1 = ""
                                         }
                                     }
@@ -595,7 +737,7 @@ Pane {
                                 Layout.fillWidth: true
                                 spacing: 8
 
-                                ComboBox {
+                                EvaCombo {
                                     id: portSel2
                                     model: bridge.ports
                                     width: 150
@@ -606,7 +748,7 @@ Pane {
                                     }
                                 }
 
-                                ComboBox {
+                                EvaCombo {
                                     id: baudSel2
                                     model: [57600, 115200]
                                     width: 90
@@ -732,7 +874,7 @@ Pane {
                                         contentWidth: rxTextP2.paintedWidth
                                         contentHeight: rxTextP2.paintedHeight
 
-                                        ScrollBar.vertical: ScrollBar {
+                                        ScrollBar.vertical: ThemedScrollBar {
                                             policy: ScrollBar.AsNeeded
                                         }
 
@@ -742,7 +884,7 @@ Pane {
                                             wrapMode: TextEdit.Wrap
                                             width: flickP2.width
                                             font.family: Theme.monoFamily
-                                            color: Theme.textPrimary
+                                            color: Theme.success
                                             text: rxLogP2
 
                                             onTextChanged: {
@@ -753,8 +895,8 @@ Pane {
 
                                     RowLayout {
                                         Layout.alignment: Qt.AlignRight
-                                        Button {
-                                            text: "Clear"
+                                        DimButton {
+                                            text: "CLEAR"
                                             onClicked: rxLogP2 = ""
                                         }
                                     }

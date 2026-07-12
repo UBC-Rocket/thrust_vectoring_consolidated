@@ -1,77 +1,109 @@
 pragma Singleton
 import QtQuick
 
+// EVA-02 design tokens (red-black-amber). Property names are kept from the
+// previous theme so existing panels restyle without code changes; EVA-specific
+// tokens are added below.
 QtObject {
+    id: theme
+
+    // ── Bundled fonts ──
+    readonly property FontLoader _chakra:        FontLoader { source: "../../Resources/fonts/ChakraPetch-Regular.ttf" }
+    readonly property FontLoader _chakraMedium:  FontLoader { source: "../../Resources/fonts/ChakraPetch-Medium.ttf" }
+    readonly property FontLoader _chakraSemi:    FontLoader { source: "../../Resources/fonts/ChakraPetch-SemiBold.ttf" }
+    readonly property FontLoader _chakraBold:    FontLoader { source: "../../Resources/fonts/ChakraPetch-Bold.ttf" }
+    readonly property FontLoader _mincho:        FontLoader { source: "../../Resources/fonts/ShipporiMinchoB1-Bold.ttf" }
+    readonly property FontLoader _minchoHeavy:   FontLoader { source: "../../Resources/fonts/ShipporiMinchoB1-ExtraBold.ttf" }
+    readonly property FontLoader _mono:          FontLoader { source: "../../Resources/fonts/JetBrainsMono-Regular.ttf" }
+    readonly property FontLoader _monoBold:      FontLoader { source: "../../Resources/fonts/JetBrainsMono-Bold.ttf" }
+
     // ── Surfaces ──
-    readonly property color background:      "#0B0F14"
-    readonly property color surface:         "#121820"
-    readonly property color surfaceElevated: "#1A2230"
-    readonly property color surfaceInset:    "#0E1319"
-    readonly property color sceneBackground: "#121820"
+    readonly property color background:      "#0c0505"
+    readonly property color surface:         "#ea1c0b09"   // panel fill rgba(28,11,9,0.92)
+    readonly property color surfaceSolid:    "#1c0b09"
+    readonly property color surfaceElevated: "#12100a"     // inner tile / input fill
+    readonly property color surfaceInset:    "#12100a"
+    readonly property color sceneBackground: "#0d0705"     // deep viewport fill
 
     // ── Borders ──
-    readonly property color border:      "#1E2A3A"
-    readonly property color borderLight: "#2A3A4E"
-    readonly property color divider:     "#1A2536"
+    readonly property color border:      "#5a1c12"         // panel border
+    readonly property color borderLight: "#ff3b2f"         // hover border
+    readonly property color divider:     "#3d1710"         // inner border / rules
 
     // ── Text ──
-    readonly property color textPrimary:   "#E8ECF1"
-    readonly property color textSecondary: "#8A96A8"
-    readonly property color textTertiary:  "#5C6A7E"
+    readonly property color textPrimary:   "#ffe9dc"
+    readonly property color textSecondary: "#c98a6e"
+    readonly property color textTertiary:  "#8a4a38"       // dim / tile labels
 
     // ── Accent ──
-    readonly property color accent:       "#4FC3F7"
-    readonly property color accentMuted:  "#2A7A9E"
-    readonly property color accentSubtle: "#163040"
+    readonly property color accent:       "#ff3b2f"        // primary red
+    readonly property color accentMuted:  "#ff6a3d"        // hover / link red-orange
+    readonly property color accentSubtle: "#1fff3b2f"      // selected red tint
 
     // ── Status ──
-    readonly property color success:   "#1e8e61"
-    readonly property color successText: "#bfeeda"
-    readonly property color successBg:   "#123a2e"
-    readonly property color warn:      "#cda53a"
-    readonly property color warnText:  "#ffe39a"
-    readonly property color warnBg:    "#4b3d17"
-    readonly property color danger:    "#b63b3b"
-    readonly property color dangerText: "#f5c8c8"
-    readonly property color dangerBg:   "#5a262a"
+    readonly property color success:     "#74e05a"
+    readonly property color successText: "#74e05a"
+    readonly property color successBg:   "#1a74e05a"       // rgba(116,224,90,0.1)
+    readonly property color warn:        "#ffb400"
+    readonly property color warnText:    "#ffb400"
+    readonly property color warnBg:      "#1affb400"       // rgba(255,180,0,0.1)
+    readonly property color danger:      "#ff2413"
+    readonly property color dangerText:  "#ff2413"
+    readonly property color dangerBg:    "#2eff2413"       // rgba(255,36,19,0.18)
+
+    // ── EVA extras ──
+    readonly property color alarm:        "#ff2413"
+    readonly property color amber:        "#ffb400"
+    readonly property color gridLine:     "#ff5a3c"        // backdrop grid (draw at 5%)
+    readonly property color logoChip:     "#f4ede0"
+    readonly property color stripeDark:   "#171008"        // warning stripe dark band
+    readonly property color successBorder:"#2c5a22"
+    readonly property color abortStripeTint: "#29ff3b2f"   // rgba(255,59,47,0.16)
 
     // ── Typography ──
-    readonly property string fontFamily:  "Inter"
-    readonly property string monoFamily:  "JetBrains Mono"
-    readonly property int fontH1:          22
-    readonly property int fontH2:          16
-    readonly property int fontBody:        14
+    readonly property string fontFamily:         _chakra.name
+    readonly property string fontFamilyMedium:   _chakraMedium.name
+    readonly property string fontFamilySemiBold: _chakraSemi.name
+    readonly property string monoFamily:         _mono.name
+    readonly property string japaneseFamily:     _mincho.name
+    readonly property string japaneseFamilyHeavy:_minchoHeavy.name
+
+    readonly property int fontH1:          24    // page title 24/700 ls2
+    readonly property int fontH2:          15    // panel headings 15/700 ls2
+    readonly property int fontBody:        13
     readonly property int fontCaption:     11
     readonly property int fontMetricValue: 20
-    readonly property int fontMetricLabel: 11
+    readonly property int fontMetricLabel: 9     // tile labels 9 ls2
 
-    // ── Metrics ──
-    readonly property int radiusPanel:   6
-    readonly property int radiusControl: 4
-    readonly property int radiusCard:    8
+    // ── Metrics ── (hard corners everywhere; angular cuts instead of radius)
+    readonly property int radiusPanel:   0
+    readonly property int radiusControl: 0
+    readonly property int radiusCard:    0
     readonly property int strokePanel:   1
     readonly property int strokeControl: 1
+    readonly property int accentStroke:  3     // panel top accent border
     readonly property int paddingSm:     6
-    readonly property int paddingMd:    12
+    readonly property int paddingMd:    14     // panel padding
     readonly property int paddingLg:    18
     readonly property int paddingXl:    24
-    readonly property int gridSpacing:   6
+    readonly property int gridSpacing:  14     // gap between panels
 
-    // ── Buttons: Primary ──
-    readonly property color btnPrimaryBg:      "#152844"
-    readonly property color btnPrimaryHover:    "#1b335f"
-    readonly property color btnPrimaryPress:    "#1f3a6d"
-    readonly property color btnPrimaryBorder:   "#2c4a7a"
-    readonly property color btnPrimaryText:     "#c8ddff"
+    // ── Buttons: Primary (red outline action) ──
+    readonly property color btnPrimaryBg:     "#1c0b09"
+    readonly property color btnPrimaryHover:  "#2aff3b2f"
+    readonly property color btnPrimaryPress:  "#3aff3b2f"
+    readonly property color btnPrimaryBorder: "#ff3b2f"
+    readonly property color btnPrimaryText:   "#ff6a3d"
 
-    // ── Buttons: Secondary ──
-    readonly property color btnSecondaryBg:     "#1a2332"
-    readonly property color btnSecondaryHover:  "#1d3156"
-    readonly property color btnSecondaryPress:  "#20375f"
-    readonly property color btnSecondaryBorder: "#273246"
-    readonly property color btnSecondaryText:   "#c8d5e7"
+    // ── Buttons: Secondary (dim outline) ──
+    readonly property color btnSecondaryBg:     "#1c0b09"
+    readonly property color btnSecondaryHover:  "#241008"
+    readonly property color btnSecondaryPress:  "#2b130a"
+    readonly property color btnSecondaryBorder: "#5a1c12"
+    readonly property color btnSecondaryText:   "#c98a6e"
 
-    // ── Transitions ──
+    // ── Transitions / blink cadence ──
     readonly property int transitionFast:   100
     readonly property int transitionNormal: 160
+    readonly property int blinkPeriod:     1200   // stepped, no easing
 }

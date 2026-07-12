@@ -44,11 +44,12 @@ ColumnLayout {
     }
 
     Text {
-        text: root.label
+        text: root.label.toUpperCase()
         visible: root.label.length > 0
-        color: Theme.textSecondary
+        color: Theme.textTertiary
         font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontBody
+        font.pixelSize: 10
+        font.letterSpacing: 2
         font.bold: true
     }
 
@@ -63,16 +64,16 @@ ColumnLayout {
         enabled: root.fieldEnabled
         color: Theme.textPrimary
         font.family: Theme.monoFamily
-        font.pixelSize: Theme.fontBody
+        font.pixelSize: 14
         inputMethodHints: Qt.ImhFormattedNumbersOnly
         validator: DoubleValidator { decimals: root.decimals }
         selectByMouse: true
 
         background: Rectangle {
-            radius: Theme.radiusCard
-            color: Theme.background
+            radius: 0
+            color: Theme.surfaceElevated
             border.width: Theme.strokeControl
-            border.color: input.activeFocus ? Theme.accent : Theme.border
+            border.color: input.activeFocus ? Theme.accent : Theme.divider
         }
 
         // Seed once on creation so the field shows the initial value.

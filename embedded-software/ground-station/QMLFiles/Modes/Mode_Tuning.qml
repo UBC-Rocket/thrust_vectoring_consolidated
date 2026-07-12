@@ -20,10 +20,18 @@ Item {
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutsideParent
 
         background: Rectangle {
-            color: Theme.surface
+            color: Theme.surfaceSolid
             border.color: Theme.border
             border.width: Theme.strokePanel
-            radius: Theme.radiusPanel
+            radius: 0
+
+            Rectangle {
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                height: Theme.accentStroke
+                color: Theme.accent
+            }
         }
 
         contentItem: ColumnLayout {
@@ -33,16 +41,17 @@ Item {
                 Layout.fillWidth: true
                 Layout.margins: 16
                 Layout.bottomMargin: 0
-                text: "Save preset"
-                color: Theme.accent
+                text: "SAVE PRESET"
+                color: Theme.accentMuted
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontH2
                 font.bold: true
+                font.letterSpacing: 2
             }
 
             Rectangle {
                 Layout.fillWidth: true
-                height: 1
+                implicitHeight: 1
                 color: Theme.divider
             }
 
@@ -53,10 +62,11 @@ Item {
                 spacing: 6
 
                 Text {
-                    text: "Name this preset:"
+                    text: "NAME THIS PRESET"
                     color: Theme.textSecondary
                     font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontBody
+                    font.pixelSize: 10
+                    font.letterSpacing: 2
                 }
 
                 Basic.TextField {
@@ -64,17 +74,18 @@ Item {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 36
                     placeholderText: "e.g. hover-v1"
+                    placeholderTextColor: Theme.textTertiary
                     color: Theme.textPrimary
                     leftPadding: 10
                     rightPadding: 10
                     font.family: Theme.monoFamily
-                    font.pixelSize: Theme.fontBody
+                    font.pixelSize: 14
                     selectByMouse: true
                     background: Rectangle {
-                        radius: Theme.radiusCard
-                        color: Theme.background
+                        radius: 0
+                        color: Theme.surfaceElevated
                         border.width: Theme.strokeControl
-                        border.color: saveNameField.activeFocus ? Theme.accent : Theme.border
+                        border.color: saveNameField.activeFocus ? Theme.accent : Theme.divider
                     }
                     onAccepted: savePopup._commit()
                 }
@@ -90,23 +101,24 @@ Item {
 
                 Basic.Button {
                     id: cancelBtn
-                    text: "Cancel"
+                    text: "CANCEL"
                     padding: 10
                     hoverEnabled: true
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontBody
+                    font.letterSpacing: 2
                     background: Rectangle {
-                        radius: Theme.radiusControl
+                        radius: 0
                         color: cancelBtn.down    ? Theme.btnSecondaryPress
                              : cancelBtn.hovered ? Theme.btnSecondaryHover
                              :                     Theme.btnSecondaryBg
                         border.width: Theme.strokeControl
-                        border.color: Theme.btnSecondaryBorder
+                        border.color: cancelBtn.hovered ? Theme.accent : Theme.btnSecondaryBorder
                     }
                     contentItem: Text {
                         anchors.centerIn: parent
                         text: cancelBtn.text
-                        color: Theme.btnSecondaryText
+                        color: cancelBtn.hovered ? Theme.accentMuted : Theme.btnSecondaryText
                         font: cancelBtn.font
                     }
                     onClicked: savePopup.close()
@@ -149,10 +161,18 @@ Item {
         property string targetName: ""
 
         background: Rectangle {
-            color: Theme.surface
+            color: Theme.surfaceSolid
             border.color: Theme.border
             border.width: Theme.strokePanel
-            radius: Theme.radiusPanel
+            radius: 0
+
+            Rectangle {
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                height: Theme.accentStroke
+                color: Theme.danger
+            }
         }
 
         contentItem: ColumnLayout {
@@ -162,16 +182,17 @@ Item {
                 Layout.fillWidth: true
                 Layout.margins: 16
                 Layout.bottomMargin: 0
-                text: "Delete preset"
+                text: "DELETE PRESET"
                 color: Theme.danger
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontH2
                 font.bold: true
+                font.letterSpacing: 2
             }
 
             Rectangle {
                 Layout.fillWidth: true
-                height: 1
+                implicitHeight: 1
                 color: Theme.divider
             }
 
@@ -196,23 +217,24 @@ Item {
 
                 Basic.Button {
                     id: keepBtn
-                    text: "Keep"
+                    text: "KEEP"
                     padding: 10
                     hoverEnabled: true
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontBody
+                    font.letterSpacing: 2
                     background: Rectangle {
-                        radius: Theme.radiusControl
+                        radius: 0
                         color: keepBtn.down    ? Theme.btnSecondaryPress
                              : keepBtn.hovered ? Theme.btnSecondaryHover
                              :                   Theme.btnSecondaryBg
                         border.width: Theme.strokeControl
-                        border.color: Theme.btnSecondaryBorder
+                        border.color: keepBtn.hovered ? Theme.accent : Theme.btnSecondaryBorder
                     }
                     contentItem: Text {
                         anchors.centerIn: parent
                         text: keepBtn.text
-                        color: Theme.btnSecondaryText
+                        color: keepBtn.hovered ? Theme.accentMuted : Theme.btnSecondaryText
                         font: keepBtn.font
                     }
                     onClicked: deletePopup.close()
@@ -232,60 +254,97 @@ Item {
         }
     }
 
+    // ── 280px | 1fr grid, 14px gap ──────────────────────────────────────
     RowLayout {
         anchors.fill: parent
-        anchors.margins: 6
-        spacing: 8
+        spacing: Theme.gridSpacing
 
-        // ── Presets sidebar ─────────────────────────────────────────────
+        // ── Presets panel (設定保存) — align-self: start ────────────────
         Rectangle {
-            Layout.preferredWidth: 240
-            Layout.fillHeight: true
+            id: presetsPanel
+            Layout.preferredWidth: 280
+            Layout.minimumWidth: 280
+            Layout.maximumWidth: 280
+            Layout.alignment: Qt.AlignTop
+            Layout.fillHeight: false
+            Layout.preferredHeight: presetsColumn.implicitHeight + 2 * Theme.paddingMd
             color: Theme.surface
             border.color: Theme.border
             border.width: Theme.strokePanel
-            radius: Theme.radiusPanel
+            radius: 0
+
+            // 3px red top accent
+            Rectangle {
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                height: Theme.accentStroke
+                color: Theme.accent
+            }
 
             ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 12
-                spacing: 8
+                id: presetsColumn
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.margins: Theme.paddingMd
+                spacing: 12
 
-                Text {
-                    text: "Presets"
-                    color: Theme.accent
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontH1
-                    font.bold: true
+                // Heading row: PRESETS + 設定保存
+                Item {
+                    Layout.fillWidth: true
+                    implicitHeight: presetsTitle.implicitHeight
+
+                    Text {
+                        id: presetsTitle
+                        text: "PRESETS"
+                        color: Theme.accentMuted
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontH2
+                        font.bold: true
+                        font.letterSpacing: 2
+                    }
+
+                    JpText {
+                        anchors.left: presetsTitle.right
+                        anchors.leftMargin: 10
+                        anchors.baseline: presetsTitle.baseline
+                        text: "設定保存"
+                        color: Theme.textTertiary
+                    }
                 }
 
                 Text {
                     Layout.fillWidth: true
                     text: "Save the current PID / Reference / Config values for later recall."
-                    color: Theme.textTertiary
+                    color: Theme.textSecondary
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontCaption
+                    lineHeight: 1.5
                     wrapMode: Text.WordWrap
                 }
 
                 PrimaryButton {
                     text: "Save current as…"
                     Layout.fillWidth: true
+                    font.pixelSize: 12
                     onClicked: savePopup.open()
                 }
 
+                // Preset list box (min-height 260)
                 Rectangle {
                     Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    color: Theme.surfaceInset
-                    border.color: Theme.border
+                    Layout.preferredHeight: 260
+                    Layout.minimumHeight: 260
+                    color: Theme.surfaceElevated
+                    border.color: Theme.divider
                     border.width: Theme.strokeControl
-                    radius: Theme.radiusCard
+                    radius: 0
 
                     ListView {
                         id: presetList
                         anchors.fill: parent
-                        anchors.margins: 4
+                        anchors.margins: 6
                         clip: true
                         model: presetManager.presets
                         spacing: 2
@@ -296,16 +355,26 @@ Item {
                             required property int index
                             required property string modelData
                             width: ListView.view.width
-                            height: 30
-                            radius: Theme.radiusControl
+                            height: 32
+                            radius: 0
                             color: presetList.currentIndex === index
                                 ? Theme.accentSubtle
-                                : (mouse.containsMouse ? Theme.surfaceElevated : "transparent")
+                                : (mouse.containsMouse ? Theme.surfaceSolid : "transparent")
+
+                            // 3px red left border on the selected row
+                            Rectangle {
+                                anchors.top: parent.top
+                                anchors.bottom: parent.bottom
+                                anchors.left: parent.left
+                                width: 3
+                                color: Theme.accent
+                                visible: presetList.currentIndex === index
+                            }
 
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
                                 anchors.left: parent.left
-                                anchors.leftMargin: 8
+                                anchors.leftMargin: 12
                                 anchors.right: parent.right
                                 anchors.rightMargin: 8
                                 text: modelData
@@ -330,13 +399,23 @@ Item {
                     }
                 }
 
+                // LOAD / DELETE pair
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: 8
 
-                    PrimaryButton {
-                        text: "Load"
+                    ClippedButton {
                         Layout.fillWidth: true
+                        cut: 0
+                        text: "LOAD"
+                        bold: false
+                        fontSize: 12
+                        fillColor: Theme.surfaceElevated
+                        hoverFillColor: Theme.surfaceElevated
+                        borderColor: Theme.border
+                        hoverBorderColor: Theme.accentMuted
+                        textColor: Theme.textPrimary
+                        hoverTextColor: Theme.textPrimary
                         enabled: presetList.currentIndex >= 0
                         onClicked: {
                             const name = presetManager.presets[presetList.currentIndex]
@@ -345,9 +424,18 @@ Item {
                             pidPanel.loadedPresetName = name
                         }
                     }
-                    PrimaryButton {
-                        text: "Delete"
+                    ClippedButton {
                         Layout.fillWidth: true
+                        cut: 0
+                        text: "DELETE"
+                        bold: false
+                        fontSize: 12
+                        fillColor: Theme.surfaceElevated
+                        hoverFillColor: Theme.surfaceElevated
+                        borderColor: Theme.border
+                        hoverBorderColor: Theme.accent
+                        textColor: Theme.textPrimary
+                        hoverTextColor: Theme.accent
                         enabled: presetList.currentIndex >= 0
                         onClicked: {
                             const name = presetManager.presets[presetList.currentIndex]
@@ -358,25 +446,27 @@ Item {
                     }
                 }
 
-                // ── Storage path caption ──────────────────────────────
+                // ── SAVED TO block ─────────────────────────────────────
                 Rectangle {
                     Layout.fillWidth: true
-                    height: 1
+                    implicitHeight: 1
                     color: Theme.divider
                     Layout.topMargin: 4
                 }
                 Text {
-                    text: "Saved to"
+                    text: "SAVED TO"
                     color: Theme.textTertiary
                     font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontCaption
+                    font.pixelSize: 9
+                    font.letterSpacing: 2
                 }
                 Text {
                     Layout.fillWidth: true
                     text: presetManager.storagePath
                     color: Theme.textSecondary
                     font.family: Theme.monoFamily
-                    font.pixelSize: Theme.fontCaption
+                    font.pixelSize: 10
+                    lineHeight: 1.5
                     wrapMode: Text.WrapAnywhere
                     ToolTip.visible: mouseArea.containsMouse
                     ToolTip.text: presetManager.storagePath
@@ -389,7 +479,7 @@ Item {
             }
         }
 
-        // ── Enlarged PID panel ─────────────────────────────────────────
+        // ── Controller Commands panel (制御指令) ────────────────────────
         Panel_PID_Controller {
             id: pidPanel
             Layout.fillWidth: true

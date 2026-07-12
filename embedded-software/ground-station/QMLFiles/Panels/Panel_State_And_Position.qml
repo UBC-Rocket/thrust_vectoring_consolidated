@@ -14,49 +14,65 @@ BasePanel {
 
     BaseHeader {
         id: header
-        headerText: "State & Position Data"
+        headerText: "State / Position"
+        jpText: "位置情報"
     }
 
     Rectangle {
         id: position_xy
         color: "transparent"
-        height: (parent.height - header.height) / 2
+        height: 56
         anchors {
-            top: parent.top
+            top: header.bottom
             left: parent.left
-            topMargin: header.height
+            right: parent.right
+            topMargin: 2
             leftMargin: header.anchors.leftMargin
+            rightMargin: header.anchors.leftMargin
         }
 
-        DataBoxList {
-            anchors.top: position_xy.top
-            width: panel_State_And_Position.width
+        DataBox {
+            anchors.top: parent.top
+            sections: 2; section_num: 1
+            dataName: "POS X (m)"
+            dataValue: posX
+        }
 
-            size: 2
-            boxHeight: 56
-            dataNames: ["POS X (m)", "POS Y (m)"]
-            dataValues: [posX, posY]
+        DataBox {
+            anchors.top: parent.top
+            sections: 2; section_num: 2
+            dataName: "POS Y (m)"
+            dataValue: posY
         }
     }
 
     Rectangle {
         id: altitude_and_velocity
         color: "transparent"
-        height: (parent.height - header.height) / 2
+        height: 56
         anchors {
             top: position_xy.bottom
             left: parent.left
+            right: parent.right
+            topMargin: 8
             leftMargin: header.anchors.leftMargin
+            rightMargin: header.anchors.leftMargin
         }
 
-        DataBoxList {
-            anchors.top: altitude_and_velocity.top
-            width: panel_State_And_Position.width
+        DataBox {
+            anchors.top: parent.top
+            sections: 2; section_num: 1
+            dataName: "ALTITUDE (m)"
+            dataValue: altitude
+            valueColor: Theme.amber
+        }
 
-            size: 2
-            boxHeight: 56
-            dataNames: ["ALTITUDE (m)", "VELOCITY (m/s)"]
-            dataValues: [altitude, velocity]
+        DataBox {
+            anchors.top: parent.top
+            sections: 2; section_num: 2
+            dataName: "VELOCITY (m/s)"
+            dataValue: velocity
+            valueColor: Theme.amber
         }
     }
 }

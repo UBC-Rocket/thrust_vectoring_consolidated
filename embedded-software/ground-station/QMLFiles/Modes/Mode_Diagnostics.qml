@@ -7,7 +7,8 @@ Item {
     RowLayout {
         anchors.fill: parent
         anchors.margins: 6
-        spacing: 8
+        anchors.topMargin: Theme.gridSpacing
+        spacing: Theme.gridSpacing
 
         Panel_Radio_Console {
             Layout.fillWidth: true
