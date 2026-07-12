@@ -68,6 +68,21 @@ set(HDR_FILES
 )
 
 # ----------------------------------------------------------------------
+# macOS bundle identity (icon + distribution name)
+# ----------------------------------------------------------------------
+if(APPLE)
+    set(MACOSX_BUNDLE_BUNDLE_NAME "TVR Ground Control Station")
+    set(MACOSX_BUNDLE_GUI_IDENTIFIER "com.ubcrocket.tvr-gcs")
+    set(MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION})
+    set(MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION})
+    set(MACOSX_BUNDLE_ICON_FILE gcs.icns)
+    set(APP_ICON_MACOS "${CMAKE_CURRENT_SOURCE_DIR}/Resources/gcs.icns")
+    set_source_files_properties(${APP_ICON_MACOS} PROPERTIES
+        MACOSX_PACKAGE_LOCATION "Resources"
+    )
+endif()
+
+# ----------------------------------------------------------------------
 # Executable target
 # ----------------------------------------------------------------------
 qt_add_executable(ulysses_ground_control
@@ -75,7 +90,18 @@ qt_add_executable(ulysses_ground_control
     MANUAL_FINALIZATION
     ${SRC_FILES}
     ${HDR_FILES}
+    ${APP_ICON_MACOS}
 )
+
+# No spaces in the executable/bundle dir name: macdeployqt's internal tool
+# invocations break on spaced paths. The .app is renamed to
+# "TVR Ground Control Station.app" at packaging time; the display name
+# comes from MACOSX_BUNDLE_BUNDLE_NAME above.
+if(APPLE)
+    set_target_properties(ulysses_ground_control PROPERTIES
+        OUTPUT_NAME "TVRGroundControlStation"
+    )
+endif()
 
 # ---------------------------------------------------------------------- 
 # For Linux release
