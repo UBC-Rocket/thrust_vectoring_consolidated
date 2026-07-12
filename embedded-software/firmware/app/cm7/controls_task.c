@@ -1,8 +1,8 @@
 /**
  * @file    controls_task.c
  * @brief   CM7: hard-real-time control loop runs in the TIM16 ISR
- *          (800 Hz); this FreeRTOS task gates ESC PWM on flight state and
- *          polls radio tunables.
+ *          (800 Hz); this FreeRTOS task arms ESC PWM on boot and polls
+ *          radio tunables.
  *
  * Servo actuation: Dynamixel gimbals are driven on CM4 (tilt KF + local PD in
  * actuator_task). CM7 publishes control_output_t for ESC / Feetech / telemetry.
@@ -33,7 +33,6 @@
 #include "task.h"
 
 #include <math.h>
-#include <stdbool.h>
 
 #ifdef DEBUG_TEXT_CONSOLE
 #include "io_sys/io_debug.h"   /* bring-up: 1 Hz control-output trace */
@@ -44,8 +43,6 @@
 
 #define ESC_PWM_MIN_US 1000U
 #define ESC_PWM_MAX_US 2000U
-
-#define ESC_LAUNCH_THROTTLE 0.65f
 
 static inline uint16_t throttle_to_us(float throttle) {
     if (throttle < 0.0f) throttle = 0.0f;
@@ -107,66 +104,27 @@ void controls_on_tim_period_elapsed(void *htim_handle)
     control_output_t out;
     flight_controller_run(&state, &s_live_ref, &s_live_config, &out, CONTROLS_DT_S);
 
-    /* ESC PWM is driven by task_controls() from flight state. */
+    /* Bring-up: ESC PWM is intentionally NOT driven from here right now —
+     * task_controls() arms and holds both motors at a fixed throttle, and
+     * nothing should override that. Gimbal servo command publishing below
+     * is unaffected. */
 
     (void)state_exchange_publish_control_output(&out);
 }
 
 void controls_isr_init(void)
 {
+#ifndef BENCH_NO_MOTORS
+
+#else
+    /* BENCH_NO_MOTORS: intended to leave the ESC PWM channels unarmed
+     * (never HAL_TIM_PWM_Start'd) so no pulses reach the motors. NOTE:
+     * task_controls() currently calls HAL_TIM_PWM_Start()/esc_set_us()
+     * unconditionally — this ifdef does not actually gate that. */
+#endif
     flight_controller_init(&s_live_config);
     s_isr_ready = true;
-    HAL_TIM_Base_Start_IT(&htim16);
 }
-
-static inline bool controls_was_in_flight(app_flight_state_t fs)
-{
-    return fs == APP_FLIGHT_ARMED   ||
-           fs == APP_FLIGHT_RISE    ||
-           fs == APP_FLIGHT_DESCENT;
-}
-
-static inline bool controls_is_abort_state(app_flight_state_t fs)
-{
-    return fs == APP_FLIGHT_IDLE || fs == APP_FLIGHT_ESTOP;
-}
-
-#ifndef BENCH_NO_MOTORS
-static uint16_t controls_esc_us_for_state(app_flight_state_t fs)
-{
-    switch (fs) {
-        case APP_FLIGHT_RISE:
-        case APP_FLIGHT_DESCENT:
-            return throttle_to_us(ESC_LAUNCH_THROTTLE);
-        case APP_FLIGHT_ARMED:
-        case APP_FLIGHT_IDLE:
-        case APP_FLIGHT_ESTOP:
-        case APP_FLIGHT_LANDED:
-        default:
-            return ESC_PWM_MIN_US;
-    }
-}
-
-static void controls_esc_apply(const escs_t *escs, uint16_t us)
-{
-    if (escs == NULL) {
-        return;
-    }
-    esc_set_us(&escs->lower, us);
-    esc_set_us(&escs->upper, us);
-}
-
-static void controls_esc_start_pwm(const escs_t *escs)
-{
-    if (escs == NULL) {
-        return;
-    }
-    esc_set_us(&escs->lower, ESC_PWM_MIN_US);
-    esc_set_us(&escs->upper, ESC_PWM_MIN_US);
-    HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
-    HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
-}
-#endif /* !BENCH_NO_MOTORS */
 
 static inline void merge_pid_gains(const app_pid_gains_t *g) {
     for (int i = 0; i < 3; ++i) {
@@ -239,31 +197,38 @@ static void fmt_f3(char *buf, float v) {
     unsigned long m = (unsigned long)(v * 1000.0f + 0.5f);
     (void)snprintf(buf, 16, "%s%lu.%03lu", neg ? "-" : "", m / 1000UL, m % 1000UL);
 }
-
-static const char *controls_state_name(app_flight_state_t fs)
-{
-    switch (fs) {
-        case APP_FLIGHT_IDLE:    return "IDLE";
-        case APP_FLIGHT_ARMED:   return "ARMED";
-        case APP_FLIGHT_RISE:    return "RISE";
-        case APP_FLIGHT_DESCENT: return "DESCENT";
-        case APP_FLIGHT_LANDED:  return "LANDED";
-        case APP_FLIGHT_ESTOP:   return "ESTOP";
-        default:                 return "?";
-    }
-}
 #endif
 
 void task_controls(void *arg) {
     (void)arg;
 
-    app_flight_state_t prev_fs = APP_FLIGHT_IDLE;
-    app_flight_state_t fs      = APP_FLIGHT_IDLE;
-#ifndef BENCH_NO_MOTORS
+    /* Arming sequence — mirrors the deprecated ulysses-flight-controller's
+     * esc_pair_set_force(0, 0) -> esc_pair_set_armed(true) ordering: force
+     * the pulse to minimum BEFORE enabling the PWM channel output, so the
+     * very first pulse the ESC ever sees is a safe minimum, not whatever
+     * the control loop happens to be computing. Hold minimum for 6 s (ESCs
+     * need a sustained min-throttle signal to complete their own arm
+     * sequence) before the 800 Hz control-loop timer starts — so there's no
+     * window where the ISR could write a live (non-minimum) compare value
+     * before or during arming. */
     const escs_t *escs = esc_handles();
-    bool pwm_started = false;
-    uint16_t esc_us  = ESC_PWM_MIN_US;
-#endif
+    if (escs != NULL) {
+        esc_set_us(&escs->lower, ESC_PWM_MIN_US);
+        esc_set_us(&escs->upper, ESC_PWM_MIN_US);
+    }
+    HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
+    HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
+
+    osDelay(pdMS_TO_TICKS(6000));
+
+    /* Bring-up: confirm the motors actually spin post-arm before handing
+     * CCR over to the live controller. */
+    if (escs != NULL) {
+        esc_set_us(&escs->lower, throttle_to_us(0.35f));
+        esc_set_us(&escs->upper, throttle_to_us(0.35f));
+    }
+
+    HAL_TIM_Base_Start_IT(&htim16);
 
 #ifdef DEBUG_TEXT_CONSOLE
     unsigned dbg_tick = 0;
@@ -271,27 +236,6 @@ void task_controls(void *arg) {
 
     for (;;) {
         poll_tunables();
-
-        (void)state_exchange_get_flight_state(&fs);
-
-        if (controls_is_abort_state(fs) && controls_was_in_flight(prev_fs)) {
-            flight_controller_init(&s_live_config);
-        }
-
-#ifndef BENCH_NO_MOTORS
-        if (fs == APP_FLIGHT_ARMED && !pwm_started) {
-            controls_esc_start_pwm(escs);
-            pwm_started = true;
-        }
-
-        if (pwm_started) {
-            const uint16_t desired_us = controls_esc_us_for_state(fs);
-            if (desired_us != esc_us) {
-                esc_us = desired_us;
-                controls_esc_apply(escs, esc_us);
-            }
-        }
-#endif
 
 #ifdef DEBUG_TEXT_CONSOLE
         if (++dbg_tick >= (1000U / TUNABLE_POLL_MS)) {
@@ -303,18 +247,12 @@ void task_controls(void *arg) {
             fmt_f3(tx, out.theta_x_cmd);
             fmt_f3(ty, out.theta_y_cmd);
             fmt_f3(zi, out.z_pid_integral);
-            io_debug_printf("[ctl] state=%s esc=%u us  T=%s  gim=%s,%s  z_i=%s\r\n",
-                            controls_state_name(fs),
-#ifndef BENCH_NO_MOTORS
-                            (unsigned)esc_us,
-#else
-                            0U,
-#endif
+            io_debug_printf("[ctl] esc=%u us  T=%s  gim=%s,%s  z_i=%s\r\n",
+                            (unsigned)throttle_to_us(0.25f),
                             t, tx, ty, zi);
         }
 #endif
 
-        prev_fs = fs;
         vTaskDelay(pdMS_TO_TICKS(TUNABLE_POLL_MS));
     }
 }

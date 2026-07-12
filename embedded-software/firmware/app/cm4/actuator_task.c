@@ -37,9 +37,9 @@
 #define GIMBAL_DEFAULT_DEG_Y       0.0f
 
 /* Per-axis PD (KF y -> Dynamixel X, KF x -> Dynamixel Y). */
-#define TILT_KP_X                  0.5f
+#define TILT_KP_X                  1.0f
 #define TILT_KD_X                  0.00f
-#define TILT_KP_Y                  0.5f
+#define TILT_KP_Y                  1.0f
 #define TILT_KD_Y                  0.00f
 
 #define GIMBAL_CMD_DEADBAND_DEG    0.05f
