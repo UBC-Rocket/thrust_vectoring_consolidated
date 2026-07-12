@@ -185,8 +185,8 @@ Pane {
                 fontLetterSpacing: 2
                 verticalPadding: 5
                 horizontalPadding: 14
-                fillColor: sensorData.isRecording ? "#24ff3b2f" : "transparent"
-                hoverFillColor: sensorData.isRecording ? "#4dff3b2f" : "transparent"
+                fillColor: sensorData.isRecording ? Theme.accentTint : "transparent"
+                hoverFillColor: sensorData.isRecording ? Theme.accentTintHover : "transparent"
                 borderColor: sensorData.isRecording ? Theme.accent : Theme.btnSecondaryBorder
                 hoverBorderColor: Theme.accent
                 textColor: sensorData.isRecording ? Theme.accentMuted : Theme.btnSecondaryText

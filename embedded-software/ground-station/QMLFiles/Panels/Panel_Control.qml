@@ -109,7 +109,7 @@ BasePanel {
                     item.borderColor = Theme.accent
                     item.labelColor = Theme.accent
                     item.subLabelColor = Theme.textSecondary
-                    item.hoverFillColor = "#4dff3b2f"    // rgba(255,59,47,0.3)
+                    item.hoverFillColor = Theme.accentTintHover
                 }
             }
         }

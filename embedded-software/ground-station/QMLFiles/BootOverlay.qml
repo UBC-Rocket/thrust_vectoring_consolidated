@@ -11,7 +11,7 @@ Rectangle {
     property real progress: 0
 
     anchors.fill: parent
-    color: "#060302"
+    color: Theme.bootBg
     visible: !UiState.booted
     enabled: visible
 
@@ -46,7 +46,7 @@ Rectangle {
                 source: jpTitle
                 anchors.fill: jpTitle
                 shadowEnabled: true
-                shadowColor: "#99ff3b2f"
+                shadowColor: Theme.accentGlowStrong
                 shadowBlur: 1.0
                 blurMax: 60
             }

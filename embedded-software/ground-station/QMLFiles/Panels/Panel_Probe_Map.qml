@@ -261,8 +261,8 @@ Rectangle {
             fontLetterSpacing: 2
             horizontalPadding: 18
             verticalPadding: 5
-            fillColor: "#24ff3b2f"           // rgba(255,59,47,0.14)
-            hoverFillColor: "#4dff3b2f"      // rgba(255,59,47,0.3)
+            fillColor: Theme.accentTint
+            hoverFillColor: Theme.accentTintHover
             borderColor: Theme.accent
             hoverBorderColor: Theme.accent
             textColor: Theme.accentMuted

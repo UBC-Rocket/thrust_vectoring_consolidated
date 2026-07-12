@@ -110,6 +110,64 @@ Rectangle {
             labels: ["Flight", "Tuning", "Map", "Diagnostics"]
         }
 
+        // ── Pilot theme switch (normal mode only) ────────────────────────
+        // In anime mode the right-strip PILOT SELECT chips take over.
+        Item {
+            id: pilotSeg
+            Layout.alignment: Qt.AlignVCenter
+            visible: !UiState.animeMode
+            implicitWidth: segRow.implicitWidth + 6
+            implicitHeight: segRow.implicitHeight + 6
+
+            ClippedRect {
+                anchors.fill: parent
+                slantTL: 8
+                slantBR: 8
+                fillColor: "transparent"
+                borderColor: Theme.border
+                borderWidth: 1
+            }
+
+            Row {
+                id: segRow
+                anchors.centerIn: parent
+                spacing: 6
+
+                Repeater {
+                    model: ["ASUKA", "REI", "MITSURI"]
+                    delegate: Item {
+                        id: seg
+                        required property int index
+                        required property string modelData
+                        readonly property bool active: Theme.pilot === index
+                        width: segLabel.implicitWidth + 20
+                        height: segLabel.implicitHeight + 12
+
+                        Rectangle {
+                            anchors.fill: parent
+                            color: seg.active ? Theme.accent : "transparent"
+                            border.width: 1
+                            border.color: seg.active ? Theme.accent : Theme.border
+                        }
+                        Text {
+                            id: segLabel
+                            anchors.centerIn: parent
+                            text: seg.modelData
+                            font.family: Theme.fontFamilySemiBold
+                            font.pixelSize: 10
+                            font.letterSpacing: 1
+                            color: seg.active ? Theme.background : Theme.textSecondary
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: Theme.pilot = seg.index
+                        }
+                    }
+                }
+            }
+        }
+
         // ── ANIME mode toggle ────────────────────────────────────────────
         ClippedButton {
             Layout.alignment: Qt.AlignVCenter

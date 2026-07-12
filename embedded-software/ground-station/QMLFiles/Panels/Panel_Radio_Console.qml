@@ -391,8 +391,8 @@ Pane {
                                 fontLetterSpacing: 1
                                 verticalPadding: 4
                                 horizontalPadding: 10
-                                fillColor: singleConnected ? "transparent" : "#24ff3b2f"
-                                hoverFillColor: singleConnected ? "transparent" : "#4dff3b2f"
+                                fillColor: singleConnected ? "transparent" : Theme.accentTint
+                                hoverFillColor: singleConnected ? "transparent" : Theme.accentTintHover
                                 borderColor: singleConnected ? Theme.btnSecondaryBorder : Theme.accent
                                 hoverBorderColor: Theme.accent
                                 textColor: singleConnected ? Theme.btnSecondaryText : Theme.accentMuted

@@ -3,16 +3,17 @@ import QtQuick.Layouts
 import QtQuick.Effects
 import "Items"
 
-// EVA left side strip (anime mode only): 弐号機 header + Asuka figure + pilot sync.
+// Left side strip (anime mode only): active pilot's unit header + figure +
+// pilot sync. All character content and colors follow Theme.pilot.
 Rectangle {
     id: strip
 
     width: 200
 
     gradient: Gradient {
-        GradientStop { position: 0.0; color: "#1a0908" }
-        GradientStop { position: 0.6; color: "#240b08" }
-        GradientStop { position: 1.0; color: "#12100a" }
+        GradientStop { position: 0.0; color: Theme.strip1 }
+        GradientStop { position: 0.6; color: Theme.strip2 }
+        GradientStop { position: 1.0; color: Theme.surfaceElevated }
     }
 
     // 2px inner border on the content side.
@@ -45,14 +46,14 @@ Rectangle {
             spacing: 4
 
             Text {
-                text: "弐号機"
+                text: Theme.pilotUnitKanji
                 font.family: Theme.japaneseFamilyHeavy
                 font.pixelSize: 26
                 font.letterSpacing: 2
                 color: Theme.accent
             }
             Text {
-                text: "EVA UNIT-02 · SOURYU"
+                text: Theme.pilotUnitLabel
                 font.family: Theme.fontFamily
                 font.pixelSize: 10
                 font.letterSpacing: 3
@@ -60,29 +61,33 @@ Rectangle {
             }
         }
 
-        // Character area: bottom-anchored figure with red glow + top fade.
+        // Character area: bottom-anchored figure with accent glow + top fade.
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
 
-            // Red glow: shadow-only duplicate rendered BEHIND the visible
+            // Accent glow: shadow-only duplicate rendered BEHIND the visible
             // image, so the figure still shows if effects can't render
             // (e.g. software scenegraph fallback).
             MultiEffect {
-                source: asuka
-                anchors.fill: asuka
+                source: pilotFigure
+                anchors.fill: pilotFigure
+                visible: pilotFigure.status === Image.Ready
                 shadowEnabled: true
-                shadowColor: "#73ff3b2f"
+                shadowColor: Theme.accentGlow
                 shadowBlur: 1.0
                 blurMax: 36
             }
 
             Image {
-                id: asuka
-                source: "../Resources/images/asuka.png"
-                width: 195
+                id: pilotFigure
+                source: "../Resources/images/" + Theme.pilotImage
+                width: Theme.pilotImageWidth
                 fillMode: Image.PreserveAspectFit
+                // Only show once the new source resolves — avoids a
+                // broken-image flash when switching pilots.
+                visible: status === Image.Ready
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottom: parent.bottom
                 anchors.bottomMargin: -10
@@ -92,9 +97,9 @@ Rectangle {
             Rectangle {
                 anchors.fill: parent
                 gradient: Gradient {
-                    GradientStop { position: 0.0;  color: "#8c1a0908" }
-                    GradientStop { position: 0.35; color: "#001a0908" }
-                    GradientStop { position: 1.0;  color: "#001a0908" }
+                    GradientStop { position: 0.0;  color: Qt.rgba(Theme.strip1.r, Theme.strip1.g, Theme.strip1.b, 0.55) }
+                    GradientStop { position: 0.35; color: Qt.rgba(Theme.strip1.r, Theme.strip1.g, Theme.strip1.b, 0.0) }
+                    GradientStop { position: 1.0;  color: Qt.rgba(Theme.strip1.r, Theme.strip1.g, Theme.strip1.b, 0.0) }
                 }
             }
         }

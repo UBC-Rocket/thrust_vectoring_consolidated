@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(ulysses_ground_control
-    VERSION 2.0.0
+    VERSION 2.1.0
     LANGUAGES CXX C
 )
 
@@ -212,6 +212,8 @@ qt_add_qml_module(ulysses_ground_control
         "Resources/fonts/JetBrainsMono-Regular.ttf"
         "Resources/fonts/JetBrainsMono-Bold.ttf"
         "Resources/images/asuka.png"
+        "Resources/images/rei-cut.png"
+        "Resources/images/mitsuri.png"
         "Resources/images/ubc-rocket-logo.png"
 )
 
@@ -243,7 +245,7 @@ qt_finalize_executable(ulysses_ground_control)
 # ----------------------------------------------------------------------
 # For Linux release
 set(CPACK_PACKAGE_NAME "ulysses-gcs")
-set(CPACK_PACKAGE_VERSION "2.0.0")  # Update this for each release
+set(CPACK_PACKAGE_VERSION "2.1.0")  # Update this for each release
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Ulysses Ground Control")
 set(CPACK_PACKAGE_VENDOR "UBC Rocket")
 set(CPACK_PACKAGE_INSTALL_DIRECTORY ${CPACK_PACKAGE_NAME})
