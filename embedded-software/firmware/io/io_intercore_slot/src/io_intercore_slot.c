@@ -37,16 +37,19 @@ void io_intercore_slot_init(io_intercore_slot_t *s, void *backing, size_t size) 
 }
 
 void io_intercore_slot_publish(io_intercore_slot_t *s, const void *src) {
-    uint32_t seq = s->hdr->seq;
-    /* Force odd to indicate write-in-progress. */
-    seq++;
+    /* Force the in-progress marker odd with |1, not ++. The .shared region
+     * is NOLOAD and never zeroed, so the first publish can find power-on
+     * garbage here; a plain ++ preserves that garbage's parity, and an odd
+     * at-rest seq makes every reader retry "writer in progress" forever.
+     * |1 guarantees odd-during-write / even-at-rest from the first publish. */
+    uint32_t seq = s->hdr->seq | 1U;
     s->hdr->seq = seq;
     IC_DMB();
 
     memcpy(s->data, src, s->size);
 
     IC_DMB();
-    s->hdr->seq = seq + 1U;   /* back to even */
+    s->hdr->seq = seq + 1U;   /* even: stable */
 }
 
 #if defined(__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U)
