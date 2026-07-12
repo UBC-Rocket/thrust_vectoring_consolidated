@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
 import "../Items"
@@ -183,10 +182,20 @@ Rectangle {
         visibleTiles = computeVisibleTiles()
     }
 
+    // ── EVA panel top accent ───────────────────────────────────────────────
+    Rectangle {
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: Theme.accentStroke
+        color: Theme.accent
+    }
+
     // ── Header ─────────────────────────────────────────────────────────────
     BaseHeader {
         id: header
         headerText: "UWB Probe Layout"
+        jpText: "探査配置"
     }
 
     // ── Top toolbar (probe controls) ──────────────────────────────────────
@@ -196,51 +205,45 @@ Rectangle {
         anchors.right: parent.right
         anchors.topMargin: 18
         anchors.rightMargin: 18
-        spacing: 12
+        spacing: 14
         z: 30
 
         Text {
             text: "W: " + panel.rectWidth.toFixed(2) + " m"
             color: Theme.textSecondary
             font.family: Theme.monoFamily
-            font.pixelSize: Theme.fontBody
+            font.pixelSize: 12
         }
         Text {
             text: "H: " + panel.rectHeight.toFixed(2) + " m"
             color: Theme.textSecondary
             font.family: Theme.monoFamily
-            font.pixelSize: Theme.fontBody
+            font.pixelSize: 12
         }
         Text {
-            text: panel.poles.length + "/4 anchors"
-            color: Theme.textTertiary
-            font.family: Theme.monoFamily
+            text: panel.poles.length + "/4 ANCHORS"
+            color: Theme.amber
+            font.family: Theme.fontFamily
             font.pixelSize: Theme.fontCaption
+            font.letterSpacing: 2
         }
 
-        Basic.Button {
+        ClippedButton {
             id: clearBtn
-            text: "Clear"
+            text: "CLEAR"
+            cut: 0
+            bold: false
+            fontSize: 10
+            fontLetterSpacing: 2
+            horizontalPadding: 14
+            verticalPadding: 5
+            fillColor: "transparent"
+            hoverFillColor: "transparent"
+            borderColor: Theme.border
+            hoverBorderColor: Theme.accent
+            textColor: Theme.textSecondary
+            hoverTextColor: Theme.accentMuted
             enabled: panel.poles.length > 0
-            hoverEnabled: true
-            padding: 8
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontBody
-            background: Rectangle {
-                radius: Theme.radiusControl
-                color: !clearBtn.enabled ? Theme.surfaceInset
-                     : clearBtn.down     ? Theme.btnSecondaryPress
-                     : clearBtn.hovered  ? Theme.btnSecondaryHover
-                     :                     Theme.btnSecondaryBg
-                border.width: Theme.strokeControl
-                border.color: Theme.btnSecondaryBorder
-            }
-            contentItem: Text {
-                anchors.centerIn: parent
-                text: clearBtn.text
-                color: clearBtn.enabled ? Theme.btnSecondaryText : Theme.textTertiary
-                font: clearBtn.font
-            }
             onClicked: {
                 panel.rectWidth = 0
                 panel.rectHeight = 0
@@ -249,10 +252,21 @@ Rectangle {
             }
         }
 
-        PrimaryButton {
+        ClippedButton {
             id: sendBtn
-            text: "Send"
-            padding: 8
+            text: "SEND ▸"
+            cut: 8
+            bold: true
+            fontSize: 10
+            fontLetterSpacing: 2
+            horizontalPadding: 18
+            verticalPadding: 5
+            fillColor: "#24ff3b2f"           // rgba(255,59,47,0.14)
+            hoverFillColor: "#4dff3b2f"      // rgba(255,59,47,0.3)
+            borderColor: Theme.accent
+            hoverBorderColor: Theme.accent
+            textColor: Theme.accentMuted
+            hoverTextColor: Theme.accentMuted
             enabled: panel.poles.length === 4
             onClicked: {
                 console.log("probe layout:", JSON.stringify(panel.poles))
@@ -264,13 +278,139 @@ Rectangle {
         }
     }
 
+    // ── Controls bar (satellite toggle + lat/lon + hints) ─────────────────
+    Rectangle {
+        id: controlsBar
+        anchors.top: header.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.leftMargin: 12
+        anchors.rightMargin: 12
+        height: mapBarRow.implicitHeight + 14
+        color: Theme.surfaceElevated
+        border.color: Theme.divider
+        border.width: Theme.strokeControl
+        radius: 0
+
+        RowLayout {
+            id: mapBarRow
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.leftMargin: 12
+            anchors.rightMargin: 12
+            spacing: 12
+
+            ThemedCheckBox {
+                id: mapToggle
+                text: "SATELLITE LAYER"
+                font.pixelSize: Theme.fontCaption
+                font.letterSpacing: 2
+                checked: panel.mapEnabled
+                onCheckedChanged: panel.mapEnabled = checked
+                contentItem: Text {
+                    text: mapToggle.text
+                    font: mapToggle.font
+                    color: Theme.amber
+                    verticalAlignment: Text.AlignVCenter
+                    leftPadding: mapToggle.indicator.width + mapToggle.spacing
+                }
+            }
+
+            Rectangle {
+                Layout.preferredWidth: 1
+                Layout.preferredHeight: 18
+                color: Theme.divider
+            }
+
+            Text {
+                text: "LAT"
+                color: Theme.accentMuted
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontCaption
+            }
+            Basic.TextField {
+                id: latField
+                implicitWidth: 110
+                text: panel.refValid ? panel.refLat.toFixed(6) : ""
+                placeholderText: "49.000000"
+                color: Theme.textPrimary
+                placeholderTextColor: Theme.textTertiary
+                font.family: Theme.monoFamily
+                font.pixelSize: Theme.fontBody
+                inputMethodHints: Qt.ImhFormattedNumbersOnly
+                validator: DoubleValidator { bottom: -90; top: 90; decimals: 8 }
+                padding: 4
+                background: Rectangle {
+                    radius: 0
+                    color: Theme.sceneBackground
+                    border.width: Theme.strokeControl
+                    border.color: latField.activeFocus ? Theme.accent : Theme.divider
+                }
+                onEditingFinished: {
+                    if (acceptableInput && lonField.acceptableInput) {
+                        panel.refLat   = parseFloat(text)
+                        panel.refLon   = parseFloat(lonField.text)
+                        panel.refValid = true
+                        panel.refreshTiles()
+                    }
+                }
+            }
+
+            Text {
+                text: "LON"
+                color: Theme.accentMuted
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontCaption
+            }
+            Basic.TextField {
+                id: lonField
+                implicitWidth: 120
+                text: panel.refValid ? panel.refLon.toFixed(6) : ""
+                placeholderText: "-123.000000"
+                color: Theme.textPrimary
+                placeholderTextColor: Theme.textTertiary
+                font.family: Theme.monoFamily
+                font.pixelSize: Theme.fontBody
+                inputMethodHints: Qt.ImhFormattedNumbersOnly
+                validator: DoubleValidator { bottom: -180; top: 180; decimals: 8 }
+                padding: 4
+                background: Rectangle {
+                    radius: 0
+                    color: Theme.sceneBackground
+                    border.width: Theme.strokeControl
+                    border.color: lonField.activeFocus ? Theme.accent : Theme.divider
+                }
+                onEditingFinished: {
+                    if (acceptableInput && latField.acceptableInput) {
+                        panel.refLat   = parseFloat(latField.text)
+                        panel.refLon   = parseFloat(text)
+                        panel.refValid = true
+                        panel.refreshTiles()
+                    }
+                }
+            }
+
+            Item { Layout.fillWidth: true }
+
+            Text {
+                text: "SCALE " + panel.pxPerMeter.toFixed(0) + " px/m · DRAG: RECTANGLE · RIGHT-DRAG: PAN · WHEEL: ZOOM"
+                color: Theme.textTertiary
+                font.family: Theme.monoFamily
+                font.pixelSize: 10
+                elide: Text.ElideRight
+                Layout.maximumWidth: implicitWidth
+            }
+        }
+    }
+
     // ── Map area ───────────────────────────────────────────────────────────
     Item {
         id: mapView
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        anchors.top: header.bottom
+        anchors.top: controlsBar.bottom
         anchors.topMargin: 12
         anchors.leftMargin: 12
         anchors.rightMargin: 12
@@ -280,15 +420,14 @@ Rectangle {
         onWidthChanged:  panel.refreshTiles()
         onHeightChanged: panel.refreshTiles()
 
-        // ── Background (hidden when map tiles are active) ──
+        // ── Deep viewport background (tiles fade in above it) ──
         Rectangle {
             id: mapBackground
             anchors.fill: parent
-            color: Theme.surfaceInset
-            border.color: Theme.border
+            color: Theme.sceneBackground
+            border.color: Theme.divider
             border.width: Theme.strokeControl
-            radius: Theme.radiusCard
-            visible: !panel.mapEnabled || !panel.refValid
+            radius: 0
         }
 
         // ── Satellite tile layer (Esri World Imagery) ──
@@ -317,107 +456,10 @@ Rectangle {
                 // Loading placeholder
                 Rectangle {
                     anchors.fill: parent
-                    color: "#0D1520"
-                    border.color: Theme.border
+                    color: Theme.sceneBackground
+                    border.color: Theme.divider
                     border.width: 0.5
                     visible: parent.status !== Image.Ready && panel.mapEnabled && panel.refValid
-                }
-            }
-        }
-
-        // ── Map controls bar (top-center, inside map area) ──
-        Rectangle {
-            id: mapControlBar
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.top: parent.top
-            anchors.topMargin: 8
-            width: mapBarRow.implicitWidth + 16
-            height: mapBarRow.implicitHeight + 8
-            color: Theme.surface
-            opacity: 0.92
-            border.color: Theme.border
-            border.width: Theme.strokeControl
-            radius: Theme.radiusCard
-            z: 25
-
-            RowLayout {
-                id: mapBarRow
-                anchors.centerIn: parent
-                spacing: 8
-
-                ThemedCheckBox {
-                    id: mapToggle
-                    text: "Map"
-                    checked: panel.mapEnabled
-                    onCheckedChanged: panel.mapEnabled = checked
-                }
-
-                Text {
-                    text: "Lat"
-                    color: Theme.textTertiary
-                    font.family: Theme.monoFamily
-                    font.pixelSize: Theme.fontCaption
-                }
-                Basic.TextField {
-                    id: latField
-                    implicitWidth: 110
-                    text: panel.refValid ? panel.refLat.toFixed(6) : ""
-                    placeholderText: "49.000000"
-                    color: Theme.textPrimary
-                    placeholderTextColor: Theme.textTertiary
-                    font.family: Theme.monoFamily
-                    font.pixelSize: Theme.fontBody
-                    inputMethodHints: Qt.ImhFormattedNumbersOnly
-                    validator: DoubleValidator { bottom: -90; top: 90; decimals: 8 }
-                    padding: 4
-                    background: Rectangle {
-                        radius: Theme.radiusControl
-                        color: Theme.surfaceInset
-                        border.width: Theme.strokeControl
-                        border.color: latField.activeFocus ? Theme.accent : Theme.border
-                    }
-                    onEditingFinished: {
-                        if (acceptableInput && lonField.acceptableInput) {
-                            panel.refLat   = parseFloat(text)
-                            panel.refLon   = parseFloat(lonField.text)
-                            panel.refValid = true
-                            panel.refreshTiles()
-                        }
-                    }
-                }
-
-                Text {
-                    text: "Lon"
-                    color: Theme.textTertiary
-                    font.family: Theme.monoFamily
-                    font.pixelSize: Theme.fontCaption
-                }
-                Basic.TextField {
-                    id: lonField
-                    implicitWidth: 120
-                    text: panel.refValid ? panel.refLon.toFixed(6) : ""
-                    placeholderText: "-123.000000"
-                    color: Theme.textPrimary
-                    placeholderTextColor: Theme.textTertiary
-                    font.family: Theme.monoFamily
-                    font.pixelSize: Theme.fontBody
-                    inputMethodHints: Qt.ImhFormattedNumbersOnly
-                    validator: DoubleValidator { bottom: -180; top: 180; decimals: 8 }
-                    padding: 4
-                    background: Rectangle {
-                        radius: Theme.radiusControl
-                        color: Theme.surfaceInset
-                        border.width: Theme.strokeControl
-                        border.color: lonField.activeFocus ? Theme.accent : Theme.border
-                    }
-                    onEditingFinished: {
-                        if (acceptableInput && latField.acceptableInput) {
-                            panel.refLat   = parseFloat(latField.text)
-                            panel.refLon   = parseFloat(text)
-                            panel.refValid = true
-                            panel.refreshTiles()
-                        }
-                    }
                 }
             }
         }
@@ -454,9 +496,9 @@ Rectangle {
                 const ymMin = panel.pyToMy(h)
                 const ymMax = panel.pyToMy(0)
 
-                // Minor grid (darker when satellite map is active)
+                // Minor grid: red meter grid @10% (darker when satellite map is active)
                 const mapOn = panel.mapEnabled && panel.refValid
-                ctx.strokeStyle = mapOn ? "rgba(0,0,0,0.35)" : Theme.divider
+                ctx.strokeStyle = mapOn ? "rgba(0,0,0,0.35)" : "rgba(255,90,60,0.10)"
                 ctx.lineWidth = 1
                 ctx.beginPath()
                 let xStart = Math.ceil(xmMin / stepM) * stepM
@@ -473,8 +515,8 @@ Rectangle {
                 }
                 ctx.stroke()
 
-                // Axes
-                ctx.strokeStyle = mapOn ? "rgba(0,0,0,0.5)" : Theme.borderLight
+                // Axes (amber crosshair through the takeoff origin)
+                ctx.strokeStyle = mapOn ? "rgba(0,0,0,0.5)" : "rgba(255,180,0,0.4)"
                 ctx.lineWidth = 1.5
                 ctx.beginPath()
                 const ax = Math.round(panel.mxToPx(0)) + 0.5
@@ -485,7 +527,7 @@ Rectangle {
 
                 // Tick labels (along bottom + left)
                 ctx.fillStyle = mapOn ? "rgba(255,255,255,0.5)" : Theme.textTertiary
-                ctx.font = "10px " + Theme.monoFamily
+                ctx.font = "10px \"" + Theme.monoFamily + "\""
                 ctx.textBaseline = "bottom"
                 ctx.textAlign = "left"
                 for (let xm = xStart; xm <= xmMax; xm += stepM) {
@@ -531,10 +573,10 @@ Rectangle {
                 const mx = (x1 + x2) / 2
                 const my = (y1 + y2) / 2
                 const label = lengthM.toFixed(2) + " m"
-                ctx.font = "11px " + Theme.monoFamily
+                ctx.font = "11px \"" + Theme.monoFamily + "\""
                 const tw = ctx.measureText(label).width
                 const padX = 5, padY = 2
-                ctx.fillStyle = Theme.surface
+                ctx.fillStyle = Theme.surfaceElevated
                 ctx.strokeStyle = Theme.border
                 ctx.lineWidth = 1
                 ctx.setLineDash([])
@@ -686,6 +728,60 @@ Rectangle {
             target: panel
             function onMapEnabledChanged() { panel.refreshTiles(); gridLayer.requestPaint(); geometryLayer.requestPaint() }
             function onRefValidChanged()   { panel.refreshTiles(); gridLayer.requestPaint(); geometryLayer.requestPaint() }
+        }
+
+        // ── Origin decorations (dashed range circle + amber diamond) ──
+        Canvas {
+            id: originCircle
+            width: 160
+            height: 160
+            x: panel.mxToPx(0) - width / 2
+            y: panel.myToPy(0) - height / 2
+            z: 4
+            onPaint: {
+                const ctx = getContext("2d")
+                ctx.reset()
+                ctx.strokeStyle = "rgba(255,59,47,0.5)"
+                ctx.lineWidth = 1
+                ctx.setLineDash([5, 4])
+                ctx.beginPath()
+                ctx.arc(width / 2, height / 2, width / 2 - 1, 0, 2 * Math.PI)
+                ctx.stroke()
+            }
+        }
+
+        Rectangle {
+            // soft amber halo behind the origin diamond
+            width: 22
+            height: 22
+            rotation: 45
+            color: "#33ffb400"
+            x: panel.mxToPx(0) - width / 2
+            y: panel.myToPy(0) - height / 2
+            z: 4
+        }
+        Rectangle {
+            id: originDiamond
+            width: 14
+            height: 14
+            rotation: 45
+            color: Theme.amber
+            x: panel.mxToPx(0) - width / 2
+            y: panel.myToPy(0) - height / 2
+            z: 4
+        }
+
+        // ── Grid caption (top-left) ──
+        Text {
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.topMargin: 10
+            anchors.leftMargin: 12
+            z: 20
+            text: "GRID " + gridLayer.niceStep(60) + " m · +" + panel.pxToMx(mapView.width).toFixed(1) + " m"
+            color: Theme.success
+            font.family: Theme.monoFamily
+            font.pixelSize: 10
         }
 
         // ── Pole markers (draggable) ──
@@ -848,16 +944,16 @@ Rectangle {
             anchors.bottomMargin: 4
             width: osmText.implicitWidth + 6
             height: osmText.implicitHeight + 4
-            color: Theme.surface
-            opacity: 0.8
-            radius: 3
+            color: Theme.surfaceElevated
+            opacity: 0.85
+            radius: 0
             visible: panel.mapEnabled && panel.refValid
             z: 20
 
             Text {
                 id: osmText
                 anchors.centerIn: parent
-                text: "\u00A9 Esri World Imagery"
+                text: "© Esri World Imagery"
                 color: Theme.textTertiary
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontCaption
@@ -876,75 +972,98 @@ Rectangle {
             Basic.Button {
                 id: zoomInBtn
                 text: "+"
-                Layout.preferredWidth: 32
-                Layout.preferredHeight: 28
+                Layout.preferredWidth: 34
+                Layout.preferredHeight: 34
                 hoverEnabled: true
                 font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontBody
+                font.pixelSize: 16
                 background: Rectangle {
-                    radius: Theme.radiusControl
+                    radius: 0
                     color: zoomInBtn.down    ? Theme.btnSecondaryPress
                          : zoomInBtn.hovered ? Theme.btnSecondaryHover
-                         :                     Theme.btnSecondaryBg
+                         :                     Theme.surfaceElevated
                     border.width: Theme.strokeControl
-                    border.color: Theme.btnSecondaryBorder
+                    border.color: zoomInBtn.hovered ? Theme.accent : Theme.border
                 }
                 contentItem: Text {
                     anchors.centerIn: parent
                     text: zoomInBtn.text
-                    color: Theme.btnSecondaryText
+                    color: zoomInBtn.hovered ? Theme.accentMuted : Theme.textPrimary
                     font: zoomInBtn.font
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
                 }
                 onClicked: panel.zoomAt(mapView.width/2, mapView.height/2, 1.2)
             }
             Basic.Button {
                 id: zoomOutBtn
                 text: "−"
-                Layout.preferredWidth: 32
-                Layout.preferredHeight: 28
+                Layout.preferredWidth: 34
+                Layout.preferredHeight: 34
                 hoverEnabled: true
                 font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontBody
+                font.pixelSize: 16
                 background: Rectangle {
-                    radius: Theme.radiusControl
+                    radius: 0
                     color: zoomOutBtn.down    ? Theme.btnSecondaryPress
                          : zoomOutBtn.hovered ? Theme.btnSecondaryHover
-                         :                      Theme.btnSecondaryBg
+                         :                      Theme.surfaceElevated
                     border.width: Theme.strokeControl
-                    border.color: Theme.btnSecondaryBorder
+                    border.color: zoomOutBtn.hovered ? Theme.accent : Theme.border
                 }
                 contentItem: Text {
                     anchors.centerIn: parent
                     text: zoomOutBtn.text
-                    color: Theme.btnSecondaryText
+                    color: zoomOutBtn.hovered ? Theme.accentMuted : Theme.textPrimary
                     font: zoomOutBtn.font
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
                 }
                 onClicked: panel.zoomAt(mapView.width/2, mapView.height/2, 1/1.2)
             }
             Basic.Button {
                 id: resetBtn
                 text: "⟲"
-                Layout.preferredWidth: 32
-                Layout.preferredHeight: 28
+                Layout.preferredWidth: 34
+                Layout.preferredHeight: 34
                 hoverEnabled: true
                 font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontBody
+                font.pixelSize: 14
                 background: Rectangle {
-                    radius: Theme.radiusControl
+                    radius: 0
                     color: resetBtn.down    ? Theme.btnSecondaryPress
                          : resetBtn.hovered ? Theme.btnSecondaryHover
-                         :                    Theme.btnSecondaryBg
+                         :                    Theme.surfaceElevated
                     border.width: Theme.strokeControl
-                    border.color: Theme.btnSecondaryBorder
+                    border.color: resetBtn.hovered ? Theme.accent : Theme.border
                 }
                 contentItem: Text {
                     anchors.centerIn: parent
                     text: resetBtn.text
-                    color: Theme.btnSecondaryText
+                    color: resetBtn.hovered ? Theme.accentMuted : Theme.textPrimary
                     font: resetBtn.font
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
                 }
                 onClicked: panel.resetView()
             }
+        }
+
+        // ── Axis range caption (bottom-center) ──
+        Text {
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 10
+            z: 20
+            text: {
+                const a = panel.pxToMx(0)
+                const b = panel.pxToMx(mapView.width)
+                const fmt = function(v) { return (v >= 0 ? "+" : "") + v.toFixed(1) }
+                return fmt(a) + " m ◄────────► " + fmt(b) + " m"
+            }
+            color: Theme.textTertiary
+            font.family: Theme.monoFamily
+            font.pixelSize: 10
         }
 
         // ── Legend (bottom-left) ──
@@ -952,73 +1071,61 @@ Rectangle {
             anchors.left: parent.left
             anchors.bottom: parent.bottom
             anchors.margins: 12
-            color: Theme.surface
-            border.color: Theme.border
+            color: "#e612100a"           // rgba(18,16,10,0.9)
+            border.color: Theme.divider
             border.width: Theme.strokeControl
-            radius: Theme.radiusCard
-            width: legendCol.implicitWidth + 16
-            height: legendCol.implicitHeight + 12
+            radius: 0
+            width: legendCol.implicitWidth + 24
+            height: legendCol.implicitHeight + 20
             z: 20
 
             ColumnLayout {
                 id: legendCol
                 anchors.centerIn: parent
-                spacing: 4
+                spacing: 5
 
                 Text {
                     text: "LEGEND"
-                    color: Theme.textTertiary
+                    color: Theme.amber
                     font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontCaption
+                    font.pixelSize: 9
+                    font.letterSpacing: 2
                     font.bold: true
                 }
                 RowLayout {
-                    spacing: 6
-                    Rectangle { width: 10; height: 10; radius: 5; color: Theme.successText }
+                    spacing: 8
+                    Rectangle { implicitWidth: 8; implicitHeight: 8; radius: 4; color: Theme.success }
                     Text {
-                        text: "Ground anchor (1 of 4)"
-                        color: Theme.textSecondary
+                        text: "GROUND ANCHOR (" + panel.poles.length + " OF 4)"
+                        color: Theme.textPrimary
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontCaption
                     }
                 }
                 RowLayout {
-                    spacing: 6
-                    Rectangle { width: 10; height: 10; radius: 5; color: Theme.warnText }
+                    spacing: 8
+                    Rectangle { implicitWidth: 8; implicitHeight: 8; radius: 4; color: Theme.amber }
                     Text {
-                        text: "Takeoff origin (0,0)"
-                        color: Theme.textSecondary
+                        text: "TAKEOFF ORIGIN (0,0)"
+                        color: Theme.textPrimary
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontCaption
                     }
                 }
                 RowLayout {
-                    spacing: 6
-                    Rectangle { width: 10; height: 10; radius: 5; color: Theme.danger }
+                    spacing: 8
+                    Rectangle {
+                        id: tagDot
+                        implicitWidth: 8; implicitHeight: 8; radius: 4
+                        color: Theme.accent
+                        Blink { target: tagDot }
+                    }
                     Text {
-                        text: "Rocket UWB tag (live)"
-                        color: Theme.textSecondary
+                        text: "ROCKET UWB TAG (LIVE)"
+                        color: Theme.textPrimary
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontCaption
                     }
-                }
-                Text {
-                    text: "Scale: " + panel.pxPerMeter.toFixed(0) + " px/m"
-                    color: Theme.textTertiary
-                    font.family: Theme.monoFamily
-                    font.pixelSize: Theme.fontCaption
-                }
-                Text {
-                    text: "Drag: rectangle  •  Drag pole: fine-tune"
-                    color: Theme.textTertiary
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontCaption
-                }
-                Text {
-                    text: "Right-drag: pan  •  Wheel: zoom  •  4 anchors only"
-                    color: Theme.textTertiary
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontCaption
                 }
             }
         }

@@ -14,48 +14,52 @@ BasePanel {
             top: parent.top
             left: parent.left
             right: parent.right
-            margins: 12
+            margins: 14
         }
         spacing: 8
 
         Text {
             id: header_System_Alert
-            text: "System Alert"
-            color: Theme.accent
+            text: "SYSTEM ALERT"
+            color: Theme.accentMuted
             font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontH1
+            font.pixelSize: Theme.fontH2
             font.bold: true
+            font.letterSpacing: 2
         }
 
         Item { Layout.fillWidth: true }
 
-        // compact CLEAR button
+        // compact CLEAR button — dim outline utility style
         Basic.Button {
             id: clearBtn
             text: "CLEAR"
             hoverEnabled: true
-            padding: 8
+            leftPadding: 12
+            rightPadding: 12
+            topPadding: 4
+            bottomPadding: 4
             font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontBody
+            font.pixelSize: 10
+            font.letterSpacing: 2
             background: Rectangle {
-                radius: Theme.radiusControl
-                color: clearBtn.down    ? Theme.btnSecondaryPress
-                     : clearBtn.hovered ? Theme.btnSecondaryHover
-                     :                    Theme.btnSecondaryBg
+                radius: 0
+                color: clearBtn.down ? Theme.btnSecondaryPress : "transparent"
                 border.width: Theme.strokeControl
-                border.color: Theme.btnSecondaryBorder
+                border.color: clearBtn.hovered ? Theme.accent : Theme.border
             }
             contentItem: Text {
-                anchors.centerIn: parent
                 text: clearBtn.text
-                color: Theme.btnSecondaryText
+                color: clearBtn.hovered ? Theme.accentMuted : Theme.textSecondary
                 font: clearBtn.font
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
             }
             onClicked: alertModel.clear()
         }
     }
 
-    // ---------- Inner rounded container ----------
+    // ---------- Log list container ----------
     Rectangle {
         id: inner
         anchors {
@@ -63,12 +67,10 @@ BasePanel {
             left: parent.left
             right: parent.right
             bottom: parent.bottom
-            leftMargin: 10; rightMargin: 10; topMargin: 6; bottomMargin: 10
+            leftMargin: 14; rightMargin: 14; topMargin: 6; bottomMargin: 14
         }
-        radius: Theme.radiusCard
-        color: Theme.surfaceInset
-        border.width: Theme.strokeControl
-        border.color: Theme.border
+        radius: 0
+        color: "transparent"
 
         // --------- Model & View (only classified messages) ----------
         ListModel { id: alertModel }  // { ts: Date, level: "error|warning|success", text: string }
@@ -76,9 +78,8 @@ BasePanel {
         ListView {
             id: list
             anchors.fill: parent
-            anchors.margins: 10
             clip: true
-            spacing: 10
+            spacing: 6
             model: alertModel
             boundsBehavior: Flickable.StopAtBounds
 
@@ -87,7 +88,7 @@ BasePanel {
                 policy: ScrollBar.AsNeeded
                 contentItem: Rectangle {
                     implicitWidth: 6
-                    radius: width/2
+                    radius: 0
                     color: parent.pressed ? Theme.textSecondary
                          : parent.hovered ? Theme.textTertiary
                          :                  Theme.borderLight
@@ -98,95 +99,82 @@ BasePanel {
             function trim() { const max = 400; if (alertModel.count > max) alertModel.remove(0, alertModel.count - max); }
             Component.onCompleted: positionViewAtEnd()
 
-            // ===== Delegate (uses exact red/yellow you specified) =====
+            // ===== Delegate: #12100a row, 3px severity left border =====
             delegate: Rectangle {
                 id: card
                 width: ListView.view.width
-                radius: Theme.radiusCard
+                radius: 0
                 color: Theme.surfaceElevated
-                border.width: Theme.strokeControl
-                border.color: Theme.border
-                antialiasing: true
 
-                // ---- colors only; keep everything else exactly the same ----
-                property color stripe:   (level==="error")   ? Theme.danger
-                                       : (level==="warning") ? Theme.warn
-                                       :                        Theme.success
-                property color chipBg:   (level==="error")   ? Theme.dangerBg
-                                       : (level==="warning") ? Theme.warnBg
-                                       :                        Theme.successBg
-                property color chipText: (level==="error")   ? Theme.dangerText
-                                       : (level==="warning") ? Theme.warnText
-                                       :                        Theme.successText
-                property color timeText: Theme.textSecondary
+                // ---- severity colors ----
+                property color stripe:     (level==="error")   ? Theme.danger
+                                         : (level==="warning") ? Theme.warn
+                                         :                       Theme.success
+                property color chipText:   (level==="error")   ? Theme.dangerText
+                                         : (level==="warning") ? Theme.warnText
+                                         :                       Theme.successText
+                property color chipBorder: (level==="error")   ? Theme.danger
+                                         : (level==="warning") ? Theme.warn
+                                         :                       Theme.successBorder
+                property color timeText: Theme.textTertiary
                 property color bodyText: Theme.textPrimary
 
-                property int padX: 12
-                property int padY: 9
-                height: Math.max(56, body.implicitHeight + padY*2)
+                property int padX: 10
+                property int padY: 8
+                height: Math.max(36, body.implicitHeight + padY*2)
 
-                // left stripe (exact color)
+                // 3px severity left border
                 Rectangle {
                     anchors {
                         left: parent.left
                         top: parent.top
                         bottom: parent.bottom
                     }
-                    width: 8;
-                    radius: 4;
+                    width: 3
                     color: card.stripe
                 }
 
-                // content
+                // content: timestamp · severity chip · message
                 RowLayout {
                     anchors {
                         fill: parent
-                        leftMargin: padX + 8;
+                        leftMargin: padX + 3
                         rightMargin: padX
                         topMargin: padY
                         bottomMargin: padY
                     }
                     spacing: 10
 
-                    // timestamp + chip stacked
-                    Column {
-                        Layout.alignment: Qt.AlignTop
-                        Layout.preferredWidth: 78
-                        spacing: 6
+                    Text {
+                        text: Qt.formatTime(ts, "hh:mm:ss")
+                        color: card.timeText
+                        font.family: Theme.monoFamily
+                        font.pixelSize: 11
+                    }
+
+                    Rectangle {
+                        id: chip
+                        radius: 0
+                        Layout.preferredHeight: 18
+                        color: "transparent"
+                        border.width: 1
+                        border.color: card.chipBorder
+                        property string label: (level === "error")   ? "ERROR"
+                                              : (level === "warning")? "WARN"
+                                              : "OK"
 
                         Text {
-                            text: Qt.formatTime(ts, "hh:mm:ss")
-                            color: card.timeText
-                            font.family: Theme.monoFamily
-                            font.pixelSize: 12
-                            horizontalAlignment: Text.AlignLeft
+                            id: chipText
+                            anchors.centerIn: parent
+                            text: parent.label
+                            color: card.chipText
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 10
+                            font.bold: true
+                            padding: 8
                         }
 
-                        Rectangle {
-                            id: chip
-                            radius: 9
-                            height: 20
-                            color: card.chipBg
-                            border.width: 1
-                            border.color: card.chipBg
-                            property string label: (level === "error")   ? "ERROR"
-                                                  : (level === "warning")? "WARN"
-                                                  : "OK"
-
-                            Text {
-                                id: chipText
-                                anchors.centerIn: parent
-                                text: parent.label
-                                color: card.chipText
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontCaption
-                                font.bold: true
-                                padding: 9
-                            }
-
-                            width: Math.max(54, chipText.implicitWidth + 2 * chipText.padding)
-                        }
-
+                        Layout.preferredWidth: Math.max(36, chipText.implicitWidth + 2 * chipText.padding)
                     }
 
                     // message body
@@ -196,7 +184,7 @@ BasePanel {
                         text: model.text
                         color: card.bodyText
                         font.family: Theme.fontFamily
-                        font.pixelSize: 15
+                        font.pixelSize: 13
                         wrapMode: Text.Wrap
                     }
                 }

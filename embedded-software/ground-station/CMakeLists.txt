@@ -122,7 +122,7 @@ target_compile_definitions(ulysses_ground_control PRIVATE
 # ----------------------------------------------------------------------
 # QML module
 # ----------------------------------------------------------------------
-set_source_files_properties("${QML_DIR}/Items/Theme.qml"
+set_source_files_properties("${QML_DIR}/Items/Theme.qml" "${QML_DIR}/Items/UiState.qml"
     PROPERTIES QT_QML_SINGLETON_TYPE TRUE
 )
 
@@ -135,6 +135,10 @@ qt_add_qml_module(ulysses_ground_control
         "${QML_DIR}/LayoutGrid.qml"
         "${QML_DIR}/Main.qml"
         "${QML_DIR}/Shortcuts.qml"
+        "${QML_DIR}/SideStripLeft.qml"
+        "${QML_DIR}/SideStripRight.qml"
+        "${QML_DIR}/BootOverlay.qml"
+        "${QML_DIR}/EmergencyOverlay.qml"
         "${QML_DIR}/Panels/Panel_State_And_Position.qml"
         "${QML_DIR}/Panels/Panel_Control.qml"
         "${QML_DIR}/Panels/Panel_Angles_And_Engine.qml"
@@ -161,9 +165,28 @@ qt_add_qml_module(ulysses_ground_control
         "${QML_DIR}/Items/ThemedCheckBox.qml"
         "${QML_DIR}/Items/ThemedScrollBar.qml"
         "${QML_DIR}/Items/ThemedTabButton.qml"
+        "${QML_DIR}/Items/UiState.qml"
+        "${QML_DIR}/Items/Blink.qml"
+        "${QML_DIR}/Items/ClippedRect.qml"
+        "${QML_DIR}/Items/ClippedButton.qml"
+        "${QML_DIR}/Items/JpText.qml"
+        "${QML_DIR}/Items/WarningStripes.qml"
+        "${QML_DIR}/Items/Scanlines.qml"
+        "${QML_DIR}/Items/GridBackdrop.qml"
+        "${QML_DIR}/Items/SectionChip.qml"
     RESOURCES
         "${MESH_FILES}"
         "${QML_DIR}/Items/qmldir"
+        "Resources/fonts/ChakraPetch-Regular.ttf"
+        "Resources/fonts/ChakraPetch-Medium.ttf"
+        "Resources/fonts/ChakraPetch-SemiBold.ttf"
+        "Resources/fonts/ChakraPetch-Bold.ttf"
+        "Resources/fonts/ShipporiMinchoB1-Bold.ttf"
+        "Resources/fonts/ShipporiMinchoB1-ExtraBold.ttf"
+        "Resources/fonts/JetBrainsMono-Regular.ttf"
+        "Resources/fonts/JetBrainsMono-Bold.ttf"
+        "Resources/images/asuka.png"
+        "Resources/images/ubc-rocket-logo.png"
 )
 
 # ----------------------------------------------------------------------
@@ -180,6 +203,12 @@ target_link_libraries(ulysses_ground_control
         Qt6::Quick3D
         Qt6::SerialPort
         rocket-protocol
+)
+
+# Force the Basic (customizable) Controls style — see qtquickcontrols2.conf.
+qt_add_resources(ulysses_ground_control "controls_conf"
+    PREFIX "/"
+    FILES qtquickcontrols2.conf
 )
 
 qt_import_qml_plugins(ulysses_ground_control)
