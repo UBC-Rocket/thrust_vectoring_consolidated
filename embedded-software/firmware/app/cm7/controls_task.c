@@ -44,6 +44,12 @@
 #define ESC_PWM_MIN_US 1000U
 #define ESC_PWM_MAX_US 2000U
 
+/* Bring-up: fixed throttle after ESC arm delay. Change here only — the debug
+ * log and esc_set_us() both use this (the old log hardcoded 0.25f and lied).
+ * After editing: rebuild + flash CM7 (./build.sh && ./flash.sh Debug cm7). */
+#define BRINGUP_ESC_THROTTLE       0.65f
+#define BRINGUP_ESC_BUILD_TAG      "esc-bringup-v2"
+
 static inline uint16_t throttle_to_us(float throttle) {
     if (throttle < 0.0f) throttle = 0.0f;
     if (throttle > 1.0f) throttle = 1.0f;
@@ -53,6 +59,21 @@ static inline uint16_t throttle_to_us(float throttle) {
 
 static inline void esc_set_us(const pwm_output_t *pwm, uint16_t us) {
     pwm_set_compare(pwm, pwm_clamp_ticks(pwm, pwm_us_to_ticks(pwm, us)));
+}
+
+static inline uint16_t esc_get_us(const pwm_output_t *pwm) {
+    if (pwm == NULL || pwm->htim == NULL) {
+        return 0U;
+    }
+    return (uint16_t)__HAL_TIM_GET_COMPARE(pwm->htim, pwm->channel);
+}
+
+static inline void esc_apply_bringup_throttle(const escs_t *escs, uint16_t us) {
+    if (escs == NULL) {
+        return;
+    }
+    esc_set_us(&escs->lower, us);
+    esc_set_us(&escs->upper, us);
 }
 
 static flight_controller_config_t s_live_config = {
@@ -91,6 +112,9 @@ static uint32_t s_last_pid_seq;
 static uint32_t s_last_ref_seq;
 static uint32_t s_last_cfg_seq;
 static volatile bool s_isr_ready;
+static volatile bool s_esc_bringup_armed;
+static const escs_t *s_escs;
+static uint16_t s_bringup_esc_us;
 
 void controls_on_tim_period_elapsed(void *htim_handle)
 {
@@ -104,16 +128,18 @@ void controls_on_tim_period_elapsed(void *htim_handle)
     control_output_t out;
     flight_controller_run(&state, &s_live_ref, &s_live_config, &out, CONTROLS_DT_S);
 
-    /* Bring-up: ESC PWM is intentionally NOT driven from here right now —
-     * task_controls() arms and holds both motors at a fixed throttle, and
-     * nothing should override that. Gimbal servo command publishing below
-     * is unaffected. */
+    /* Bring-up: pin ESC PWM from the 800 Hz ISR so nothing else can stomp CCR.
+     * T_cmd / pwm_setpoint_from_forces() is NOT wired yet — ignore T= in logs. */
+    if (s_esc_bringup_armed && s_escs != NULL) {
+        esc_apply_bringup_throttle(s_escs, s_bringup_esc_us);
+    }
 
     (void)state_exchange_publish_control_output(&out);
 }
 
 void controls_isr_init(void)
 {
+    s_escs = esc_handles();
 #ifndef BENCH_NO_MOTORS
 
 #else
@@ -211,10 +237,8 @@ void task_controls(void *arg) {
      * sequence) before the 800 Hz control-loop timer starts — so there's no
      * window where the ISR could write a live (non-minimum) compare value
      * before or during arming. */
-    const escs_t *escs = esc_handles();
-    if (escs != NULL) {
-        esc_set_us(&escs->lower, ESC_PWM_MIN_US);
-        esc_set_us(&escs->upper, ESC_PWM_MIN_US);
+    if (s_escs != NULL) {
+        esc_apply_bringup_throttle(s_escs, ESC_PWM_MIN_US);
     }
     HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
     HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
@@ -223,10 +247,16 @@ void task_controls(void *arg) {
 
     /* Bring-up: confirm the motors actually spin post-arm before handing
      * CCR over to the live controller. */
-    if (escs != NULL) {
-        esc_set_us(&escs->lower, throttle_to_us(0.65f));
-        esc_set_us(&escs->upper, throttle_to_us(0.65f));
-    }
+    s_bringup_esc_us = throttle_to_us(BRINGUP_ESC_THROTTLE);
+    esc_apply_bringup_throttle(s_escs, s_bringup_esc_us);
+    s_esc_bringup_armed = true;
+
+#ifdef DEBUG_TEXT_CONSOLE
+    io_debug_printf("[ctl] %s armed esc=%u us (%u%%)\r\n",
+                    BRINGUP_ESC_BUILD_TAG,
+                    (unsigned)s_bringup_esc_us,
+                    (unsigned)(BRINGUP_ESC_THROTTLE * 100.0f + 0.5f));
+#endif
 
     HAL_TIM_Base_Start_IT(&htim16);
 
@@ -247,9 +277,21 @@ void task_controls(void *arg) {
             fmt_f3(tx, out.theta_x_cmd);
             fmt_f3(ty, out.theta_y_cmd);
             fmt_f3(zi, out.z_pid_integral);
-            io_debug_printf("[ctl] esc=%u us  T=%s  gim=%s,%s  z_i=%s\r\n",
-                            (unsigned)throttle_to_us(0.25f),
-                            t, tx, ty, zi);
+            if (s_escs != NULL && s_esc_bringup_armed) {
+                io_debug_printf("[ctl] esc lo/hi/cmd=%u/%u/%u us  T=%s  gim=%s,%s  z_i=%s\r\n",
+                                (unsigned)esc_get_us(&s_escs->lower),
+                                (unsigned)esc_get_us(&s_escs->upper),
+                                (unsigned)s_bringup_esc_us,
+                                t, tx, ty, zi);
+            } else if (s_escs != NULL) {
+                io_debug_printf("[ctl] esc arming lo/hi=%u/%u us  T=%s\r\n",
+                                (unsigned)esc_get_us(&s_escs->lower),
+                                (unsigned)esc_get_us(&s_escs->upper),
+                                t);
+            } else {
+                io_debug_printf("[ctl] esc=N/A  T=%s  gim=%s,%s  z_i=%s\r\n",
+                                t, tx, ty, zi);
+            }
         }
 #endif
 

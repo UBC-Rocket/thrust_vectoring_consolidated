@@ -33,23 +33,33 @@
 #define GIMBAL_CALIB_MODE          0   /* 1 = torque off, log position for zero calibration */
 #endif
 
-#if GIMBAL_CALIB_MODE
+/* Single-axis ZN tuning: force one servo to 0° regardless of PD output. */
+#ifndef GIMBAL_HOLD_X_AT_ZERO
+#define GIMBAL_HOLD_X_AT_ZERO      0
+#endif
+#ifndef GIMBAL_HOLD_Y_AT_ZERO
+#define GIMBAL_HOLD_Y_AT_ZERO      0
+#endif
+
+#if GIMBAL_CALIB_MODE || (defined(DEBUG_TEXT_CONSOLE) && !GIMBAL_CALIB_MODE)
 #include "io_sys/io_debug.h"
 #include <stdio.h>
 #endif
 
+#define GIMBAL_BUILD_TAG           "gimbal-pd-v1"
+
 #define ACTUATOR_LOOP_MS           20U
 #define GIMBAL_CALIB_LOG_MS        200U
-#define ACTUATOR_MIN_WRITE_MS      40U   /* was 50 ms (~20 Hz); small step to ~25 Hz */
+#define ACTUATOR_MIN_WRITE_MS      20U   /* was 50 ms (~20 Hz); small step to ~25 Hz */
 #define ACTUATOR_FAIL_BACKOFF_MS   250U
-#define GIMBAL_CLAMP_DEG           15.0f
+#define GIMBAL_CLAMP_DEG           10.0f
 #define GIMBAL_DEFAULT_DEG_X       0.0f
 #define GIMBAL_DEFAULT_DEG_Y       0.0f
 
 /* Per-axis PD (KF y -> Dynamixel X, KF x -> Dynamixel Y). */
-#define TILT_KP_X                  0.0f
+#define TILT_KP_X                  0.08f
 #define TILT_KD_X                  0.00f
-#define TILT_KP_Y                  0.75f
+#define TILT_KP_Y                  0.0f
 #define TILT_KD_Y                  0.00f
 
 #define GIMBAL_CMD_DEADBAND_DEG    0.05f
@@ -59,7 +69,7 @@
 #define DXL_SERVO_ID_X             1u
 #define DXL_SERVO_ID_Y             2u
 
-#if GIMBAL_CALIB_MODE
+#if GIMBAL_CALIB_MODE || defined(DEBUG_TEXT_CONSOLE)
 static void fmt_f3(char *buf, float v)
 {
     const bool neg = (v < 0.0f);
@@ -141,8 +151,12 @@ static void actuator_apply_tilt_pd(servo_dynamixel_t *d)
     float deg_y;
     tilt_to_gimbal_deg(&tilt, &deg_x, &deg_y);
 
-    /* ZN tuning: hold ID1 (X servo) at 0° while tuning the ID2 (Y) PID loop. */
+#if GIMBAL_HOLD_X_AT_ZERO
     deg_x = GIMBAL_DEFAULT_DEG_X;
+#endif
+#if GIMBAL_HOLD_Y_AT_ZERO
+    deg_y = GIMBAL_DEFAULT_DEG_Y;
+#endif
 
     if ((!actuator_axis_changed(deg_x, s_last_deg_x) &&
          !actuator_axis_changed(deg_y, s_last_deg_y)) ||
@@ -229,9 +243,49 @@ void task_actuator(void *arg)
     s_last_deg_x = GIMBAL_DEFAULT_DEG_X;
     s_last_deg_y = GIMBAL_DEFAULT_DEG_Y;
 
+#ifdef DEBUG_TEXT_CONSOLE
+    io_debug_printf("[gimbal] %s clamp=%u deg  Kp x=%u y=%u  deadband=%u mdeg\r\n",
+                    GIMBAL_BUILD_TAG,
+                    (unsigned)(GIMBAL_CLAMP_DEG + 0.5f),
+                    (unsigned)(TILT_KP_X * 1000.0f + 0.5f),
+                    (unsigned)(TILT_KP_Y * 1000.0f + 0.5f),
+                    (unsigned)(GIMBAL_CMD_DEADBAND_DEG * 1000.0f + 0.5f));
+#endif
+
     for (;;) {
         vTaskDelay(pdMS_TO_TICKS(ACTUATOR_LOOP_MS));
         actuator_apply_tilt_pd(dxl);
+
+#ifdef DEBUG_TEXT_CONSOLE
+        {
+            static uint32_t s_gimbal_dbg;
+            if (++s_gimbal_dbg >= 50U) {
+                s_gimbal_dbg = 0;
+                tilt_state_t tdbg;
+                if (tilt_state_get(&tdbg)) {
+                    float cmd_x;
+                    float cmd_y;
+                    tilt_to_gimbal_deg(&tdbg, &cmd_x, &cmd_y);
+#if GIMBAL_HOLD_X_AT_ZERO
+                    cmd_x = GIMBAL_DEFAULT_DEG_X;
+#endif
+#if GIMBAL_HOLD_Y_AT_ZERO
+                    cmd_y = GIMBAL_DEFAULT_DEG_Y;
+#endif
+                    char kx[16], ky[16], cx[16], cy[16], ox[16], oy[16];
+                    fmt_f3(kx, tdbg.tilt_x_rad);
+                    fmt_f3(ky, tdbg.tilt_y_rad);
+                    fmt_f3(cx, cmd_x);
+                    fmt_f3(cy, cmd_y);
+                    fmt_f3(ox, s_last_deg_x);
+                    fmt_f3(oy, s_last_deg_y);
+                    io_debug_printf(
+                        "[gimbal] kf x=%s y=%s rad  cmd x=%s y=%s deg  out x=%s y=%s\r\n",
+                        kx, ky, cx, cy, ox, oy);
+                }
+            }
+        }
+#endif
     }
 #endif
 #else
