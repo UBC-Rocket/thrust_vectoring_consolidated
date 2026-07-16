@@ -224,8 +224,8 @@ void task_controls(void *arg) {
     /* Bring-up: confirm the motors actually spin post-arm before handing
      * CCR over to the live controller. */
     if (escs != NULL) {
-        esc_set_us(&escs->lower, throttle_to_us(0.35f));
-        esc_set_us(&escs->upper, throttle_to_us(0.35f));
+        esc_set_us(&escs->lower, throttle_to_us(0.65f));
+        esc_set_us(&escs->upper, throttle_to_us(0.65f));
     }
 
     HAL_TIM_Base_Start_IT(&htim16);

@@ -29,7 +29,17 @@
 #include <math.h>
 #include <stdbool.h>
 
+#ifndef GIMBAL_CALIB_MODE
+#define GIMBAL_CALIB_MODE          0   /* 1 = torque off, log position for zero calibration */
+#endif
+
+#if GIMBAL_CALIB_MODE
+#include "io_sys/io_debug.h"
+#include <stdio.h>
+#endif
+
 #define ACTUATOR_LOOP_MS           20U
+#define GIMBAL_CALIB_LOG_MS        200U
 #define ACTUATOR_MIN_WRITE_MS      40U   /* was 50 ms (~20 Hz); small step to ~25 Hz */
 #define ACTUATOR_FAIL_BACKOFF_MS   250U
 #define GIMBAL_CLAMP_DEG           15.0f
@@ -37,14 +47,26 @@
 #define GIMBAL_DEFAULT_DEG_Y       0.0f
 
 /* Per-axis PD (KF y -> Dynamixel X, KF x -> Dynamixel Y). */
-#define TILT_KP_X                  1.0f
+#define TILT_KP_X                  0.0f
 #define TILT_KD_X                  0.00f
-#define TILT_KP_Y                  1.0f
+#define TILT_KP_Y                  0.75f
 #define TILT_KD_Y                  0.00f
 
 #define GIMBAL_CMD_DEADBAND_DEG    0.05f
 
 #define RAD2DEG                    (180.0f / (float)M_PI)
+
+#define DXL_SERVO_ID_X             1u
+#define DXL_SERVO_ID_Y             2u
+
+#if GIMBAL_CALIB_MODE
+static void fmt_f3(char *buf, float v)
+{
+    const bool neg = (v < 0.0f);
+    const uint32_t m = (uint32_t)(neg ? (-v * 1000.0f) : (v * 1000.0f));
+    (void)snprintf(buf, 16, "%s%lu.%03lu", neg ? "-" : "", m / 1000UL, m % 1000UL);
+}
+#endif
 
 static inline float actuator_clamp_deg(float deg)
 {
@@ -119,6 +141,9 @@ static void actuator_apply_tilt_pd(servo_dynamixel_t *d)
     float deg_y;
     tilt_to_gimbal_deg(&tilt, &deg_x, &deg_y);
 
+    /* ZN tuning: hold ID1 (X servo) at 0° while tuning the ID2 (Y) PID loop. */
+    deg_x = GIMBAL_DEFAULT_DEG_X;
+
     if ((!actuator_axis_changed(deg_x, s_last_deg_x) &&
          !actuator_axis_changed(deg_y, s_last_deg_y)) ||
         !actuator_bus_may_run()) {
@@ -172,6 +197,34 @@ void task_actuator(void *arg)
 
 #ifdef USE_DYNAMIXEL_SERVO
     servo_dynamixel_t *dxl = a->servos;
+
+#if GIMBAL_CALIB_MODE
+    (void)servo_dynamixel_disable_torque_pair(dxl);
+#ifdef DEBUG_TEXT_CONSOLE
+    io_debug_printf("[gimbal] calib: torque OFF — move to mechanical zero\r\n");
+    io_debug_printf("[gimbal] update DXL_ZERO_TICKS_X/Y in dev_servo_dynamixel.h\r\n");
+#endif
+
+    for (;;) {
+        int32_t ticks_x = 0;
+        int32_t ticks_y = 0;
+        float deg_x = 0.0f;
+        float deg_y = 0.0f;
+
+        (void)servo_dynamixel_get_present_position(dxl, DXL_SERVO_ID_X, &ticks_x);
+        (void)servo_dynamixel_get_present_position(dxl, DXL_SERVO_ID_Y, &ticks_y);
+        (void)servo_dynamixel_get_pair_degrees(dxl, &deg_x, &deg_y);
+
+#ifdef DEBUG_TEXT_CONSOLE
+        char sx[16], sy[16];
+        fmt_f3(sx, deg_x);
+        fmt_f3(sy, deg_y);
+        io_debug_printf("[gimbal] ticks x=%ld y=%ld  deg x=%s y=%s\r\n",
+                        (long)ticks_x, (long)ticks_y, sx, sy);
+#endif
+        vTaskDelay(pdMS_TO_TICKS(GIMBAL_CALIB_LOG_MS));
+    }
+#else
     (void)servo_dynamixel_set_pair_degrees(dxl, GIMBAL_DEFAULT_DEG_X, GIMBAL_DEFAULT_DEG_Y);
     s_last_deg_x = GIMBAL_DEFAULT_DEG_X;
     s_last_deg_y = GIMBAL_DEFAULT_DEG_Y;
@@ -180,6 +233,7 @@ void task_actuator(void *arg)
         vTaskDelay(pdMS_TO_TICKS(ACTUATOR_LOOP_MS));
         actuator_apply_tilt_pd(dxl);
     }
+#endif
 #else
     servo_feetech_t *s = a->servos;
 
