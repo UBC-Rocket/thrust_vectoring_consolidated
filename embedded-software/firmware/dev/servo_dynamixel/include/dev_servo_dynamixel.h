@@ -19,7 +19,7 @@ extern "C" {
 #define DXL_ZERO_TICKS_X  2444
 #endif
 #ifndef DXL_ZERO_TICKS_Y
-#define DXL_ZERO_TICKS_Y  3132
+#define DXL_ZERO_TICKS_Y  1432
 #endif
 
 typedef struct servo_dynamixel servo_dynamixel_t;
