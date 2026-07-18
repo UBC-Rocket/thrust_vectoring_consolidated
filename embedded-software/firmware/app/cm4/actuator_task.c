@@ -46,6 +46,31 @@
 
 #define RAD2DEG                    (180.0f / (float)M_PI)
 
+struct PIDValues {
+    float kp_x;
+    float kd_x;
+    float kp_y;
+    float kd_y;
+};
+
+static struct PIDValues configuration = {
+    .kp_x = 1.0f,
+    .kd_x = 0.00f,
+    .kp_y = 1.0f,
+    .kd_y = 0.0f,
+};
+
+static void updateConfiguration() {
+    app_pid_gains_t pidGains;
+    state_exchange_get_pid_gains(&pidGains);
+    
+    configuration.kd_x = pidGains.attitude_kd[0];
+    configuration.kd_y = pidGains.attitude_kd[1];
+
+    configuration.kp_x = pidGains.attitude_kp[0];
+    configuration.kp_y = pidGains.attitude_kp[1];
+}
+
 static inline float actuator_clamp_deg(float deg)
 {
     if (deg > GIMBAL_CLAMP_DEG) return GIMBAL_CLAMP_DEG;
@@ -57,12 +82,12 @@ static inline float actuator_clamp_deg(float deg)
 /* Dynamixel X: +PD on KF y (inverted mount). Dynamixel Y: -PD on KF x. */
 static inline float gimbal_cmd_x_rad(const tilt_state_t *tilt)
 {
-    return TILT_KP_X * tilt->tilt_y_rad + TILT_KD_X * tilt->rate_y_rad_s;
+    return configuration.kp_x * tilt->tilt_y_rad + configuration.kd_x * tilt->rate_y_rad_s;
 }
 
 static inline float gimbal_cmd_y_rad(const tilt_state_t *tilt)
 {
-    return -(TILT_KP_Y * tilt->tilt_x_rad + TILT_KD_Y * tilt->rate_x_rad_s);
+    return -(configuration.kp_y * tilt->tilt_x_rad + configuration.kd_y * tilt->rate_x_rad_s);
 }
 
 static inline void tilt_to_gimbal_deg(const tilt_state_t *tilt,
@@ -178,7 +203,12 @@ void task_actuator(void *arg)
 
     for (;;) {
         vTaskDelay(pdMS_TO_TICKS(ACTUATOR_LOOP_MS));
-        actuator_apply_tilt_pd(dxl);
+
+        app_flight_state_t state;
+        state_exchange_get_flight_state(&state);
+
+        if (state == APP_FLIGHT_RISE) actuator_apply_tilt_pd(dxl);
+        else updateConfiguration();
     }
 #else
     servo_feetech_t *s = a->servos;
