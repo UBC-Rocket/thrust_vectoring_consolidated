@@ -30,6 +30,22 @@ typedef struct {
 typedef struct mag_mmc5983 mag_mmc5983_t;
 
 bool            mag_mmc5983_init       (void);
+
+/**
+ * @brief Create the SET/RESET service task. Call from app_init (after the
+ *        DEV phase, in the same window the other tasks are created) —
+ *        NOT from mag_mmc5983_init.
+ *
+ * xTaskCreateStatic takes a FreeRTOS critical section. Called before the
+ * scheduler starts, that leaves BASEPRI raised (uxCriticalNesting is not
+ * yet zero), masking the HAL-timebase IRQ and freezing HAL_GetTick(). If
+ * any pre-scheduler code then blocks on a HAL timeout it hangs forever.
+ * Deferring task creation to app_init keeps it in the harmless window
+ * right before vTaskStartScheduler(). Idempotent; returns false if init
+ * hasn't run or the task couldn't be created.
+ */
+bool            mag_mmc5983_start      (void);
+
 mag_mmc5983_t  *mag_mmc5983_get        (void);
 size_t          mag_mmc5983_drain      (mag_mmc5983_t *d,
                                          mag_sample_t *out, size_t max);

@@ -122,13 +122,19 @@ void app_init_cm4(void) {
     (void)io_debug_init();
     io_debug_printf("\r\n=== Ulysses CM4 online — hello world ===\r\n");
 
-    /* Bring-up: one-line IMU status on the console. sensors_handles()->icm40609
-     * is non-NULL iff imu_icm40609_init() fully succeeded (which includes the
-     * WHO_AM_I == 0x3B identity gate). */
+    /* Bring-up: one-line sensor inventory on the console. Each handle is
+     * non-NULL iff that driver's init fully succeeded, which for the SPI
+     * sensors includes the chip-ID identity gate (ICM WHO_AM_I 0x3B,
+     * BMI088 accel CHIP_ID 0x1E, MMC5983 PRODUCT_ID 0x30). baro is a
+     * stub (always "OK") and gps has no fix without an antenna. */
     {
         const sensors_t *sn = sensors_handles();
-       io_debug_printf("[init] ICM40609 %s\r\n",
-                        (sn != NULL && sn->icm40609 != NULL) ? "OK" : "FAIL");
+        io_debug_printf("[init] ICM40609 %s  BMI088 %s  MMC5983 %s  BARO %s  GPS %s\r\n",
+                        (sn && sn->icm40609) ? "OK" : "FAIL",
+                        (sn && sn->bmi088)   ? "OK" : "FAIL",
+                        (sn && sn->mag)      ? "OK" : "FAIL",
+                        (sn && sn->baro)     ? "OK" : "FAIL",
+                        (sn && sn->gps)      ? "OK" : "--");
     }
 
 #ifdef USE_DYNAMIXEL_SERVO
@@ -163,6 +169,15 @@ void app_init_cm4(void) {
     (void)s_h_telem;
 
     sensors_bind_state_estimation_task((io_task_handle_t)s_h_state);
+
+    /* Create the magnetometer SET/RESET service task here (not in
+     * mag_mmc5983_init). Doing it pre-scheduler but in this final window —
+     * right before app_start_kernel() calls vTaskStartScheduler() — is safe:
+     * xTaskCreateStatic raises BASEPRI via a critical section that only
+     * clears once the scheduler runs, and nothing between here and the
+     * scheduler start blocks on a HAL timeout. Creating it earlier (during
+     * dev_init) froze HAL_GetTick() and hung the Dynamixel bus init. */
+    (void)mag_mmc5983_start();
 
 #ifdef DEBUG_TEXT_CONSOLE
     /* Forward CM7's debug-console text to the shared VCP. Low priority — it

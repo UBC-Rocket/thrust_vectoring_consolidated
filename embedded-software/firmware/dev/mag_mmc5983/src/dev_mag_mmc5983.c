@@ -348,23 +348,43 @@ bool mag_mmc5983_init(void) {
      *    The service task drives SET / RESET / TM_M manually. */
     if (!reg_write(MMC_REG_INTERNAL_CTRL_2, 0)) return false;
 
-    /* 5. EXTI hookup. We register the callback now; the actual measurement
-     *    cycle starts when mag_service_task is created below. */
+    /* 5. EXTI hookup. We register the callback now; no DRDY can fire yet
+     *    because single-shot mode issues no measurement until the service
+     *    task kicks the first SET pulse (see mag_mmc5983_start). The
+     *    on_drdy ISR also guards on service_task == NULL, so an early edge
+     *    would be ignored regardless. */
     io_exti_register(&IO_EXTI_MMC_INT, on_drdy, &s_self);
     io_exti_enable  (&IO_EXTI_MMC_INT, true);
 
-#ifdef MAG_HAVE_FREERTOS
-    /* 6. Spawn the service task that owns the SET/RESET state machine.
-     *    Priority 5 — same neighborhood as state estimation, so DRDY
-     *    handling doesn't get starved by lower-priority work. */
-    s_self.service_task = xTaskCreateStatic(
-        mag_service_task, "mag", 512, &s_self, 5,
-        s_self.service_stack, &s_self.service_tcb);
-    if (s_self.service_task == NULL) return false;
-#endif
+    /* NOTE: the SET/RESET service task is deliberately NOT created here.
+     * mag_mmc5983_init() runs in the DEV phase, before the FreeRTOS
+     * scheduler starts, and xTaskCreateStatic() takes a critical section.
+     * FreeRTOS's uxCriticalNesting is 0xaaaaaaaa until the scheduler
+     * starts, so that critical section raises BASEPRI to
+     * configMAX_SYSCALL_INTERRUPT_PRIORITY and never lowers it — which
+     * masks the TIM5 HAL-timebase IRQ and freezes HAL_GetTick(). Any
+     * later pre-scheduler code that blocks on a HAL timeout (e.g. the
+     * Dynamixel bus init's HAL_UART_Receive) would then hang forever.
+     * The task is created by mag_mmc5983_start() from app_init, in the
+     * same window as every other task, right before the scheduler runs. */
 
     s_self.ready = true;
     return true;
+}
+
+bool mag_mmc5983_start(void) {
+#ifdef MAG_HAVE_FREERTOS
+    if (!s_self.ready) return false;              /* init must have run */
+    if (s_self.service_task != NULL) return true; /* idempotent */
+    /* Priority 5 — same neighborhood as state estimation, so DRDY
+     * handling doesn't get starved by lower-priority work. */
+    s_self.service_task = xTaskCreateStatic(
+        mag_service_task, "mag", 512, &s_self, 5,
+        s_self.service_stack, &s_self.service_tcb);
+    return s_self.service_task != NULL;
+#else
+    return true;
+#endif
 }
 
 mag_mmc5983_t *mag_mmc5983_get(void) {
