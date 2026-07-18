@@ -114,11 +114,11 @@ static void updateConfiguration() {
     app_pid_gains_t pidGains;
     state_exchange_get_pid_gains(&pidGains);
     
-    s_pid_x.kd = pidGains.attitude_kd[0];
-    s_pid_y.kd = pidGains.attitude_kd[1];
+    if (pidGains.attitude_kd[0] != 0) s_pid_x.kd = pidGains.attitude_kd[0];
+    if (pidGains.attitude_kd[1] != 0) s_pid_y.kd = pidGains.attitude_kd[1];
 
-    s_pid_x.kp = pidGains.attitude_kp[0];
-    s_pid_y.kp = pidGains.attitude_kp[1];
+    if (pidGains.attitude_kp[0] != 0) s_pid_x.kp = pidGains.attitude_kp[0];
+    if (pidGains.attitude_kp[1] != 0) s_pid_y.kp = pidGains.attitude_kp[1];
 
     // stupid chud ground control station doesn't send I apparently
     // s_pid_x.ki = pidGains.atti[0];

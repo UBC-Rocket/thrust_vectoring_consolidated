@@ -116,6 +116,18 @@ static volatile bool s_esc_bringup_armed;
 static const escs_t *s_escs;
 static uint16_t s_bringup_esc_us;
 
+static uint16_t esc_gated_bringup_us(void)
+{
+    /* Fail closed: state_exchange leaves the destination unchanged if its
+     * seqlock read fails, so initialise to IDLE before every read. */
+    app_flight_state_t flight_state = APP_FLIGHT_IDLE;
+    (void)state_exchange_get_flight_state(&flight_state);
+
+    return (flight_state == APP_FLIGHT_RISE)
+        ? s_bringup_esc_us
+        : ESC_PWM_MIN_US;
+}
+
 void controls_on_tim_period_elapsed(void *htim_handle)
 {
     TIM_HandleTypeDef *htim = (TIM_HandleTypeDef *)htim_handle;
@@ -129,9 +141,10 @@ void controls_on_tim_period_elapsed(void *htim_handle)
     flight_controller_run(&state, &s_live_ref, &s_live_config, &out, CONTROLS_DT_S);
 
     /* Bring-up: pin ESC PWM from the 800 Hz ISR so nothing else can stomp CCR.
-     * T_cmd / pwm_setpoint_from_forces() is NOT wired yet — ignore T= in logs. */
+     * The fixed throttle is permitted only in RISE; every other state receives
+     * minimum throttle. T_cmd / pwm_setpoint_from_forces() is not wired yet. */
     if (s_esc_bringup_armed && s_escs != NULL) {
-        esc_apply_bringup_throttle(s_escs, s_bringup_esc_us);
+        esc_apply_bringup_throttle(s_escs, esc_gated_bringup_us());
     }
 
     (void)state_exchange_publish_control_output(&out);
@@ -245,10 +258,9 @@ void task_controls(void *arg) {
 
     osDelay(pdMS_TO_TICKS(6000));
 
-    /* Bring-up: confirm the motors actually spin post-arm before handing
-     * CCR over to the live controller. */
+    /* Arm the bring-up output path, but leave the current command at minimum.
+     * The TIM16 ISR applies the fixed throttle only while flight state is RISE. */
     s_bringup_esc_us = throttle_to_us(BRINGUP_ESC_THROTTLE);
-    esc_apply_bringup_throttle(s_escs, s_bringup_esc_us);
     s_esc_bringup_armed = true;
 
 #ifdef DEBUG_TEXT_CONSOLE
@@ -278,10 +290,11 @@ void task_controls(void *arg) {
             fmt_f3(ty, out.theta_y_cmd);
             fmt_f3(zi, out.z_pid_integral);
             if (s_escs != NULL && s_esc_bringup_armed) {
+                const uint16_t gated_esc_us = esc_gated_bringup_us();
                 io_debug_printf("[ctl] esc lo/hi/cmd=%u/%u/%u us  T=%s  gim=%s,%s  z_i=%s\r\n",
                                 (unsigned)esc_get_us(&s_escs->lower),
                                 (unsigned)esc_get_us(&s_escs->upper),
-                                (unsigned)s_bringup_esc_us,
+                                (unsigned)gated_esc_us,
                                 t, tx, ty, zi);
             } else if (s_escs != NULL) {
                 io_debug_printf("[ctl] esc arming lo/hi=%u/%u us  T=%s\r\n",
