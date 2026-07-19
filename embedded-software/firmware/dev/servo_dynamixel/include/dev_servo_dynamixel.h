@@ -16,10 +16,10 @@ extern "C" {
 
 /* Calibrated mechanical zero: encoder ticks when gimbal is at 0°, 0°. */
 #ifndef DXL_ZERO_TICKS_X
-#define DXL_ZERO_TICKS_X  2444
+#define DXL_ZERO_TICKS_X  1932
 #endif
 #ifndef DXL_ZERO_TICKS_Y
-#define DXL_ZERO_TICKS_Y  1432
+#define DXL_ZERO_TICKS_Y  1756
 #endif
 
 typedef struct servo_dynamixel servo_dynamixel_t;
