@@ -77,8 +77,13 @@
 
 /* ---- Constants ------------------------------------------------------- */
 
+/* State estimator selection. The full ESKF (15-state: attitude + per-IMU
+ * gyro/accel bias + position/velocity, fed by IMU/baro/mag/GPS) is PRIMARY —
+ * TILT_KF_ONLY defaults to 0. The lighter 2-axis tilt KF (attitude only) is
+ * retained as a fallback and selected at build time with USE_TILT_KF=1
+ * (build.sh) / -DUSE_TILT_KF=ON, which defines TILT_KF_ONLY=1 here. */
 #ifndef TILT_KF_ONLY
-#define TILT_KF_ONLY              1
+#define TILT_KF_ONLY              0
 #endif
 
 #define GRAV_MPS2                 9.80665f
@@ -669,6 +674,32 @@ void task_state_estimation(void *arg)
         };
         PUB_STATE_ESTIMATION_STATE_ESTIMATE(
             t_us, position, velocity, attitude, gyro_bias, accel_bias);
+
+#ifdef DEBUG_TEXT_CONSOLE
+        /* Bring-up: ESKF output at ~4 Hz. cal=0 during the ~4 s stationary
+         * calibration window, then 1. rpy is attitude in degrees (roll/pitch
+         * observable from accel+gyro; yaw from mag). alt is z position [m] —
+         * ~0 at rest after the baro reference latches, tracks up/down motion.
+         * xy will drift with no GPS fix (antenna off) — expected on the bench. */
+        {
+            static uint64_t s_eskf_dbg_last_us;
+            const uint64_t  t_dbg = io_timestamp_us();
+            if (t_dbg - s_eskf_dbg_last_us >= 250000ULL) {
+                s_eskf_dbg_last_us = t_dbg;
+                const float w = q[0], x = q[1], y = q[2], z = q[3];
+                const float roll  = atan2f(2.0f*(w*x + y*z), 1.0f - 2.0f*(x*x + y*y)) * 57.29578f;
+                float sp = 2.0f*(w*y - z*x);
+                if (sp >  1.0f) sp =  1.0f;
+                if (sp < -1.0f) sp = -1.0f;
+                const float pitch = asinf(sp) * 57.29578f;
+                const float yaw   = atan2f(2.0f*(w*z + x*y), 1.0f - 2.0f*(y*y + z*z)) * 57.29578f;
+                char r[16], p[16], yw[16], alt[16];
+                fmt_f3(r, roll); fmt_f3(p, pitch); fmt_f3(yw, yaw); fmt_f3(alt, pos[2]);
+                io_debug_printf("[eskf] cal=%d rpy=%s,%s,%s deg  alt=%s m\r\n",
+                                (int)eskf_is_calibrated(&s_eskf), r, p, yw, alt);
+            }
+        }
+#endif
 #endif
     }
 }

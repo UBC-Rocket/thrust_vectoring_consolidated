@@ -8,6 +8,11 @@ project(app LANGUAGES C)
 # Only one of the two can own the single STLINK-V3 VCP at a time.
 option(DEBUG_TEXT_CONSOLE "LPUART1/VCP = plain-text debug console (CoolTerm)" ON)
 
+# State estimator: the full ESKF is primary (default). Turn ON to build the
+# lighter 2-axis tilt KF (attitude-only) fallback instead — defines
+# TILT_KF_ONLY=1 for the CM4 state-estimation task.
+option(USE_TILT_KF "Use the attitude-only tilt KF instead of the full ESKF" OFF)
+
 # Intended (bring-up default) behavior: CM7 never arms the ESC PWM channels
 # (never HAL_TIM_PWM_Start's TIM4_CH1/CH2), so the 800 Hz control ISR,
 # controller math, and control_output publishing all run but no pulses reach
@@ -107,6 +112,11 @@ if(TARGET dev_imu_bmi088 AND TARGET dev_imu_icm40609 AND TARGET dev_baro_ms5611
     endif()
     if(DEBUG_TEXT_CONSOLE)
         target_compile_definitions(app_cm4 PRIVATE DEBUG_TEXT_CONSOLE)
+    endif()
+    # ESKF is primary (state_estimation_task.c defaults TILT_KF_ONLY=0). Only
+    # define the macro when the tilt-KF fallback is explicitly requested.
+    if(USE_TILT_KF)
+        target_compile_definitions(app_cm4 PRIVATE TILT_KF_ONLY=1)
     endif()
     set_target_properties(app_cm4 PROPERTIES
         C_STANDARD 11

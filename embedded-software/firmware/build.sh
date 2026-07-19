@@ -20,6 +20,8 @@ To build with Feetech instead: USE_FEETECH_SERVO=1 ./build.sh
 Bring-up flags:
   BARO_RELAX_CRC_ENV=1   relax the MS5611 PROM CRC gate (proceed if C1-C6
                          are sane; for boards with the word-0 read quirk)
+  USE_TILT_KF=1          build the attitude-only tilt-KF fallback instead of
+                         the full ESKF (ESKF is the default)
 
 Examples:
   ./build.sh
@@ -127,8 +129,16 @@ if [[ "${BARO_RELAX_CRC_ENV:-}" == "1" ]]; then
   BARO_RELAX_CRC=ON
 fi
 
+# State estimator: ESKF is primary (default). Set USE_TILT_KF=1 to build the
+# attitude-only tilt-KF fallback instead.
+USE_TILT_KF_ARG=OFF
+if [[ "${USE_TILT_KF:-}" == "1" ]]; then
+  USE_TILT_KF_ARG=ON
+fi
+
 CMAKE_ARGS=(--preset "$PRESET" -DUSE_DYNAMIXEL_SERVO="${USE_DYNAMIXEL_SERVO}"
-            -DBARO_RELAX_CRC="${BARO_RELAX_CRC}")
+            -DBARO_RELAX_CRC="${BARO_RELAX_CRC}"
+            -DUSE_TILT_KF="${USE_TILT_KF_ARG}")
 if [[ -n "$BUILD_CONTEXT" ]]; then
   CMAKE_ARGS+=(-DBUILD_CONTEXT="$BUILD_CONTEXT")
 fi

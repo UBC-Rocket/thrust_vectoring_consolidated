@@ -16,6 +16,7 @@ set(CMAKE_PROJECT_NAME ulysses-fc)
 
 option(USE_DYNAMIXEL_SERVO "Use Dynamixel XM430 instead of Feetech on UART8" OFF)
 option(BARO_RELAX_CRC "Relax MS5611 PROM CRC gate (bring-up boards)" OFF)
+option(USE_TILT_KF "Use the attitude-only tilt KF instead of the full ESKF" OFF)
 
 # -D args forwarded to the CM4 ExternalProject sub-build (consumed as
 # ${CM4_SERVO_CMAKE_ARG} in mx-generated.cmake). Named for its original
@@ -28,6 +29,9 @@ if(USE_DYNAMIXEL_SERVO)
 endif()
 if(BARO_RELAX_CRC)
     list(APPEND CM4_SERVO_CMAKE_ARG -DBARO_RELAX_CRC=ON)
+endif()
+if(USE_TILT_KF)
+    list(APPEND CM4_SERVO_CMAKE_ARG -DUSE_TILT_KF=ON)
 endif()
 
 # Core project settings
