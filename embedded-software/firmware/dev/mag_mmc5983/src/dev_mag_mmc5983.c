@@ -240,13 +240,10 @@ static bool read_xyzt(int32_t *rx_out, int32_t *ry_out, int32_t *rz_out,
  * and measurements also intermittently time out; with a 1 ms delay the halves
  * flip polarity and the field is real). */
 static bool trigger_with_pulse(uint8_t pulse_bit) {
-    /* 0. Clear the previous Meas_M_Done. It is write-1-to-clear and does NOT
-     *    auto-clear when a new measurement starts — so without this the next
-     *    wait_meas_done() returns immediately on the STALE flag and reads the
-     *    prior measurement's data. That makes the SET and RESET reads
-     *    identical, collapsing the differenced field to ~0 (and starving the
-     *    EKF's yaw update). No measurement is in flight here, so clearing is
-     *    safe. */
+    /* 0. Clear the previous Meas_M_Done. Per the datasheet TM_M already turns
+     *    this bit to 0 on the next measurement, so this write-1 is belt-and-
+     *    suspenders — it also deasserts the INT-pin latch, keeping things
+     *    clean if the DRDY interrupt is ever re-enabled. Cheap insurance. */
     (void)reg_write(MMC_REG_STATUS, MMC_STATUS_MEAS_M_DONE);
     /* 1. Degauss pulse alone. */
     if (!reg_write(MMC_REG_INTERNAL_CTRL_0, pulse_bit)) {
