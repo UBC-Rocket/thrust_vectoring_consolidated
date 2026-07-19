@@ -216,12 +216,34 @@ static bool read_xyzt(int32_t *rx_out, int32_t *ry_out, int32_t *rz_out,
     return true;
 }
 
-/* Kick a measurement after writing a SET or RESET coil pulse. CTRL_0 is
- * write-only side-effect: bits self-clear, so we write them fresh each
- * time. The INT_MEAS_DONE_EN bit must stay on so DRDY routes back to us. */
+/* Issue a SET/RESET degauss pulse, then start a magnetic measurement with the
+ * measurement-done interrupt enabled.
+ *
+ * These MUST be two separate CTRL_0 writes. Combining the SET/RESET pulse bit
+ * with TM_M in one write fires the degauss coil but the measurement never
+ * runs — so the chip never asserts INT and DRDY never fires (observed: the
+ * service task stalls in AWAIT_SET, no samples). CTRL_0 action bits (SET,
+ * RESET, TM_M) are one-shot / self-clearing, so each is written fresh.
+ *
+ * The SET/RESET coil settle is sub-microsecond; the CS framing + SPI
+ * transaction of the second write already provides far more separation than
+ * that, so no explicit delay is needed between the two writes. */
 static bool trigger_with_pulse(uint8_t pulse_bit) {
+    /* 0. Clear the previous Meas_M_Done. It is write-1-to-clear and does NOT
+     *    auto-clear when a new measurement starts — so without this the next
+     *    wait_meas_done() returns immediately on the STALE flag and reads the
+     *    prior measurement's data. That makes the SET and RESET reads
+     *    identical, collapsing the differenced field to ~0 (and starving the
+     *    EKF's yaw update). No measurement is in flight here, so clearing is
+     *    safe. */
+    (void)reg_write(MMC_REG_STATUS, MMC_STATUS_MEAS_M_DONE);
+    /* 1. Degauss pulse alone. */
+    if (!reg_write(MMC_REG_INTERNAL_CTRL_0, pulse_bit)) {
+        return false;
+    }
+    /* 2. Start the measurement + enable the done-interrupt → DRDY on complete. */
     return reg_write(MMC_REG_INTERNAL_CTRL_0,
-                     (uint8_t)(MMC_CTRL0_INT_MEAS_DONE_EN | pulse_bit | MMC_CTRL0_TM_M));
+                     (uint8_t)(MMC_CTRL0_INT_MEAS_DONE_EN | MMC_CTRL0_TM_M));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -247,28 +269,41 @@ static void on_drdy(void *user) {
 /* -------------------------------------------------------------------------- */
 
 #ifdef MAG_HAVE_FREERTOS
+/* Wait for the magnetic measurement to finish by polling STATUS.Meas_M_Done.
+ * The MMC5983's DRDY/INT pin was not producing edges on this board (the
+ * service task stalled forever waiting on the EXTI), so we poll the status
+ * bit instead — the part is slow (~4 ms/measurement at BW=200 Hz), so a 1 ms
+ * poll costs little. Returns true once done, false on timeout. */
+static bool wait_meas_done(uint32_t timeout_ms) {
+    for (uint32_t i = 0; i <= timeout_ms; ++i) {
+        uint8_t st = 0;
+        if (reg_read(MMC_REG_STATUS, &st, 1) && (st & MMC_STATUS_MEAS_M_DONE)) {
+            return true;
+        }
+        vTaskDelay(pdMS_TO_TICKS(1));
+    }
+    return false;
+}
+
 static void mag_service_task(void *arg) {
     mag_mmc5983_t *d = (mag_mmc5983_t *)arg;
 
     /* Start the state machine on the SET half. */
     d->phase = MAG_PHASE_AWAIT_SET;
     if (!trigger_with_pulse(MMC_CTRL0_SET)) {
-        /* Init-time SPI failure: stall here so EXTI-driven retry
-         * (or external watchdog) can recover. */
+        /* Init-time SPI failure: stall here so an external watchdog can
+         * recover. */
         for (;;) { vTaskDelay(pdMS_TO_TICKS(1000)); }
     }
 
     for (;;) {
-        uint32_t notify = 0;
-        if (xTaskNotifyWait(0, UINT32_MAX, &notify,
-                            MMC_MEAS_TIMEOUT_TICKS) == pdFALSE) {
-            /* DRDY didn't fire within the budget. Retry from the SET
+        if (!wait_meas_done(20U)) {
+            /* Measurement didn't finish in the budget. Retry from the SET
              * half so we don't get stuck mid-cycle. */
             d->phase = MAG_PHASE_AWAIT_SET;
             (void)trigger_with_pulse(MMC_CTRL0_SET);
             continue;
         }
-        if ((notify & MAG_NOTIFY_DRDY) == 0U) continue;
 
         int32_t rx, ry, rz;
         uint8_t tempb;
