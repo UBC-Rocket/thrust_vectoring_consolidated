@@ -147,6 +147,12 @@ static baro_sample_t s_baro_raw [DRAIN_BATCH];
 static gps_fix_t     s_gps_raw  [4];
 static mag_sample_t  s_mag_raw  [DRAIN_BATCH];
 
+#ifdef DEBUG_TEXT_CONSOLE
+/* Latest mag field (Gauss) fed to the ESKF, held for the [mag] console trace
+ * so it prints a fresh value even on cycles where no mag sample drained. */
+static float s_dbg_mag_last[3];
+#endif
+
 /* Tracks the EKF's calibration latch so we only persist the mag offset
  * once per boot. Set false at task start; flips true the first time
  * eskf_is_calibrated() returns true after a process call. */
@@ -550,6 +556,11 @@ void task_state_estimation(void *arg)
             s_mag_buf[n_mag].data[0]      = s_mag_raw[i].mx * sx;
             s_mag_buf[n_mag].data[1]      = s_mag_raw[i].my * sy;
             s_mag_buf[n_mag].data[2]      = s_mag_raw[i].mz * sz;
+#ifdef DEBUG_TEXT_CONSOLE
+            s_dbg_mag_last[0] = s_mag_buf[n_mag].data[0];
+            s_dbg_mag_last[1] = s_mag_buf[n_mag].data[1];
+            s_dbg_mag_last[2] = s_mag_buf[n_mag].data[2];
+#endif
             n_mag++;
 
             /* Snapshot the driver's live offset estimate for the SD
@@ -763,6 +774,11 @@ void task_state_estimation(void *arg)
                 fmt_f3(r, roll); fmt_f3(p, pitch); fmt_f3(yw, yaw); fmt_f3(alt, pos[2]);
                 io_debug_printf("[eskf] cal=%d rpy=%s,%s,%s deg  alt=%s m\r\n",
                                 (int)eskf_is_calibrated(&s_eskf), r, p, yw, alt);
+                char mgx[16], mgy[16], mgz[16];
+                fmt_f3(mgx, s_dbg_mag_last[0]);
+                fmt_f3(mgy, s_dbg_mag_last[1]);
+                fmt_f3(mgz, s_dbg_mag_last[2]);
+                io_debug_printf("[mag] field=%s,%s,%s G\r\n", mgx, mgy, mgz);
             }
         }
 #endif

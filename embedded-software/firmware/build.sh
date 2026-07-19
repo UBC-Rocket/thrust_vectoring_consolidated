@@ -26,6 +26,8 @@ Bring-up flags:
                          no antenna; lets the arm flow be tested without GPS)
   BENCH_FORCE_MAG_READY=1 force mag ready in the arm-readiness gate (bench; the
                          MMC5983 DRDY interrupt isn't firing yet)
+  ESKF_ESTIMATE_YAW=1    publish the ESKF's live (mag-driven) yaw instead of
+                         the FIXED_YAW override (off = gimbal-rig fixed yaw)
 
 Examples:
   ./build.sh
@@ -151,11 +153,19 @@ if [[ "${BENCH_FORCE_MAG_READY:-}" == "1" ]]; then
   BENCH_FORCE_MAG_READY_ARG=ON
 fi
 
+# State estimator yaw output: publish the live mag-driven yaw estimate instead
+# of the FIXED_YAW override. Default OFF pins yaw for the gimbal test rig.
+ESKF_ESTIMATE_YAW_ARG=OFF
+if [[ "${ESKF_ESTIMATE_YAW:-}" == "1" ]]; then
+  ESKF_ESTIMATE_YAW_ARG=ON
+fi
+
 CMAKE_ARGS=(--preset "$PRESET" -DUSE_DYNAMIXEL_SERVO="${USE_DYNAMIXEL_SERVO}"
             -DBARO_RELAX_CRC="${BARO_RELAX_CRC}"
             -DUSE_TILT_KF="${USE_TILT_KF_ARG}"
             -DBENCH_FORCE_GPS_LOCK="${BENCH_FORCE_GPS_LOCK_ARG}"
-            -DBENCH_FORCE_MAG_READY="${BENCH_FORCE_MAG_READY_ARG}")
+            -DBENCH_FORCE_MAG_READY="${BENCH_FORCE_MAG_READY_ARG}"
+            -DESKF_ESTIMATE_YAW="${ESKF_ESTIMATE_YAW_ARG}")
 if [[ -n "$BUILD_CONTEXT" ]]; then
   CMAKE_ARGS+=(-DBUILD_CONTEXT="$BUILD_CONTEXT")
 fi

@@ -670,7 +670,14 @@ void eskf_get_state(const eskf_t *eskf, float quat[4], float pos[3],
                     float vel[3])
 {
     memcpy(quat, eskf->orientation.q_nom, sizeof(float) * 4);
+    /* By default the published yaw is pinned to FIXED_YAW: the gimbal test
+     * rig physically constrains yaw, and yaw is unobservable without a
+     * working magnetometer. Build with -DESKF_ESTIMATE_YAW to publish the
+     * filter's live, mag-driven yaw estimate instead — q_nom already carries
+     * it, so we simply skip the override. */
+#ifndef ESKF_ESTIMATE_YAW
     set_quat_yaw(quat, FIXED_YAW);
+#endif
     memcpy(pos, eskf->body.position, sizeof(float) * 3);
     memcpy(vel, eskf->body.velocity, sizeof(float) * 3);
 }

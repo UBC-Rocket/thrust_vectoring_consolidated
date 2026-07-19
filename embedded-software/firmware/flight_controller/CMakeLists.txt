@@ -19,6 +19,7 @@ option(BARO_RELAX_CRC "Relax MS5611 PROM CRC gate (bring-up boards)" OFF)
 option(USE_TILT_KF "Use the attitude-only tilt KF instead of the full ESKF" OFF)
 option(BENCH_FORCE_GPS_LOCK "Force GPS lock in the readiness gate (bench)" OFF)
 option(BENCH_FORCE_MAG_READY "Force mag ready in the readiness gate (bench)" OFF)
+option(ESKF_ESTIMATE_YAW "Publish estimated yaw instead of FIXED_YAW (off = gimbal-rig fixed yaw)" OFF)
 
 # -D args forwarded to the CM4 ExternalProject sub-build (consumed as
 # ${CM4_SERVO_CMAKE_ARG} in mx-generated.cmake). Named for its original
@@ -40,6 +41,9 @@ if(BENCH_FORCE_GPS_LOCK)
 endif()
 if(BENCH_FORCE_MAG_READY)
     list(APPEND CM4_SERVO_CMAKE_ARG -DBENCH_FORCE_MAG_READY=ON)
+endif()
+if(ESKF_ESTIMATE_YAW)
+    list(APPEND CM4_SERVO_CMAKE_ARG -DESKF_ESTIMATE_YAW=ON)
 endif()
 
 # Core project settings
