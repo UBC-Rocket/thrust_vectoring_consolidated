@@ -179,6 +179,10 @@ void app_init_cm4(void) {
      * dev_init) froze HAL_GetTick() and hung the Dynamixel bus init. */
     (void)mag_mmc5983_start();
 
+    /* Same rule for the MS5611 baro polling task — created here, not in
+     * baro_ms5611_init, for the identical pre-scheduler BASEPRI reason. */
+    (void)baro_ms5611_start();
+
 #ifdef DEBUG_TEXT_CONSOLE
     /* Forward CM7's debug-console text to the shared VCP. Low priority — it
      * only shuttles bytes from the SRAM4 ring to LPUART1. */

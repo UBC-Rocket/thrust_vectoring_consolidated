@@ -37,6 +37,7 @@
 #include "io_sys/io_init.h"
 #include "io_sys/io_timestamp.h"
 #include "app/app_init.h"
+#include "dev_baro_ms5611.h"   /* TIM7 update → baro conversion pacer */
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -170,6 +171,7 @@ int main(void)
    * HAL_WWDG_Refresh inside the window). Deliberate edit to CubeMX-generated
    * code — re-apply after any .ioc regeneration. */
   MX_TIM13_Init();
+  MX_TIM7_Init();   /* UBC Rocket: 100 Hz baro conversion pacer (hand-added) */
   /* USER CODE BEGIN 2 */
   /* Bring up the four-layer stack on CM4 in order:
    *   IO  — start TIM13 timestamp, attach intercore HSEM, init SPI/SD/...
@@ -255,6 +257,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   /* USER CODE BEGIN Callback 1 */
   /* TIM13 wraps roll the shared 48-bit timestamp upper word. */
   io_timestamp_on_tim_period_elapsed(htim);
+  /* TIM7 update (100 Hz) paces the MS5611 conversion state machine —
+   * dispatched to the baro worker (ISR-safe: notifies, does no SPI here). */
+  baro_ms5611_on_tim_period_elapsed(htim);
   /* USER CODE END Callback 1 */
 }
 

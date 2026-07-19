@@ -430,6 +430,26 @@ void task_state_estimation(void *arg)
                 io_debug_printf("x=%s y=%s\r\n", tx, ty);
             }
         }
+
+        /* Bring-up: drain the TIM7-paced baro ring and print the latest
+         * pressure/temperature at ~1 Hz. In tilt-KF-only mode the baro isn't
+         * fed to a filter yet, so this both exercises the drain path (keeps
+         * the ring from staying full) and gives console visibility.
+         * pressure_pa (~101 kPa) overflows fmt_f3's clamp, so print it as an
+         * integer; temperature is small enough for fmt_f3. */
+        if (sensors->baro != NULL) {
+            baro_sample_t bs[8];
+            size_t nb = baro_ms5611_drain(sensors->baro, bs, 8);
+            static uint64_t s_baro_dbg_last_us;
+            const uint64_t  t_dbg = io_timestamp_us();
+            if (nb > 0 && (t_dbg - s_baro_dbg_last_us) >= 1000000ULL) {
+                s_baro_dbg_last_us = t_dbg;
+                char tc[16];
+                fmt_f3(tc, bs[nb - 1].temp_c);
+                io_debug_printf("[baro] P=%ld Pa  T=%s C\r\n",
+                                (long)bs[nb - 1].pressure_pa, tc);
+            }
+        }
 #endif
 
 #if !TILT_KF_ONLY

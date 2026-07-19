@@ -17,6 +17,10 @@ Build the STM32H745 dual-core flight controller firmware.
 CM4 servo driver defaults to Dynamixel (USE_DYNAMIXEL_SERVO=ON).
 To build with Feetech instead: USE_FEETECH_SERVO=1 ./build.sh
 
+Bring-up flags:
+  BARO_RELAX_CRC_ENV=1   relax the MS5611 PROM CRC gate (proceed if C1-C6
+                         are sane; for boards with the word-0 read quirk)
+
 Examples:
   ./build.sh
   ./build.sh Release
@@ -116,13 +120,24 @@ if [[ "${USE_FEETECH_SERVO:-}" == "1" ]]; then
   USE_DYNAMIXEL_SERVO=OFF
 fi
 
-CMAKE_ARGS=(--preset "$PRESET" -DUSE_DYNAMIXEL_SERVO="${USE_DYNAMIXEL_SERVO}")
+# Bring-up escape hatch: relax the MS5611 baro PROM CRC gate (proceed if
+# C1-C6 are sane but the CRC fails on the known word-0 read quirk).
+BARO_RELAX_CRC=OFF
+if [[ "${BARO_RELAX_CRC_ENV:-}" == "1" ]]; then
+  BARO_RELAX_CRC=ON
+fi
+
+CMAKE_ARGS=(--preset "$PRESET" -DUSE_DYNAMIXEL_SERVO="${USE_DYNAMIXEL_SERVO}"
+            -DBARO_RELAX_CRC="${BARO_RELAX_CRC}")
 if [[ -n "$BUILD_CONTEXT" ]]; then
   CMAKE_ARGS+=(-DBUILD_CONTEXT="$BUILD_CONTEXT")
 fi
 
 if [[ "$USE_DYNAMIXEL_SERVO" == "ON" ]]; then
   echo "    CM4 servo: Dynamixel (set USE_FEETECH_SERVO=1 for Feetech)"
+fi
+if [[ "$BARO_RELAX_CRC" == "ON" ]]; then
+  echo "    Baro: MS5611 CRC gate RELAXED (BARO_RELAX_CRC_ENV=1)"
 fi
 
 cmake "${CMAKE_ARGS[@]}"

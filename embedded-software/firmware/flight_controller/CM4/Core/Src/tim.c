@@ -25,6 +25,26 @@
 /* USER CODE END 0 */
 
 TIM_HandleTypeDef htim13;
+TIM_HandleTypeDef htim7;
+
+/* TIM7 init function.
+ * UBC Rocket: basic timer at 100 Hz to pace the MS5611 barometer's polled
+ * D1/D2 conversion state machine. APB1 timer clock is 240 MHz; Prescaler 239
+ * → 1 MHz counter, Period 9999 → 100 Hz update IRQ. The IRQ notifies the baro
+ * worker (see dev_baro_ms5611 / HAL_TIM_PeriodElapsedCallback in main.c).
+ * Hand-added alongside the .ioc TIM7 entry — re-apply after any .ioc regen. */
+void MX_TIM7_Init(void)
+{
+  htim7.Instance = TIM7;
+  htim7.Init.Prescaler = 239;
+  htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim7.Init.Period = 9999;
+  htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
 
 /* TIM13 init function */
 void MX_TIM13_Init(void)
@@ -70,7 +90,22 @@ void MX_TIM13_Init(void)
 void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* tim_baseHandle)
 {
 
-  if(tim_baseHandle->Instance==TIM13)
+  if(tim_baseHandle->Instance==TIM7)
+  {
+  /* USER CODE BEGIN TIM7_MspInit 0 */
+
+  /* USER CODE END TIM7_MspInit 0 */
+    /* TIM7 clock enable */
+    __HAL_RCC_TIM7_CLK_ENABLE();
+
+    /* TIM7 interrupt Init */
+    HAL_NVIC_SetPriority(TIM7_IRQn, 5, 0);
+    HAL_NVIC_EnableIRQ(TIM7_IRQn);
+  /* USER CODE BEGIN TIM7_MspInit 1 */
+
+  /* USER CODE END TIM7_MspInit 1 */
+  }
+  else if(tim_baseHandle->Instance==TIM13)
   {
   /* USER CODE BEGIN TIM13_MspInit 0 */
 

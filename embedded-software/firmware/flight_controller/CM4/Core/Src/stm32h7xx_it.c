@@ -85,6 +85,7 @@ extern SPI_HandleTypeDef hspi3;
 extern SPI_HandleTypeDef hspi4;
 extern TIM_HandleTypeDef htim5;
 extern TIM_HandleTypeDef htim13;
+extern TIM_HandleTypeDef htim7;   /* UBC Rocket: baro conversion pacer */
 
 /* USER CODE BEGIN EV */
 
@@ -717,6 +718,16 @@ void HSEM2_IRQHandler(void)
 void TIM8_UP_TIM13_IRQHandler(void)
 {
   HAL_TIM_IRQHandler(&htim13);
+}
+
+/* UBC Rocket: TIM7 (100 Hz) paces the MS5611 baro conversion state machine.
+ * HAL_TIM_IRQHandler clears the update flag and invokes
+ * HAL_TIM_PeriodElapsedCallback (main.c), which notifies the baro worker.
+ * NVIC line enabled in tim.c HAL_TIM_Base_MspInit(TIM7). Hand-added — re-apply
+ * after .ioc regeneration. */
+void TIM7_IRQHandler(void)
+{
+  HAL_TIM_IRQHandler(&htim7);
 }
 
 /* USER CODE END 1 */
