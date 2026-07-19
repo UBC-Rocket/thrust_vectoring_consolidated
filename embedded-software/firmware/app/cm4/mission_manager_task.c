@@ -72,7 +72,7 @@
  * many ms while ARMED or in flight (RISE/DESCENT), drop to IDLE and
  * disarm. The deprecated H5 build did not implement this; the spec
  * for the new system calls for ~500 ms. */
-#define MM_HEARTBEAT_TIMEOUT_MS  500U
+#define MM_HEARTBEAT_TIMEOUT_MS  2000U
 
 /* Max frames we'll drain in one pass. Bounded so a flood can't
  * starve the watchdog tick. The radio ring is 8 deep, so this also
@@ -206,6 +206,8 @@ static bool mm_apply_state_cmd(tvr_StateCommand_Type cmd) {
  * solver merges by checking >0). Pragmatic for v1; if zero is ever a
  * valid gain we'll add an explicit valid bitmask. */
 static void mm_forward_pid_gains(const tvr_SetPidGains *src) {
+    /* The target uses newlib-nano without _printf_float, so %f renders as an
+     * empty field. Print the gain as fixed-point using integer conversions. */
     app_pid_gains_t g = {0};
     if (src->has_attitude_kp) {
         g.attitude_kp[0] = src->attitude_kp.x;

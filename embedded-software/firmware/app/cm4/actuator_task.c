@@ -59,12 +59,10 @@
 #define GIMBAL_DEFAULT_DEG_Y       0.0f
 
 /* Per-axis PID (KF y -> Dynamixel X, KF x -> Dynamixel Y). */
-#define TILT_KP_X                  0.08f
+// NOTE: THESE VALUES WILL BE OVERWRITTEN, LEFT TEMPORARILY ONLY FOR TESTING
+// delete if gc works
 #define TILT_KI_X                  0.00f
-#define TILT_KD_X                  0.00f
-#define TILT_KP_Y                  0.0f
 #define TILT_KI_Y                  0.00f
-#define TILT_KD_Y                  0.00f
 #define TILT_INTEGRAL_LIMIT        1.0f   /* anti-windup [rad*s] */
 #define GIMBAL_CLAMP_RAD           (GIMBAL_CLAMP_DEG * ((float)M_PI / 180.0f))
 
@@ -99,13 +97,28 @@ static void actuator_pid_init(void)
 {
     /* X: negated gains preserve +Kp/Kd on KF y (inverted mount). */
     pid_init(&s_pid_x,
-             -TILT_KP_X, -TILT_KI_X, -TILT_KD_X,
+             0, -TILT_KI_X, 0,
              TILT_INTEGRAL_LIMIT,
              -GIMBAL_CLAMP_RAD, GIMBAL_CLAMP_RAD);
     pid_init(&s_pid_y,
-             TILT_KP_Y, TILT_KI_Y, TILT_KD_Y,
+             0, TILT_KI_Y, 0,
              TILT_INTEGRAL_LIMIT,
              -GIMBAL_CLAMP_RAD, GIMBAL_CLAMP_RAD);
+}
+
+static void updateConfiguration() {
+    app_pid_gains_t pidGains;
+    state_exchange_get_pid_gains(&pidGains);
+    
+    s_pid_x.kd = -pidGains.attitude_kd[0];
+    s_pid_y.kd = pidGains.attitude_kd[1];
+
+    s_pid_x.kp = -pidGains.attitude_kp[0];
+    s_pid_y.kp = pidGains.attitude_kp[1];
+
+    // stupid chud ground control station doesn't send I apparently
+    // s_pid_x.ki = pidGains.atti[0];
+    // s_pid_y.ki = pidGains.attitude_kp[1];
 }
 
 /* Dynamixel X: PID on KF y (inverted mount). Dynamixel Y: PID on KF x. */
@@ -272,16 +285,24 @@ void task_actuator(void *arg)
     io_debug_printf("[gimbal] %s clamp=%u deg  Kp x=%u y=%u  Ki x=%u y=%u  deadband=%u mdeg\r\n",
                     GIMBAL_BUILD_TAG,
                     (unsigned)(GIMBAL_CLAMP_DEG + 0.5f),
-                    (unsigned)(TILT_KP_X * 1000.0f + 0.5f),
-                    (unsigned)(TILT_KP_Y * 1000.0f + 0.5f),
-                    (unsigned)(TILT_KI_X * 1000.0f + 0.5f),
-                    (unsigned)(TILT_KI_Y * 1000.0f + 0.5f),
+                    (unsigned)(s_pid_x.kd  * 1000.0f + 0.5f),
+                    (unsigned)(s_pid_y.kd  * 1000.0f + 0.5f),
+                    (unsigned)(s_pid_x.ki  * 1000.0f + 0.5f),
+                    (unsigned)(s_pid_y.ki  * 1000.0f + 0.5f),
                     (unsigned)(GIMBAL_CMD_DEADBAND_DEG * 1000.0f + 0.5f));
 #endif
+    app_flight_state_t current_state = APP_FLIGHT_IDLE;
 
     for (;;) {
         vTaskDelay(pdMS_TO_TICKS(ACTUATOR_LOOP_MS));
-        actuator_apply_tilt_pid(dxl);
+        state_exchange_get_flight_state(&current_state);
+
+        if (current_state == APP_FLIGHT_RISE) {
+            actuator_apply_tilt_pid(dxl);
+        }
+        else {
+            updateConfiguration();
+        }
 
 #ifdef DEBUG_TEXT_CONSOLE
         {
