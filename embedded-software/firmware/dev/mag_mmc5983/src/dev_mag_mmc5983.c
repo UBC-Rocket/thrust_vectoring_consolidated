@@ -124,6 +124,14 @@
 
 #define MAG_RING_SIZE 8
 
+/* Settle time between a SET/RESET degauss pulse and the measurement trigger.
+ * The magnetization must complete before TM_M or the two halves read the same
+ * state and the differenced field collapses to ~0. SparkFun's driver uses
+ * ~1 ms; we match that. */
+#ifndef MAG_SETRESET_SETTLE_MS
+#define MAG_SETRESET_SETTLE_MS 1U
+#endif
+
 typedef enum {
     MAG_PHASE_AWAIT_SET = 0,    /* next DRDY captures M_set    */
     MAG_PHASE_AWAIT_RESET,      /* next DRDY captures M_reset  */
@@ -225,9 +233,12 @@ static bool read_xyzt(int32_t *rx_out, int32_t *ry_out, int32_t *rz_out,
  * service task stalls in AWAIT_SET, no samples). CTRL_0 action bits (SET,
  * RESET, TM_M) are one-shot / self-clearing, so each is written fresh.
  *
- * The SET/RESET coil settle is sub-microsecond; the CS framing + SPI
- * transaction of the second write already provides far more separation than
- * that, so no explicit delay is needed between the two writes. */
+ * A settle delay between the pulse and TM_M is REQUIRED: firing the
+ * measurement immediately reads the pre-magnetization state, so the SET and
+ * RESET halves come back with the same polarity and the differenced field
+ * collapses to ~0 (verified on hardware: without the delay M_set ~= M_reset
+ * and measurements also intermittently time out; with a 1 ms delay the halves
+ * flip polarity and the field is real). */
 static bool trigger_with_pulse(uint8_t pulse_bit) {
     /* 0. Clear the previous Meas_M_Done. It is write-1-to-clear and does NOT
      *    auto-clear when a new measurement starts — so without this the next
@@ -241,6 +252,11 @@ static bool trigger_with_pulse(uint8_t pulse_bit) {
     if (!reg_write(MMC_REG_INTERNAL_CTRL_0, pulse_bit)) {
         return false;
     }
+    /* 1b. Let the SET/RESET coil operation complete BEFORE measuring. The
+     *     magnetization must settle or the measurement reads the pre-pulse
+     *     state and SET/RESET come back identical (field differences to ~0).
+     *     Known-good drivers (SparkFun) wait ~1 ms here. */
+    vTaskDelay(pdMS_TO_TICKS(MAG_SETRESET_SETTLE_MS));
     /* 2. Start the measurement + enable the done-interrupt → DRDY on complete. */
     return reg_write(MMC_REG_INTERNAL_CTRL_0,
                      (uint8_t)(MMC_CTRL0_INT_MEAS_DONE_EN | MMC_CTRL0_TM_M));
