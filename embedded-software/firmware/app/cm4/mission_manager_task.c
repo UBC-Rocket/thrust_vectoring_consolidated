@@ -159,6 +159,24 @@ static bool mm_apply_state_cmd(tvr_StateCommand_Type cmd) {
         case tvr_StateCommand_Type_CMD_ARM:
             /* Only IDLE may arm. */
             if (s_flight_state == APP_FLIGHT_IDLE) {
+#if !TILT_KF_ONLY
+                /* ...and only once the sensors have settled. The state-
+                 * estimation task publishes readiness (EKF bias cal, mag
+                 * offset valid, GPS lock); refuse ARM until armable so the
+                 * vehicle can't start up cold. Tilt-KF builds skip this gate
+                 * (readiness isn't computed there). */
+                vehicle_readiness_t rdy;
+                (void)state_exchange_get_readiness(&rdy);
+                if (!rdy.armable) {
+#ifdef DEBUG_TEXT_CONSOLE
+                    io_debug_printf(
+                        "[mm] ARM refused — sensors not ready "
+                        "(imu=%d mag=%d gps=%d)\r\n",
+                        (int)rdy.imu, (int)rdy.mag, (int)rdy.gps_locked);
+#endif
+                    return false;
+                }
+#endif
                 mm_set_state(APP_FLIGHT_ARMED);
                 mm_set_armed(true);
                 return true;

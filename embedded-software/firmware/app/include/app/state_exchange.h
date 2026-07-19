@@ -69,6 +69,26 @@ typedef struct {
     float theta_max;  /* max gimbal angle [rad]                             */
 } app_vehicle_config_t;
 
+/* ---------------------------------------------------------------------------
+ * Sensor readiness — CM4 (state estimation) writes, CM4 (mission manager) and
+ * CM7 read. The vehicle must not arm until its sensors have settled; this
+ * surfaces per-sensor calibration/settle state so the mission manager can gate
+ * arming and (later) the GCS can show sensor health.
+ * --------------------------------------------------------------------------- */
+typedef enum {
+    SENSOR_CAL_UNCAL = 0,   /* no data yet / not started                    */
+    SENSOR_CAL_SETTLING,    /* acquiring / calibrating                      */
+    SENSOR_CAL_READY,       /* settled — bias/offset usable                 */
+} sensor_cal_state_t;
+
+typedef struct {
+    sensor_cal_state_t imu;   /* gyro+accel bias — EKF stationary cal window */
+    sensor_cal_state_t mag;   /* mag hard-iron offset valid (status-only)    */
+    bool     gps_locked;      /* GPS fix acquired (valid && fix_type > 0)    */
+    uint8_t  gps_sats;        /* satellites used (0 if no fix)               */
+    bool     armable;         /* all REQUIRED sensors ready → ARM permitted  */
+} vehicle_readiness_t;
+
 /**
  * @brief Attach to the shared-memory slots. Must be called by every core
  *        before any publish/get call. Safe to call multiple times.
@@ -102,6 +122,10 @@ uint32_t state_exchange_get_reference(app_reference_t *out);
 
 uint32_t state_exchange_publish_vehicle_config(const app_vehicle_config_t *cfg);
 uint32_t state_exchange_get_vehicle_config(app_vehicle_config_t *out);
+
+/* ---------- sensor readiness (CM4 state-est writes, mission + CM7 read) ---------- */
+uint32_t state_exchange_publish_readiness(const vehicle_readiness_t *r);
+uint32_t state_exchange_get_readiness(vehicle_readiness_t *out);
 
 #ifdef __cplusplus
 }

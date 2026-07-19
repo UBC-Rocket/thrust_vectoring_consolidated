@@ -122,6 +122,14 @@ extern "C" {
  * --------------------------------------------------------------------------- */
 #define APP_SLOT_SD_CURSOR_OFFSET   0x2840    /* after the 8 kB log ring */
 #define APP_SLOT_SD_CURSOR_PAYLOAD  16U
+
+/* ---------------------------------------------------------------------------
+ * Sensor readiness (vehicle_readiness_t). CM4 state-estimation writes; CM4
+ * mission manager + CM7 read. Placed in the post-ring headroom (after the SD
+ * cursor). 64 B payload covers the struct with room to grow.
+ * --------------------------------------------------------------------------- */
+#define APP_SLOT_READINESS_OFFSET   0x2880
+#define APP_SLOT_READINESS_PAYLOAD  64U
 #define APP_SD_CURSOR_MAGIC         0x53444C47U  /* "SDLG" */
 
 /* ---------------------------------------------------------------------------

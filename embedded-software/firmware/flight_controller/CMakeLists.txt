@@ -17,6 +17,8 @@ set(CMAKE_PROJECT_NAME ulysses-fc)
 option(USE_DYNAMIXEL_SERVO "Use Dynamixel XM430 instead of Feetech on UART8" OFF)
 option(BARO_RELAX_CRC "Relax MS5611 PROM CRC gate (bring-up boards)" OFF)
 option(USE_TILT_KF "Use the attitude-only tilt KF instead of the full ESKF" OFF)
+option(BENCH_FORCE_GPS_LOCK "Force GPS lock in the readiness gate (bench)" OFF)
+option(BENCH_FORCE_MAG_READY "Force mag ready in the readiness gate (bench)" OFF)
 
 # -D args forwarded to the CM4 ExternalProject sub-build (consumed as
 # ${CM4_SERVO_CMAKE_ARG} in mx-generated.cmake). Named for its original
@@ -32,6 +34,12 @@ if(BARO_RELAX_CRC)
 endif()
 if(USE_TILT_KF)
     list(APPEND CM4_SERVO_CMAKE_ARG -DUSE_TILT_KF=ON)
+endif()
+if(BENCH_FORCE_GPS_LOCK)
+    list(APPEND CM4_SERVO_CMAKE_ARG -DBENCH_FORCE_GPS_LOCK=ON)
+endif()
+if(BENCH_FORCE_MAG_READY)
+    list(APPEND CM4_SERVO_CMAKE_ARG -DBENCH_FORCE_MAG_READY=ON)
 endif()
 
 # Core project settings

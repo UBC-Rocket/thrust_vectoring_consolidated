@@ -87,6 +87,15 @@ void app_init_cm4(void) {
 
         const control_output_t     ctl_defaults = {0};
 
+        /* Readiness defaults to NOT-armable: the ESKF arming gate is closed
+         * from power-on until the state-estimation task confirms the sensors
+         * have settled. (In tilt-KF builds the mission manager doesn't consult
+         * this slot, so the default is harmless there.) */
+        const vehicle_readiness_t  ready_defaults = {
+            .imu = SENSOR_CAL_UNCAL, .mag = SENSOR_CAL_UNCAL,
+            .gps_locked = false, .gps_sats = 0, .armable = false,
+        };
+
         (void)state_exchange_publish_pid_gains(&pid_defaults);
         (void)state_exchange_publish_reference(&ref_defaults);
         (void)state_exchange_publish_vehicle_config(&cfg_defaults);
@@ -94,6 +103,7 @@ void app_init_cm4(void) {
         (void)state_exchange_publish_armed(false);
         (void)state_exchange_publish_flight_state(APP_FLIGHT_IDLE);
         (void)state_exchange_publish_state(&state_default);
+        (void)state_exchange_publish_readiness(&ready_defaults);
     }
 
     log_service_init();

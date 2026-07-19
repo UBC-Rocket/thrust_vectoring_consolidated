@@ -13,6 +13,12 @@ option(DEBUG_TEXT_CONSOLE "LPUART1/VCP = plain-text debug console (CoolTerm)" ON
 # TILT_KF_ONLY=1 for the CM4 state-estimation task.
 option(USE_TILT_KF "Use the attitude-only tilt KF instead of the full ESKF" OFF)
 
+# Bench testing: force the readiness gate's GPS lock true (the bench board has
+# no GPS antenna, so a real fix never arrives). Lets the arm-readiness flow be
+# exercised without GPS. Do NOT ship enabled.
+option(BENCH_FORCE_GPS_LOCK "Force GPS lock in the readiness gate (bench, no antenna)" OFF)
+option(BENCH_FORCE_MAG_READY "Force mag ready in the readiness gate (bench, mag DRDY not firing)" OFF)
+
 # Intended (bring-up default) behavior: CM7 never arms the ESC PWM channels
 # (never HAL_TIM_PWM_Start's TIM4_CH1/CH2), so the 800 Hz control ISR,
 # controller math, and control_output publishing all run but no pulses reach
@@ -117,6 +123,12 @@ if(TARGET dev_imu_bmi088 AND TARGET dev_imu_icm40609 AND TARGET dev_baro_ms5611
     # define the macro when the tilt-KF fallback is explicitly requested.
     if(USE_TILT_KF)
         target_compile_definitions(app_cm4 PRIVATE TILT_KF_ONLY=1)
+    endif()
+    if(BENCH_FORCE_GPS_LOCK)
+        target_compile_definitions(app_cm4 PRIVATE BENCH_FORCE_GPS_LOCK)
+    endif()
+    if(BENCH_FORCE_MAG_READY)
+        target_compile_definitions(app_cm4 PRIVATE BENCH_FORCE_MAG_READY)
     endif()
     set_target_properties(app_cm4 PROPERTIES
         C_STANDARD 11

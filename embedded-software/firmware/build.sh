@@ -22,6 +22,10 @@ Bring-up flags:
                          are sane; for boards with the word-0 read quirk)
   USE_TILT_KF=1          build the attitude-only tilt-KF fallback instead of
                          the full ESKF (ESKF is the default)
+  BENCH_FORCE_GPS_LOCK=1 force GPS lock in the arm-readiness gate (bench has
+                         no antenna; lets the arm flow be tested without GPS)
+  BENCH_FORCE_MAG_READY=1 force mag ready in the arm-readiness gate (bench; the
+                         MMC5983 DRDY interrupt isn't firing yet)
 
 Examples:
   ./build.sh
@@ -136,9 +140,22 @@ if [[ "${USE_TILT_KF:-}" == "1" ]]; then
   USE_TILT_KF_ARG=ON
 fi
 
+# Bench testing: force the readiness gate's GPS lock / mag ready (no antenna,
+# and the mag DRDY isn't firing yet — lets the arm flow be tested).
+BENCH_FORCE_GPS_LOCK_ARG=OFF
+if [[ "${BENCH_FORCE_GPS_LOCK:-}" == "1" ]]; then
+  BENCH_FORCE_GPS_LOCK_ARG=ON
+fi
+BENCH_FORCE_MAG_READY_ARG=OFF
+if [[ "${BENCH_FORCE_MAG_READY:-}" == "1" ]]; then
+  BENCH_FORCE_MAG_READY_ARG=ON
+fi
+
 CMAKE_ARGS=(--preset "$PRESET" -DUSE_DYNAMIXEL_SERVO="${USE_DYNAMIXEL_SERVO}"
             -DBARO_RELAX_CRC="${BARO_RELAX_CRC}"
-            -DUSE_TILT_KF="${USE_TILT_KF_ARG}")
+            -DUSE_TILT_KF="${USE_TILT_KF_ARG}"
+            -DBENCH_FORCE_GPS_LOCK="${BENCH_FORCE_GPS_LOCK_ARG}"
+            -DBENCH_FORCE_MAG_READY="${BENCH_FORCE_MAG_READY_ARG}")
 if [[ -n "$BUILD_CONTEXT" ]]; then
   CMAKE_ARGS+=(-DBUILD_CONTEXT="$BUILD_CONTEXT")
 fi

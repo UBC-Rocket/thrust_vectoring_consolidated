@@ -168,6 +168,16 @@ static struct {
     float  alt_m;
     bool   set;
 } s_gps_ref = {0};
+
+/* Latest GPS lock status, latched from drained fixes. "locked" clears if no
+ * valid fix arrives within GPS_LOCK_TIMEOUT_US (a dropped fix shouldn't read
+ * as locked forever). Feeds the readiness gate. */
+#define GPS_LOCK_TIMEOUT_US   3000000ULL   /* 3 s */
+static struct {
+    bool     locked;
+    uint8_t  sats;
+    uint64_t last_fix_us;
+} s_gps_stat = {0};
 #endif
 
 static icm_sample_t  s_icm_raw  [DRAIN_BATCH];
@@ -563,6 +573,11 @@ void task_state_estimation(void *arg)
         for (size_t i = 0; i < n_gp && n_gps < (sizeof(s_gps_buf)/sizeof(s_gps_buf[0])); i++) {
             if (!s_gps_raw[i].valid || s_gps_raw[i].fix_type == 0) continue;
 
+            /* Latch GPS lock for the readiness gate. */
+            s_gps_stat.locked      = true;
+            s_gps_stat.sats        = s_gps_raw[i].sats_used;
+            s_gps_stat.last_fix_us = s_gps_raw[i].t_us;
+
             if (!s_gps_ref.set) {
                 s_gps_ref.lat_rad = s_gps_raw[i].latitude_deg  * DEG2RAD;
                 s_gps_ref.lon_rad = s_gps_raw[i].longitude_deg * DEG2RAD;
@@ -674,6 +689,57 @@ void task_state_estimation(void *arg)
         };
         PUB_STATE_ESTIMATION_STATE_ESTIMATE(
             t_us, position, velocity, attitude, gyro_bias, accel_bias);
+
+        /* ---- Sensor readiness gate ----------------------------------
+         * The vehicle must not arm until its sensors have settled. Publish
+         * per-sensor readiness for the mission manager (arming gate) and CM7.
+         *   imu  — EKF stationary bias calibration complete
+         *   mag  — hard-iron offset valid (status-only; SET/RESET is live)
+         *   gps  — a valid fix seen recently (BENCH_FORCE_GPS_LOCK overrides
+         *          for antenna-less bench testing) */
+        {
+            vehicle_readiness_t rdy;
+            rdy.imu = eskf_is_calibrated(&s_eskf) ? SENSOR_CAL_READY
+                                                  : SENSOR_CAL_SETTLING;
+
+            float mo[3];
+            rdy.mag = mag_mmc5983_get_offset(sensors->mag, mo) ? SENSOR_CAL_READY
+                                                               : SENSOR_CAL_SETTLING;
+#ifdef BENCH_FORCE_MAG_READY
+            rdy.mag = SENSOR_CAL_READY;   /* bench: mag DRDY not firing yet */
+#endif
+
+            const uint64_t now2 = io_timestamp_us();
+            if (s_gps_stat.locked &&
+                (now2 - s_gps_stat.last_fix_us) > GPS_LOCK_TIMEOUT_US) {
+                s_gps_stat.locked = false;
+                s_gps_stat.sats   = 0;
+            }
+            rdy.gps_locked = s_gps_stat.locked;
+            rdy.gps_sats   = s_gps_stat.sats;
+#ifdef BENCH_FORCE_GPS_LOCK
+            rdy.gps_locked = true;   /* bench: no antenna — force GPS lock */
+#endif
+
+            rdy.armable = (rdy.imu == SENSOR_CAL_READY) &&
+                          (rdy.mag == SENSOR_CAL_READY) &&
+                          rdy.gps_locked;
+
+            (void)state_exchange_publish_readiness(&rdy);
+
+#ifdef DEBUG_TEXT_CONSOLE
+            static uint64_t s_rdy_dbg_last_us;
+            if (now2 - s_rdy_dbg_last_us >= 1000000ULL) {   /* 1 Hz */
+                s_rdy_dbg_last_us = now2;
+                static const char *const cs[] = { "uncal", "settling", "READY" };
+                io_debug_printf(
+                    "[ready] imu=%s mag=%s gps=%s(%u)  ARMABLE=%d\r\n",
+                    cs[rdy.imu], cs[rdy.mag],
+                    rdy.gps_locked ? "lock" : "no", (unsigned)rdy.gps_sats,
+                    (int)rdy.armable);
+            }
+#endif
+        }
 
 #ifdef DEBUG_TEXT_CONSOLE
         /* Bring-up: ESKF output at ~4 Hz. cal=0 during the ~4 s stationary
