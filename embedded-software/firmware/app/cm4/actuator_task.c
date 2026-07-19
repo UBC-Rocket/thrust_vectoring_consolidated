@@ -295,7 +295,7 @@ void task_actuator(void *arg)
                     (unsigned)(TILT_KI_Y * 1000.0f + 0.5f),
                     (unsigned)(GIMBAL_CMD_DEADBAND_DEG * 1000.0f + 0.5f));
 #endif
-    app_flight_state_t current_state;
+    app_flight_state_t current_state = APP_FLIGHT_IDLE;
 
     for (;;) {
         vTaskDelay(pdMS_TO_TICKS(ACTUATOR_LOOP_MS));
