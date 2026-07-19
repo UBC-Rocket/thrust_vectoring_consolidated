@@ -285,10 +285,10 @@ void task_actuator(void *arg)
     io_debug_printf("[gimbal] %s clamp=%u deg  Kp x=%u y=%u  Ki x=%u y=%u  deadband=%u mdeg\r\n",
                     GIMBAL_BUILD_TAG,
                     (unsigned)(GIMBAL_CLAMP_DEG + 0.5f),
-                    (unsigned)(TILT_KP_X * 1000.0f + 0.5f),
-                    (unsigned)(TILT_KP_Y * 1000.0f + 0.5f),
-                    (unsigned)(TILT_KI_X * 1000.0f + 0.5f),
-                    (unsigned)(TILT_KI_Y * 1000.0f + 0.5f),
+                    (unsigned)(s_pid_x.kd  * 1000.0f + 0.5f),
+                    (unsigned)(s_pid_y.kd  * 1000.0f + 0.5f),
+                    (unsigned)(s_pid_x.ki  * 1000.0f + 0.5f),
+                    (unsigned)(s_pid_y.ki  * 1000.0f + 0.5f),
                     (unsigned)(GIMBAL_CMD_DEADBAND_DEG * 1000.0f + 0.5f));
 #endif
     app_flight_state_t current_state = APP_FLIGHT_IDLE;
