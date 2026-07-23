@@ -16,7 +16,7 @@ extern "C" {
 
 /* Calibrated mechanical zero: encoder ticks when gimbal is at 0°, 0°. */
 #ifndef DXL_ZERO_TICKS_X
-#define DXL_ZERO_TICKS_X  2332
+#define DXL_ZERO_TICKS_X  2345
 #endif
 #ifndef DXL_ZERO_TICKS_Y
 #define DXL_ZERO_TICKS_Y  2275
