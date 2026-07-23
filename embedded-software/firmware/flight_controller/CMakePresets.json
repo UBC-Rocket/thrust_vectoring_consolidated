@@ -8,6 +8,7 @@
             "binaryDir": "${sourceDir}/build/${presetName}",
 		    "toolchainFile": "${sourceDir}/gcc-arm-none-eabi.cmake",
             "cacheVariables": {
+                "BUILD_CONTEXT": "CM4_CM7"
             }
         },
         {

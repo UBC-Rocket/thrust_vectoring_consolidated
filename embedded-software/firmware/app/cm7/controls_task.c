@@ -47,8 +47,8 @@
 /* Bring-up: fixed throttle after ESC arm delay. Change here only — the debug
  * log and esc_set_us() both use this (the old log hardcoded 0.25f and lied).
  * After editing: rebuild + flash CM7 (./build.sh && ./flash.sh Debug cm7). */
-#define BRINGUP_ESC_THROTTLE       0.65f
-#define BRINGUP_ESC_BUILD_TAG      "esc-bringup-v2"
+#define BRINGUP_ESC_THROTTLE       0.60f
+#define BRINGUP_ESC_BUILD_TAG      "esc-bringup-10pct-v3"
 
 static inline uint16_t throttle_to_us(float throttle) {
     if (throttle < 0.0f) throttle = 0.0f;

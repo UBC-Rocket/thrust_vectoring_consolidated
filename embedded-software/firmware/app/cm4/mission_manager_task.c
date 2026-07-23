@@ -24,6 +24,7 @@
  *   DESCENT--landed cond--> LANDED  (see mm_check_touchdown — quiescent
  *                                    altitude + velocity for a sustained
  *                                    window read from state_exchange)
+ *   LANDED --CMD_ARM-->      ARMED   (start another ground-test cycle)
  *   any    --CMD_ABORT-->   ESTOP   (terminal; requires reboot)
  *   ARMED  --no heartbeat--> IDLE   (watchdog disarm)
  *
@@ -157,8 +158,10 @@ static bool mm_apply_state_cmd(tvr_StateCommand_Type cmd) {
 
     switch (cmd) {
         case tvr_StateCommand_Type_CMD_ARM:
-            /* Only IDLE may arm. */
-            if (s_flight_state == APP_FLIGHT_IDLE) {
+            /* LANDED may re-arm so repeated ground-test launches do not
+             * require an intervening abort or board reset. */
+            if (s_flight_state == APP_FLIGHT_IDLE ||
+                s_flight_state == APP_FLIGHT_LANDED) {
                 mm_set_state(APP_FLIGHT_ARMED);
                 mm_set_armed(true);
                 return true;
@@ -376,9 +379,8 @@ static void mm_check_touchdown(TickType_t now)
     }
     if ((now - s_descent_quiet_start) >= pdMS_TO_TICKS(MM_LAND_SUSTAIN_MS)) {
         mm_set_state(APP_FLIGHT_LANDED);
-        /* Reset so a re-entry to DESCENT (shouldn't happen — LANDED is a
-         * one-way exit in the state machine — but defensive) starts a
-         * fresh sustain window. */
+        /* Reset so a later re-arm/launch/land cycle starts a fresh sustain
+         * window. */
         s_descent_quiet_start = 0;
     }
 }

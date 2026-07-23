@@ -89,6 +89,13 @@ static inline float actuator_clamp_deg(float deg)
     return deg;
 }
 
+static inline bool actuator_state_uses_default(app_flight_state_t state)
+{
+    return state == APP_FLIGHT_IDLE ||
+           state == APP_FLIGHT_ARMED ||
+           state == APP_FLIGHT_ESTOP;
+}
+
 #ifdef USE_DYNAMIXEL_SERVO
 static pid_controller_t s_pid_x;
 static pid_controller_t s_pid_y;
@@ -162,25 +169,38 @@ static bool actuator_axis_changed(float deg, float last_deg)
     return fabsf(deg - last_deg) > GIMBAL_CMD_DEADBAND_DEG;
 }
 
+static void actuator_apply_default(servo_dynamixel_t *d)
+{
+    /* Do not carry PID history from a previous launch into the next one. */
+    pid_reset(&s_pid_x);
+    pid_reset(&s_pid_y);
+
+    if ((!actuator_axis_changed(GIMBAL_DEFAULT_DEG_X, s_last_deg_x) &&
+         !actuator_axis_changed(GIMBAL_DEFAULT_DEG_Y, s_last_deg_y)) ||
+        !actuator_bus_may_run()) {
+        return;
+    }
+
+    if (servo_dynamixel_set_pair_degrees(d,
+                                         GIMBAL_DEFAULT_DEG_X,
+                                         GIMBAL_DEFAULT_DEG_Y)) {
+        s_last_deg_x = GIMBAL_DEFAULT_DEG_X;
+        s_last_deg_y = GIMBAL_DEFAULT_DEG_Y;
+        s_consecutive_fail = 0U;
+        s_last_write_tick = xTaskGetTickCount();
+    } else {
+        s_consecutive_fail++;
+        s_backoff_until_tick =
+            xTaskGetTickCount() + pdMS_TO_TICKS(ACTUATOR_FAIL_BACKOFF_MS);
+        servo_dynamixel_bus_recover();
+    }
+}
+
 static void actuator_apply_tilt_pid(servo_dynamixel_t *d)
 {
     tilt_state_t tilt;
     if (!tilt_state_get(&tilt)) {
-        pid_reset(&s_pid_x);
-        pid_reset(&s_pid_y);
-        if ((!actuator_axis_changed(GIMBAL_DEFAULT_DEG_X, s_last_deg_x) &&
-             !actuator_axis_changed(GIMBAL_DEFAULT_DEG_Y, s_last_deg_y)) ||
-            !actuator_bus_may_run()) {
-            return;
-        }
-        if (servo_dynamixel_set_pair_degrees(d,
-                                             GIMBAL_DEFAULT_DEG_X,
-                                             GIMBAL_DEFAULT_DEG_Y)) {
-            s_last_deg_x = GIMBAL_DEFAULT_DEG_X;
-            s_last_deg_y = GIMBAL_DEFAULT_DEG_Y;
-            s_consecutive_fail = 0U;
-            s_last_write_tick = xTaskGetTickCount();
-        }
+        actuator_apply_default(d);
         return;
     }
 
@@ -290,6 +310,10 @@ void task_actuator(void *arg)
                     (unsigned)(s_pid_x.ki  * 1000.0f + 0.5f),
                     (unsigned)(s_pid_y.ki  * 1000.0f + 0.5f),
                     (unsigned)(GIMBAL_CMD_DEADBAND_DEG * 1000.0f + 0.5f));
+    io_debug_printf("hello\n");
+    io_debug_printf("[pid] kpx: %u, kpy: %u\n",
+                (unsigned)(s_pid_x.kd),
+                (unsigned)(s_pid_y.kd));
 #endif
     app_flight_state_t current_state = APP_FLIGHT_IDLE;
 
@@ -302,6 +326,9 @@ void task_actuator(void *arg)
         }
         else {
             updateConfiguration();
+            if (actuator_state_uses_default(current_state)) {
+                actuator_apply_default(dxl);
+            }
         }
 
 #ifdef DEBUG_TEXT_CONSOLE
@@ -347,7 +374,15 @@ void task_actuator(void *arg)
 
     for (;;) {
         (void)ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(ACTUATOR_LOOP_MS));
-        actuator_apply_gimbal(s);
+        app_flight_state_t current_state = APP_FLIGHT_IDLE;
+        (void)state_exchange_get_flight_state(&current_state);
+        if (actuator_state_uses_default(current_state)) {
+            servo_feetech_set_pair_degrees(s,
+                                           GIMBAL_DEFAULT_DEG_X,
+                                           GIMBAL_DEFAULT_DEG_Y);
+        } else {
+            actuator_apply_gimbal(s);
+        }
     }
 #endif
 }

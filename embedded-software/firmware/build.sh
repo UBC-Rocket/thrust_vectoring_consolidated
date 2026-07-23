@@ -102,7 +102,7 @@ require_cmd ninja
 require_cmd arm-none-eabi-gcc
 require_cmd arm-none-eabi-size
 
-BUILD_CONTEXT=""
+BUILD_CONTEXT="CM4_CM7"
 case "$CORE" in
   cm7) BUILD_CONTEXT="CM7" ;;
   cm4) BUILD_CONTEXT="CM4" ;;
@@ -116,10 +116,11 @@ if [[ "${USE_FEETECH_SERVO:-}" == "1" ]]; then
   USE_DYNAMIXEL_SERVO=OFF
 fi
 
-CMAKE_ARGS=(--preset "$PRESET" -DUSE_DYNAMIXEL_SERVO="${USE_DYNAMIXEL_SERVO}")
-if [[ -n "$BUILD_CONTEXT" ]]; then
-  CMAKE_ARGS+=(-DBUILD_CONTEXT="$BUILD_CONTEXT")
-fi
+CMAKE_ARGS=(
+  --preset "$PRESET"
+  -DUSE_DYNAMIXEL_SERVO="${USE_DYNAMIXEL_SERVO}"
+  -DBUILD_CONTEXT="$BUILD_CONTEXT"
+)
 
 if [[ "$USE_DYNAMIXEL_SERVO" == "ON" ]]; then
   echo "    CM4 servo: Dynamixel (set USE_FEETECH_SERVO=1 for Feetech)"
