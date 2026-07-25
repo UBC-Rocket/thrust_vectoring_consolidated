@@ -114,7 +114,10 @@ static void actuator_pid_init(void)
 }
 
 static void updateConfiguration() {
-    app_pid_gains_t pidGains;
+    /* Static so a failed slot read (writer mid-update / not yet published)
+     * keeps the last-applied gains instead of stomping them with whatever is
+     * on the stack — the getter leaves *out untouched on failure. */
+    static app_pid_gains_t pidGains = {0};
     state_exchange_get_pid_gains(&pidGains);
     
     s_pid_x.kd = -pidGains.attitude_kd[0];
