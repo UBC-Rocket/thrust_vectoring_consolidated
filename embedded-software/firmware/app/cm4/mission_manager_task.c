@@ -165,7 +165,10 @@ static bool mm_apply_state_cmd(tvr_StateCommand_Type cmd) {
                  * offset valid, GPS lock); refuse ARM until armable so the
                  * vehicle can't start up cold. Tilt-KF builds skip this gate
                  * (readiness isn't computed there). */
-                vehicle_readiness_t rdy;
+                /* Zero-init = fail closed: if the slot read fails or the
+                 * slot is unpublished, the getter leaves rdy untouched and
+                 * armable stays false. */
+                vehicle_readiness_t rdy = {0};
                 (void)state_exchange_get_readiness(&rdy);
                 if (!rdy.armable) {
 #ifdef DEBUG_TEXT_CONSOLE
