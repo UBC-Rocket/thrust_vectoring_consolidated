@@ -220,6 +220,7 @@ void task_controls(void *arg) {
             fmt_f3(tx, out.theta_x_cmd);
             fmt_f3(ty, out.theta_y_cmd);
             fmt_f3(zi, out.z_pid_integral);
+            io_debug_printf("[ctl] T=%s gim=%s,%s z_i=%s\r\n", t, tx, ty, zi);
         }
 #endif
 
@@ -238,6 +239,8 @@ void task_controls(void *arg) {
                 esc_motor_telemetry_t lower_motor_telemetry;
 
                 if (esc_dshot_motor_get_telemetry(ESC_MOTOR_ID_LOWER, &lower_motor_telemetry)) {
+                    io_debug_printf("[ctl] esc=%f\r\n", lower_motor_telemetry.rpm);
+
                     motor_throttle = esc_get_rpm_adjusted_throttle(
                         motor_rpm_desired, lower_motor_telemetry.rpm, motor_throttle);
                 }
