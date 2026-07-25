@@ -18,6 +18,7 @@
 #include "esc_dshot/bdshot.h"
 #include "esc_dshot/config.h"
 
+#include "lib/timestamp/include/timestamp/timestamp.h"
 #include "projdefs.h"
 #include "tim.h"
 
@@ -25,6 +26,7 @@
 #include "task.h"
 
 #include <math.h>
+#include <stdint.h>
 
 #ifdef DEBUG_TEXT_CONSOLE
 #include "io_sys/io_debug.h"   /* bring-up: 1 Hz control-output trace */
@@ -32,18 +34,24 @@
 #endif
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+
+#define S_TO_US(s) (s * 1000000)
 
 #define CONTROLS_DT_S 0.00125f
 
 #define BRINGUP_ESC_BUILD_TAG      "esc-bringup-10pct-v3"
 
 #define ESC_THROTTLE_ZERO  ESC_PERCENTAGE_TO_THROTTLE(0.00f)
-#define ESC_THROTTLE_INITIAL ESC_PERCENTAGE_TO_THROTTLE(0.65f)
+#define ESC_THROTTLE_INITIAL ESC_PERCENTAGE_TO_THROTTLE(0.10f)
 
 #define ESC_THROTTLE_MAX ESC_PERCENTAGE_TO_THROTTLE(0.85f)
 
-#define ESC_RPM_DEADBAND (1500)
-#define ESC_RPM_THROTTLE_ADJUSTMENT ESC_PERCENTAGE_TO_THROTTLE(0.005f)
+#define ESC_RPM_DEADBAND (50) // TODO: adjust based on how fast RPM changes with higher throttles
+#define ESC_RPM_THROTTLE_ADJUSTMENT (1)
+
+#define ESC_RPM_DESIRED_RISE (10000) // TODO: find actual value
+#define ESC_RPM_DESIRED_LAND (8000) // TODO: find actual value
 
 static flight_controller_config_t s_live_config = {
     .attitude = {
@@ -140,7 +148,7 @@ static inline void merge_vehicle_config(const app_vehicle_config_t *c) {
     }
 }
 
-#define TUNABLE_POLL_MS  50U
+#define TUNABLE_POLL_MS  5U
 
 static void poll_tunables(void) {
     uint32_t seq;
@@ -182,7 +190,7 @@ static void fmt_f3(char *buf, float v) {
 static uint16_t esc_get_rpm_adjusted_throttle(float desired_rpm, float actual_rpm,
                                               uint16_t current_throttle)
 {
-    uint16_t new_throttle;
+    int32_t new_throttle; // TODO: don't use signed integer for this...
 
     if (actual_rpm > (desired_rpm + ESC_RPM_DEADBAND)) {
         new_throttle = current_throttle - ESC_RPM_THROTTLE_ADJUSTMENT;
@@ -192,7 +200,7 @@ static uint16_t esc_get_rpm_adjusted_throttle(float desired_rpm, float actual_rp
         new_throttle = current_throttle;
     }
 
-    return MIN(new_throttle, ESC_THROTTLE_MAX);
+    return (uint16_t)MAX(0, new_throttle);
 }
 
 void task_controls(void *arg) {
@@ -200,10 +208,12 @@ void task_controls(void *arg) {
 
     app_flight_state_t last_flight_state = APP_FLIGHT_IDLE;
 
-    uint16_t motor_rpm_desired = 0; // TODO: figure out value from experiment
-    uint16_t motor_throttle = ESC_THROTTLE_INITIAL;
+    uint16_t motor_rpm_desired = 0;
+    uint16_t motor_throttle = 0;
 
-    #ifdef DEBUG_TEXT_CONSOLE
+    uint64_t rise_start_time = timestamp_us64();
+
+#ifdef DEBUG_TEXT_CONSOLE
     unsigned dbg_tick = 0;
 #endif
 
@@ -224,38 +234,65 @@ void task_controls(void *arg) {
         }
 #endif
 
+        bool is_state_updated = false;
         app_flight_state_t flight_state = APP_FLIGHT_IDLE;
         (void)state_exchange_get_flight_state(&flight_state);
 
         if (flight_state != last_flight_state) {
             last_flight_state = flight_state;
+            is_state_updated = true;
+        }
 
-            switch (flight_state) {
-            case APP_FLIGHT_ARMED: {
+        switch (flight_state) {
+        case APP_FLIGHT_ARMED: {
+            if (is_state_updated) {
                 esc_dshot_set_armed(true);
-                break;
             }
-            case APP_FLIGHT_RISE: {
-                esc_motor_telemetry_t lower_motor_telemetry;
+            break;
+        }
+        case APP_FLIGHT_RISE: {
+            if (is_state_updated) {
+                rise_start_time = timestamp_us64();
+                motor_rpm_desired = ESC_RPM_DESIRED_RISE;
+                motor_throttle = ESC_THROTTLE_INITIAL;
+            }
+            break;
+        }
+        case APP_FLIGHT_DESCENT: {
+            if (is_state_updated) {
+                motor_rpm_desired = ESC_RPM_DESIRED_LAND;
+            }
+            break;
+        }
+        default: {
+            motor_rpm_desired = 0;
+            motor_throttle = 0;
+            esc_dshot_motor_set_throttle(ESC_MOTOR_ID_LOWER, ESC_THROTTLE_ZERO);
+            esc_dshot_motor_set_throttle(ESC_MOTOR_ID_UPPER, ESC_THROTTLE_ZERO);
+            esc_dshot_set_armed(false);
+            break;
+        }
+        }
 
-                if (esc_dshot_motor_get_telemetry(ESC_MOTOR_ID_LOWER, &lower_motor_telemetry)) {
-                    io_debug_printf("[ctl] esc=%f\r\n", lower_motor_telemetry.rpm);
+        if (flight_state == APP_FLIGHT_RISE || flight_state == APP_FLIGHT_DESCENT) {
+            esc_dshot_motor_set_throttle(ESC_MOTOR_ID_LOWER, motor_throttle);
+            esc_dshot_motor_set_throttle(ESC_MOTOR_ID_UPPER, motor_throttle);
 
-                    motor_throttle = esc_get_rpm_adjusted_throttle(
-                        motor_rpm_desired, lower_motor_telemetry.rpm, motor_throttle);
-                }
+            esc_motor_telemetry_t lower_motor_telemetry;
 
-                esc_dshot_motor_set_throttle(ESC_MOTOR_ID_LOWER, motor_throttle);
-                esc_dshot_motor_set_throttle(ESC_MOTOR_ID_UPPER, motor_throttle);
-                break;
+            if (esc_dshot_motor_get_telemetry(ESC_MOTOR_ID_LOWER, &lower_motor_telemetry)) {
+                char rpm[16];
+                char throttle[16];
+                fmt_f3(rpm, lower_motor_telemetry.rpm);
+                fmt_f3(throttle, motor_throttle);
+
+                io_debug_printf("[ctl] esc rpm=%s throttle=%s\r\n", rpm, throttle);
+
+                motor_throttle = esc_get_rpm_adjusted_throttle(
+                    motor_rpm_desired, lower_motor_telemetry.rpm, motor_throttle);
             }
-            default: {
-                esc_dshot_motor_set_throttle(ESC_MOTOR_ID_LOWER, ESC_THROTTLE_ZERO);
-                esc_dshot_motor_set_throttle(ESC_MOTOR_ID_UPPER, ESC_THROTTLE_ZERO);
-                esc_dshot_set_armed(false);
-                break;
-            }
-            }
+
+            motor_throttle = MIN(motor_throttle, ESC_THROTTLE_MAX);
         }
 
         vTaskDelay(pdMS_TO_TICKS(TUNABLE_POLL_MS));
