@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(ulysses_ground_control
-    VERSION 0.1.0
+    VERSION 2.1.0
     LANGUAGES CXX C
 )
 
@@ -68,6 +68,21 @@ set(HDR_FILES
 )
 
 # ----------------------------------------------------------------------
+# macOS bundle identity (icon + distribution name)
+# ----------------------------------------------------------------------
+if(APPLE)
+    set(MACOSX_BUNDLE_BUNDLE_NAME "TVR Ground Control Station")
+    set(MACOSX_BUNDLE_GUI_IDENTIFIER "com.ubcrocket.tvr-gcs")
+    set(MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION})
+    set(MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION})
+    set(MACOSX_BUNDLE_ICON_FILE gcs.icns)
+    set(APP_ICON_MACOS "${CMAKE_CURRENT_SOURCE_DIR}/Resources/gcs.icns")
+    set_source_files_properties(${APP_ICON_MACOS} PROPERTIES
+        MACOSX_PACKAGE_LOCATION "Resources"
+    )
+endif()
+
+# ----------------------------------------------------------------------
 # Executable target
 # ----------------------------------------------------------------------
 qt_add_executable(ulysses_ground_control
@@ -75,7 +90,18 @@ qt_add_executable(ulysses_ground_control
     MANUAL_FINALIZATION
     ${SRC_FILES}
     ${HDR_FILES}
+    ${APP_ICON_MACOS}
 )
+
+# No spaces in the executable/bundle dir name: macdeployqt's internal tool
+# invocations break on spaced paths. The .app is renamed to
+# "TVR Ground Control Station.app" at packaging time; the display name
+# comes from MACOSX_BUNDLE_BUNDLE_NAME above.
+if(APPLE)
+    set_target_properties(ulysses_ground_control PROPERTIES
+        OUTPUT_NAME "TVRGroundControlStation"
+    )
+endif()
 
 # ---------------------------------------------------------------------- 
 # For Linux release
@@ -122,7 +148,7 @@ target_compile_definitions(ulysses_ground_control PRIVATE
 # ----------------------------------------------------------------------
 # QML module
 # ----------------------------------------------------------------------
-set_source_files_properties("${QML_DIR}/Items/Theme.qml"
+set_source_files_properties("${QML_DIR}/Items/Theme.qml" "${QML_DIR}/Items/UiState.qml"
     PROPERTIES QT_QML_SINGLETON_TYPE TRUE
 )
 
@@ -135,6 +161,10 @@ qt_add_qml_module(ulysses_ground_control
         "${QML_DIR}/LayoutGrid.qml"
         "${QML_DIR}/Main.qml"
         "${QML_DIR}/Shortcuts.qml"
+        "${QML_DIR}/SideStripLeft.qml"
+        "${QML_DIR}/SideStripRight.qml"
+        "${QML_DIR}/BootOverlay.qml"
+        "${QML_DIR}/EmergencyOverlay.qml"
         "${QML_DIR}/Panels/Panel_State_And_Position.qml"
         "${QML_DIR}/Panels/Panel_Control.qml"
         "${QML_DIR}/Panels/Panel_Angles_And_Engine.qml"
@@ -161,9 +191,30 @@ qt_add_qml_module(ulysses_ground_control
         "${QML_DIR}/Items/ThemedCheckBox.qml"
         "${QML_DIR}/Items/ThemedScrollBar.qml"
         "${QML_DIR}/Items/ThemedTabButton.qml"
+        "${QML_DIR}/Items/UiState.qml"
+        "${QML_DIR}/Items/Blink.qml"
+        "${QML_DIR}/Items/ClippedRect.qml"
+        "${QML_DIR}/Items/ClippedButton.qml"
+        "${QML_DIR}/Items/JpText.qml"
+        "${QML_DIR}/Items/WarningStripes.qml"
+        "${QML_DIR}/Items/Scanlines.qml"
+        "${QML_DIR}/Items/GridBackdrop.qml"
+        "${QML_DIR}/Items/SectionChip.qml"
     RESOURCES
         "${MESH_FILES}"
         "${QML_DIR}/Items/qmldir"
+        "Resources/fonts/ChakraPetch-Regular.ttf"
+        "Resources/fonts/ChakraPetch-Medium.ttf"
+        "Resources/fonts/ChakraPetch-SemiBold.ttf"
+        "Resources/fonts/ChakraPetch-Bold.ttf"
+        "Resources/fonts/ShipporiMinchoB1-Bold.ttf"
+        "Resources/fonts/ShipporiMinchoB1-ExtraBold.ttf"
+        "Resources/fonts/JetBrainsMono-Regular.ttf"
+        "Resources/fonts/JetBrainsMono-Bold.ttf"
+        "Resources/images/asuka.png"
+        "Resources/images/rei-cut.png"
+        "Resources/images/mitsuri.png"
+        "Resources/images/ubc-rocket-logo.png"
 )
 
 # ----------------------------------------------------------------------
@@ -182,13 +233,19 @@ target_link_libraries(ulysses_ground_control
         rocket-protocol
 )
 
+# Force the Basic (customizable) Controls style — see qtquickcontrols2.conf.
+qt_add_resources(ulysses_ground_control "controls_conf"
+    PREFIX "/"
+    FILES qtquickcontrols2.conf
+)
+
 qt_import_qml_plugins(ulysses_ground_control)
 qt_finalize_executable(ulysses_ground_control)
 
 # ----------------------------------------------------------------------
 # For Linux release
 set(CPACK_PACKAGE_NAME "ulysses-gcs")
-set(CPACK_PACKAGE_VERSION "0.1.1")  # Update this for each release
+set(CPACK_PACKAGE_VERSION "2.1.0")  # Update this for each release
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Ulysses Ground Control")
 set(CPACK_PACKAGE_VENDOR "UBC Rocket")
 set(CPACK_PACKAGE_INSTALL_DIRECTORY ${CPACK_PACKAGE_NAME})
