@@ -5,11 +5,14 @@ import QtQuick.Layouts
 Rectangle {
     id: base
 
+    // 3px top accent strip; amber for command panels, red elsewhere.
+    property color accentColor: Theme.accent
+
     //Visualization
     color: Theme.surface
     border.color: Theme.border
     border.width: Theme.strokePanel
-    radius: Theme.radiusPanel
+    radius: 0
 
     //Sizing
     height: (parent.parent.height - 20)/2 - 10
@@ -22,4 +25,11 @@ Rectangle {
     Layout.minimumWidth: width
     Layout.minimumHeight: height
 
+    Rectangle {
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: Theme.accentStroke
+        color: base.accentColor
+    }
 }
