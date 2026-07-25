@@ -13,10 +13,12 @@
 #include "app/tasks.h"
 #include "app/state_exchange.h"
 
+#include "cmsis_os2.h"
 #include "controls/flight_controller.h"
 #include "esc_dshot/bdshot.h"
 #include "esc_dshot/config.h"
 
+#include "projdefs.h"
 #include "tim.h"
 
 #include "FreeRTOS.h"
@@ -29,15 +31,19 @@
 #include <stdio.h>             /* snprintf for fixed-point formatting  */
 #endif
 
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+
 #define CONTROLS_DT_S 0.00125f
 
-/* Bring-up: fixed throttle after ESC arm delay. Change here only — the debug
- * log and esc_set_us() both use this (the old log hardcoded 0.25f and lied).
- * After editing: rebuild + flash CM7 (./build.sh && ./flash.sh Debug cm7). */
-#define BRINGUP_ESC_THROTTLE       0.80f
 #define BRINGUP_ESC_BUILD_TAG      "esc-bringup-10pct-v3"
 
-#define ESC_ZERO_THROTTLE (0.00f)
+#define ESC_THROTTLE_ZERO  ESC_PERCENTAGE_TO_THROTTLE(0.00f)
+#define ESC_THROTTLE_INITIAL ESC_PERCENTAGE_TO_THROTTLE(0.65f)
+
+#define ESC_THROTTLE_MAX ESC_PERCENTAGE_TO_THROTTLE(0.85f)
+
+#define ESC_RPM_DEADBAND (1500)
+#define ESC_RPM_THROTTLE_ADJUSTMENT ESC_PERCENTAGE_TO_THROTTLE(0.005f)
 
 static flight_controller_config_t s_live_config = {
     .attitude = {
@@ -75,19 +81,6 @@ static uint32_t s_last_pid_seq;
 static uint32_t s_last_ref_seq;
 static uint32_t s_last_cfg_seq;
 static volatile bool s_isr_ready;
-static volatile bool s_esc_bringup_armed;
-
-static uint16_t esc_gated_bringup_us(void)
-{
-    /* Fail closed: state_exchange leaves the destination unchanged if its
-     * seqlock read fails, so initialise to IDLE before every read. */
-    app_flight_state_t flight_state = APP_FLIGHT_IDLE;
-    (void)state_exchange_get_flight_state(&flight_state);
-
-    return (flight_state == APP_FLIGHT_RISE)
-        ? ESC_PERCENTAGE_TO_THROTTLE(BRINGUP_ESC_THROTTLE)
-        : ESC_PERCENTAGE_TO_THROTTLE(ESC_ZERO_THROTTLE);
-}
 
 void controls_on_tim_period_elapsed(void *htim_handle)
 {
@@ -108,16 +101,8 @@ void controls_on_tim_period_elapsed(void *htim_handle)
 
 void controls_isr_init(void)
 {
-    s_escs = esc_handles();
-#ifndef BENCH_NO_MOTORS
-
-#else
-    /* BENCH_NO_MOTORS: intended to leave the ESC PWM channels unarmed
-     * (never HAL_TIM_PWM_Start'd) so no pulses reach the motors. NOTE:
-     * task_controls() currently calls HAL_TIM_PWM_Start()/esc_set_us()
-     * unconditionally — this ifdef does not actually gate that. */
-#endif
     flight_controller_init(&s_live_config);
+    HAL_TIM_Base_Start_IT(&htim16);
     s_isr_ready = true;
 }
 
@@ -194,41 +179,31 @@ static void fmt_f3(char *buf, float v) {
 }
 #endif
 
+static uint16_t esc_get_rpm_adjusted_throttle(float desired_rpm, float actual_rpm,
+                                              uint16_t current_throttle)
+{
+    uint16_t new_throttle;
+
+    if (actual_rpm > (desired_rpm + ESC_RPM_DEADBAND)) {
+        new_throttle = current_throttle - ESC_RPM_THROTTLE_ADJUSTMENT;
+    } else if (actual_rpm < (desired_rpm - ESC_RPM_DEADBAND)) {
+        new_throttle = current_throttle + ESC_RPM_THROTTLE_ADJUSTMENT;
+    } else {
+        new_throttle = current_throttle;
+    }
+
+    return MIN(new_throttle, ESC_THROTTLE_MAX);
+}
+
 void task_controls(void *arg) {
     (void)arg;
 
-    /* Arming sequence — mirrors the deprecated ulysses-flight-controller's
-     * esc_pair_set_force(0, 0) -> esc_pair_set_armed(true) ordering: force
-     * the pulse to minimum BEFORE enabling the PWM channel output, so the
-     * very first pulse the ESC ever sees is a safe minimum, not whatever
-     * the control loop happens to be computing. Hold minimum for 6 s (ESCs
-     * need a sustained min-throttle signal to complete their own arm
-     * sequence) before the 800 Hz control-loop timer starts — so there's no
-     * window where the ISR could write a live (non-minimum) compare value
-     * before or during arming. */
-    if (s_escs != NULL) {
-        esc_apply_bringup_throttle(s_escs, ESC_PWM_MIN_US);
-    }
-    HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
-    HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
+    app_flight_state_t last_flight_state = APP_FLIGHT_IDLE;
 
-    osDelay(pdMS_TO_TICKS(6000));
+    uint16_t motor_rpm_desired = 0; // TODO: figure out value from experiment
+    uint16_t motor_throttle = ESC_THROTTLE_INITIAL;
 
-    /* Arm the bring-up output path, but leave the current command at minimum.
-     * The TIM16 ISR applies the fixed throttle only while flight state is RISE. */
-    s_bringup_esc_us = throttle_to_us(BRINGUP_ESC_THROTTLE);
-    s_esc_bringup_armed = true;
-
-#ifdef DEBUG_TEXT_CONSOLE
-    io_debug_printf("[ctl] %s armed esc=%u us (%u%%)\r\n",
-                    BRINGUP_ESC_BUILD_TAG,
-                    (unsigned)s_bringup_esc_us,
-                    (unsigned)(BRINGUP_ESC_THROTTLE * 100.0f + 0.5f));
-#endif
-
-    HAL_TIM_Base_Start_IT(&htim16);
-
-#ifdef DEBUG_TEXT_CONSOLE
+    #ifdef DEBUG_TEXT_CONSOLE
     unsigned dbg_tick = 0;
 #endif
 
@@ -247,6 +222,38 @@ void task_controls(void *arg) {
             fmt_f3(zi, out.z_pid_integral);
         }
 #endif
+
+        app_flight_state_t flight_state = APP_FLIGHT_IDLE;
+        (void)state_exchange_get_flight_state(&flight_state);
+
+        if (flight_state != last_flight_state) {
+            last_flight_state = flight_state;
+
+            switch (flight_state) {
+            case APP_FLIGHT_ARMED: {
+                esc_dshot_set_armed(true);
+                break;
+            }
+            case APP_FLIGHT_RISE: {
+                esc_motor_telemetry_t lower_motor_telemetry;
+
+                if (esc_dshot_motor_get_telemetry(ESC_MOTOR_ID_LOWER, &lower_motor_telemetry)) {
+                    motor_throttle = esc_get_rpm_adjusted_throttle(
+                        motor_rpm_desired, lower_motor_telemetry.rpm, motor_throttle);
+                }
+
+                esc_dshot_motor_set_throttle(ESC_MOTOR_ID_LOWER, motor_throttle);
+                esc_dshot_motor_set_throttle(ESC_MOTOR_ID_UPPER, motor_throttle);
+                break;
+            }
+            default: {
+                esc_dshot_motor_set_throttle(ESC_MOTOR_ID_LOWER, ESC_THROTTLE_ZERO);
+                esc_dshot_motor_set_throttle(ESC_MOTOR_ID_UPPER, ESC_THROTTLE_ZERO);
+                esc_dshot_set_armed(false);
+                break;
+            }
+            }
+        }
 
         vTaskDelay(pdMS_TO_TICKS(TUNABLE_POLL_MS));
     }
