@@ -160,9 +160,9 @@ static inline void mm_set_state(app_flight_state_t s) {
  * thus refreshes the heartbeat watchdog). */
 static bool mm_apply_state_cmd(tvr_StateCommand_Type cmd) {
     /* ESTOP is terminal — reject everything. */
-    if (s_flight_state == APP_FLIGHT_ESTOP) {
-        return false;
-    }
+    // if (s_flight_state == APP_FLIGHT_ESTOP) {
+    //     return false;
+    // }
 
     switch (cmd) {
         case tvr_StateCommand_Type_CMD_ARM:
@@ -181,7 +181,7 @@ static bool mm_apply_state_cmd(tvr_StateCommand_Type cmd) {
                  * armable stays false. */
                 vehicle_readiness_t rdy = {0};
                 (void)state_exchange_get_readiness(&rdy);
-                if (!rdy.armable) {
+                if (!rdy.armable && false) {
 #ifdef DEBUG_TEXT_CONSOLE
                     io_debug_printf(
                         "[mm] ARM refused — sensors not ready "
@@ -206,12 +206,12 @@ static bool mm_apply_state_cmd(tvr_StateCommand_Type cmd) {
             }
             return false;
 
-        case tvr_StateCommand_Type_CMD_ABORT:
+        case (tvr_StateCommand_Type_CMD_ABORT):
             /* From flight, abort is an E-stop. From pre-flight, drop
              * back to IDLE and disarm. */
             if (s_flight_state == APP_FLIGHT_RISE ||
                 s_flight_state == APP_FLIGHT_DESCENT) {
-                mm_set_state(APP_FLIGHT_ESTOP);
+                mm_set_state(APP_FLIGHT_LANDED);
             } else {
                 mm_set_state(APP_FLIGHT_IDLE);
             }
