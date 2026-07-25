@@ -111,9 +111,18 @@ uint32_t state_exchange_publish_armed(bool armed);
 uint32_t state_exchange_get_armed(bool *armed_out);
 
 /* ---------- tuning + reference (CM4 writes, CM7 reads) ----------
- * Each publish bumps a seq number; CM7's controls task polls *_get_*
- * periodically and merges fresh values into its live config/reference
- * snapshot. The ISR reads from that snapshot, not from these slots. */
+ * Each publish advances a change counter that is visible on BOTH cores (it
+ * is the shared seqlock counter, cached per-core on publish / valid read).
+ * CM7's controls task polls *_get_* periodically, compares the returned
+ * counter against the last one it acted on, and merges fresh values into its
+ * live config/reference snapshot. The ISR reads from that snapshot, not from
+ * these slots.
+ *
+ * On a failed read (writer mid-update) or when the slot has never been
+ * published (power-on garbage is rejected by a magic word), *out is left
+ * untouched and the previously returned counter is returned again — callers
+ * comparing counters will simply not act. Counter values are opaque: compare
+ * for inequality only. */
 uint32_t state_exchange_publish_pid_gains(const app_pid_gains_t *gains);
 uint32_t state_exchange_get_pid_gains(app_pid_gains_t *out);
 
