@@ -25,6 +25,11 @@ BasePanel {
     property double gimbalX:   sensorData.gimbalX
     property double gimbalY:   sensorData.gimbalY
 
+    // Per-motor RPM (bidirectional-DShot readback); invalid → NaN → "—"
+    property double motorRpmLower: sensorData.motorRpmLower
+    property double motorRpmUpper: sensorData.motorRpmUpper
+    property bool   motorRpmValid: sensorData.motorRpmValid
+
     BaseHeader {
         id: header
         headerText: "Angles / Engine"
@@ -202,6 +207,59 @@ BasePanel {
             sections: 3; section_num: 3
             dataName: "GIMBAL Y"
             dataValue: gimbalY
+        }
+    }
+
+    Rectangle {
+        id: motor_rpm
+        color: "transparent"
+
+        implicitHeight: subheader_rpm.implicitHeight
+                        + panel_Angles_And_Engine.subheaderToDataSpacing
+                        + boxRpmLower.height
+        height: implicitHeight
+
+        anchors {
+            top: engine.bottom
+            left: parent.left
+            right: parent.right
+            topMargin: panel_Angles_And_Engine.sectionSpacing + 4
+            leftMargin: header.anchors.leftMargin
+            rightMargin: header.anchors.leftMargin
+        }
+
+        Text {
+            id: subheader_rpm
+            text: "MOTOR RPM"
+            font.family: Theme.fontFamily
+            font.pixelSize: 10
+            font.letterSpacing: 2
+            color: Theme.textSecondary
+            y: 0
+        }
+
+        JpText {
+            anchors.right: parent.right
+            anchors.baseline: subheader_rpm.baseline
+            text: "回転数"
+            color: Theme.textTertiary
+        }
+
+        DataBox {
+            id: boxRpmLower
+            anchors.top: subheader_rpm.bottom
+            anchors.topMargin: panel_Angles_And_Engine.subheaderToDataSpacing
+            sections: 2; section_num: 1
+            dataName: "RPM LOWER"
+            dataValue: motorRpmValid ? motorRpmLower : NaN
+        }
+
+        DataBox {
+            anchors.top: subheader_rpm.bottom
+            anchors.topMargin: panel_Angles_And_Engine.subheaderToDataSpacing
+            sections: 2; section_num: 2
+            dataName: "RPM UPPER"
+            dataValue: motorRpmValid ? motorRpmUpper : NaN
         }
     }
 }
