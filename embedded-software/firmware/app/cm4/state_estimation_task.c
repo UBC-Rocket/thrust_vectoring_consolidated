@@ -77,8 +77,13 @@
 
 /* ---- Constants ------------------------------------------------------- */
 
+/* State estimator selection. The full ESKF (15-state: attitude + per-IMU
+ * gyro/accel bias + position/velocity, fed by IMU/baro/mag/GPS) is PRIMARY —
+ * TILT_KF_ONLY defaults to 0. The lighter 2-axis tilt KF (attitude only) is
+ * retained as a fallback and selected at build time with USE_TILT_KF=1
+ * (build.sh) / -DUSE_TILT_KF=ON, which defines TILT_KF_ONLY=1 here. */
 #ifndef TILT_KF_ONLY
-#define TILT_KF_ONLY              1
+#define TILT_KF_ONLY              0
 #endif
 
 #define GRAV_MPS2                 9.80665f
@@ -142,6 +147,12 @@ static baro_sample_t s_baro_raw [DRAIN_BATCH];
 static gps_fix_t     s_gps_raw  [4];
 static mag_sample_t  s_mag_raw  [DRAIN_BATCH];
 
+#ifdef DEBUG_TEXT_CONSOLE
+/* Latest mag field (Gauss) fed to the ESKF, held for the [mag] console trace
+ * so it prints a fresh value even on cycles where no mag sample drained. */
+static float s_dbg_mag_last[3];
+#endif
+
 /* Tracks the EKF's calibration latch so we only persist the mag offset
  * once per boot. Set false at task start; flips true the first time
  * eskf_is_calibrated() returns true after a process call. */
@@ -163,6 +174,16 @@ static struct {
     float  alt_m;
     bool   set;
 } s_gps_ref = {0};
+
+/* Latest GPS lock status, latched from drained fixes. "locked" clears if no
+ * valid fix arrives within GPS_LOCK_TIMEOUT_US (a dropped fix shouldn't read
+ * as locked forever). Feeds the readiness gate. */
+#define GPS_LOCK_TIMEOUT_US   3000000ULL   /* 3 s */
+static struct {
+    bool     locked;
+    uint8_t  sats;
+    uint64_t last_fix_us;
+} s_gps_stat = {0};
 #endif
 
 static icm_sample_t  s_icm_raw  [DRAIN_BATCH];
@@ -448,6 +469,26 @@ void task_state_estimation(void *arg)
                 io_debug_printf("x=%s y=%s\r\n", tx, ty);
             }
         }
+
+        /* Bring-up: drain the TIM7-paced baro ring and print the latest
+         * pressure/temperature at ~1 Hz. In tilt-KF-only mode the baro isn't
+         * fed to a filter yet, so this both exercises the drain path (keeps
+         * the ring from staying full) and gives console visibility.
+         * pressure_pa (~101 kPa) overflows fmt_f3's clamp, so print it as an
+         * integer; temperature is small enough for fmt_f3. */
+        if (sensors->baro != NULL) {
+            baro_sample_t bs[8];
+            size_t nb = baro_ms5611_drain(sensors->baro, bs, 8);
+            static uint64_t s_baro_dbg_last_us;
+            const uint64_t  t_dbg = io_timestamp_us();
+            if (nb > 0 && (t_dbg - s_baro_dbg_last_us) >= 1000000ULL) {
+                s_baro_dbg_last_us = t_dbg;
+                char tc[16];
+                fmt_f3(tc, bs[nb - 1].temp_c);
+                io_debug_printf("[baro] P=%ld Pa  T=%s C\r\n",
+                                (long)bs[nb - 1].pressure_pa, tc);
+            }
+        }
 #endif
 
 #if !TILT_KF_ONLY
@@ -533,6 +574,11 @@ void task_state_estimation(void *arg)
             s_mag_buf[n_mag].data[0]      = s_mag_raw[i].mx * sx;
             s_mag_buf[n_mag].data[1]      = s_mag_raw[i].my * sy;
             s_mag_buf[n_mag].data[2]      = s_mag_raw[i].mz * sz;
+#ifdef DEBUG_TEXT_CONSOLE
+            s_dbg_mag_last[0] = s_mag_buf[n_mag].data[0];
+            s_dbg_mag_last[1] = s_mag_buf[n_mag].data[1];
+            s_dbg_mag_last[2] = s_mag_buf[n_mag].data[2];
+#endif
             n_mag++;
 
             /* Snapshot the driver's live offset estimate for the SD
@@ -555,6 +601,11 @@ void task_state_estimation(void *arg)
                                            sizeof(s_gps_raw) / sizeof(s_gps_raw[0]));
         for (size_t i = 0; i < n_gp && n_gps < (sizeof(s_gps_buf)/sizeof(s_gps_buf[0])); i++) {
             if (!s_gps_raw[i].valid || s_gps_raw[i].fix_type == 0) continue;
+
+            /* Latch GPS lock for the readiness gate. */
+            s_gps_stat.locked      = true;
+            s_gps_stat.sats        = s_gps_raw[i].sats_used;
+            s_gps_stat.last_fix_us = s_gps_raw[i].t_us;
 
             if (!s_gps_ref.set) {
                 s_gps_ref.lat_rad = s_gps_raw[i].latitude_deg  * DEG2RAD;
@@ -667,6 +718,88 @@ void task_state_estimation(void *arg)
         };
         PUB_STATE_ESTIMATION_STATE_ESTIMATE(
             t_us, position, velocity, attitude, gyro_bias, accel_bias);
+
+        /* ---- Sensor readiness gate ----------------------------------
+         * The vehicle must not arm until its sensors have settled. Publish
+         * per-sensor readiness for the mission manager (arming gate) and CM7.
+         *   imu  — EKF stationary bias calibration complete
+         *   mag  — hard-iron offset valid (status-only; SET/RESET is live)
+         *   gps  — a valid fix seen recently (BENCH_FORCE_GPS_LOCK overrides
+         *          for antenna-less bench testing) */
+        {
+            vehicle_readiness_t rdy;
+            rdy.imu = eskf_is_calibrated(&s_eskf) ? SENSOR_CAL_READY
+                                                  : SENSOR_CAL_SETTLING;
+
+            float mo[3];
+            rdy.mag = mag_mmc5983_get_offset(sensors->mag, mo) ? SENSOR_CAL_READY
+                                                               : SENSOR_CAL_SETTLING;
+#ifdef BENCH_FORCE_MAG_READY
+            rdy.mag = SENSOR_CAL_READY;   /* bench: mag DRDY not firing yet */
+#endif
+
+            const uint64_t now2 = io_timestamp_us();
+            if (s_gps_stat.locked &&
+                (now2 - s_gps_stat.last_fix_us) > GPS_LOCK_TIMEOUT_US) {
+                s_gps_stat.locked = false;
+                s_gps_stat.sats   = 0;
+            }
+            rdy.gps_locked = s_gps_stat.locked;
+            rdy.gps_sats   = s_gps_stat.sats;
+#ifdef BENCH_FORCE_GPS_LOCK
+            rdy.gps_locked = true;   /* bench: no antenna — force GPS lock */
+#endif
+
+            rdy.armable = (rdy.imu == SENSOR_CAL_READY) &&
+                          (rdy.mag == SENSOR_CAL_READY) &&
+                          rdy.gps_locked;
+
+            (void)state_exchange_publish_readiness(&rdy);
+
+#ifdef DEBUG_TEXT_CONSOLE
+            static uint64_t s_rdy_dbg_last_us;
+            if (now2 - s_rdy_dbg_last_us >= 1000000ULL) {   /* 1 Hz */
+                s_rdy_dbg_last_us = now2;
+                static const char *const cs[] = { "uncal", "settling", "READY" };
+                io_debug_printf(
+                    "[ready] imu=%s mag=%s gps=%s(%u)  ARMABLE=%d\r\n",
+                    cs[rdy.imu], cs[rdy.mag],
+                    rdy.gps_locked ? "lock" : "no", (unsigned)rdy.gps_sats,
+                    (int)rdy.armable);
+            }
+#endif
+        }
+
+#ifdef DEBUG_TEXT_CONSOLE
+        /* Bring-up: ESKF output at ~4 Hz. cal=0 during the ~4 s stationary
+         * calibration window, then 1. rpy is attitude in degrees (roll/pitch
+         * observable from accel+gyro; yaw from mag). alt is z position [m] —
+         * ~0 at rest after the baro reference latches, tracks up/down motion.
+         * xy will drift with no GPS fix (antenna off) — expected on the bench. */
+        {
+            static uint64_t s_eskf_dbg_last_us;
+            const uint64_t  t_dbg = io_timestamp_us();
+            if (t_dbg - s_eskf_dbg_last_us >= 250000ULL) {
+                s_eskf_dbg_last_us = t_dbg;
+                const float w = q[0], x = q[1], y = q[2], z = q[3];
+                const float roll  = atan2f(2.0f*(w*x + y*z), 1.0f - 2.0f*(x*x + y*y)) * 57.29578f;
+                float sp = 2.0f*(w*y - z*x);
+                if (sp >  1.0f) sp =  1.0f;
+                if (sp < -1.0f) sp = -1.0f;
+                const float pitch = asinf(sp) * 57.29578f;
+                const float yaw   = atan2f(2.0f*(w*z + x*y), 1.0f - 2.0f*(y*y + z*z)) * 57.29578f;
+                char r[16], p[16], yw[16], alt[16];
+                fmt_f3(r, roll); fmt_f3(p, pitch); fmt_f3(yw, yaw); fmt_f3(alt, pos[2]);
+                io_debug_printf("[eskf] cal=%d rpy=%s,%s,%s deg  alt=%s m\r\n",
+                                (int)eskf_is_calibrated(&s_eskf), r, p, yw, alt);
+                char mgx[16], mgy[16], mgz[16];
+                fmt_f3(mgx, s_dbg_mag_last[0]);
+                fmt_f3(mgy, s_dbg_mag_last[1]);
+                fmt_f3(mgz, s_dbg_mag_last[2]);
+                io_debug_printf("[mag] field=%s,%s,%s G\r\n", mgx, mgy, mgz);
+            }
+        }
+#endif
 #endif
     }
 }

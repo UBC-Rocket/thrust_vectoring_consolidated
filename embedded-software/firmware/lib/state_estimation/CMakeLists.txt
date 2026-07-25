@@ -37,6 +37,16 @@ if(TARGET stm32cubemx)
     target_compile_definitions(state_estimation PRIVATE ESKF_MAX_TIMELINE_EVENTS=256)
 endif()
 
+# Yaw output: OFF (default) pins the published yaw to FIXED_YAW — correct for
+# the gimbal test rig (yaw is physically constrained) and safe when no working
+# magnetometer is present. ON publishes the filter's live, mag-driven yaw
+# estimate; requires a working, calibrated mag. Forwarded from the top-level
+# build via CM4_SERVO_CMAKE_ARG (the ESKF runs on CM4).
+option(ESKF_ESTIMATE_YAW "Publish estimated yaw instead of the FIXED_YAW override (needs a working mag)" OFF)
+if(ESKF_ESTIMATE_YAW)
+    target_compile_definitions(state_estimation PRIVATE ESKF_ESTIMATE_YAW)
+endif()
+
 set_target_properties(state_estimation PROPERTIES
     C_STANDARD 11
     C_STANDARD_REQUIRED ON

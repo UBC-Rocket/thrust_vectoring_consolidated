@@ -23,6 +23,7 @@ static io_intercore_slot_t s_slot_armed;
 static io_intercore_slot_t s_slot_pid_gains;
 static io_intercore_slot_t s_slot_reference;
 static io_intercore_slot_t s_slot_vehicle_cfg;
+static io_intercore_slot_t s_slot_readiness;
 
 /* Sequence numbers returned to callers.
  *
@@ -44,6 +45,7 @@ static uint32_t s_armed_seq;
 static uint32_t s_pid_gains_seq;
 static uint32_t s_reference_seq;
 static uint32_t s_vehicle_cfg_seq;
+static uint32_t s_readiness_seq;
 
 static bool s_initialised;
 
@@ -98,6 +100,9 @@ void state_exchange_init(void) {
     io_intercore_slot_init(&s_slot_vehicle_cfg,
                         app_shared_slot(APP_SLOT_VEHICLE_CONFIG_OFFSET),
                         sizeof(tunables_vehicle_cfg_wire_t));
+    io_intercore_slot_init(&s_slot_readiness,
+                        app_shared_slot(APP_SLOT_READINESS_OFFSET),
+                        sizeof(vehicle_readiness_t));
     s_initialised = true;
 }
 
@@ -219,4 +224,19 @@ uint32_t state_exchange_get_vehicle_config(app_vehicle_config_t *out) {
         s_vehicle_cfg_seq = seq;
     }
     return s_vehicle_cfg_seq;
+}
+
+uint32_t state_exchange_publish_readiness(const vehicle_readiness_t *r) {
+    if (!r) return s_readiness_seq;
+    io_intercore_slot_publish(&s_slot_readiness, r);
+    s_readiness_seq++;
+    return s_readiness_seq;
+}
+
+uint32_t state_exchange_get_readiness(vehicle_readiness_t *out) {
+    vehicle_readiness_t tmp;
+    if (io_intercore_slot_read(&s_slot_readiness, &tmp, NULL)) {
+        if (out) *out = tmp;
+    }
+    return s_readiness_seq;
 }

@@ -124,6 +124,14 @@
 
 #define MAG_RING_SIZE 8
 
+/* Settle time between a SET/RESET degauss pulse and the measurement trigger.
+ * The magnetization must complete before TM_M or the two halves read the same
+ * state and the differenced field collapses to ~0. SparkFun's driver uses
+ * ~1 ms; we match that. */
+#ifndef MAG_SETRESET_SETTLE_MS
+#define MAG_SETRESET_SETTLE_MS 1U
+#endif
+
 typedef enum {
     MAG_PHASE_AWAIT_SET = 0,    /* next DRDY captures M_set    */
     MAG_PHASE_AWAIT_RESET,      /* next DRDY captures M_reset  */
@@ -216,12 +224,39 @@ static bool read_xyzt(int32_t *rx_out, int32_t *ry_out, int32_t *rz_out,
     return true;
 }
 
-/* Kick a measurement after writing a SET or RESET coil pulse. CTRL_0 is
- * write-only side-effect: bits self-clear, so we write them fresh each
- * time. The INT_MEAS_DONE_EN bit must stay on so DRDY routes back to us. */
+/* Issue a SET/RESET degauss pulse, then start a magnetic measurement with the
+ * measurement-done interrupt enabled.
+ *
+ * These MUST be two separate CTRL_0 writes. Combining the SET/RESET pulse bit
+ * with TM_M in one write fires the degauss coil but the measurement never
+ * runs — so the chip never asserts INT and DRDY never fires (observed: the
+ * service task stalls in AWAIT_SET, no samples). CTRL_0 action bits (SET,
+ * RESET, TM_M) are one-shot / self-clearing, so each is written fresh.
+ *
+ * A settle delay between the pulse and TM_M is REQUIRED: firing the
+ * measurement immediately reads the pre-magnetization state, so the SET and
+ * RESET halves come back with the same polarity and the differenced field
+ * collapses to ~0 (verified on hardware: without the delay M_set ~= M_reset
+ * and measurements also intermittently time out; with a 1 ms delay the halves
+ * flip polarity and the field is real). */
 static bool trigger_with_pulse(uint8_t pulse_bit) {
+    /* 0. Clear the previous Meas_M_Done. Per the datasheet TM_M already turns
+     *    this bit to 0 on the next measurement, so this write-1 is belt-and-
+     *    suspenders — it also deasserts the INT-pin latch, keeping things
+     *    clean if the DRDY interrupt is ever re-enabled. Cheap insurance. */
+    (void)reg_write(MMC_REG_STATUS, MMC_STATUS_MEAS_M_DONE);
+    /* 1. Degauss pulse alone. */
+    if (!reg_write(MMC_REG_INTERNAL_CTRL_0, pulse_bit)) {
+        return false;
+    }
+    /* 1b. Let the SET/RESET coil operation complete BEFORE measuring. The
+     *     magnetization must settle or the measurement reads the pre-pulse
+     *     state and SET/RESET come back identical (field differences to ~0).
+     *     Known-good drivers (SparkFun) wait ~1 ms here. */
+    vTaskDelay(pdMS_TO_TICKS(MAG_SETRESET_SETTLE_MS));
+    /* 2. Start the measurement + enable the done-interrupt → DRDY on complete. */
     return reg_write(MMC_REG_INTERNAL_CTRL_0,
-                     (uint8_t)(MMC_CTRL0_INT_MEAS_DONE_EN | pulse_bit | MMC_CTRL0_TM_M));
+                     (uint8_t)(MMC_CTRL0_INT_MEAS_DONE_EN | MMC_CTRL0_TM_M));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -247,28 +282,41 @@ static void on_drdy(void *user) {
 /* -------------------------------------------------------------------------- */
 
 #ifdef MAG_HAVE_FREERTOS
+/* Wait for the magnetic measurement to finish by polling STATUS.Meas_M_Done.
+ * The MMC5983's DRDY/INT pin was not producing edges on this board (the
+ * service task stalled forever waiting on the EXTI), so we poll the status
+ * bit instead — the part is slow (~4 ms/measurement at BW=200 Hz), so a 1 ms
+ * poll costs little. Returns true once done, false on timeout. */
+static bool wait_meas_done(uint32_t timeout_ms) {
+    for (uint32_t i = 0; i <= timeout_ms; ++i) {
+        uint8_t st = 0;
+        if (reg_read(MMC_REG_STATUS, &st, 1) && (st & MMC_STATUS_MEAS_M_DONE)) {
+            return true;
+        }
+        vTaskDelay(pdMS_TO_TICKS(1));
+    }
+    return false;
+}
+
 static void mag_service_task(void *arg) {
     mag_mmc5983_t *d = (mag_mmc5983_t *)arg;
 
     /* Start the state machine on the SET half. */
     d->phase = MAG_PHASE_AWAIT_SET;
     if (!trigger_with_pulse(MMC_CTRL0_SET)) {
-        /* Init-time SPI failure: stall here so EXTI-driven retry
-         * (or external watchdog) can recover. */
+        /* Init-time SPI failure: stall here so an external watchdog can
+         * recover. */
         for (;;) { vTaskDelay(pdMS_TO_TICKS(1000)); }
     }
 
     for (;;) {
-        uint32_t notify = 0;
-        if (xTaskNotifyWait(0, UINT32_MAX, &notify,
-                            MMC_MEAS_TIMEOUT_TICKS) == pdFALSE) {
-            /* DRDY didn't fire within the budget. Retry from the SET
+        if (!wait_meas_done(20U)) {
+            /* Measurement didn't finish in the budget. Retry from the SET
              * half so we don't get stuck mid-cycle. */
             d->phase = MAG_PHASE_AWAIT_SET;
             (void)trigger_with_pulse(MMC_CTRL0_SET);
             continue;
         }
-        if ((notify & MAG_NOTIFY_DRDY) == 0U) continue;
 
         int32_t rx, ry, rz;
         uint8_t tempb;
@@ -348,23 +396,43 @@ bool mag_mmc5983_init(void) {
      *    The service task drives SET / RESET / TM_M manually. */
     if (!reg_write(MMC_REG_INTERNAL_CTRL_2, 0)) return false;
 
-    /* 5. EXTI hookup. We register the callback now; the actual measurement
-     *    cycle starts when mag_service_task is created below. */
+    /* 5. EXTI hookup. We register the callback now; no DRDY can fire yet
+     *    because single-shot mode issues no measurement until the service
+     *    task kicks the first SET pulse (see mag_mmc5983_start). The
+     *    on_drdy ISR also guards on service_task == NULL, so an early edge
+     *    would be ignored regardless. */
     io_exti_register(&IO_EXTI_MMC_INT, on_drdy, &s_self);
     io_exti_enable  (&IO_EXTI_MMC_INT, true);
 
-#ifdef MAG_HAVE_FREERTOS
-    /* 6. Spawn the service task that owns the SET/RESET state machine.
-     *    Priority 5 — same neighborhood as state estimation, so DRDY
-     *    handling doesn't get starved by lower-priority work. */
-    s_self.service_task = xTaskCreateStatic(
-        mag_service_task, "mag", 512, &s_self, 5,
-        s_self.service_stack, &s_self.service_tcb);
-    if (s_self.service_task == NULL) return false;
-#endif
+    /* NOTE: the SET/RESET service task is deliberately NOT created here.
+     * mag_mmc5983_init() runs in the DEV phase, before the FreeRTOS
+     * scheduler starts, and xTaskCreateStatic() takes a critical section.
+     * FreeRTOS's uxCriticalNesting is 0xaaaaaaaa until the scheduler
+     * starts, so that critical section raises BASEPRI to
+     * configMAX_SYSCALL_INTERRUPT_PRIORITY and never lowers it — which
+     * masks the TIM5 HAL-timebase IRQ and freezes HAL_GetTick(). Any
+     * later pre-scheduler code that blocks on a HAL timeout (e.g. the
+     * Dynamixel bus init's HAL_UART_Receive) would then hang forever.
+     * The task is created by mag_mmc5983_start() from app_init, in the
+     * same window as every other task, right before the scheduler runs. */
 
     s_self.ready = true;
     return true;
+}
+
+bool mag_mmc5983_start(void) {
+#ifdef MAG_HAVE_FREERTOS
+    if (!s_self.ready) return false;              /* init must have run */
+    if (s_self.service_task != NULL) return true; /* idempotent */
+    /* Priority 5 — same neighborhood as state estimation, so DRDY
+     * handling doesn't get starved by lower-priority work. */
+    s_self.service_task = xTaskCreateStatic(
+        mag_service_task, "mag", 512, &s_self, 5,
+        s_self.service_stack, &s_self.service_tcb);
+    return s_self.service_task != NULL;
+#else
+    return true;
+#endif
 }
 
 mag_mmc5983_t *mag_mmc5983_get(void) {

@@ -26,20 +26,18 @@ IO_TEST_HOOK_RW(s_init_done,        bool,        dev_init_cm4_init_done)
 void dev_init_cm4(void) {
     if (s_init_done) return;
 
-    /* BMI088 (SPI4) and MMC5983 mag (SPI1) are SKIPPED for bring-up: the
-     * first blocking SPI transaction to either hangs CM4 before anything
-     * else (console, tasks) comes up. Suspected cause: CubeMX default
-     * prescaler /2 leaves both buses far over the sensors' 10 MHz max
-     * (SPI4: 120/2 = 60 MHz, SPI1: 64/2 = 32 MHz — see CM4/Core/Src/spi.c;
-     * SPI3/ICM was already fixed to /4 = 16 MHz during its bring-up).
-     * Their _get() handles stay NULL; all consumers are NULL-safe.
-     * TODO: retune SPI1/SPI4 prescalers, verify on scope, then re-enable. */
-    /* imu_bmi088_init(); */
+    /* SPI clocks retuned so BMI088 (SPI4 /16 = 7.5 MHz) and MMC5983
+     * (SPI1 /8 = 8 MHz) sit under the chips' 10 MHz max; SPI2/baro
+     * dropped to /8 = 4 MHz. Prescaler intent lives in the .ioc and
+     * spi.c is edited to match — CubeMX regen for this project is
+     * unreliable, so both are hand-maintained until the .ioc drift is
+     * cleaned up. See conversation in <bench session date>. */
+    imu_bmi088_init();
     if (imu_icm40609_init() == false) {
         io_status_led_set(IO_LED_YELLOW, true);
     }
     baro_ms5611_init();
-    /* mag_mmc5983_init(); */
+    mag_mmc5983_init();
     gps_nmea_init();
     radio_rfd900_init();
 

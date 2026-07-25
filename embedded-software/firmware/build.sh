@@ -17,6 +17,18 @@ Build the STM32H745 dual-core flight controller firmware.
 CM4 servo driver defaults to Dynamixel (USE_DYNAMIXEL_SERVO=ON).
 To build with Feetech instead: USE_FEETECH_SERVO=1 ./build.sh
 
+Bring-up flags:
+  BARO_RELAX_CRC_ENV=1   relax the MS5611 PROM CRC gate (proceed if C1-C6
+                         are sane; for boards with the word-0 read quirk)
+  USE_TILT_KF=1          build the attitude-only tilt-KF fallback instead of
+                         the full ESKF (ESKF is the default)
+  BENCH_FORCE_GPS_LOCK=1 force GPS lock in the arm-readiness gate (bench has
+                         no antenna; lets the arm flow be tested without GPS)
+  BENCH_FORCE_MAG_READY=1 force mag ready in the arm-readiness gate (bench; the
+                         MMC5983 DRDY interrupt isn't firing yet)
+  ESKF_ESTIMATE_YAW=1    publish the ESKF's live (mag-driven) yaw instead of
+                         the FIXED_YAW override (off = gimbal-rig fixed yaw)
+
 Examples:
   ./build.sh
   ./build.sh Release
@@ -116,14 +128,54 @@ if [[ "${USE_FEETECH_SERVO:-}" == "1" ]]; then
   USE_DYNAMIXEL_SERVO=OFF
 fi
 
+# Bring-up escape hatch: relax the MS5611 baro PROM CRC gate (proceed if
+# C1-C6 are sane but the CRC fails on the known word-0 read quirk).
+BARO_RELAX_CRC=OFF
+if [[ "${BARO_RELAX_CRC_ENV:-}" == "1" ]]; then
+  BARO_RELAX_CRC=ON
+fi
+
+# State estimator: ESKF is primary (default). Set USE_TILT_KF=1 to build the
+# attitude-only tilt-KF fallback instead.
+USE_TILT_KF_ARG=OFF
+if [[ "${USE_TILT_KF:-}" == "1" ]]; then
+  USE_TILT_KF_ARG=ON
+fi
+
+# Bench testing: force the readiness gate's GPS lock / mag ready (no antenna,
+# and the mag DRDY isn't firing yet — lets the arm flow be tested).
+BENCH_FORCE_GPS_LOCK_ARG=OFF
+if [[ "${BENCH_FORCE_GPS_LOCK:-}" == "1" ]]; then
+  BENCH_FORCE_GPS_LOCK_ARG=ON
+fi
+BENCH_FORCE_MAG_READY_ARG=OFF
+if [[ "${BENCH_FORCE_MAG_READY:-}" == "1" ]]; then
+  BENCH_FORCE_MAG_READY_ARG=ON
+fi
+
+# State estimator yaw output: publish the live mag-driven yaw estimate instead
+# of the FIXED_YAW override. Default OFF pins yaw for the gimbal test rig.
+ESKF_ESTIMATE_YAW_ARG=OFF
+if [[ "${ESKF_ESTIMATE_YAW:-}" == "1" ]]; then
+  ESKF_ESTIMATE_YAW_ARG=ON
+fi
+
 CMAKE_ARGS=(
   --preset "$PRESET"
   -DUSE_DYNAMIXEL_SERVO="${USE_DYNAMIXEL_SERVO}"
   -DBUILD_CONTEXT="$BUILD_CONTEXT"
+  -DBARO_RELAX_CRC="${BARO_RELAX_CRC}"
+  -DUSE_TILT_KF="${USE_TILT_KF_ARG}"
+  -DBENCH_FORCE_GPS_LOCK="${BENCH_FORCE_GPS_LOCK_ARG}"
+  -DBENCH_FORCE_MAG_READY="${BENCH_FORCE_MAG_READY_ARG}"
+  -DESKF_ESTIMATE_YAW="${ESKF_ESTIMATE_YAW_ARG}"
 )
 
 if [[ "$USE_DYNAMIXEL_SERVO" == "ON" ]]; then
   echo "    CM4 servo: Dynamixel (set USE_FEETECH_SERVO=1 for Feetech)"
+fi
+if [[ "$BARO_RELAX_CRC" == "ON" ]]; then
+  echo "    Baro: MS5611 CRC gate RELAXED (BARO_RELAX_CRC_ENV=1)"
 fi
 
 cmake "${CMAKE_ARGS[@]}"
