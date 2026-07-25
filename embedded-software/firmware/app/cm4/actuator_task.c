@@ -116,7 +116,7 @@ static void actuator_pid_init(void)
 static void updateConfiguration() {
     app_pid_gains_t pidGains;
     state_exchange_get_pid_gains(&pidGains);
-    
+
     s_pid_x.kd = -pidGains.attitude_kd[0];
     s_pid_y.kd = pidGains.attitude_kd[1];
 
