@@ -9,7 +9,16 @@ message FlightCommand {
     SetReference    set_reference    = 3;
     SetConfig       set_config       = 4;
     SetProbeLayout  set_probe_layout = 5;
+    SetThrottle     set_throttle     = 6;
   }
+}
+
+// Manual engine throttle for bring-up / bench runs. Deliberately NOT part of
+// SetConfig: config fields use zeros-are-unset merge semantics, while a
+// commanded throttle of 0 is meaningful. Normalized 0..1 (the GCS UI shows
+// percent); the firmware clamps on receipt and again at PWM conversion.
+message SetThrottle {
+  float throttle = 1;   // 0.0 .. 1.0
 }
 
 // Four UWB anchor positions on the ground, in nav-frame meters relative to the

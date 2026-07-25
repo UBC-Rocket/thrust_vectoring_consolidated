@@ -9,6 +9,9 @@
 PB_BIND(tvr_FlightCommand, tvr_FlightCommand, AUTO)
 
 
+PB_BIND(tvr_SetThrottle, tvr_SetThrottle, AUTO)
+
+
 PB_BIND(tvr_SetProbeLayout, tvr_SetProbeLayout, AUTO)
 
 
