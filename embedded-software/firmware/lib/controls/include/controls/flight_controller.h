@@ -84,6 +84,21 @@ typedef struct {
 void flight_controller_init(const flight_controller_config_t *config);
 
 /**
+ * @brief Push updated thrust-PID gains and integral limit from @p config into
+ *        the running z-PID.
+ *
+ * flight_controller_init latches config->thrust.{kp,ki,kd,integral_limit}
+ * into the internal PID once; flight_controller_run never re-reads them. Call
+ * this after mutating config->thrust at runtime (e.g. on a SetPidGains radio
+ * uplink) so the change actually reaches the controller. The integral
+ * accumulator and previous measurement are preserved (the accumulator is
+ * clamped to the new limit), so tuning mid-run does not kick the output.
+ *
+ * @param config Controller config; only the thrust PID fields are consumed.
+ */
+void flight_controller_apply_thrust_gains(const flight_controller_config_t *config);
+
+/**
  * @brief Run one step: torque → allocation → thrust PID → gimbal angles.
  * @param state  Current estimated state (from state_exchange).
  * @param ref    Desired attitude and z setpoints.

@@ -116,6 +116,12 @@ void test_api_v3_shortest_path(void);
 void test_api_v3_gimbal_mapping(void);
 void test_api_v3_gimbal_saturation(void);
 
+/* flight_controller_apply_thrust_gains */
+void test_apply_gains_config_mutation_alone_is_latched(void);
+void test_apply_gains_updates_running_pid(void);
+void test_apply_gains_enables_integral_at_runtime(void);
+void test_apply_gains_new_integral_limit_clamps_accumulator(void);
+
 /* test_pwm.c */
 void test_pwm_zeroes(void);
 void test_pwm_midpoint(void);
@@ -251,6 +257,12 @@ int main(void)
     /* public APIs — set 3 (allocation/gimbal) */
     RUN_TEST(test_api_v3_gimbal_mapping);
     RUN_TEST(test_api_v3_gimbal_saturation);
+
+    /* flight_controller_apply_thrust_gains */
+    RUN_TEST(test_apply_gains_config_mutation_alone_is_latched);
+    RUN_TEST(test_apply_gains_updates_running_pid);
+    RUN_TEST(test_apply_gains_enables_integral_at_runtime);
+    RUN_TEST(test_apply_gains_new_integral_limit_clamps_accumulator);
 
     /* PWM */
     RUN_TEST(test_pwm_zeroes);

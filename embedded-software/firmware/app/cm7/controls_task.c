@@ -174,6 +174,9 @@ static inline void merge_pid_gains(const app_pid_gains_t *g) {
     if (g->z_ki             > 0.0f) s_live_config.thrust.ki             = g->z_ki;
     if (g->z_kd             > 0.0f) s_live_config.thrust.kd             = g->z_kd;
     if (g->z_integral_limit > 0.0f) s_live_config.thrust.integral_limit = g->z_integral_limit;
+    /* flight_controller_init latched the z gains into its internal PID at
+     * boot; updating s_live_config alone never reaches it. */
+    flight_controller_apply_thrust_gains(&s_live_config);
 }
 
 static inline void merge_reference(const app_reference_t *r) {
