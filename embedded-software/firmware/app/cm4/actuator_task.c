@@ -14,6 +14,11 @@
 #include "tilt_state.h"
 
 #include "io_sys/io_intercore.h"
+#include "io_sys/io_timestamp.h"
+
+#include "generated/messages/publish.h"
+
+#include <math.h>          /* NAN — servo read-back unavailable */
 
 #ifdef USE_DYNAMIXEL_SERVO
 #include "dev_servo_dynamixel.h"
@@ -334,6 +339,16 @@ void task_actuator(void *arg)
             }
         }
 
+        /* Servo status log (SD) — last commanded angle (s_last_deg) + the
+         * servo's actual present position; NaN read-back if the bus read
+         * fails. fault_flags TODO once the driver surfaces stall/temp. */
+        {
+            float rb_x = 0.0f, rb_y = 0.0f;
+            const bool rb_ok = servo_dynamixel_get_pair_degrees(dxl, &rb_x, &rb_y);
+            PUB_SERVO_SERVO_STATUS(io_timestamp_us(), s_last_deg_x, s_last_deg_y,
+                                   rb_ok ? rb_x : NAN, rb_ok ? rb_y : NAN, 0U);
+        }
+
 #ifdef DEBUG_TEXT_CONSOLE
         {
             static uint32_t s_gimbal_dbg;
@@ -385,6 +400,24 @@ void task_actuator(void *arg)
                                            GIMBAL_DEFAULT_DEG_Y);
         } else {
             actuator_apply_gimbal(s);
+        }
+
+        /* Servo status log (SD) — commanded angle + actual present position. */
+        {
+            float cmd_x, cmd_y;
+            if (actuator_state_uses_default(current_state)) {
+                cmd_x = GIMBAL_DEFAULT_DEG_X;
+                cmd_y = GIMBAL_DEFAULT_DEG_Y;
+            } else {
+                control_output_t co;
+                (void)state_exchange_get_control_output(&co);
+                cmd_x = actuator_clamp_deg(co.theta_x_cmd * RAD2DEG);
+                cmd_y = actuator_clamp_deg(co.theta_y_cmd * RAD2DEG);
+            }
+            float rb_x = 0.0f, rb_y = 0.0f;
+            const bool rb_ok = servo_feetech_get_pair_degrees(s, &rb_x, &rb_y);
+            PUB_SERVO_SERVO_STATUS(io_timestamp_us(), cmd_x, cmd_y,
+                                   rb_ok ? rb_x : NAN, rb_ok ? rb_y : NAN, 0U);
         }
     }
 #endif

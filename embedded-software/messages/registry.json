@@ -209,13 +209,13 @@
         "servo_status": {
           "msg_id": 1,
           "class": "A",
-          "description": "Commanded pulse width vs. (when available) read-back angle for both axes.",
+          "description": "Commanded gimbal angle vs. (when available) read-back angle for both axes. The gimbal servos (Dynamixel / Feetech) are position-commanded in degrees.",
           "fields": [
             { "name": "t_us",            "type": "u64", "description": "Sample timestamp.",                                "units": "us" },
-            { "name": "cmd_us_x",        "type": "u16", "description": "Commanded pulse width, X axis.",                  "units": "us" },
-            { "name": "cmd_us_y",        "type": "u16", "description": "Commanded pulse width, Y axis.",                  "units": "us" },
-            { "name": "readback_deg_x",  "type": "f32", "description": "Encoder read-back, X axis (NaN if unavailable).", "units": "deg" },
-            { "name": "readback_deg_y",  "type": "f32", "description": "Encoder read-back, Y axis (NaN if unavailable).", "units": "deg" },
+            { "name": "cmd_deg_x",       "type": "f32", "description": "Commanded gimbal angle, X axis.",                 "units": "deg" },
+            { "name": "cmd_deg_y",       "type": "f32", "description": "Commanded gimbal angle, Y axis.",                 "units": "deg" },
+            { "name": "readback_deg_x",  "type": "f32", "description": "Servo present-position read-back, X axis (NaN if unavailable).", "units": "deg" },
+            { "name": "readback_deg_y",  "type": "f32", "description": "Servo present-position read-back, Y axis (NaN if unavailable).", "units": "deg" },
             { "name": "fault_flags",     "type": "u8",  "description": "Bitfield: bit0=X stall, bit1=Y stall, bit2=X over-temp, bit3=Y over-temp." }
           ],
           "routing": {
