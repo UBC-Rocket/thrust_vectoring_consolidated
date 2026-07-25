@@ -318,6 +318,22 @@ void flight_controller_init(const flight_controller_config_t *config)
     s_t_mag = config->thrust.m * config->thrust.g;
 }
 
+void flight_controller_apply_thrust_gains(const flight_controller_config_t *config)
+{
+    if (!config)
+        return;
+
+    if (!z_pid_initialized)
+    {
+        flight_controller_init(config);
+        return;
+    }
+
+    const flight_controller_thrust_config_t *t = &config->thrust;
+    pid_set_gains(&z_pid, t->kp, t->ki, t->kd);
+    pid_set_limits(&z_pid, t->integral_limit, t->a_z_min, t->a_z_max);
+}
+
 void flight_controller_run(const state_t *state,
                            const flight_controller_ref_t *ref,
                            const flight_controller_config_t *config,

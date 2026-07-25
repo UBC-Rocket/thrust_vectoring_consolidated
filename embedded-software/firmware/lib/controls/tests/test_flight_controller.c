@@ -1519,3 +1519,110 @@ void test_api_v3_gimbal_saturation(void)
     TEST_ASSERT_FALSE(isnan(out.theta_y_cmd));
 }
 
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * flight_controller_apply_thrust_gains — runtime gain updates reach the z-PID
+ *
+ * Regression context: flight_controller_init latches thrust gains into the
+ * internal z_pid once; mutating the config afterwards (as the radio-uplink
+ * merge does) silently changed nothing until apply_thrust_gains existed.
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+/* Shared scenario: identity attitude, error of exactly 1 m on z, measurement
+ * pinned at 0 so derivative-on-measurement stays 0. */
+static flight_controller_config_t make_apply_cfg(void)
+{
+    flight_controller_config_t cfg = make_api_config_v3();
+    cfg.thrust.kp             = 1.0f;
+    cfg.thrust.ki             = 0.0f;
+    cfg.thrust.kd             = 0.0f;
+    cfg.thrust.integral_limit = 3.0f;
+    return cfg;
+}
+
+static void run_step_1m_error(const flight_controller_config_t *cfg,
+                              control_output_t *out)
+{
+    state_t state;
+    memset(&state, 0, sizeof(state));
+    state.q_bn = (quaternion_t){1.0f, 0.0f, 0.0f, 0.0f};
+
+    flight_controller_ref_t ref;
+    memset(&ref, 0, sizeof(ref));
+    ref.q_ref = (quaternion_t){1.0f, 0.0f, 0.0f, 0.0f};
+    ref.z_ref = 1.0f;
+
+    flight_controller_run(&state, &ref, cfg, out, 0.01f);
+}
+
+void test_apply_gains_config_mutation_alone_is_latched(void)
+{
+    flight_controller_config_t cfg = make_apply_cfg();
+    flight_controller_init(&cfg);
+
+    control_output_t out;
+    run_step_1m_error(&cfg, &out);
+    /* kp=1, ki=kd=0: T = m*(g + 1) = 10.81 */
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 10.81f, out.T_cmd);
+
+    /* Mutating the config without apply must NOT change the running PID —
+     * this documents the latch that made uplinked gains silently inert. */
+    cfg.thrust.kp = 3.0f;
+    run_step_1m_error(&cfg, &out);
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 10.81f, out.T_cmd);
+}
+
+void test_apply_gains_updates_running_pid(void)
+{
+    flight_controller_config_t cfg = make_apply_cfg();
+    flight_controller_init(&cfg);
+
+    control_output_t out;
+    run_step_1m_error(&cfg, &out);
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 10.81f, out.T_cmd);
+
+    cfg.thrust.kp = 3.0f;
+    flight_controller_apply_thrust_gains(&cfg);
+    run_step_1m_error(&cfg, &out);
+    /* T = m*(g + 3*1) = 12.81 */
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 12.81f, out.T_cmd);
+}
+
+void test_apply_gains_enables_integral_at_runtime(void)
+{
+    flight_controller_config_t cfg = make_apply_cfg();
+    flight_controller_init(&cfg);
+
+    control_output_t out;
+    /* 100 steps at error=1, dt=0.01 → integral_sum = 1.0 (ki=0: unused). */
+    for (int i = 0; i < 100; i++)
+        run_step_1m_error(&cfg, &out);
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 10.81f, out.T_cmd);
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 1.0f, out.z_pid_integral);
+
+    /* Enable the integral term mid-run, preserving the accumulator. */
+    cfg.thrust.ki = 2.0f;
+    flight_controller_apply_thrust_gains(&cfg);
+    run_step_1m_error(&cfg, &out);
+    /* integral_sum = 1.01; T = m*(g + kp*1 + ki*1.01) = 9.81+1+2.02 = 12.83 */
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 12.83f, out.T_cmd);
+}
+
+void test_apply_gains_new_integral_limit_clamps_accumulator(void)
+{
+    flight_controller_config_t cfg = make_apply_cfg();
+    cfg.thrust.ki = 1.0f;
+    flight_controller_init(&cfg);
+
+    control_output_t out;
+    /* 500 steps at error=1 → integral_sum saturates at limit 3.0. */
+    for (int i = 0; i < 500; i++)
+        run_step_1m_error(&cfg, &out);
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 3.0f, out.z_pid_integral);
+
+    /* Tighter anti-windup limit must clamp the existing accumulator. */
+    cfg.thrust.integral_limit = 0.5f;
+    flight_controller_apply_thrust_gains(&cfg);
+    run_step_1m_error(&cfg, &out);
+    TEST_ASSERT_FLOAT_WITHIN(TOL_COARSE, 0.5f, out.z_pid_integral);
+}
