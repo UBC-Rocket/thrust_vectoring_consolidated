@@ -69,6 +69,18 @@ typedef struct {
     float theta_max;  /* max gimbal angle [rad]                             */
 } app_vehicle_config_t;
 
+typedef struct {
+    float throttle;   /* normalized 0..1 — already clamped by mission mgr   */
+} app_throttle_cmd_t;
+
+/* CM7 (controls) writes, CM4 (telemetry) reads. valid=false when the DShot
+ * telemetry backend is not linked or returned no decoded frame. */
+typedef struct {
+    float rpm_lower;  /* [rpm] */
+    float rpm_upper;  /* [rpm] */
+    bool  valid;
+} app_motor_rpm_t;
+
 /* ---------------------------------------------------------------------------
  * Sensor readiness — CM4 (state estimation) writes, CM4 (mission manager) and
  * CM7 read. The vehicle must not arm until its sensors have settled; this
@@ -135,6 +147,14 @@ uint32_t state_exchange_get_vehicle_config(app_vehicle_config_t *out);
 /* ---------- sensor readiness (CM4 state-est writes, mission + CM7 read) ---------- */
 uint32_t state_exchange_publish_readiness(const vehicle_readiness_t *r);
 uint32_t state_exchange_get_readiness(vehicle_readiness_t *out);
+
+/* ---------- manual throttle (CM4 mission mgr writes, CM7 controls polls) ---------- */
+uint32_t state_exchange_publish_throttle_cmd(const app_throttle_cmd_t *cmd);
+uint32_t state_exchange_get_throttle_cmd(app_throttle_cmd_t *out);
+
+/* ---------- motor RPM readback (CM7 controls writes, CM4 telemetry reads) ---------- */
+uint32_t state_exchange_publish_motor_rpm(const app_motor_rpm_t *rpm);
+uint32_t state_exchange_get_motor_rpm(app_motor_rpm_t *out);
 
 #ifdef __cplusplus
 }

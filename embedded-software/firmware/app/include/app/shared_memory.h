@@ -158,6 +158,24 @@ extern "C" {
 #define APP_SLOT_READINESS_OFFSET   0x30C0
 #define APP_SLOT_READINESS_PAYLOAD  64U
 
+/* ---------------------------------------------------------------------------
+ * Manual throttle command (app_throttle_cmd_t). CM4 mission manager writes
+ * (from a GCS SetThrottle uplink), CM7 controls polls alongside the other
+ * tunables. 128 B slot (8 B header + up-to-120 B payload) matching the
+ * tunables-slot pattern so later fields don't force a layout migration.
+ * --------------------------------------------------------------------------- */
+#define APP_SLOT_THROTTLE_CMD_OFFSET  0x3140
+#define APP_SLOT_THROTTLE_CMD_PAYLOAD 120U
+
+/* ---------------------------------------------------------------------------
+ * Motor RPM readback (app_motor_rpm_t). CM7 controls writes (from
+ * bidirectional-DShot ESC telemetry when that backend is linked), CM4
+ * telemetry reads for the downlink. Same 128 B pattern.
+ * Tail: 0x31C0 + 128 = 0x3240, inside the 16 kB region.
+ * --------------------------------------------------------------------------- */
+#define APP_SLOT_MOTOR_RPM_OFFSET   0x31C0
+#define APP_SLOT_MOTOR_RPM_PAYLOAD  120U
+
 /**
  * @brief Pointer to the base of the shared region (defined by the linker).
  */

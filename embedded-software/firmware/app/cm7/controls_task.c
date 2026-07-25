@@ -111,6 +111,7 @@ static flight_controller_ref_t s_live_ref = {
 static uint32_t s_last_pid_seq;
 static uint32_t s_last_ref_seq;
 static uint32_t s_last_cfg_seq;
+static uint32_t s_last_throttle_seq;
 static volatile bool s_isr_ready;
 static volatile bool s_esc_bringup_armed;
 static const escs_t *s_escs;
@@ -214,6 +215,29 @@ static void poll_tunables(void) {
         merge_vehicle_config(&cfg);
         s_last_cfg_seq = seq;
     }
+
+    app_throttle_cmd_t thr;
+    seq = state_exchange_get_throttle_cmd(&thr);
+    if (seq != s_last_throttle_seq) {
+        /* Operator throttle from the GCS (SetThrottle, normalized 0..1)
+         * replaces the compile-time bring-up value. throttle_to_us clamps
+         * again; the ISR applies it only after the 6 s arming sequence
+         * (s_esc_bringup_armed). Until the first command arrives the seq
+         * never changes and BRINGUP_ESC_THROTTLE stays in effect. */
+        s_bringup_esc_us = throttle_to_us(thr.throttle);
+        s_last_throttle_seq = seq;
+    }
+}
+
+/* Motor RPM readback for the CM4 telemetry downlink. The plain-PWM ESC
+ * backend has no RPM telemetry — that capability returns with the
+ * bidirectional-DShot driver (dev/esc_dshot, PR #76): fill .rpm_* from
+ * esc_dshot_motor_get_telemetry() there. Until then valid=false travels
+ * the full chain so the GCS renders "—" instead of a fake number. */
+static void publish_motor_rpm(void)
+{
+    app_motor_rpm_t rpm = { .rpm_lower = 0.0f, .rpm_upper = 0.0f, .valid = false };
+    (void)state_exchange_publish_motor_rpm(&rpm);
 }
 
 #ifdef DEBUG_TEXT_CONSOLE
@@ -269,6 +293,7 @@ void task_controls(void *arg) {
 
     for (;;) {
         poll_tunables();
+        publish_motor_rpm();
 
 #ifdef DEBUG_TEXT_CONSOLE
         if (++dbg_tick >= (1000U / TUNABLE_POLL_MS)) {

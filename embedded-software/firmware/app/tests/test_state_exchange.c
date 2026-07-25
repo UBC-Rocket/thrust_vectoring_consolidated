@@ -33,6 +33,8 @@ IO_TEST_HOOK_DECL_RW(uint32_t, state_exchange_pid_gains_seq)
 IO_TEST_HOOK_DECL_RW(uint32_t, state_exchange_reference_seq)
 IO_TEST_HOOK_DECL_RW(uint32_t, state_exchange_vehicle_cfg_seq)
 IO_TEST_HOOK_DECL_RW(uint32_t, state_exchange_readiness_seq)
+IO_TEST_HOOK_DECL_RW(uint32_t, state_exchange_throttle_seq)
+IO_TEST_HOOK_DECL_RW(uint32_t, state_exchange_motor_rpm_seq)
 IO_TEST_HOOK_DECL_RW(bool,     state_exchange_initialised)
 
 void setUp(void) {}
@@ -48,6 +50,8 @@ static void reset_module(uint8_t fill)
     IO_TEST_set_state_exchange_reference_seq(0);
     IO_TEST_set_state_exchange_vehicle_cfg_seq(0);
     IO_TEST_set_state_exchange_readiness_seq(0);
+    IO_TEST_set_state_exchange_throttle_seq(0);
+    IO_TEST_set_state_exchange_motor_rpm_seq(0);
     state_exchange_init();
 }
 
@@ -59,6 +63,8 @@ static void fake_reader_boot(void)
     IO_TEST_set_state_exchange_reference_seq(0);
     IO_TEST_set_state_exchange_vehicle_cfg_seq(0);
     IO_TEST_set_state_exchange_readiness_seq(0);
+    IO_TEST_set_state_exchange_throttle_seq(0);
+    IO_TEST_set_state_exchange_motor_rpm_seq(0);
 }
 
 static uint32_t *slot_seq_ptr(size_t offset)
@@ -161,6 +167,43 @@ void test_readiness_publish_visible_and_garbage_safe(void)
     seq = state_exchange_get_readiness(&got);
     TEST_ASSERT_EQUAL_UINT32(0U, seq);
     TEST_ASSERT_FALSE(got.armable);
+}
+
+void test_throttle_and_motor_rpm_slots_cross_core(void)
+{
+    reset_module(0x00);
+
+    /* CM4 → CM7: operator throttle command. */
+    app_throttle_cmd_t thr = { .throttle = 0.42f };
+    (void)state_exchange_publish_throttle_cmd(&thr);
+    /* CM7 → CM4: RPM readback. */
+    app_motor_rpm_t rpm = { .rpm_lower = 8342.0f, .rpm_upper = 8127.5f, .valid = true };
+    (void)state_exchange_publish_motor_rpm(&rpm);
+
+    fake_reader_boot();
+
+    app_throttle_cmd_t thr_got;
+    memset(&thr_got, 0, sizeof(thr_got));
+    uint32_t seq = state_exchange_get_throttle_cmd(&thr_got);
+    TEST_ASSERT_NOT_EQUAL_UINT32(0U, seq);
+    TEST_ASSERT_EQUAL_FLOAT(0.42f, thr_got.throttle);
+
+    app_motor_rpm_t rpm_got;
+    memset(&rpm_got, 0, sizeof(rpm_got));
+    seq = state_exchange_get_motor_rpm(&rpm_got);
+    TEST_ASSERT_NOT_EQUAL_UINT32(0U, seq);
+    TEST_ASSERT_EQUAL_FLOAT(8342.0f, rpm_got.rpm_lower);
+    TEST_ASSERT_EQUAL_FLOAT(8127.5f, rpm_got.rpm_upper);
+    TEST_ASSERT_TRUE(rpm_got.valid);
+
+    /* Garbage region: neither slot may report data. */
+    reset_module(0xA6);
+    memset(&thr_got, 0x5A, sizeof(thr_got));
+    TEST_ASSERT_EQUAL_UINT32(0U, state_exchange_get_throttle_cmd(&thr_got));
+    memset(&rpm_got, 0, sizeof(rpm_got));
+    rpm_got.valid = false;
+    TEST_ASSERT_EQUAL_UINT32(0U, state_exchange_get_motor_rpm(&rpm_got));
+    TEST_ASSERT_FALSE(rpm_got.valid);
 }
 
 /* ── poll_tunables()-style gate: fires once per publish, then stays shut ── */
@@ -270,6 +313,7 @@ int main(void)
     RUN_TEST(test_reference_publish_visible_to_fresh_reader);
     RUN_TEST(test_vehicle_config_publish_visible_to_fresh_reader);
     RUN_TEST(test_readiness_publish_visible_and_garbage_safe);
+    RUN_TEST(test_throttle_and_motor_rpm_slots_cross_core);
     RUN_TEST(test_poll_gate_fires_once_per_publish);
     RUN_TEST(test_even_garbage_rejected_by_magic);
     RUN_TEST(test_odd_garbage_rejected_as_write_in_progress);

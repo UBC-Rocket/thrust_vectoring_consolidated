@@ -268,6 +268,16 @@ static void mm_forward_config(const tvr_SetConfig *src) {
     (void)state_exchange_publish_vehicle_config(&c);
 }
 
+static void mm_forward_throttle(const tvr_SetThrottle *src) {
+    app_throttle_cmd_t t;
+    float v = src->throttle;
+    /* Clamp on receipt; throttle_to_us() clamps again on CM7. */
+    if (v < 0.0f) v = 0.0f;
+    if (v > 1.0f) v = 1.0f;
+    t.throttle = v;
+    (void)state_exchange_publish_throttle_cmd(&t);
+}
+
 /* Process one decoded FlightCommand. Returns true if it should refresh
  * the heartbeat watchdog. */
 static bool mm_handle_command(const tvr_FlightCommand *cmd) {
@@ -285,6 +295,10 @@ static bool mm_handle_command(const tvr_FlightCommand *cmd) {
 
         case tvr_FlightCommand_set_config_tag:
             mm_forward_config(&cmd->payload.set_config);
+            return true;
+
+        case tvr_FlightCommand_set_throttle_tag:
+            mm_forward_throttle(&cmd->payload.set_throttle);
             return true;
 
         default:
