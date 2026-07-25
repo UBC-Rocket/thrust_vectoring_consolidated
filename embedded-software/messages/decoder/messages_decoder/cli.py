@@ -7,9 +7,14 @@ Exit codes:
      records, or > 50% of all records are DecodeError once total > 64).
 
 Use:
-  python -m messages_decoder <log_file> [--format jsonl|csv]
+  python -m messages_decoder <log_file> [--format jsonl|csv|mf4]
                                         [--registry PATH]
                                         [--msg <module>.<name>]   # required for csv
+                                        [--out <file.mf4>]        # required for mf4
+
+  # ASAM MDF4 (viewable in asammdf/CANape, loads into pandas). Needs asammdf:
+  uv run --with asammdf python -m messages_decoder flight.log \\
+      --format mf4 --out flight.mf4 --registry embedded-software/messages/registry.json
 """
 
 from __future__ import annotations
@@ -132,18 +137,108 @@ def _csv_columns_for_spec(spec) -> List[str]:
     return cols
 
 
+def _export_mf4(decoder, registry, log_file: str, out_path: str) -> int:
+    """Decode the SD log and write an ASAM MDF4 (.mf4) file.
+
+    One channel group per message type, t_us_publish (→ seconds) as the time
+    base, one channel per flattened field. Class-A records export; sporadic
+    class-B log events are skipped (not time-series). Units come from the
+    registry (flattened components inherit their parent field's unit)."""
+
+    try:
+        import numpy as np
+        from asammdf import MDF, Signal
+    except ImportError:
+        print("error: mf4 export needs asammdf + numpy. Run e.g.:\n"
+              "  uv run --with asammdf python -m messages_decoder "
+              f"{log_file} --format mf4 --out {out_path}", file=sys.stderr)
+        return 1
+
+    # Map each decoded record's python type -> ("<module>.<msg>", spec), and
+    # collect per-message field units keyed by the top-level field name.
+    specs: dict = {}
+    units_by_label: dict = {}
+    for mod_name, mod in registry.modules.items():
+        for msg_name, msg in (mod.get("messages") or {}).items():
+            try:
+                spec = decoder.get_spec(mod_name, msg_name)
+            except (KeyError, ValueError):
+                continue
+            label = f"{mod_name}.{msg_name}"
+            specs[spec.py_type] = (label, spec)
+            units_by_label[label] = {
+                f["name"]: f["units"] for f in msg.get("fields", []) if "units" in f
+            }
+
+    # Bucket rows by message type.
+    buckets: dict = {}   # label -> {"t": [...], "cols": {name: [...]}, "n": int}
+    total = errors = 0
+    with open(log_file, "rb") as f:
+        for rec in decoder.iter_records(f):
+            total += 1
+            if isinstance(rec, DecodeError):
+                errors += 1
+                continue
+            entry = specs.get(type(rec))
+            if entry is None:
+                continue   # unknown / class-B / unsupported
+            label, spec = entry
+            b = buckets.setdefault(label, {"t": [], "cols": {}, "n": 0})
+            row: dict = {}
+            for fspec in spec.fields:
+                _flatten_for_csv(fspec.py_name, getattr(rec, fspec.py_name), row)
+            b["t"].append(rec.t_us_publish)
+            for k, v in row.items():
+                b["cols"].setdefault(k, []).append(v)
+            b["n"] += 1
+
+    if not buckets:
+        print(f"error: no decodable records in {log_file} "
+              f"({total} records, {errors} errors)", file=sys.stderr)
+        return 1
+
+    mdf = MDF()
+    groups = 0
+    for label, b in buckets.items():
+        n = b["n"]
+        t = np.asarray(b["t"], dtype=np.float64) / 1e6   # microseconds -> seconds
+        units = units_by_label.get(label, {})
+        sigs = []
+        for col, vals in b["cols"].items():
+            if len(vals) != n:
+                continue                      # field wasn't present on every record
+            try:
+                samples = np.asarray(vals, dtype=np.float64)
+            except (ValueError, TypeError):
+                continue                      # non-numeric (e.g. enum *_name) — skip
+            base = col.split(".", 1)[0].split("[", 1)[0]
+            sigs.append(Signal(samples=samples, timestamps=t,
+                               name=col, unit=units.get(base, "")))
+        if sigs:
+            mdf.append(sigs, comment=label, common_timebase=True)
+            groups += 1
+
+    mdf.save(out_path, overwrite=True)
+    print(f"wrote {out_path}: {groups} channel group(s) from {total} records "
+          f"({errors} decode errors)", file=sys.stderr)
+    return 0
+
+
 def main(argv: "list[str] | None" = None) -> int:
     p = argparse.ArgumentParser(prog="messages-decoder",
                                 description="Decode UBC Rocket SD log records.")
     p.add_argument("log_file", help="Path to the SD log file to decode.")
-    p.add_argument("--format", choices=["jsonl", "csv"], default="jsonl",
-                   help="Output format (default: jsonl).")
+    p.add_argument("--format", choices=["jsonl", "csv", "mf4"], default="jsonl",
+                   help="Output format (default: jsonl). mf4 = ASAM MDF4.")
     p.add_argument("--registry", default=None,
                    help="Path to registry.json (default: alongside the package).")
     p.add_argument("--msg", default=None,
                    help="Required for --format csv: filter to a single "
                         "message, given as '<module>.<name>' (e.g. "
                         "'state_estimation.state_estimate').")
+    p.add_argument("--out", default=None,
+                   help="Output file path. Required for --format mf4 "
+                        "(e.g. flight.mf4); jsonl/csv go to stdout.")
     args = p.parse_args(argv)
 
     registry_path = args.registry or _default_registry_path()
@@ -154,6 +249,12 @@ def main(argv: "list[str] | None" = None) -> int:
         return 1
 
     decoder = build_decoder(registry)
+
+    if args.format == "mf4":
+        if not args.out:
+            print("error: --format mf4 requires --out <file.mf4>", file=sys.stderr)
+            return 1
+        return _export_mf4(decoder, registry, args.log_file, args.out)
 
     total = 0
     consecutive_errors = 0

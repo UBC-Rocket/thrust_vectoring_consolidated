@@ -1,0 +1,4 @@
+# Python build / uv artifacts
+*.egg-info/
+uv.lock
+__pycache__/

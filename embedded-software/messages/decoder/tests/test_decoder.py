@@ -350,5 +350,62 @@ class TestEncoderRoundTrip(unittest.TestCase):
         self.assertEqual(length, 14)
 
 
+try:
+    import asammdf  # noqa: F401
+    _HAVE_ASAMMDF = True
+except ImportError:
+    _HAVE_ASAMMDF = False
+
+
+@unittest.skipUnless(_HAVE_ASAMMDF, "asammdf not installed (pip install '.[mf4]')")
+class TestMf4Export(unittest.TestCase):
+    """End-to-end: synthetic SD log -> --format mf4 -> reopen and verify."""
+
+    def test_export_roundtrip(self):
+        import tempfile
+        from asammdf import MDF
+        from messages_decoder.cli import main
+
+        # 4x { imu primary, imu secondary, baro } records.
+        log = b""
+        for i in range(4):
+            t = 1000 + i * 2000
+            log += make_record(CLASS_A, 4, 1, t,
+                               struct.pack("<QBfffffff", t, 0, 0.01 * i, 0.2, 9.8,
+                                           0.0, 0.0, 0.0, 25.0 + i))
+            log += make_record(CLASS_A, 4, 1, t,
+                               struct.pack("<QBfffffff", t, 1, 0.02 * i, 0.1, 9.7,
+                                           0.0, 0.0, 0.0, 30.0 + i))
+            log += make_record(CLASS_A, 5, 1, t,
+                               struct.pack("<Qff", t, 101325.0 - i * 8.0, 24.0 + i))
+
+        with tempfile.TemporaryDirectory() as d:
+            logp = os.path.join(d, "in.sdlog")
+            mf4p = os.path.join(d, "out.mf4")
+            with open(logp, "wb") as f:
+                f.write(log)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", RuntimeWarning)
+                rc = main([logp, "--format", "mf4", "--out", mf4p,
+                           "--registry", REGISTRY_PATH])
+            self.assertEqual(rc, 0)
+
+            m = MDF(mf4p)
+            try:
+                comments = {g.channel_group.comment for g in m.groups}
+                self.assertIn("imu.sample", comments)
+                self.assertIn("baro.sample", comments)
+                # accel.x: 8 samples (4 iters x 2 IMUs), unit from the registry.
+                sig = m.get("accel.x", group=[g.channel_group.comment
+                                              for g in m.groups].index("imu.sample"))
+                self.assertEqual(len(sig.samples), 8)
+                self.assertEqual(sig.unit, "m/s^2")
+                # baro pressure first sample.
+                pres = m.get("pressure_pa")
+                self.assertAlmostEqual(float(pres.samples[0]), 101325.0, places=1)
+            finally:
+                m.close()
+
+
 if __name__ == "__main__":
     unittest.main()
