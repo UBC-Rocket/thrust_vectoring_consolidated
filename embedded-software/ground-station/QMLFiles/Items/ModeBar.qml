@@ -11,7 +11,7 @@ Row {
     property int currentIndex: 0
     signal activated(int index)
 
-    spacing: 4
+    spacing: 8
 
     Repeater {
         model: bar.labels
@@ -23,22 +23,21 @@ Row {
 
             hoverEnabled: true
             padding: 0
-            width: Math.max(88, tabText.implicitWidth + 24)
-            height: 32
-            font.family: Theme.fontFamily
+            width: Math.max(88, tabText.implicitWidth + 40)
+            height: 34
+            font.family: Theme.fontFamilySemiBold
             font.pixelSize: Theme.fontBody
 
             readonly property bool selected: index === bar.currentIndex
 
-            background: Rectangle {
-                radius: Theme.radiusControl
-                color: tab.selected ? Theme.accentSubtle
-                     : tab.down     ? Theme.btnSecondaryPress
-                     : tab.hovered  ? Theme.btnSecondaryHover
-                     :                "transparent"
-                border.width: tab.selected ? 1 : 0
-                border.color: Theme.accent
-                Behavior on color { ColorAnimation { duration: Theme.transitionFast } }
+            background: ClippedRect {
+                slantTL: 10
+                slantBR: 10
+                fillColor: tab.down    ? Theme.btnSecondaryPress
+                         : tab.hovered ? Theme.btnSecondaryHover
+                         :               Theme.surfaceSolid
+                borderColor: (tab.selected || tab.hovered) ? Theme.accent : Theme.border
+                borderWidth: 1
             }
 
             contentItem: Item {
@@ -46,20 +45,23 @@ Row {
                 Text {
                     id: tabText
                     anchors.centerIn: parent
-                    text: tab.modelData
-                    color: tab.selected ? Theme.accent : Theme.textSecondary
+                    text: tab.modelData.toUpperCase()
+                    color: tab.selected ? Theme.textPrimary
+                         : tab.hovered  ? Theme.accentMuted
+                         :                Theme.textSecondary
                     font.family: tab.font.family
                     font.pixelSize: tab.font.pixelSize
-                    font.bold: tab.selected
+                    font.letterSpacing: 2
                 }
 
+                // Active-tab underline bar, inset 14px per side.
                 Rectangle {
                     visible: tab.selected
                     anchors.bottom: parent.bottom
+                    anchors.bottomMargin: 3
                     anchors.horizontalCenter: parent.horizontalCenter
-                    width: parent.width - 16
-                    height: 2
-                    radius: 1
+                    width: parent.width - 28
+                    height: 3
                     color: Theme.accent
                 }
             }

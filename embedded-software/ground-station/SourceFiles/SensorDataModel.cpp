@@ -43,10 +43,10 @@ const char* const kCsvHeader =
     "vel_x,vel_y,vel_z,"
     "att_w,att_x,att_y,att_z,"
     "gyro_x,gyro_y,gyro_z,"
-    "thrust_cmd,gimbal_x,gimbal_y,"
+    "thrust_cmd,gimbal_x,gimbal_y,rpm_lower,rpm_upper,"
     "uwb0_x,uwb0_y,uwb1_x,uwb1_y,"
-    "uptime_ms,accel_ok,gyro_ok,baro1_ok,baro2_ok,"
-    "gps_connected,radio_rx_count,radio_tx_count,cmd_rx_count";
+    "uptime_ms,accel_ok,gyro_ok,"
+    "radio_rx_count,radio_tx_count,cmd_rx_count";
 
 QString fmt(double v) { return QString::number(v, 'g', 9); }
 QString fmtBool(bool v) { return v ? QStringLiteral("1") : QStringLiteral("0"); }
@@ -215,15 +215,12 @@ void SensorDataModel::onBinaryPacketReceived(int which, const QByteArray& packet
     } else if (downlink.which_payload == tvr_Downlink_status_tag) {
         const tvr_SystemStatus* s = &downlink.payload.status;
         m_rawPacketLog += QStringLiteral(
-            "STATUS t=%1 up=%2 state=%3 accel=%4 gyro=%5 b1=%6 b2=%7 gps=%8 rx=%9 tx=%10 cmd=%11\n")
+            "STATUS t=%1 up=%2 state=%3 accel=%4 gyro=%5 rx=%6 tx=%7 cmd=%8\n")
             .arg(s->timestamp_ms)
             .arg(s->uptime_ms)
             .arg(s->flight_state)
             .arg(s->accel_ok)
             .arg(s->gyro_ok)
-            .arg(s->baro1_ok)
-            .arg(s->baro2_ok)
-            .arg(s->gps_connected)
             .arg(s->radio_rx_count)
             .arg(s->radio_tx_count)
             .arg(s->cmd_rx_count);
@@ -329,6 +326,14 @@ void SensorDataModel::applyDownlink(int which, const void* downlinkStruct)
         updateKalman(rawX, filtX, rawY, filtY, rawZ, filtZ);
         updatePosition(alt, px, py);
         updateTelemetry(vel);
+
+        // Motor RPM (bidirectional-DShot readback). Set before updateEngine
+        // so its engineDataChanged emit publishes these too. valid=false
+        // (no decoded frame / no DShot backend on the FC) renders as "—".
+        m_motorRpmLower = static_cast<double>(t->motor_rpm_lower);
+        m_motorRpmUpper = static_cast<double>(t->motor_rpm_upper);
+        m_motorRpmValid = t->motor_rpm_valid;
+
         updateEngine(
             static_cast<double>(t->thrust_cmd),
             static_cast<double>(t->gimbal_x),
@@ -359,8 +364,6 @@ void SensorDataModel::applyDownlink(int which, const void* downlinkStruct)
         if (kDownlinkDebug) {
             qDebug() << "SystemStatus: flight_state=" << s->flight_state
                      << "accel=" << s->accel_ok << "gyro=" << s->gyro_ok
-                     << "baro1=" << s->baro1_ok << "baro2=" << s->baro2_ok
-                     << "gps=" << s->gps_connected
                      << "uptime=" << s->uptime_ms;
         }
 
@@ -378,15 +381,6 @@ void SensorDataModel::applyDownlink(int which, const void* downlinkStruct)
         };
         chipForSensor("Accel",   m_prevAccelOk, s->accel_ok,      !m_haveLastStatus);
         chipForSensor("Gyro",    m_prevGyroOk,  s->gyro_ok,       !m_haveLastStatus);
-        chipForSensor("Baro1",   m_prevBaro1Ok, s->baro1_ok,      !m_haveLastStatus);
-        chipForSensor("Baro2",   m_prevBaro2Ok, s->baro2_ok,      !m_haveLastStatus);
-        if (!m_haveLastStatus) {
-            if (s->gps_connected) emit alarmSuccess(QStringLiteral("GPS connected"));
-            else                  emit alarmWarning(QStringLiteral("GPS not connected"));
-        } else if (m_prevGpsConn != s->gps_connected) {
-            if (s->gps_connected) emit alarmSuccess(QStringLiteral("GPS connected"));
-            else                  emit alarmWarning(QStringLiteral("GPS lost"));
-        }
         if (m_haveLastStatus && m_prevFlightState != newState) {
             // Flight-state transitions: ESTOP=ERROR, IDLE=WARN otherwise, others=SUCCESS.
             static const char* names[] = {"IDLE","ESTOP","RISE","HOVER","LOWER"};
@@ -399,9 +393,6 @@ void SensorDataModel::applyDownlink(int which, const void* downlinkStruct)
 
         m_prevAccelOk   = s->accel_ok;
         m_prevGyroOk    = s->gyro_ok;
-        m_prevBaro1Ok   = s->baro1_ok;
-        m_prevBaro2Ok   = s->baro2_ok;
-        m_prevGpsConn   = s->gps_connected;
         m_prevFlightState = newState;
         m_haveLastStatus = true;
 
@@ -409,9 +400,6 @@ void SensorDataModel::applyDownlink(int which, const void* downlinkStruct)
         m_uptimeMs     = s->uptime_ms;
         m_accelOk      = s->accel_ok;
         m_gyroOk       = s->gyro_ok;
-        m_baro1Ok      = s->baro1_ok;
-        m_baro2Ok      = s->baro2_ok;
-        m_gpsConnected = s->gps_connected;
         m_radioRxCount = s->radio_rx_count;
         m_radioTxCount = s->radio_tx_count;
         m_cmdRxCount   = s->cmd_rx_count;
@@ -461,6 +449,12 @@ void SensorDataModel::writeCsvRow(const void* downlinkStruct)
         }
         // engine
         (*m_csvStream) << fmt(t->thrust_cmd) << ',' << fmt(t->gimbal_x) << ',' << fmt(t->gimbal_y) << ',';
+        // motor rpm (empty when the FC reports invalid / no DShot backend)
+        if (t->motor_rpm_valid) {
+            (*m_csvStream) << fmt(t->motor_rpm_lower) << ',' << fmt(t->motor_rpm_upper) << ',';
+        } else {
+            (*m_csvStream) << ",,";
+        }
         // uwb tags
         if (t->has_uwb_tag_0) {
             (*m_csvStream) << fmt(t->uwb_tag_0.x) << ',' << fmt(t->uwb_tag_0.y) << ',';
@@ -472,8 +466,8 @@ void SensorDataModel::writeCsvRow(const void* downlinkStruct)
         } else {
             (*m_csvStream) << ",,";
         }
-        // status columns empty
-        (*m_csvStream) << ",,,,,,,," << '\n';
+        // status columns empty (uptime, accel, gyro, rx, tx, cmd)
+        (*m_csvStream) << ",,,,," << '\n';
     } else if (d->which_payload == tvr_Downlink_status_tag) {
         const tvr_SystemStatus* s = &d->payload.status;
         (*m_csvStream) << wallMs << ",STATUS," << s->timestamp_ms << ',' << s->flight_state << ',';
@@ -482,14 +476,11 @@ void SensorDataModel::writeCsvRow(const void* downlinkStruct)
                        << ",,,"     // vel
                        << ",,,,"    // att
                        << ",,,"     // gyro
-                       << ",,,"     // engine
+                       << ",,,,,"   // engine + rpm
                        << ",,,,";   // uwb0/uwb1
         (*m_csvStream) << s->uptime_ms << ','
                        << fmtBool(s->accel_ok) << ','
                        << fmtBool(s->gyro_ok) << ','
-                       << fmtBool(s->baro1_ok) << ','
-                       << fmtBool(s->baro2_ok) << ','
-                       << fmtBool(s->gps_connected) << ','
                        << s->radio_rx_count << ','
                        << s->radio_tx_count << ','
                        << s->cmd_rx_count

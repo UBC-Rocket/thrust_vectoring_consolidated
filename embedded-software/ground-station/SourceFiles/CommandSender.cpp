@@ -1,5 +1,6 @@
 #include "CommandSender.h"
 #include "SerialBridge.h"
+#include <QTimer>
 extern "C" {
     #include "rp/codec.h"
     #include "command.pb.h"
@@ -9,6 +10,40 @@ extern "C" {
 CommandSender::CommandSender(SerialBridge* bridge, QObject* parent)
     : QObject(parent), m_bridge(bridge)
 {
+    m_heartbeatTimer = new QTimer(this);
+    m_heartbeatTimer->setInterval(250);   // 2 refreshes per 500 ms FC watchdog window
+    connect(m_heartbeatTimer, &QTimer::timeout, this, &CommandSender::sendHeartbeat);
+    m_heartbeatTimer->start();
+}
+
+void CommandSender::sendHeartbeat() {
+    if (!m_bridge)
+        return;
+
+    // Prefer the operator's selected TX channel; fall back to whichever
+    // port is actually open. No port open -> nothing to keep alive.
+    int which = 0;
+    if (m_bridge->isConnected(m_bridge->txTo()))
+        which = m_bridge->txTo();
+    else if (m_bridge->isConnected(1))
+        which = 1;
+    else if (m_bridge->isConnected(2))
+        which = 2;
+    if (which == 0)
+        return;
+
+    tvr_FlightCommand cmd = tvr_FlightCommand_init_zero;
+    cmd.which_payload = tvr_FlightCommand_state_cmd_tag;
+    cmd.payload.state_cmd.type = tvr_StateCommand_Type_CMD_NONE;
+
+    uint8_t packet[64];
+    rp_packet_encode_result_t result = rp_packet_encode(
+        packet, sizeof(packet), tvr_FlightCommand_fields, &cmd);
+    if (result.status != RP_CODEC_OK)
+        return;
+
+    QByteArray data(reinterpret_cast<const char*>(packet), result.written);
+    m_bridge->sendBinary(which, data);
 }
 
 
@@ -268,6 +303,51 @@ bool CommandSender::sendProbeLayout(const QVariantList& probes) {
     return true;
 }
 
+
+bool CommandSender::sendThrottle(int which, double throttle) {
+    if (!validWhich(which)) {
+        emit errorOccurred("which must be 1 or 2");
+        return false;
+    }
+
+    if (!m_bridge) {
+        emit errorOccurred("No bridge");
+        return false;
+    }
+
+    /* Clamp here as well as on the FC — the QML field has no validator. */
+    float v = static_cast<float>(throttle);
+    if (v < 0.0f) v = 0.0f;
+    if (v > 1.0f) v = 1.0f;
+
+    tvr_FlightCommand cmd = tvr_FlightCommand_init_zero;
+    cmd.which_payload = tvr_FlightCommand_set_throttle_tag;
+    cmd.payload.set_throttle.throttle = v;
+
+    uint8_t packet[300];
+    rp_packet_encode_result_t result = rp_packet_encode(
+        packet,
+        sizeof(packet),
+        tvr_FlightCommand_fields,
+        &cmd
+    );
+
+    if (result.status != RP_CODEC_OK) {
+        emit errorOccurred("Failed to encode packet");
+        return false;
+    }
+
+    QByteArray data(reinterpret_cast<const char*>(packet), result.written);
+
+    if (!m_bridge->sendBinary(which, data)) {
+        emit errorOccurred("Failed to send binary packet");
+        return false;
+    }
+
+    emit messageSent(QString("SetThrottle sent (%1%)")
+                         .arg(static_cast<int>(v * 100.0f + 0.5f)));
+    return true;
+}
 
 bool CommandSender::sendConfigValues(int which, const QVariantList& configValues) {
 

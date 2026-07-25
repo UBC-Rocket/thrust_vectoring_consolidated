@@ -37,6 +37,9 @@ public:
     Q_PROPERTY(double thrustCmd READ thrustCmd NOTIFY engineDataChanged)
     Q_PROPERTY(double gimbalX   READ gimbalX   NOTIFY engineDataChanged)
     Q_PROPERTY(double gimbalY   READ gimbalY   NOTIFY engineDataChanged)
+    Q_PROPERTY(double motorRpmLower READ motorRpmLower NOTIFY engineDataChanged)
+    Q_PROPERTY(double motorRpmUpper READ motorRpmUpper NOTIFY engineDataChanged)
+    Q_PROPERTY(bool   motorRpmValid READ motorRpmValid NOTIFY engineDataChanged)
 
     // Telemetry — velocity magnitude in m/s (consistent with altitude)
     Q_PROPERTY(double velocity READ velocity NOTIFY telemetryDataChanged)
@@ -59,9 +62,6 @@ public:
     Q_PROPERTY(quint32 uptimeMs      READ uptimeMs      NOTIFY statusReceived)
     Q_PROPERTY(bool    accelOk       READ accelOk       NOTIFY statusReceived)
     Q_PROPERTY(bool    gyroOk        READ gyroOk        NOTIFY statusReceived)
-    Q_PROPERTY(bool    baro1Ok       READ baro1Ok       NOTIFY statusReceived)
-    Q_PROPERTY(bool    baro2Ok       READ baro2Ok       NOTIFY statusReceived)
-    Q_PROPERTY(bool    gpsConnected  READ gpsConnected  NOTIFY statusReceived)
     Q_PROPERTY(quint32 radioRxCount  READ radioRxCount  NOTIFY statusReceived)
     Q_PROPERTY(quint32 radioTxCount  READ radioTxCount  NOTIFY statusReceived)
     Q_PROPERTY(quint32 cmdRxCount    READ cmdRxCount    NOTIFY statusReceived)
@@ -93,6 +93,9 @@ public:
     double thrustCmd() const { return m_thrustCmd; }
     double gimbalX()   const { return m_gimbalX; }
     double gimbalY()   const { return m_gimbalY; }
+    double motorRpmLower() const { return m_motorRpmLower; }
+    double motorRpmUpper() const { return m_motorRpmUpper; }
+    bool   motorRpmValid() const { return m_motorRpmValid; }
 
     double velocity() const { return m_velocity; }
 
@@ -107,9 +110,6 @@ public:
     quint32 uptimeMs()     const { return m_uptimeMs; }
     bool    accelOk()      const { return m_accelOk; }
     bool    gyroOk()       const { return m_gyroOk; }
-    bool    baro1Ok()      const { return m_baro1Ok; }
-    bool    baro2Ok()      const { return m_baro2Ok; }
-    bool    gpsConnected() const { return m_gpsConnected; }
     quint32 radioRxCount() const { return m_radioRxCount; }
     quint32 radioTxCount() const { return m_radioTxCount; }
     quint32 cmdRxCount()   const { return m_cmdRxCount; }
@@ -185,6 +185,10 @@ private:
     double m_gimbalX   = 0.0;
     double m_gimbalY   = 0.0;
 
+    double m_motorRpmLower = 0.0;
+    double m_motorRpmUpper = 0.0;
+    bool   m_motorRpmValid = false;
+
     double m_velocity = 0.0;
 
     double m_uwbTag0X     = 0.0;
@@ -199,9 +203,6 @@ private:
     quint32 m_uptimeMs     = 0;
     bool    m_accelOk      = false;
     bool    m_gyroOk       = false;
-    bool    m_baro1Ok      = false;
-    bool    m_baro2Ok      = false;
-    bool    m_gpsConnected = false;
     quint32 m_radioRxCount = 0;
     quint32 m_radioTxCount = 0;
     quint32 m_cmdRxCount   = 0;
@@ -212,9 +213,6 @@ private:
     bool m_haveLastStatus = false;
     bool m_prevAccelOk    = false;
     bool m_prevGyroOk     = false;
-    bool m_prevBaro1Ok    = false;
-    bool m_prevBaro2Ok    = false;
-    bool m_prevGpsConn    = false;
     int  m_prevFlightState = -1;
 
     // Auto-start CSV on first packet (per D6 in the review plan).

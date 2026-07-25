@@ -12,6 +12,7 @@ extern "C" {
 }
 
 class SerialBridge;
+class QTimer;
 
 class CommandSender : public QObject {
     Q_OBJECT
@@ -35,6 +36,9 @@ public:
 
     // Send config values as: [mass, T_min, T_max, theta_min, theta_max].
     Q_INVOKABLE bool sendConfigValues(int which, const QVariantList& configValues);
+
+    /// Send a manual engine throttle (normalized 0..1; QML passes percent/100).
+    Q_INVOKABLE bool sendThrottle(int which, double throttle);
 
     // Send UWB probe layout. probes is a QVariantList of exactly 4 anchor objects
     // with {x: float, y: float}. Sends on the bridge's currently selected TX channel.
@@ -61,7 +65,14 @@ private:
         return which == 1 || which == 2;
     }
 
+    /// Periodic CMD_NONE keep-alive. The FC's mission manager disarms and
+    /// drops to IDLE if no valid FlightCommand arrives within its 500 ms
+    /// heartbeat watchdog, so we refresh it at 4 Hz whenever a port is open.
+    /// Silent: emits no messageSent/errorOccurred (would spam the UI log).
+    void sendHeartbeat();
+
     SerialBridge* m_bridge = nullptr; ///< Serial transport used to send commands.
+    QTimer* m_heartbeatTimer = nullptr;
 };
 
 #endif // COMMANDSENDER_H

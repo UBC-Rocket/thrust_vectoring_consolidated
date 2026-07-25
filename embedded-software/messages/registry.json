@@ -1,0 +1,250 @@
+{
+  "$schema": "./registry.schema.json",
+  "version": 1,
+
+  "channels": {
+    "sd": {
+      "channel_id": 0,
+      "transport": "sd_record",
+      "framing": "none",
+      "max_wire_bps": 4000000,
+      "description": "SD card log. Append-only record stream consumed offline by the post-processor."
+    },
+    "vcp": {
+      "channel_id": 1,
+      "transport": "uart",
+      "framing": "cobs",
+      "max_wire_bps": 921600,
+      "transport_config": { "uart_id": "VCP", "baud": 921600 },
+      "description": "ST-Link USB virtual COM port. Primary live debug + console channel."
+    },
+    "udp": {
+      "channel_id": 2,
+      "transport": "udp",
+      "framing": "none",
+      "max_wire_bps": 100000000,
+      "transport_config": { "port": 9000 },
+      "description": "Ethernet telemetry. Disabled until the lwIP stack is brought up."
+    }
+  },
+
+  "types": {
+    "vec3_f32": {
+      "description": "3-component f32 vector. Used for positions, velocities, accelerations, biases — the meaning of the axes is left to the field that references this type.",
+      "fields": [
+        { "name": "x", "type": "f32", "description": "Component 0." },
+        { "name": "y", "type": "f32", "description": "Component 1." },
+        { "name": "z", "type": "f32", "description": "Component 2." }
+      ]
+    },
+    "quat_wxyz": {
+      "description": "Unit quaternion in (w, x, y, z) order, body-to-world rotation by convention.",
+      "fields": [
+        { "name": "w", "type": "f32", "description": "Scalar component." },
+        { "name": "x", "type": "f32", "description": "i component." },
+        { "name": "y", "type": "f32", "description": "j component." },
+        { "name": "z", "type": "f32", "description": "k component." }
+      ]
+    }
+  },
+
+  "modules": {
+
+    "system": {
+      "module_id": 0,
+      "description": "Cross-cutting system services: logging, routing control, build identity, drop accounting.",
+
+      "messages": {
+        "log_event": {
+          "msg_id": 1,
+          "class": "B",
+          "description": "Sporadic structured log entry. (source_module_id, event_code) together identify the event; description text is resolved on the host from this registry. NEVER carries free-form strings on the wire.",
+          "fields": [
+            { "name": "source_module_id", "type": "u8",    "description": "Module that emitted the event." },
+            { "name": "event_code",       "type": "u16",   "description": "Module-local event identifier (typically an enum value defined in the source module's errors table)." },
+            { "name": "severity",         "type": "u8",    "description": "0=trace 1=debug 2=info 3=warn 4=error 5=fatal." },
+            { "name": "context",          "type": "bytes", "description": "Optional per-(source_module_id, event_code) structured payload. Codegen will gain a 'context_type' link on individual error entries once we agree on that extension." }
+          ],
+          "routing": {
+            "sd":  { "enabled": true },
+            "vcp": { "enabled": true }
+          }
+        },
+
+        "drop_counter": {
+          "msg_id": 2,
+          "class": "A",
+          "description": "Periodic snapshot of channel drop counts and SD-log writer health. Mandatory periodic so silent overruns and SD failures are never invisible.",
+          "fields": [
+            { "name": "sd_drops",            "type": "u32", "description": "Cumulative messages dropped at the sd channel since boot." },
+            { "name": "vcp_drops",           "type": "u32", "description": "Cumulative messages dropped at the vcp channel since boot." },
+            { "name": "udp_drops",           "type": "u32", "description": "Cumulative messages dropped at the udp channel since boot." },
+            { "name": "cm7_ring_pushed",     "type": "u32", "description": "Bytes successfully pushed onto the CM7→CM4 SRAM4 log handoff ring." },
+            { "name": "cm7_ring_dropped",    "type": "u32", "description": "Bytes dropped at the CM7→CM4 ring because it was full (producer back-pressure)." },
+            { "name": "sd_blocks_written",   "type": "u32", "description": "Cumulative 512-byte blocks committed to the SD card since boot." },
+            { "name": "sd_write_errors",     "type": "u32", "description": "Cumulative SD write errors observed by sd_log_task; if >0 the writer is in degraded mode and discarding blocks." }
+          ],
+          "routing": {
+            "sd":  { "enabled": true, "max_rate_hz": 1 },
+            "vcp": { "enabled": true, "max_rate_hz": 1 }
+          }
+        }
+      },
+
+      "commands": {
+        "set_route": {
+          "cmd_id": 1,
+          "description": "Enable/disable a specific (msg_id, channel) routing. Rejected if routes are locked.",
+          "request": [
+            { "name": "target_module_id", "type": "u8",   "description": "Module of the message whose routing is being changed." },
+            { "name": "target_msg_id",    "type": "u16",  "description": "Message ID within that module." },
+            { "name": "channel_id",       "type": "u8",   "description": "Target channel ID (matches channels.<name>.channel_id)." },
+            { "name": "enabled",          "type": "bool", "description": "New enabled state." }
+          ],
+          "response": {
+            "streaming": false,
+            "fields": [
+              { "name": "ok",         "type": "bool",               "description": "Whether the change was applied." },
+              { "name": "error_code", "type": "enum:system.errors", "description": "Any system.* error code if ok=false, else 0." }
+            ]
+          }
+        },
+
+        "lock_routes": {
+          "cmd_id": 2,
+          "description": "Latch the current routing table. Subsequent set_route calls are rejected until reboot. Auto-fires when the mission manager arms.",
+          "request": [],
+          "response": {
+            "streaming": false,
+            "fields": [
+              { "name": "ok", "type": "bool", "description": "Always true unless already locked." }
+            ]
+          }
+        },
+
+        "get_build_info": {
+          "cmd_id": 3,
+          "description": "Report firmware build identity. First thing the ground console asks after connecting so registry-version mismatches surface immediately.",
+          "request": [],
+          "response": {
+            "streaming": false,
+            "fields": [
+              { "name": "registry_version", "type": "u16",   "description": "Registry format version this firmware was built against." },
+              { "name": "registry_hash",    "type": "u32",   "description": "CRC32 of the registry.json that codegen ran over." },
+              { "name": "build_flavor",     "type": "u8",    "description": "0=debug 1=release. (git_sha as bytes deferred until nanopb max_size annotations land in the .proto emitter.)" }
+            ]
+          }
+        }
+      },
+
+      "errors": {
+        "routes_locked":   { "code": 1, "description": "set_route called after lock_routes — routing is frozen until reboot." },
+        "unknown_msg_id":  { "code": 2, "description": "set_route referenced a (module_id, msg_id) not present in this build's registry." },
+        "unknown_channel": { "code": 3, "description": "set_route's channel_id was outside the registered channel set." }
+      }
+    },
+
+    "state_estimation": {
+      "module_id": 1,
+      "description": "EKF outputs and intermediate state. CM4 produces these and routes to SD; CM7 controls consumes via the SRAM4 slot, not via this bus.",
+
+      "messages": {
+        "state_estimate": {
+          "msg_id": 1,
+          "class": "A",
+          "description": "Current best estimate of vehicle state. The hot-path telemetry record.",
+          "fields": [
+            { "name": "t_us",         "type": "u64",            "description": "Estimator timestamp.",                    "units": "us" },
+            { "name": "position",     "type": "type:vec3_f32",  "description": "ENU position relative to launch origin.", "units": "m" },
+            { "name": "velocity",     "type": "type:vec3_f32",  "description": "ENU velocity.",                            "units": "m/s" },
+            { "name": "attitude",     "type": "type:quat_wxyz", "description": "Body-to-ENU attitude quaternion." },
+            { "name": "gyro_bias",    "type": "type:vec3_f32",  "description": "Estimated gyro bias in body frame.",       "units": "rad/s" },
+            { "name": "accel_bias",   "type": "type:vec3_f32",  "description": "Estimated accel bias in body frame.",      "units": "m/s^2" }
+          ],
+          "routing": {
+            "sd":  { "enabled": true,  "max_rate_hz": 200 },
+            "vcp": { "enabled": false, "max_rate_hz": 50 }
+          }
+        }
+      },
+
+      "errors": {
+        "ekf_diverged":   { "code": 1, "description": "Innovation covariance non-positive-definite for >N consecutive updates; EKF was reinitialised from last-known-good." },
+        "no_imu_samples": { "code": 2, "description": "State-estimation tick fired but the IMU ring was empty — driver may have stalled." }
+      }
+    },
+
+    "mag": {
+      "module_id": 3,
+      "description": "MMC5983MA magnetometer. SET/RESET-differenced field samples plus the driver's live offset estimate.",
+
+      "messages": {
+        "sample": {
+          "msg_id": 1,
+          "class": "A",
+          "description": "Per-SET/RESET-pair field sample. Offset is the driver's live (M_set + M_reset)/2 hard-iron estimate at the same sample instant; the EKF / state estimator uses (field - offset) as its measurement.",
+          "fields": [
+            { "name": "t_us",   "type": "u64",            "description": "Sample timestamp.",                                       "units": "us" },
+            { "name": "field",  "type": "type:vec3_f32",  "description": "Body-frame field from (M_set - M_reset)/2.",              "units": "G" },
+            { "name": "offset", "type": "type:vec3_f32",  "description": "Live hard-iron offset estimate, (M_set + M_reset)/2.",  "units": "G" },
+            { "name": "temp_c", "type": "f32",            "description": "On-chip temperature.",                                    "units": "degC" }
+          ],
+          "routing": {
+            "sd": { "enabled": true, "max_rate_hz": 100 }
+          }
+        }
+      },
+
+      "errors": {
+        "ring_overflow":   { "code": 1, "description": "Mag driver ring overflowed — the state estimation task drained too slowly. Field samples since the previous drain are lost." },
+        "spi_fault":       { "code": 2, "description": "SPI transfer to the MMC5983 failed in the service task. State machine reset to AWAIT_SET; next DRDY may re-establish the loop." }
+      }
+    },
+
+    "servo": {
+      "module_id": 2,
+      "description": "Gimbal servo subsystem. Owns both X and Y servo channels behind one driver.",
+
+      "messages": {
+        "servo_status": {
+          "msg_id": 1,
+          "class": "A",
+          "description": "Commanded pulse width vs. (when available) read-back angle for both axes.",
+          "fields": [
+            { "name": "t_us",            "type": "u64", "description": "Sample timestamp.",                                "units": "us" },
+            { "name": "cmd_us_x",        "type": "u16", "description": "Commanded pulse width, X axis.",                  "units": "us" },
+            { "name": "cmd_us_y",        "type": "u16", "description": "Commanded pulse width, Y axis.",                  "units": "us" },
+            { "name": "readback_deg_x",  "type": "f32", "description": "Encoder read-back, X axis (NaN if unavailable).", "units": "deg" },
+            { "name": "readback_deg_y",  "type": "f32", "description": "Encoder read-back, Y axis (NaN if unavailable).", "units": "deg" },
+            { "name": "fault_flags",     "type": "u8",  "description": "Bitfield: bit0=X stall, bit1=Y stall, bit2=X over-temp, bit3=Y over-temp." }
+          ],
+          "routing": {
+            "sd": { "enabled": true, "max_rate_hz": 100 }
+          }
+        }
+      },
+
+      "commands": {
+        "trigger_selftest": {
+          "cmd_id": 1,
+          "description": "Run the on-board self-test. Streams progress messages until terminating with a result. Rejected when armed.",
+          "request": [],
+          "response": {
+            "streaming": true,
+            "fields": [
+              { "name": "phase",      "type": "u8",   "description": "0=starting 1=range_check 2=center_check 3=done." },
+              { "name": "ok",         "type": "bool", "description": "Final result; only meaningful when phase=3." },
+              { "name": "error_code", "type": "u16",  "description": "servo.* error code if ok=false, else 0." }
+            ]
+          }
+        }
+      },
+
+      "errors": {
+        "out_of_range":  { "code": 1, "description": "Self-test commanded angle outside calibrated mechanical limits." },
+        "cal_timeout":   { "code": 2, "description": "Self-test never observed read-back movement within the expected window." },
+        "armed_refused": { "code": 3, "description": "trigger_selftest called while the mission manager is in an armed state." }
+      }
+    }
+  }
+}

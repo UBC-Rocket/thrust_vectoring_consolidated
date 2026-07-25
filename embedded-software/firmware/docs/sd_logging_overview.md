@@ -1,10 +1,16 @@
 # SD Card Logging
 
+> **Heads-up.** Describes the deprecated H5 implementation. The new H747
+> design moves the SD writer to CM4 (`io/h747/CM4/io_sd.c`) behind the
+> `io_sd_*` API, and consolidates `log_service` / `log_writer` into
+> `app/cm4/sd_log_task.c` (currently a stub). The schema layer
+> (`lib/log_records/`) is unchanged.
+
 > **Status:** In development. The logger streams records to the SD card, but recovery tooling and mission-critical validation are still ongoing.
 
 ## Goals
 
-Simplify post-flight analysis by capturing structured telemetry directly to an SD card without needing an external PC. Records follow the shared schema in `libs/log_records/include/log_records/log_records.h`, so firmware and host tools stay in sync.
+Simplify post-flight analysis by capturing structured telemetry directly to an SD card without needing an external PC. Records follow the shared schema in `lib/log_records/include/log_records/log_records.h`, so firmware and host tools stay in sync.
 
 ## Architecture
 

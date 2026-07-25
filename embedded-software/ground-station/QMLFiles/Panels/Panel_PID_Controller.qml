@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
 import "../Items"
 
@@ -11,7 +10,7 @@ BasePanel {
     // Bridge changes propagate via txToChanged.
     property int which: bridge.txTo
 
-    // Preset status — shown in the strip below the header.
+    // Preset status — shown in the header caption.
     property string loadedPresetName: ""
     property bool   dirty: false
 
@@ -44,6 +43,10 @@ BasePanel {
     property double tMax: 0.0
     property double thetaMin: 0.0
     property double thetaMax: 0.0
+
+    // SetThrottle — live actuation value, deliberately NOT part of presets
+    // (a loaded preset must never silently change a running engine).
+    property double throttlePct: 0.0
 
     // Snapshot every editable field for preset save.
     function currentValues() {
@@ -94,96 +97,62 @@ BasePanel {
         dirty = true
     }
 
-    component SectionHeader: ColumnLayout {
-        property string title: ""
-        Layout.fillWidth: true
-        Layout.topMargin: 6
-        spacing: 2
-        Text {
-            text: parent.title
-            color: Theme.accent
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontH2
-            font.bold: true
-        }
-        Rectangle {
-            Layout.fillWidth: true
-            height: 1
-            color: Theme.divider
-        }
-    }
-
+    // Small subhead label above field groups: 10px ls2 dim orange.
     component SubLabel: Text {
         Layout.fillWidth: true
         Layout.topMargin: 4
-        color: Theme.textTertiary
+        color: Theme.textSecondary
         font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontCaption
-        font.bold: true
+        font.pixelSize: 10
+        font.letterSpacing: 2
     }
 
     BaseHeader {
         id: header
         headerText: "Controller Commands"
+        jpText: "制御指令"
+        anchors.topMargin: Theme.paddingLg
+        anchors.leftMargin: Theme.paddingLg
     }
 
-    Text {
-        anchors.verticalCenter: header.verticalCenter
+    // Header caption: TX channel + preset (dirty) state, right-aligned.
+    Row {
+        anchors.top: header.top
+        anchors.topMargin: 2
         anchors.right: parent.right
-        anchors.rightMargin: 15
-        text: "TX channel: " + panel.which
-        color: Theme.textTertiary
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontCaption
-    }
-
-    // ── Preset status strip ─────────────────────────────────────────────
-    RowLayout {
-        id: presetStrip
-        anchors.top: header.bottom
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.leftMargin: 15
-        anchors.rightMargin: 15
-        anchors.topMargin: 4
+        anchors.rightMargin: Theme.paddingLg
         spacing: 8
 
         Text {
-            text: "Preset:"
-            color: Theme.textTertiary
+            text: "TX CHANNEL: " + panel.which + " · PRESET: "
+                  + (panel.loadedPresetName.length > 0 ? panel.loadedPresetName : "(UNSAVED)")
+            color: Theme.textSecondary
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontCaption
-        }
-        Text {
-            text: panel.loadedPresetName.length > 0 ? panel.loadedPresetName : "(unsaved)"
-            color: panel.loadedPresetName.length > 0 ? Theme.accent : Theme.textTertiary
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontCaption
-            font.bold: panel.loadedPresetName.length > 0
-            Layout.fillWidth: true
-            elide: Text.ElideRight
+            font.letterSpacing: 2
+            font.capitalization: Font.AllUppercase
         }
         Text {
             visible: panel.dirty
-            text: "• modified"
-            color: Theme.warn
+            text: "● MODIFIED"
+            color: Theme.amber
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontCaption
-            font.italic: true
+            font.letterSpacing: 2
         }
     }
 
     // ── Stacked sections (no tabs) ──────────────────────────────────────
     ScrollView {
         id: sectionScroll
-        anchors.top: presetStrip.bottom
+        anchors.top: header.bottom
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        anchors.leftMargin: 15
-        anchors.rightMargin: 15
-        anchors.topMargin: 8
-        anchors.bottomMargin: 12
+        anchors.leftMargin: Theme.paddingLg
+        anchors.rightMargin: Theme.paddingLg
+        anchors.topMargin: 4
+        anchors.bottomMargin: Theme.paddingLg
         clip: true
         contentWidth: availableWidth
         ScrollBar.vertical: ThemedScrollBar { }
@@ -191,16 +160,20 @@ BasePanel {
 
         ColumnLayout {
             width: sectionScroll.availableWidth
-            spacing: 14
+            spacing: 8
 
             // ── PID GAINS ─────────────────────────────────────────────
-            SectionHeader { title: "PID Gains" }
+            SectionChip {
+                Layout.fillWidth: true
+                text: "PID GAINS"
+            }
 
             RowLayout {
                 Layout.fillWidth: true
+                Layout.topMargin: 4
                 SubLabel { text: "ATTITUDE — PROPORTIONAL" }
                 ThemedCheckBox {
-                    text: "enable"
+                    text: "ENABLE"
                     checked: panel.hasAttitudeKp
                     onToggled: { panel.hasAttitudeKp = checked; panel.dirty = true }
                 }
@@ -226,7 +199,7 @@ BasePanel {
                 Layout.fillWidth: true
                 SubLabel { text: "ATTITUDE — DERIVATIVE" }
                 ThemedCheckBox {
-                    text: "enable"
+                    text: "ENABLE"
                     checked: panel.hasAttitudeKd
                     onToggled: { panel.hasAttitudeKd = checked; panel.dirty = true }
                 }
@@ -271,7 +244,7 @@ BasePanel {
             }
 
             PrimaryButton {
-                text: "Send PID"
+                text: "Send PID ▸"
                 Layout.alignment: Qt.AlignRight
                 Layout.topMargin: 4
                 onClicked: {
@@ -287,7 +260,11 @@ BasePanel {
             }
 
             // ── REFERENCE ─────────────────────────────────────────────
-            SectionHeader { title: "Reference" }
+            SectionChip {
+                Layout.fillWidth: true
+                Layout.topMargin: 8
+                text: "REFERENCE"
+            }
 
             SubLabel { text: "TRANSLATION" }
             RowLayout {
@@ -307,7 +284,7 @@ BasePanel {
                 Layout.fillWidth: true
                 SubLabel { text: "QUATERNION" }
                 ThemedCheckBox {
-                    text: "enable"
+                    text: "ENABLE"
                     checked: panel.hasQRef
                     onToggled: { panel.hasQRef = checked; panel.dirty = true }
                 }
@@ -338,7 +315,7 @@ BasePanel {
             }
 
             PrimaryButton {
-                text: "Send Reference"
+                text: "Send Reference ▸"
                 Layout.alignment: Qt.AlignRight
                 Layout.topMargin: 4
                 onClicked: {
@@ -349,7 +326,11 @@ BasePanel {
             }
 
             // ── CONFIG ────────────────────────────────────────────────
-            SectionHeader { title: "Config" }
+            SectionChip {
+                Layout.fillWidth: true
+                Layout.topMargin: 8
+                text: "CONFIG"
+            }
 
             SubLabel { text: "VEHICLE" }
             NumberField {
@@ -386,7 +367,7 @@ BasePanel {
             }
 
             PrimaryButton {
-                text: "Send Config"
+                text: "Send Config ▸"
                 Layout.alignment: Qt.AlignRight
                 Layout.topMargin: 4
                 Layout.bottomMargin: 6
@@ -394,6 +375,34 @@ BasePanel {
                     const values = [panel.mass, panel.tMin, panel.tMax, panel.thetaMin, panel.thetaMax]
                     commandsender.sendConfigValues(panel.which, values)
                 }
+            }
+
+            // ── THROTTLE ──────────────────────────────────────────────
+            SectionChip {
+                Layout.fillWidth: true
+                Layout.topMargin: 8
+                text: "THROTTLE"
+            }
+
+            SubLabel { text: "MANUAL THROTTLE (%)" }
+            NumberField {
+                label: "throttle %"
+                value: panel.throttlePct
+                // Direct write, not _edit: throttle is excluded from presets,
+                // so it must not flip the preset MODIFIED indicator.
+                onValueEdited: (v) => panel.throttlePct = v
+            }
+
+            PrimaryButton {
+                text: "Send Throttle ▸"
+                Layout.alignment: Qt.AlignRight
+                Layout.topMargin: 4
+                Layout.bottomMargin: 6
+                // Clamp at send so the field always shows what was typed while
+                // the wire never carries more than 100 % (FC clamps again).
+                onClicked: commandsender.sendThrottle(
+                    panel.which,
+                    Math.max(0, Math.min(100, panel.throttlePct)) / 100)
             }
         }
     }

@@ -29,12 +29,27 @@ ColumnLayout {
         return isNaN(parsed) ? fallback : parsed
     }
 
+    // Refresh the displayed text from `value` only when:
+    //  - the field is not being edited, AND
+    //  - the numeric value actually differs from what's in the field.
+    // The numeric-equality check preserves user formatting (e.g. "1.200" stays
+    // "1.200" on blur even though Number("1.200") === 1.2).
+    // Done imperatively (not via a Binding) because a conditional Binding here
+    // would restore stale user input when focus is regained — Qt restores the
+    // pre-binding value when `when` flips false, which is exactly what we don't
+    // want after a preset load.
+    onValueChanged: {
+        if (!input.activeFocus && Number(input.text) !== value)
+            input.text = String(value)
+    }
+
     Text {
-        text: root.label
+        text: root.label.toUpperCase()
         visible: root.label.length > 0
-        color: Theme.textSecondary
+        color: Theme.textTertiary
         font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontBody
+        font.pixelSize: 10
+        font.letterSpacing: 2
         font.bold: true
     }
 
@@ -49,16 +64,16 @@ ColumnLayout {
         enabled: root.fieldEnabled
         color: Theme.textPrimary
         font.family: Theme.monoFamily
-        font.pixelSize: Theme.fontBody
+        font.pixelSize: 14
         inputMethodHints: Qt.ImhFormattedNumbersOnly
         validator: DoubleValidator { decimals: root.decimals }
         selectByMouse: true
 
         background: Rectangle {
-            radius: Theme.radiusCard
-            color: Theme.background
+            radius: 0
+            color: Theme.surfaceElevated
             border.width: Theme.strokeControl
-            border.color: input.activeFocus ? Theme.accent : Theme.border
+            border.color: input.activeFocus ? Theme.accent : Theme.divider
         }
 
         // Seed once on creation so the field shows the initial value.
@@ -66,17 +81,5 @@ ColumnLayout {
 
         // User edits only (programmatic text changes don't fire onTextEdited).
         onTextEdited: root.valueEdited(root._sanitized(text, root.value))
-    }
-
-    // Refresh the displayed text from `value` only when:
-    //  - the field is not being edited, AND
-    //  - the numeric value actually differs from what's in the field.
-    // Without the numeric-equality check, blurring "1.200" would snap it to "1.2"
-    // because String(1.2) === "1.2" — the user's trailing zeros disappear.
-    Binding {
-        target: input
-        property: "text"
-        value: String(root.value)
-        when: !input.activeFocus && Number(input.text) !== root.value
     }
 }
