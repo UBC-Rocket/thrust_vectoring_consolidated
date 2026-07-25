@@ -25,10 +25,19 @@ static io_intercore_slot_t s_slot_reference;
 static io_intercore_slot_t s_slot_vehicle_cfg;
 static io_intercore_slot_t s_slot_readiness;
 
-/* Monotonic sequence numbers; one value per core, updated by each publisher.
- * Not shared across cores because each slot is only written by one core; the
- * reading core uses the intercore seqlock's own counter for concurrency and
- * the exchanged payload carries its own domain-specific seq. */
+/* Sequence numbers returned to callers.
+ *
+ * state/control/flight/armed: bumped locally on each publish. These are
+ * per-core statics, so the value is only meaningful on the publishing core;
+ * none of their consumers look at the seq (they read unconditionally).
+ *
+ * pid_gains/reference/vehicle_config: CM7's poll_tunables() DOES compare the
+ * returned seq against a remembered value to detect fresh publishes from CM4,
+ * so a per-core counter is useless there — on the reading core's image it
+ * would sit at 0 forever and the compare would never fire. For these three
+ * slots the statics instead cache the intercore seqlock header's own counter
+ * (which lives in shared SRAM4 and therefore carries across cores) as of the
+ * last publish or last magic-valid read performed on this core. */
 static uint32_t s_state_seq;
 static uint32_t s_control_seq;
 static uint32_t s_flight_seq;
@@ -40,12 +49,33 @@ static uint32_t s_readiness_seq;
 
 static bool s_initialised;
 
+/* Wire format of the tunables slots. The .shared region is NOLOAD and never
+ * zeroed, so before the first publish a reader can find power-on garbage
+ * behind an even ("stable") seqlock counter. The magic word lets the getters
+ * reject such garbage outright instead of relying on boot ordering — same
+ * trick as the log-handoff ring, SD cursor and debug-console ring headers. */
+#define TUNABLES_MAGIC 0x54554E42U /* "TUNB" */
+
+typedef struct { uint32_t magic; app_pid_gains_t      v; } tunables_pid_gains_wire_t;
+typedef struct { uint32_t magic; app_reference_t      v; } tunables_reference_wire_t;
+typedef struct { uint32_t magic; app_vehicle_config_t v; } tunables_vehicle_cfg_wire_t;
+
+_Static_assert(sizeof(tunables_pid_gains_wire_t)   <= APP_SLOT_PID_GAINS_PAYLOAD,
+               "pid_gains wire struct exceeds its shared-memory slot");
+_Static_assert(sizeof(tunables_reference_wire_t)   <= APP_SLOT_REFERENCE_PAYLOAD,
+               "reference wire struct exceeds its shared-memory slot");
+_Static_assert(sizeof(tunables_vehicle_cfg_wire_t) <= APP_SLOT_VEHICLE_CONFIG_PAYLOAD,
+               "vehicle_config wire struct exceeds its shared-memory slot");
+
 /* Test-only access to module-private state. No-op in production builds. */
-IO_TEST_HOOK_RW(s_state_seq,   uint32_t, state_exchange_state_seq)
-IO_TEST_HOOK_RW(s_control_seq, uint32_t, state_exchange_control_seq)
-IO_TEST_HOOK_RW(s_flight_seq,  uint32_t, state_exchange_flight_seq)
-IO_TEST_HOOK_RW(s_armed_seq,   uint32_t, state_exchange_armed_seq)
-IO_TEST_HOOK_RW(s_initialised, bool,     state_exchange_initialised)
+IO_TEST_HOOK_RW(s_state_seq,       uint32_t, state_exchange_state_seq)
+IO_TEST_HOOK_RW(s_control_seq,     uint32_t, state_exchange_control_seq)
+IO_TEST_HOOK_RW(s_flight_seq,      uint32_t, state_exchange_flight_seq)
+IO_TEST_HOOK_RW(s_armed_seq,       uint32_t, state_exchange_armed_seq)
+IO_TEST_HOOK_RW(s_pid_gains_seq,   uint32_t, state_exchange_pid_gains_seq)
+IO_TEST_HOOK_RW(s_reference_seq,   uint32_t, state_exchange_reference_seq)
+IO_TEST_HOOK_RW(s_vehicle_cfg_seq, uint32_t, state_exchange_vehicle_cfg_seq)
+IO_TEST_HOOK_RW(s_initialised,     bool,     state_exchange_initialised)
 
 void state_exchange_init(void) {
     if (s_initialised) return;
@@ -63,13 +93,13 @@ void state_exchange_init(void) {
                         sizeof(bool));
     io_intercore_slot_init(&s_slot_pid_gains,
                         app_shared_slot(APP_SLOT_PID_GAINS_OFFSET),
-                        sizeof(app_pid_gains_t));
+                        sizeof(tunables_pid_gains_wire_t));
     io_intercore_slot_init(&s_slot_reference,
                         app_shared_slot(APP_SLOT_REFERENCE_OFFSET),
-                        sizeof(app_reference_t));
+                        sizeof(tunables_reference_wire_t));
     io_intercore_slot_init(&s_slot_vehicle_cfg,
                         app_shared_slot(APP_SLOT_VEHICLE_CONFIG_OFFSET),
-                        sizeof(app_vehicle_config_t));
+                        sizeof(tunables_vehicle_cfg_wire_t));
     io_intercore_slot_init(&s_slot_readiness,
                         app_shared_slot(APP_SLOT_READINESS_OFFSET),
                         sizeof(vehicle_readiness_t));
@@ -139,45 +169,59 @@ uint32_t state_exchange_get_armed(bool *armed_out) {
 
 uint32_t state_exchange_publish_pid_gains(const app_pid_gains_t *gains) {
     if (!gains) return s_pid_gains_seq;
-    io_intercore_slot_publish(&s_slot_pid_gains, gains);
-    s_pid_gains_seq++;
+    tunables_pid_gains_wire_t w = { .magic = TUNABLES_MAGIC, .v = *gains };
+    io_intercore_slot_publish(&s_slot_pid_gains, &w);
+    /* At-rest (even) header counter after our own publish. Each slot has a
+     * single writer, so this read cannot race another write. */
+    s_pid_gains_seq = s_slot_pid_gains.hdr->seq;
     return s_pid_gains_seq;
 }
 
 uint32_t state_exchange_get_pid_gains(app_pid_gains_t *out) {
-    app_pid_gains_t tmp;
-    if (io_intercore_slot_read(&s_slot_pid_gains, &tmp, NULL)) {
-        if (out) *out = tmp;
+    tunables_pid_gains_wire_t w;
+    uint32_t seq;
+    if (io_intercore_slot_read(&s_slot_pid_gains, &w, &seq) &&
+        w.magic == TUNABLES_MAGIC) {
+        if (out) *out = w.v;
+        s_pid_gains_seq = seq;
     }
     return s_pid_gains_seq;
 }
 
 uint32_t state_exchange_publish_reference(const app_reference_t *ref) {
     if (!ref) return s_reference_seq;
-    io_intercore_slot_publish(&s_slot_reference, ref);
-    s_reference_seq++;
+    tunables_reference_wire_t w = { .magic = TUNABLES_MAGIC, .v = *ref };
+    io_intercore_slot_publish(&s_slot_reference, &w);
+    s_reference_seq = s_slot_reference.hdr->seq;
     return s_reference_seq;
 }
 
 uint32_t state_exchange_get_reference(app_reference_t *out) {
-    app_reference_t tmp;
-    if (io_intercore_slot_read(&s_slot_reference, &tmp, NULL)) {
-        if (out) *out = tmp;
+    tunables_reference_wire_t w;
+    uint32_t seq;
+    if (io_intercore_slot_read(&s_slot_reference, &w, &seq) &&
+        w.magic == TUNABLES_MAGIC) {
+        if (out) *out = w.v;
+        s_reference_seq = seq;
     }
     return s_reference_seq;
 }
 
 uint32_t state_exchange_publish_vehicle_config(const app_vehicle_config_t *cfg) {
     if (!cfg) return s_vehicle_cfg_seq;
-    io_intercore_slot_publish(&s_slot_vehicle_cfg, cfg);
-    s_vehicle_cfg_seq++;
+    tunables_vehicle_cfg_wire_t w = { .magic = TUNABLES_MAGIC, .v = *cfg };
+    io_intercore_slot_publish(&s_slot_vehicle_cfg, &w);
+    s_vehicle_cfg_seq = s_slot_vehicle_cfg.hdr->seq;
     return s_vehicle_cfg_seq;
 }
 
 uint32_t state_exchange_get_vehicle_config(app_vehicle_config_t *out) {
-    app_vehicle_config_t tmp;
-    if (io_intercore_slot_read(&s_slot_vehicle_cfg, &tmp, NULL)) {
-        if (out) *out = tmp;
+    tunables_vehicle_cfg_wire_t w;
+    uint32_t seq;
+    if (io_intercore_slot_read(&s_slot_vehicle_cfg, &w, &seq) &&
+        w.magic == TUNABLES_MAGIC) {
+        if (out) *out = w.v;
+        s_vehicle_cfg_seq = seq;
     }
     return s_vehicle_cfg_seq;
 }

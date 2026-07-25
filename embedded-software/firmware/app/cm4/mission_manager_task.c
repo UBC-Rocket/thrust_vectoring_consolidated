@@ -24,6 +24,7 @@
  *   DESCENT--landed cond--> LANDED  (see mm_check_touchdown — quiescent
  *                                    altitude + velocity for a sustained
  *                                    window read from state_exchange)
+ *   LANDED --CMD_ARM-->      ARMED   (start another ground-test cycle)
  *   any    --CMD_ABORT-->   ESTOP   (terminal; requires reboot)
  *   ARMED  --no heartbeat--> IDLE   (watchdog disarm)
  *
@@ -72,7 +73,7 @@
  * many ms while ARMED or in flight (RISE/DESCENT), drop to IDLE and
  * disarm. The deprecated H5 build did not implement this; the spec
  * for the new system calls for ~500 ms. */
-#define MM_HEARTBEAT_TIMEOUT_MS  500U
+#define MM_HEARTBEAT_TIMEOUT_MS  2000U
 
 /* Max frames we'll drain in one pass. Bounded so a flood can't
  * starve the watchdog tick. The radio ring is 8 deep, so this also
@@ -157,8 +158,10 @@ static bool mm_apply_state_cmd(tvr_StateCommand_Type cmd) {
 
     switch (cmd) {
         case tvr_StateCommand_Type_CMD_ARM:
-            /* Only IDLE may arm. */
-            if (s_flight_state == APP_FLIGHT_IDLE) {
+            /* IDLE may arm; LANDED may re-arm so repeated ground-test
+             * launches do not require an intervening abort or board reset. */
+            if (s_flight_state == APP_FLIGHT_IDLE ||
+                s_flight_state == APP_FLIGHT_LANDED) {
 #if !TILT_KF_ONLY
                 /* ...and only once the sensors have settled. The state-
                  * estimation task publishes readiness (EKF bias cal, mag
@@ -224,6 +227,8 @@ static bool mm_apply_state_cmd(tvr_StateCommand_Type cmd) {
  * solver merges by checking >0). Pragmatic for v1; if zero is ever a
  * valid gain we'll add an explicit valid bitmask. */
 static void mm_forward_pid_gains(const tvr_SetPidGains *src) {
+    /* The target uses newlib-nano without _printf_float, so %f renders as an
+     * empty field. Print the gain as fixed-point using integer conversions. */
     app_pid_gains_t g = {0};
     if (src->has_attitude_kp) {
         g.attitude_kp[0] = src->attitude_kp.x;
@@ -392,9 +397,8 @@ static void mm_check_touchdown(TickType_t now)
     }
     if ((now - s_descent_quiet_start) >= pdMS_TO_TICKS(MM_LAND_SUSTAIN_MS)) {
         mm_set_state(APP_FLIGHT_LANDED);
-        /* Reset so a re-entry to DESCENT (shouldn't happen — LANDED is a
-         * one-way exit in the state machine — but defensive) starts a
-         * fresh sustain window. */
+        /* Reset so a later re-arm/launch/land cycle starts a fresh sustain
+         * window. */
         s_descent_quiet_start = 0;
     }
 }

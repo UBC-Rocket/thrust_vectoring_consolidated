@@ -441,6 +441,24 @@ void task_state_estimation(void *arg)
 
 #if TILT_KF_ONLY && defined(DEBUG_TEXT_CONSOLE)
         {
+            // app_pid_gains_t pid = {0};
+            // char pid_kp[16];
+            // (void)state_exchange_get_pid_gains(&pid);
+            // if (pid.attitude_kp[0] != 0.0f) {
+            //     fmt_f3(pid_kp, pid.attitude_kp[0]);
+            //     io_debug_printf("pid: %s\r\n", pid_kp);
+            // }
+
+            // app_flight_state_t b = APP_FLIGHT_IDLE;
+            // state_exchange_get_flight_state(&b);
+
+            // if (b==APP_FLIGHT_IDLE)io_debug_printf("idle\n");
+            // if (b==APP_FLIGHT_RISE)io_debug_printf("rise\n");
+            // if (b==APP_FLIGHT_DESCENT)io_debug_printf("drop\n");
+            // if (b==APP_FLIGHT_LANDED)io_debug_printf("landed\n");
+            // if (b==APP_FLIGHT_ESTOP)io_debug_printf("estop\n");
+            // if (b==APP_FLIGHT_ARMED)io_debug_printf("armed\n");
+
             static uint64_t s_tilt_dbg_last_us;
             const uint64_t  t_dbg = io_timestamp_us();
             if (t_dbg - s_tilt_dbg_last_us >= 200000ULL && n_icm > 0) {

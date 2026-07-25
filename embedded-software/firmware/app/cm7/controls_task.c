@@ -47,8 +47,8 @@
 /* Bring-up: fixed throttle after ESC arm delay. Change here only — the debug
  * log and esc_set_us() both use this (the old log hardcoded 0.25f and lied).
  * After editing: rebuild + flash CM7 (./build.sh && ./flash.sh Debug cm7). */
-#define BRINGUP_ESC_THROTTLE       0.65f
-#define BRINGUP_ESC_BUILD_TAG      "esc-bringup-v2"
+#define BRINGUP_ESC_THROTTLE       0.80f
+#define BRINGUP_ESC_BUILD_TAG      "esc-bringup-10pct-v3"
 
 static inline uint16_t throttle_to_us(float throttle) {
     if (throttle < 0.0f) throttle = 0.0f;
@@ -116,6 +116,18 @@ static volatile bool s_esc_bringup_armed;
 static const escs_t *s_escs;
 static uint16_t s_bringup_esc_us;
 
+static uint16_t esc_gated_bringup_us(void)
+{
+    /* Fail closed: state_exchange leaves the destination unchanged if its
+     * seqlock read fails, so initialise to IDLE before every read. */
+    app_flight_state_t flight_state = APP_FLIGHT_IDLE;
+    (void)state_exchange_get_flight_state(&flight_state);
+
+    return (flight_state == APP_FLIGHT_RISE)
+        ? s_bringup_esc_us
+        : ESC_PWM_MIN_US;
+}
+
 void controls_on_tim_period_elapsed(void *htim_handle)
 {
     TIM_HandleTypeDef *htim = (TIM_HandleTypeDef *)htim_handle;
@@ -129,9 +141,10 @@ void controls_on_tim_period_elapsed(void *htim_handle)
     flight_controller_run(&state, &s_live_ref, &s_live_config, &out, CONTROLS_DT_S);
 
     /* Bring-up: pin ESC PWM from the 800 Hz ISR so nothing else can stomp CCR.
-     * T_cmd / pwm_setpoint_from_forces() is NOT wired yet — ignore T= in logs. */
+     * The fixed throttle is permitted only in RISE; every other state receives
+     * minimum throttle. T_cmd / pwm_setpoint_from_forces() is not wired yet. */
     if (s_esc_bringup_armed && s_escs != NULL) {
-        esc_apply_bringup_throttle(s_escs, s_bringup_esc_us);
+        esc_apply_bringup_throttle(s_escs, esc_gated_bringup_us());
     }
 
     (void)state_exchange_publish_control_output(&out);
@@ -161,6 +174,9 @@ static inline void merge_pid_gains(const app_pid_gains_t *g) {
     if (g->z_ki             > 0.0f) s_live_config.thrust.ki             = g->z_ki;
     if (g->z_kd             > 0.0f) s_live_config.thrust.kd             = g->z_kd;
     if (g->z_integral_limit > 0.0f) s_live_config.thrust.integral_limit = g->z_integral_limit;
+    /* flight_controller_init latched the z gains into its internal PID at
+     * boot; updating s_live_config alone never reaches it. */
+    flight_controller_apply_thrust_gains(&s_live_config);
 }
 
 static inline void merge_reference(const app_reference_t *r) {
@@ -245,10 +261,9 @@ void task_controls(void *arg) {
 
     osDelay(pdMS_TO_TICKS(6000));
 
-    /* Bring-up: confirm the motors actually spin post-arm before handing
-     * CCR over to the live controller. */
+    /* Arm the bring-up output path, but leave the current command at minimum.
+     * The TIM16 ISR applies the fixed throttle only while flight state is RISE. */
     s_bringup_esc_us = throttle_to_us(BRINGUP_ESC_THROTTLE);
-    esc_apply_bringup_throttle(s_escs, s_bringup_esc_us);
     s_esc_bringup_armed = true;
 
 #ifdef DEBUG_TEXT_CONSOLE
@@ -278,10 +293,11 @@ void task_controls(void *arg) {
             fmt_f3(ty, out.theta_y_cmd);
             fmt_f3(zi, out.z_pid_integral);
             if (s_escs != NULL && s_esc_bringup_armed) {
+                const uint16_t gated_esc_us = esc_gated_bringup_us();
                 io_debug_printf("[ctl] esc lo/hi/cmd=%u/%u/%u us  T=%s  gim=%s,%s  z_i=%s\r\n",
                                 (unsigned)esc_get_us(&s_escs->lower),
                                 (unsigned)esc_get_us(&s_escs->upper),
-                                (unsigned)s_bringup_esc_us,
+                                (unsigned)gated_esc_us,
                                 t, tx, ty, zi);
             } else if (s_escs != NULL) {
                 io_debug_printf("[ctl] esc arming lo/hi=%u/%u us  T=%s\r\n",

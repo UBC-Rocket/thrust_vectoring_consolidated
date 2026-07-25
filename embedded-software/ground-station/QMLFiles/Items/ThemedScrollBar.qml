@@ -9,9 +9,9 @@ ScrollBar {
     contentItem: Rectangle {
         implicitWidth: 6
         implicitHeight: 6
-        radius: 3
-        color: Theme.borderLight
-        opacity: bar.pressed ? 0.9 : (bar.hovered ? 0.7 : 0.45)
+        radius: 0
+        color: Theme.border
+        opacity: bar.pressed ? 0.95 : (bar.hovered ? 0.8 : 0.55)
         Behavior on opacity { NumberAnimation { duration: Theme.transitionFast } }
     }
 
