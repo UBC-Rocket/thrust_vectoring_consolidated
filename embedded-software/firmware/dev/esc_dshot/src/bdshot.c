@@ -61,6 +61,11 @@
 // matrix as CM7.
 #define BDSHOT_DMA_BUFFER __attribute__((section(".axi_sram"), aligned(32)))
 
+#define BDSHOT_ALIGN_UP(size, alignment) (((size) + (alignment) - 1) & ~(alignment - 1))
+
+#define BDSHOT_DMA_TX_BUFFER_SIZE (BDSHOT_ALIGN_UP(BDSHOT_DMA_TX_FRAME_SIZE, 8))
+#define BDSHOT_DMA_RX_BUFFER_SIZE (BDSHOT_ALIGN_UP(BDSHOT_DMA_RX_FRAME_SIZE, 8))
+
 typedef enum bdshot_dma_line_direction {
     BDSHOT_DMA_LINE_DIRECTION_OUTPUT,
     BDSHOT_DMA_LINE_DIRECTION_INPUT,
@@ -104,9 +109,9 @@ static size_t dma_timers_count = 0;
 static bdshot_esc_motor_t motors[ESC_MOTOR_ID_COUNT];
 
 static uint32_t bdshot_dma_tx_buffer[ESC_MOTOR_ID_COUNT]
-                                    [BDSHOT_DMA_TX_FRAME_SIZE] BDSHOT_DMA_BUFFER;
+                                    [BDSHOT_DMA_TX_BUFFER_SIZE] BDSHOT_DMA_BUFFER;
 static uint32_t bdshot_dma_rx_buffer[ESC_MOTOR_ID_COUNT]
-                                    [BDSHOT_DMA_RX_FRAME_SIZE] BDSHOT_DMA_BUFFER;
+                                    [BDSHOT_DMA_RX_BUFFER_SIZE] BDSHOT_DMA_BUFFER;
 
 static bool motor_config_is_valid(const esc_motor_config_t *config);
 static bool is_valid_motor_id(esc_motor_id_t id);
@@ -256,14 +261,14 @@ static bool signal_line_set_armed(const io_bdshot_esc_t *io_handle, bool is_arme
     HAL_StatusTypeDef status = HAL_ERROR;
 
     if (is_armed) {
-        ral_gpio_set_af(gpio, ll_gpio_pin, io_handle->gpio_original_af);
+        ral_gpio_set_af(gpio, io_handle->gpio_pin, io_handle->gpio_original_af);
         LL_GPIO_SetPinMode(gpio, ll_gpio_pin, LL_GPIO_MODE_ALTERNATE);
 
         status = HAL_TIM_PWM_Start(tim, hal_tim_channel);
     } else {
         status = HAL_TIM_PWM_Stop(tim, hal_tim_channel);
 
-        LL_GPIO_SetPinMode(gpio, ll_gpio_pin, LL_GPIO_MODE_OUTPUT);
+        LL_GPIO_SetPinMode(gpio, io_handle->gpio_pin, LL_GPIO_MODE_OUTPUT);
         LL_GPIO_ResetOutputPin(gpio, ll_gpio_pin);
     }
 
@@ -300,7 +305,7 @@ static bool motor_decode_telemetry(const io_bdshot_esc_t *io_handle, bdshot_esc_
         motor->direction = BDSHOT_DMA_LINE_DIRECTION_OUTPUT;
     }
 
-    SCB_InvalidateDCache_by_Addr((void *)edge_times, BDSHOT_DMA_RX_FRAME_SIZE * sizeof(uint32_t));
+    SCB_InvalidateDCache_by_Addr((void *)edge_times, BDSHOT_DMA_RX_BUFFER_SIZE * sizeof(uint32_t));
 
     esc_motor_telemetry_t telemetry;
     bool success = bdshot_decode_telemetry_from_signal(&telemetry, edge_times, received_edges,
@@ -503,7 +508,8 @@ bool esc_dshot_update()
 
             if (is_new_frame_requested) {
                 build_dma_tx_buffer(bdshot_dma_tx_buffer[id], new_frame);
-                SCB_CleanDCache_by_Addr(bdshot_dma_tx_buffer[id], sizeof(bdshot_dma_tx_buffer[id]));
+                SCB_CleanDCache_by_Addr(bdshot_dma_tx_buffer[id],
+                                        BDSHOT_DMA_TX_BUFFER_SIZE * sizeof(uint32_t));
             }
         }
 
