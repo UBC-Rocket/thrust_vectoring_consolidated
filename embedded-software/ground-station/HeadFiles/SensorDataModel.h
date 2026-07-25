@@ -37,6 +37,9 @@ public:
     Q_PROPERTY(double thrustCmd READ thrustCmd NOTIFY engineDataChanged)
     Q_PROPERTY(double gimbalX   READ gimbalX   NOTIFY engineDataChanged)
     Q_PROPERTY(double gimbalY   READ gimbalY   NOTIFY engineDataChanged)
+    Q_PROPERTY(double motorRpmLower READ motorRpmLower NOTIFY engineDataChanged)
+    Q_PROPERTY(double motorRpmUpper READ motorRpmUpper NOTIFY engineDataChanged)
+    Q_PROPERTY(bool   motorRpmValid READ motorRpmValid NOTIFY engineDataChanged)
 
     // Telemetry — velocity magnitude in m/s (consistent with altitude)
     Q_PROPERTY(double velocity READ velocity NOTIFY telemetryDataChanged)
@@ -90,6 +93,9 @@ public:
     double thrustCmd() const { return m_thrustCmd; }
     double gimbalX()   const { return m_gimbalX; }
     double gimbalY()   const { return m_gimbalY; }
+    double motorRpmLower() const { return m_motorRpmLower; }
+    double motorRpmUpper() const { return m_motorRpmUpper; }
+    bool   motorRpmValid() const { return m_motorRpmValid; }
 
     double velocity() const { return m_velocity; }
 
@@ -178,6 +184,10 @@ private:
     double m_thrustCmd = 0.0;
     double m_gimbalX   = 0.0;
     double m_gimbalY   = 0.0;
+
+    double m_motorRpmLower = 0.0;
+    double m_motorRpmUpper = 0.0;
+    bool   m_motorRpmValid = false;
 
     double m_velocity = 0.0;
 

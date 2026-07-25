@@ -141,6 +141,14 @@ static inline void mm_publish(void) {
 static inline void mm_set_armed(bool armed) {
     s_armed = armed;
     state_exchange_publish_armed(armed);
+    if (!armed) {
+        /* Disarm must be physically inert: zero any operator throttle so
+         * CM7's next tunables poll (50 ms) drops the ESCs to minimum.
+         * Covers ABORT, landing and the heartbeat-loss watchdog, which
+         * all funnel through here. */
+        const app_throttle_cmd_t zero = { .throttle = 0.0f };
+        (void)state_exchange_publish_throttle_cmd(&zero);
+    }
 }
 
 static inline void mm_set_state(app_flight_state_t s) {
@@ -168,7 +176,10 @@ static bool mm_apply_state_cmd(tvr_StateCommand_Type cmd) {
                  * offset valid, GPS lock); refuse ARM until armable so the
                  * vehicle can't start up cold. Tilt-KF builds skip this gate
                  * (readiness isn't computed there). */
-                vehicle_readiness_t rdy;
+                /* Zero-init = fail closed: if the slot read fails or the
+                 * slot is unpublished, the getter leaves rdy untouched and
+                 * armable stays false. */
+                vehicle_readiness_t rdy = {0};
                 (void)state_exchange_get_readiness(&rdy);
                 if (!rdy.armable) {
 #ifdef DEBUG_TEXT_CONSOLE
@@ -273,6 +284,17 @@ static void mm_forward_config(const tvr_SetConfig *src) {
     (void)state_exchange_publish_vehicle_config(&c);
 }
 
+static void mm_forward_throttle(const tvr_SetThrottle *src) {
+    app_throttle_cmd_t t;
+    float v = src->throttle;
+    /* NaN-safe clamp on receipt (!(v >= 0) also catches NaN → 0);
+     * throttle_to_us() clamps again on CM7. */
+    if (!(v >= 0.0f)) v = 0.0f;
+    if (v > 1.0f) v = 1.0f;
+    t.throttle = v;
+    (void)state_exchange_publish_throttle_cmd(&t);
+}
+
 /* Process one decoded FlightCommand. Returns true if it should refresh
  * the heartbeat watchdog. */
 static bool mm_handle_command(const tvr_FlightCommand *cmd) {
@@ -290,6 +312,13 @@ static bool mm_handle_command(const tvr_FlightCommand *cmd) {
 
         case tvr_FlightCommand_set_config_tag:
             mm_forward_config(&cmd->payload.set_config);
+            return true;
+
+        case tvr_FlightCommand_set_throttle_tag:
+            /* ESTOP is terminal — refuse throttle-up, mirroring the state-
+             * command gate in mm_apply_state_cmd. */
+            if (s_flight_state == APP_FLIGHT_ESTOP) return false;
+            mm_forward_throttle(&cmd->payload.set_throttle);
             return true;
 
         default:

@@ -50,7 +50,7 @@ extern const pb_msgdesc_t tvr_Downlink_msg;
 
 /* Maximum encoded size of messages (where known) */
 #define TVR_DOWNLINK_PB_H_MAX_SIZE               tvr_Downlink_size
-#define tvr_Downlink_size                        122
+#define tvr_Downlink_size                        135
 
 #ifdef __cplusplus
 } /* extern "C" */
