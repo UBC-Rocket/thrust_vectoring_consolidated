@@ -11,7 +11,7 @@ owns its EXTI handler, init sequence, sample ring, and IO bindings.
 | `gps_nmea/`      | `dev_gps_nmea`      | `dev_gps_nmea.h`      | u-blox SAM-M10Q GPS (NMEA)      | UART5, `'\n'` framing |
 | `radio_rfd900/`  | `dev_radio_rfd900`  | `dev_radio_rfd900.h`  | RFDesign RFD900x telemetry      | UART7, `0x00` framing |
 | `servo_feetech/` | `dev_servo_feetech` | `dev_servo_feetech.h` | Feetech STS/SCS bus servos      | UART8, half-duplex |
-| _(retired)_ `esc_dshot/` | — | `dev_esc_dshot.h` | DShot ESC pair — kept on disk, no longer linked. ESC output is now plain PWM: `flight_controller/CM7/Core/{Inc,Src}/motor_drivers/pwm_output.c` (ported from depracated/ulysses-flight-controller), wired via `app/include/app/esc_init.h` | TIM4_CH1/PD12 (lower), TIM4_CH2/PD13 (upper) — same pins DShot used |
+| `esc_dshot/`     | `dev_esc_dshot`     | `dev_esc_dshot.h`     | DShot ESC pair                  | DShot upper/lower channels |
 
 ## API pattern
 
