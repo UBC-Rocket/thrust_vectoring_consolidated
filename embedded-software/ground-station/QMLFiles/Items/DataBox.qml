@@ -6,6 +6,10 @@ Rectangle {
     property int sections       //How many boxes are together
     property int section_num    //Which box is this one
 
+    // EVA tile options: amber/green value variants and the 3px status left border.
+    property color valueColor: Theme.textPrimary
+    property color accentColor: "transparent"
+
     function formatDataValue(value) {
         const numericValue = Number(value)
         if (!Number.isFinite(numericValue)) {
@@ -17,22 +21,36 @@ Rectangle {
     height: 56
     width: (parent.width-18*sections)/sections
     x: (section_num-1) * (width+10)
-    radius: Theme.radiusCard
-    border.color: Theme.border
+    radius: 0
+    border.color: Theme.divider
     border.width: Theme.strokeControl
     color: Theme.surfaceElevated
+
+    Rectangle {
+        visible: parent.accentColor.a > 0
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        anchors.margins: parent.border.width
+        width: 3
+        color: parent.accentColor
+    }
 
     Text {
         id: name
 
-        text: dataName
+        text: dataName.toUpperCase()
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fontMetricLabel
+        font.letterSpacing: 2
         color: Theme.textTertiary
+        elide: Text.ElideRight
+        width: parent.width - 20
 
-        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.left: parent.left
+        anchors.leftMargin: 10
         anchors.top: parent.top
-        anchors.topMargin: 6
+        anchors.topMargin: 8
     }
 
     Text {
@@ -43,9 +61,11 @@ Rectangle {
         text: formatDataValue(dataValue)
         font.family: Theme.monoFamily
         font.pixelSize: Theme.fontMetricValue
-        color: Theme.textPrimary
+        font.weight: Font.DemiBold
+        color: parent.valueColor
 
-        anchors.horizontalCenter: parent.horizontalCenter;
+        anchors.left: parent.left
+        anchors.leftMargin: 10
     }
 
 }

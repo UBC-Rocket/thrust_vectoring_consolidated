@@ -4,24 +4,28 @@ import QtQuick.Controls.Basic
 TabButton {
     id: tab
     hoverEnabled: true
-    font.family: Theme.fontFamily
+    font.family: Theme.fontFamilySemiBold
     font.pixelSize: Theme.fontBody
 
-    background: Rectangle {
-        radius: Theme.radiusControl
-        color: tab.checked ? Theme.btnPrimaryBg
-             : tab.down    ? Theme.btnSecondaryPress
-             : tab.hovered ? Theme.btnSecondaryHover
-             :               Theme.btnSecondaryBg
-        border.width: Theme.strokeControl
-        border.color: tab.checked ? Theme.btnPrimaryBorder : Theme.btnSecondaryBorder
-        Behavior on color { ColorAnimation { duration: Theme.transitionFast } }
+    background: ClippedRect {
+        implicitWidth: 100
+        implicitHeight: 36
+        slantTL: 10
+        slantBR: 10
+        fillColor: tab.down    ? Theme.btnSecondaryPress
+                 : tab.hovered ? Theme.btnSecondaryHover
+                 :               Theme.btnSecondaryBg
+        borderColor: (tab.checked || tab.hovered) ? Theme.accent : Theme.btnSecondaryBorder
+        borderWidth: 1
     }
 
     contentItem: Text {
-        anchors.centerIn: parent
-        text: tab.text
-        color: tab.checked ? Theme.btnPrimaryText : Theme.btnSecondaryText
+        text: tab.text.toUpperCase()
+        color: tab.checked ? Theme.textPrimary
+             : tab.hovered ? Theme.accentMuted
+             :               Theme.btnSecondaryText
         font: tab.font
+        horizontalAlignment: Text.AlignHCenter
+        verticalAlignment: Text.AlignVCenter
     }
 }

@@ -1,27 +1,32 @@
 import QtQuick
 import QtQuick.Controls.Basic as Basic
 
+// Red-outline EVA action button (SEND / LOAD / CLEAR …) with angular cuts.
 Basic.Button {
     id: btn
     hoverEnabled: true
     padding: 10
-    font.family: Theme.fontFamily
+    leftPadding: 18
+    rightPadding: 18
+    font.family: Theme.fontFamilySemiBold
     font.pixelSize: Theme.fontBody
+    font.letterSpacing: 2
 
-    background: Rectangle {
-        radius: Theme.radiusControl
-        color: !btn.enabled    ? Theme.btnSecondaryBg
-             : btn.down        ? Theme.btnPrimaryPress
-             : btn.hovered     ? Theme.btnPrimaryHover
-             :                   Theme.btnPrimaryBg
-        border.width: Theme.strokeControl
-        border.color: btn.enabled ? Theme.btnPrimaryBorder : Theme.btnSecondaryBorder
-        Behavior on color { ColorAnimation { duration: Theme.transitionFast } }
+    background: ClippedRect {
+        implicitWidth: 100
+        implicitHeight: 36
+        slantTL: 10
+        slantBR: 10
+        fillColor: !btn.enabled ? Theme.btnSecondaryBg
+                 : btn.down     ? Theme.btnPrimaryPress
+                 : btn.hovered  ? Theme.btnPrimaryHover
+                 :                Theme.btnPrimaryBg
+        borderColor: btn.enabled ? Theme.btnPrimaryBorder : Theme.btnSecondaryBorder
+        borderWidth: 1
     }
 
     contentItem: Text {
-        anchors.centerIn: parent
-        text: btn.text
+        text: btn.text.toUpperCase()
         color: btn.enabled ? Theme.btnPrimaryText : Theme.textTertiary
         font: btn.font
         horizontalAlignment: Text.AlignHCenter

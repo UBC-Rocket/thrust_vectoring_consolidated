@@ -5,10 +5,10 @@ BasePanel {
     id: panel_Angles_And_Engine
 
     // ===== Spacing controls =====
-    property real sectionSpacing: 6                      // spacing between sections (X->Y->Z->Engine)
-    property real headerToFirstSectionSpacing: 2         // main title -> "Angles" section
-    property real subheaderToDataSpacing: 12             // subheader -> data boxes
-    property real rowPadding: 4                          // extra padding for implicitHeight
+    property real sectionSpacing: 8                       // spacing between sections (X->Y->Z->Engine)
+    property real headerToFirstSectionSpacing: 2          // main title -> "Angles" section
+    property real subheaderToDataSpacing: 10              // subheader -> data boxes
+    property real rowPadding: 0                           // extra padding for implicitHeight
 
     // Angular rates (deg/s) — raw gyro output
     property double raw_angle_x: sensorData.rawAngleX
@@ -27,7 +27,8 @@ BasePanel {
 
     BaseHeader {
         id: header
-        headerText: "Angles and Engine"
+        headerText: "Angles / Engine"
+        jpText: "姿勢制御"
     }
 
     Rectangle {
@@ -36,7 +37,7 @@ BasePanel {
 
         implicitHeight: subheader_angles.implicitHeight
                         + panel_Angles_And_Engine.subheaderToDataSpacing
-                        + dataBoxListX.height
+                        + boxRateX.height
         height: implicitHeight
 
         anchors {
@@ -50,30 +51,37 @@ BasePanel {
 
         Text {
             id: subheader_angles
-            text: "Attitude (deg) / Angular Rate (°/s)"
+            text: "ATTITUDE (°) / ANGULAR RATE (°/S)"
             font.family: Theme.fontFamily
-            font.pixelSize: 18
+            font.pixelSize: 10
+            font.letterSpacing: 2
             color: Theme.textSecondary
             y: 0
         }
 
-        DataBoxList {
-            id: dataBoxListX
+        DataBox {
+            id: boxRateX
             anchors.top: subheader_angles.bottom
             anchors.topMargin: panel_Angles_And_Engine.subheaderToDataSpacing
-            width: parent.width
+            sections: 2; section_num: 1
+            dataName: "ANG RATE X"
+            dataValue: raw_angle_x
+        }
 
-            size: 2
-            boxHeight: 56
-            dataNames: ["ANG RATE X (°/s)", "ROLL (°)"]
-            dataValues: [raw_angle_x, filtered_angle_x]
+        DataBox {
+            anchors.top: subheader_angles.bottom
+            anchors.topMargin: panel_Angles_And_Engine.subheaderToDataSpacing
+            sections: 2; section_num: 2
+            dataName: "ROLL"
+            dataValue: filtered_angle_x
+            valueColor: Theme.amber
         }
     }
 
     Rectangle {
         id: kalman_angles_y
         color: "transparent"
-        implicitHeight: dataBoxListY.height + panel_Angles_And_Engine.rowPadding
+        implicitHeight: boxRateY.height + panel_Angles_And_Engine.rowPadding
         height: implicitHeight
 
         anchors {
@@ -85,21 +93,27 @@ BasePanel {
             rightMargin: header.anchors.leftMargin
         }
 
-        DataBoxList {
-            id: dataBoxListY
-            width: parent.width
+        DataBox {
+            id: boxRateY
+            anchors.top: parent.top
+            sections: 2; section_num: 1
+            dataName: "ANG RATE Y"
+            dataValue: raw_angle_y
+        }
 
-            size: 2
-            boxHeight: 56
-            dataNames: ["ANG RATE Y (°/s)", "PITCH (°)"]
-            dataValues: [raw_angle_y, filtered_angle_y]
+        DataBox {
+            anchors.top: parent.top
+            sections: 2; section_num: 2
+            dataName: "PITCH"
+            dataValue: filtered_angle_y
+            valueColor: Theme.amber
         }
     }
 
     Rectangle {
         id: kalman_angles_z
         color: "transparent"
-        implicitHeight: dataBoxListZ.height + panel_Angles_And_Engine.rowPadding
+        implicitHeight: boxRateZ.height + panel_Angles_And_Engine.rowPadding
         height: implicitHeight
 
         anchors {
@@ -111,14 +125,20 @@ BasePanel {
             rightMargin: header.anchors.leftMargin
         }
 
-        DataBoxList {
-            id: dataBoxListZ
-            width: parent.width
+        DataBox {
+            id: boxRateZ
+            anchors.top: parent.top
+            sections: 2; section_num: 1
+            dataName: "ANG RATE Z"
+            dataValue: raw_angle_z
+        }
 
-            size: 2
-            boxHeight: 56
-            dataNames: ["ANG RATE Z (°/s)", "YAW (°)"]
-            dataValues: [raw_angle_z, filtered_angle_z]
+        DataBox {
+            anchors.top: parent.top
+            sections: 2; section_num: 2
+            dataName: "YAW"
+            dataValue: filtered_angle_z
+            valueColor: Theme.amber
         }
     }
 
@@ -128,37 +148,60 @@ BasePanel {
 
         implicitHeight: subheader_engine.implicitHeight
                         + panel_Angles_And_Engine.subheaderToDataSpacing
-                        + dataBoxListEngine.height
+                        + boxThrust.height
         height: implicitHeight
 
         anchors {
             top: kalman_angles_z.bottom
             left: parent.left
             right: parent.right
-            topMargin: panel_Angles_And_Engine.sectionSpacing
+            topMargin: panel_Angles_And_Engine.sectionSpacing + 4
             leftMargin: header.anchors.leftMargin
             rightMargin: header.anchors.leftMargin
         }
 
         Text {
             id: subheader_engine
-            text: "Engine Control"
+            text: "ENGINE CONTROL"
             font.family: Theme.fontFamily
-            font.pixelSize: 18
+            font.pixelSize: 10
+            font.letterSpacing: 2
             color: Theme.textSecondary
             y: 0
         }
 
-        DataBoxList {
-            id: dataBoxListEngine
+        JpText {
+            anchors.right: parent.right
+            anchors.baseline: subheader_engine.baseline
+            text: "推力偏向"
+            color: Theme.textTertiary
+        }
+
+        DataBox {
+            id: boxThrust
             anchors.top: subheader_engine.bottom
             anchors.topMargin: panel_Angles_And_Engine.subheaderToDataSpacing
-            width: parent.width
+            sections: 3; section_num: 1
+            dataName: "THRUST"
+            dataValue: thrustCmd
+            valueColor: Theme.success
+            accentColor: Theme.success
+        }
 
-            size: 3
-            boxHeight: 56
-            dataNames: ["THRUST", "GIMBAL X", "GIMBAL Y"]
-            dataValues: [thrustCmd, gimbalX, gimbalY]
+        DataBox {
+            anchors.top: subheader_engine.bottom
+            anchors.topMargin: panel_Angles_And_Engine.subheaderToDataSpacing
+            sections: 3; section_num: 2
+            dataName: "GIMBAL X"
+            dataValue: gimbalX
+        }
+
+        DataBox {
+            anchors.top: subheader_engine.bottom
+            anchors.topMargin: panel_Angles_And_Engine.subheaderToDataSpacing
+            sections: 3; section_num: 3
+            dataName: "GIMBAL Y"
+            dataValue: gimbalY
         }
     }
 }
