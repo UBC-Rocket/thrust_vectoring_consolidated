@@ -14,19 +14,19 @@ CheckBox {
         implicitHeight: 16
         x: cb.leftPadding
         y: parent.height / 2 - height / 2
-        radius: 3
+        radius: 0
         color: cb.checked ? Theme.accentSubtle : Theme.surfaceInset
         border.width: Theme.strokeControl
         border.color: cb.checked ? Theme.accent
-                    : cb.hovered ? Theme.borderLight
-                    :              Theme.border
+                    : cb.hovered ? Theme.accent
+                    :              Theme.divider
         Behavior on color { ColorAnimation { duration: Theme.transitionFast } }
 
         Rectangle {
             anchors.centerIn: parent
             width: 8
             height: 8
-            radius: 2
+            radius: 0
             color: Theme.accent
             visible: cb.checked
         }
@@ -35,7 +35,7 @@ CheckBox {
     contentItem: Text {
         text: cb.text
         font: cb.font
-        color: Theme.textPrimary
+        color: Theme.textSecondary
         verticalAlignment: Text.AlignVCenter
         leftPadding: cb.indicator.width + cb.spacing
     }

@@ -70,53 +70,42 @@ BasePanel {
         headerText: "System Health"
     }
 
-    // ── Overall badge ──────────────────────────────────────────────────────
+    // ── Overall badge — outline chip in the state color ────────────────────
     Rectangle {
         id: overallBadge
         anchors.verticalCenter: header.verticalCenter
         anchors.right: parent.right
         anchors.rightMargin: 15
-        height: 26
+        height: overallText.implicitHeight + 8
         width: overallText.implicitWidth + 20
-        radius: Theme.radiusControl
-        color: panel_System_Health.overallColor
+        radius: 0
+        color: "transparent"
+        border.width: 1
+        border.color: panel_System_Health.overallColor
 
         Text {
             id: overallText
             anchors.centerIn: parent
             text: panel_System_Health.overallLabel
-            color: Theme.textPrimary
+            color: panel_System_Health.overallColor
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontCaption
             font.bold: true
+            font.letterSpacing: 2
         }
     }
 
-    // ── Section 1: Sensor health badges ────────────────────────────────────
-
-    Text {
-        id: sensorLabel
-        anchors {
-            top: header.bottom
-            left: parent.left
-            leftMargin: 15
-            topMargin: 6
-        }
-        text: "Sensor Status"
-        font.family: Theme.fontFamily
-        font.pixelSize: 15
-        color: Theme.textSecondary
-    }
+    // ── Sensor health tiles (ACCEL / GYRO) ─────────────────────────────────
 
     Row {
         id: sensorRow
         anchors {
-            top: sensorLabel.bottom
+            top: header.bottom
             left: parent.left
             right: parent.right
             leftMargin: 15
             rightMargin: 15
-            topMargin: 8
+            topMargin: 2
         }
         spacing: 8
 
@@ -124,63 +113,55 @@ BasePanel {
             id: sensorRepeater
             model: ["ACCEL", "GYRO"]
 
-            delegate: Column {
-                spacing: 4
+            delegate: Rectangle {
                 width: (sensorRow.width - sensorRow.spacing * (sensorRepeater.count - 1))
                        / sensorRepeater.count
+                height: 46
+                radius: 0
+                color: !panel_System_Health.linkUp
+                    ? Theme.surfaceElevated
+                    : (panel_System_Health.sensorOk(modelData) ? Theme.successBg : Theme.dangerBg)
+                border.width: 1
+                border.color: !panel_System_Health.linkUp
+                    ? Theme.divider
+                    : (panel_System_Health.sensorOk(modelData) ? Theme.successBorder : Theme.danger)
 
-                Rectangle {
-                    width: parent.width
-                    height: 28
-                    radius: Theme.radiusControl
-                    color: !panel_System_Health.linkUp
-                        ? Theme.surfaceElevated
-                        : (panel_System_Health.sensorOk(modelData) ? Theme.success : Theme.danger)
+                Column {
+                    anchors.centerIn: parent
+                    spacing: 2
 
                     Text {
-                        anchors.centerIn: parent
+                        anchors.horizontalCenter: parent.horizontalCenter
                         text: !panel_System_Health.linkUp
                             ? "—"
                             : (panel_System_Health.sensorOk(modelData) ? "OK" : "FAIL")
                         font.family: Theme.fontFamily
-                        font.pixelSize: 13
+                        font.pixelSize: 14
                         font.bold: true
-                        color: Theme.textPrimary
+                        color: !panel_System_Health.linkUp
+                            ? Theme.textTertiary
+                            : (panel_System_Health.sensorOk(modelData) ? Theme.success : Theme.danger)
                     }
-                }
 
-                Text {
-                    width: parent.width
-                    horizontalAlignment: Text.AlignHCenter
-                    text: modelData
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontCaption
-                    color: Theme.textTertiary
+                    Text {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: modelData
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 9
+                        font.letterSpacing: 2
+                        color: Theme.textTertiary
+                    }
                 }
             }
         }
     }
 
-    // ── Section 2: System stats ─────────────────────────────────────────────
-
-    Text {
-        id: statsLabel
-        anchors {
-            top: sensorRow.bottom
-            left: parent.left
-            leftMargin: 15
-            topMargin: 14
-        }
-        text: "System Stats"
-        font.family: Theme.fontFamily
-        font.pixelSize: 15
-        color: Theme.textSecondary
-    }
+    // ── System stats tiles (UPTIME / LAST STATUS) ──────────────────────────
 
     DataBoxList {
         id: statsBoxes
         anchors {
-            top: statsLabel.bottom
+            top: sensorRow.bottom
             left: parent.left
             right: parent.right
             leftMargin: 15
@@ -202,11 +183,13 @@ BasePanel {
             leftMargin: 15
             topMargin: 10
         }
-        text: "Last status: " + panel_System_Health.formatAge(panel_System_Health.statusAgeMs)
+        text: "LAST STATUS: "
+              + panel_System_Health.formatAge(panel_System_Health.statusAgeMs).toUpperCase()
         color: !panel_System_Health.linkUp
             ? Theme.textTertiary
             : (panel_System_Health.statusFresh ? Theme.textSecondary : Theme.warn)
         font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontCaption
+        font.pixelSize: 10
+        font.letterSpacing: 1
     }
 }
