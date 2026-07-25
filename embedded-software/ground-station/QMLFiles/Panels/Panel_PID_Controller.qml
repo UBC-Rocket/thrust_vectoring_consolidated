@@ -388,8 +388,9 @@ BasePanel {
             NumberField {
                 label: "throttle %"
                 value: panel.throttlePct
-                onValueEdited: (v) => panel._edit(
-                    (x) => panel.throttlePct = Math.max(0, Math.min(100, x)), v)
+                // Direct write, not _edit: throttle is excluded from presets,
+                // so it must not flip the preset MODIFIED indicator.
+                onValueEdited: (v) => panel.throttlePct = v
             }
 
             PrimaryButton {
@@ -397,7 +398,11 @@ BasePanel {
                 Layout.alignment: Qt.AlignRight
                 Layout.topMargin: 4
                 Layout.bottomMargin: 6
-                onClicked: commandsender.sendThrottle(panel.which, panel.throttlePct / 100)
+                // Clamp at send so the field always shows what was typed while
+                // the wire never carries more than 100 % (FC clamps again).
+                onClicked: commandsender.sendThrottle(
+                    panel.which,
+                    Math.max(0, Math.min(100, panel.throttlePct)) / 100)
             }
         }
     }

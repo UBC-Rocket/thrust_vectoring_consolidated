@@ -51,7 +51,9 @@
 #define BRINGUP_ESC_BUILD_TAG      "esc-bringup-v2"
 
 static inline uint16_t throttle_to_us(float throttle) {
-    if (throttle < 0.0f) throttle = 0.0f;
+    /* !(x >= 0) also catches NaN — a NaN-to-uint cast is UB and would
+     * otherwise produce a 0-tick CCR (ESC signal loss). */
+    if (!(throttle >= 0.0f)) throttle = 0.0f;
     if (throttle > 1.0f) throttle = 1.0f;
     return (uint16_t)(ESC_PWM_MIN_US +
                       throttle * (float)(ESC_PWM_MAX_US - ESC_PWM_MIN_US));
@@ -115,7 +117,9 @@ static uint32_t s_last_throttle_seq;
 static volatile bool s_isr_ready;
 static volatile bool s_esc_bringup_armed;
 static const escs_t *s_escs;
-static uint16_t s_bringup_esc_us;
+/* Written by poll_tunables (task) on throttle commands, read by the 800 Hz
+ * ISR — volatile like its sibling flags; an aligned 16-bit store is atomic. */
+static volatile uint16_t s_bringup_esc_us;
 
 void controls_on_tim_period_elapsed(void *htim_handle)
 {
