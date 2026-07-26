@@ -43,7 +43,7 @@ const char* const kCsvHeader =
     "vel_x,vel_y,vel_z,"
     "att_w,att_x,att_y,att_z,"
     "gyro_x,gyro_y,gyro_z,"
-    "thrust_cmd,gimbal_x,gimbal_y,"
+    "thrust_cmd,gimbal_x,gimbal_y,rpm_lower,rpm_upper,"
     "uwb0_x,uwb0_y,uwb1_x,uwb1_y,"
     "uptime_ms,accel_ok,gyro_ok,"
     "radio_rx_count,radio_tx_count,cmd_rx_count";
@@ -326,6 +326,14 @@ void SensorDataModel::applyDownlink(int which, const void* downlinkStruct)
         updateKalman(rawX, filtX, rawY, filtY, rawZ, filtZ);
         updatePosition(alt, px, py);
         updateTelemetry(vel);
+
+        // Motor RPM (bidirectional-DShot readback). Set before updateEngine
+        // so its engineDataChanged emit publishes these too. valid=false
+        // (no decoded frame / no DShot backend on the FC) renders as "—".
+        m_motorRpmLower = static_cast<double>(t->motor_rpm_lower);
+        m_motorRpmUpper = static_cast<double>(t->motor_rpm_upper);
+        m_motorRpmValid = t->motor_rpm_valid;
+
         updateEngine(
             static_cast<double>(t->thrust_cmd),
             static_cast<double>(t->gimbal_x),
@@ -441,6 +449,12 @@ void SensorDataModel::writeCsvRow(const void* downlinkStruct)
         }
         // engine
         (*m_csvStream) << fmt(t->thrust_cmd) << ',' << fmt(t->gimbal_x) << ',' << fmt(t->gimbal_y) << ',';
+        // motor rpm (empty when the FC reports invalid / no DShot backend)
+        if (t->motor_rpm_valid) {
+            (*m_csvStream) << fmt(t->motor_rpm_lower) << ',' << fmt(t->motor_rpm_upper) << ',';
+        } else {
+            (*m_csvStream) << ",,";
+        }
         // uwb tags
         if (t->has_uwb_tag_0) {
             (*m_csvStream) << fmt(t->uwb_tag_0.x) << ',' << fmt(t->uwb_tag_0.y) << ',';
@@ -462,7 +476,7 @@ void SensorDataModel::writeCsvRow(const void* downlinkStruct)
                        << ",,,"     // vel
                        << ",,,,"    // att
                        << ",,,"     // gyro
-                       << ",,,"     // engine
+                       << ",,,,,"   // engine + rpm
                        << ",,,,";   // uwb0/uwb1
         (*m_csvStream) << s->uptime_ms << ','
                        << fmtBool(s->accel_ok) << ','
