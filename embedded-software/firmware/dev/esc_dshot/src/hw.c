@@ -9,7 +9,7 @@ extern TIM_HandleTypeDef htim4;
 extern DMA_HandleTypeDef hdma_tim4_ch1;
 extern DMA_HandleTypeDef hdma_tim4_ch2;
 
-const io_bdshot_esc_t IO_BDSHOT_ESC_LOWER = {
+const io_bdshot_esc_t IO_BDSHOT_ESC_UPPER = {
     .tim = &htim4,
     .tim_channel = TIM_CHANNEL_1,
     .dma = &hdma_tim4_ch1,
@@ -18,7 +18,7 @@ const io_bdshot_esc_t IO_BDSHOT_ESC_LOWER = {
     .gpio_original_af = GPIO_AF2_TIM4,
 };
 
-const io_bdshot_esc_t IO_BDSHOT_ESC_UPPER = {
+const io_bdshot_esc_t IO_BDSHOT_ESC_LOWER = {
     .tim = &htim4,
     .tim_channel = TIM_CHANNEL_2,
     .dma = &hdma_tim4_ch2,
