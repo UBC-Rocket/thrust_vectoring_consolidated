@@ -50,7 +50,7 @@
 #define ESC_RPM_DEADBAND (50) // TODO: adjust based on how fast RPM changes with higher throttles
 #define ESC_RPM_THROTTLE_ADJUSTMENT (1)
 
-#define ESC_RPM_DESIRED_RISE (15600) // TODO: find actual value
+#define ESC_RPM_DESIRED_RISE (16350) // TODO: find actual value
 #define ESC_RPM_DESIRED_LAND (8000) // TODO: find actual value
 
 static flight_controller_config_t s_live_config = {
@@ -181,7 +181,6 @@ static void poll_tunables(void) {
 static void fmt_f3(char *buf, float v) {
     int neg = (v < 0.0f);
     if (neg) v = -v;
-    if (v > 9999.0f) v = 9999.0f;
     unsigned long m = (unsigned long)(v * 1000.0f + 0.5f);
     (void)snprintf(buf, 16, "%s%lu.%03lu", neg ? "-" : "", m / 1000UL, m % 1000UL);
 }
