@@ -146,6 +146,26 @@ extern "C" {
 #define APP_DEBUG_CONSOLE_RING_MAGIC       0x44424752U  /* "DBGR" */
 /* Tail: 0x2880 + 32 + 2048 = 0x30A0, inside the 16 kB shared region. */
 
+/* ---------------------------------------------------------------------------
+ * Manual throttle command (app_throttle_cmd_t). CM4 mission manager writes
+ * (from a GCS SetThrottle uplink), CM7 controls polls alongside the other
+ * tunables. 128 B slot (8 B header + up-to-120 B payload) matching the
+ * tunables-slot pattern so later fields don't force a layout migration.
+ * 0x30A0..0x3140 is left free — the attitude-ki-plumbing branch places its
+ * sensor-readiness slot there; keeping these offsets identical on both
+ * branches means a mixed-image bench setup still reads the right slots.
+ * --------------------------------------------------------------------------- */
+#define APP_SLOT_THROTTLE_CMD_OFFSET  0x3140
+#define APP_SLOT_THROTTLE_CMD_PAYLOAD 120U
+
+/* ---------------------------------------------------------------------------
+ * Motor RPM readback (app_motor_rpm_t). CM7 controls writes (from
+ * bidirectional-DShot ESC telemetry), CM4 telemetry reads for the downlink.
+ * Same 128 B pattern. Tail: 0x31C0 + 128 = 0x3240, inside the 16 kB region.
+ * --------------------------------------------------------------------------- */
+#define APP_SLOT_MOTOR_RPM_OFFSET   0x31C0
+#define APP_SLOT_MOTOR_RPM_PAYLOAD  120U
+
 /**
  * @brief Pointer to the base of the shared region (defined by the linker).
  */

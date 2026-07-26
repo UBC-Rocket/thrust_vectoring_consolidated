@@ -69,6 +69,14 @@ add_unity_test(
 )
 
 add_unity_test(
+    NAME "tvr_roundtrip"
+    SOURCES
+        tvr/test_tvr_roundtrip.c
+    LIBRARIES
+        rocket-protocol::protocol
+)
+
+add_unity_test(
     NAME "crc16"
     SOURCES
         crc/test_crc16.c

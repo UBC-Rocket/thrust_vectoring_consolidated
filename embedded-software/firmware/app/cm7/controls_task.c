@@ -88,7 +88,18 @@ static flight_controller_ref_t s_live_ref = {
 static uint32_t s_last_pid_seq;
 static uint32_t s_last_ref_seq;
 static uint32_t s_last_cfg_seq;
+static uint32_t s_last_throttle_seq;
 static volatile bool s_isr_ready;
+
+/* Operator throttle from the GCS (SetThrottle), in DShot units, one value
+ * per motor (legacy single-float sends mirror lower into upper on CM4).
+ * Written by poll_tunables; read in the RISE/DESCENT path. A non-zero value
+ * overrides the autonomous RPM-closed-loop throttle for that motor (manual
+ * bench testing); 0 — the default, and what mission_manager publishes on
+ * every disarm — falls through to autonomous, so a disarm can never zero out
+ * an autonomous RISE. */
+static volatile uint16_t s_operator_throttle_lower;
+static volatile uint16_t s_operator_throttle_upper;
 
 void controls_on_tim_period_elapsed(void *htim_handle)
 {
@@ -173,6 +184,32 @@ static void poll_tunables(void) {
         merge_vehicle_config(&cfg);
         s_last_cfg_seq = seq;
     }
+
+    /* Manual-throttle uplink (SetThrottle), converted to DShot units. */
+    app_throttle_cmd_t thr;
+    seq = state_exchange_get_throttle_cmd(&thr);
+    if (seq != s_last_throttle_seq) {
+        s_operator_throttle_lower = ESC_PERCENTAGE_TO_THROTTLE(thr.throttle_lower);
+        s_operator_throttle_upper = ESC_PERCENTAGE_TO_THROTTLE(thr.throttle_upper);
+        s_last_throttle_seq = seq;
+    }
+}
+
+/* Motor RPM downlink to the GCS, sourced from the DShot driver's telemetry.
+ * get_telemetry is a peek, so this is safe alongside the RISE/DESCENT
+ * closed-loop read. valid=false when neither motor has fresh telemetry (not
+ * spinning) so the GCS renders "—" rather than a stale value. */
+static void publish_motor_rpm(void)
+{
+    esc_motor_telemetry_t lo, up;
+    bool lo_ok = esc_dshot_motor_get_telemetry(ESC_MOTOR_ID_LOWER, &lo);
+    bool up_ok = esc_dshot_motor_get_telemetry(ESC_MOTOR_ID_UPPER, &up);
+    app_motor_rpm_t rpm = {
+        .rpm_lower = lo_ok ? lo.rpm : 0.0f,
+        .rpm_upper = up_ok ? up.rpm : 0.0f,
+        .valid     = lo_ok || up_ok,
+    };
+    (void)state_exchange_publish_motor_rpm(&rpm);
 }
 
 #ifdef DEBUG_TEXT_CONSOLE
@@ -219,6 +256,7 @@ void task_controls(void *arg) {
 
     for (;;) {
         poll_tunables();
+        publish_motor_rpm();
 
 #ifdef DEBUG_TEXT_CONSOLE
         if (++dbg_tick >= (1000U / TUNABLE_POLL_MS)) {
@@ -277,8 +315,19 @@ void task_controls(void *arg) {
         }
 
         if (flight_state == APP_FLIGHT_RISE || flight_state == APP_FLIGHT_DESCENT) {
-            esc_dshot_motor_set_throttle(ESC_MOTOR_ID_LOWER, motor_throttle_lower);
-            esc_dshot_motor_set_throttle(ESC_MOTOR_ID_UPPER, motor_throttle_upper);
+            /* Manual throttle: a non-zero operator command overrides the
+             * autonomous RPM-closed-loop value for that motor; 0 (default /
+             * disarm) keeps the autonomous throttle. The closed loop keeps
+             * adjusting motor_throttle_* from telemetry either way, so
+             * clearing the override falls back without a step. */
+            uint16_t cmd_lower =
+                (s_operator_throttle_lower > 0U) ? s_operator_throttle_lower : motor_throttle_lower;
+            uint16_t cmd_upper =
+                (s_operator_throttle_upper > 0U) ? s_operator_throttle_upper : motor_throttle_upper;
+            cmd_lower = MIN(cmd_lower, ESC_THROTTLE_MAX);
+            cmd_upper = MIN(cmd_upper, ESC_THROTTLE_MAX);
+            esc_dshot_motor_set_throttle(ESC_MOTOR_ID_LOWER, cmd_lower);
+            esc_dshot_motor_set_throttle(ESC_MOTOR_ID_UPPER, cmd_upper);
 
             esc_motor_telemetry_t lower_motor_telemetry;
             esc_motor_telemetry_t upper_motor_telemetry;

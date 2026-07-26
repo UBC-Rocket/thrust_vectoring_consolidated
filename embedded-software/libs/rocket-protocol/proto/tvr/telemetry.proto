@@ -27,4 +27,12 @@ message TelemetryState {
   // the UWB ranging frame for that tag was usable this tick).
   Vec2 uwb_tag_0 = 10;
   Vec2 uwb_tag_1 = 11;
+
+  // Per-motor RPM from bidirectional-DShot ESC telemetry (lower/upper follow
+  // the escs_t naming). motor_rpm_valid is false when the decoded frame was
+  // missing/corrupt this tick or the DShot backend is not linked — proto3
+  // scalars have no presence flag, so validity travels explicitly.
+  float motor_rpm_lower = 12;  // [rpm]
+  float motor_rpm_upper = 13;  // [rpm]
+  bool  motor_rpm_valid = 14;
 }

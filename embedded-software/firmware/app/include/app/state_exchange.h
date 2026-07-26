@@ -43,9 +43,11 @@ typedef enum {
  * --------------------------------------------------------------------------- */
 
 typedef struct {
-    /* Attitude gains — diagonals of 3x3 Kp/Kd in controls_attitude_config. */
+    /* Attitude gains — diagonals of 3x3 Kp/Kd in controls_attitude_config.
+     * attitude_ki feeds the CM4 tilt PID (x/y axes only; z unused). */
     float attitude_kp[3];
     float attitude_kd[3];
+    float attitude_ki[3];
 
     /* Z-axis altitude PID. */
     float z_kp;
@@ -68,6 +70,19 @@ typedef struct {
     float theta_min;  /* min gimbal angle [rad]                             */
     float theta_max;  /* max gimbal angle [rad]                             */
 } app_vehicle_config_t;
+
+typedef struct {
+    float throttle_lower;  /* normalized 0..1 — already clamped by mission mgr */
+    float throttle_upper;  /* normalized 0..1 — mirrors lower for legacy sends */
+} app_throttle_cmd_t;
+
+/* CM7 (controls) writes, CM4 (telemetry) reads. valid=false when the DShot
+ * telemetry backend is not linked or returned no decoded frame. */
+typedef struct {
+    float rpm_lower;  /* [rpm] */
+    float rpm_upper;  /* [rpm] */
+    bool  valid;
+} app_motor_rpm_t;
 
 /**
  * @brief Attach to the shared-memory slots. Must be called by every core
@@ -102,6 +117,14 @@ uint32_t state_exchange_get_reference(app_reference_t *out);
 
 uint32_t state_exchange_publish_vehicle_config(const app_vehicle_config_t *cfg);
 uint32_t state_exchange_get_vehicle_config(app_vehicle_config_t *out);
+
+/* ---------- manual throttle (CM4 mission mgr writes, CM7 controls polls) ---------- */
+uint32_t state_exchange_publish_throttle_cmd(const app_throttle_cmd_t *cmd);
+uint32_t state_exchange_get_throttle_cmd(app_throttle_cmd_t *out);
+
+/* ---------- motor RPM readback (CM7 controls writes, CM4 telemetry reads) ---------- */
+uint32_t state_exchange_publish_motor_rpm(const app_motor_rpm_t *rpm);
+uint32_t state_exchange_get_motor_rpm(app_motor_rpm_t *out);
 
 #ifdef __cplusplus
 }

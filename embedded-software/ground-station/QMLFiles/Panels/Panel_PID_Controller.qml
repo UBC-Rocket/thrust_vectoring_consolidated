@@ -17,12 +17,16 @@ BasePanel {
     // SetPidGains
     property bool hasAttitudeKp: true
     property bool hasAttitudeKd: true
+    property bool hasAttitudeKi: true
     property double attKpX: 0.0
     property double attKpY: 0.0
     property double attKpZ: 0.0
     property double attKdX: 0.0
     property double attKdY: 0.0
     property double attKdZ: 0.0
+    property double attKiX: 0.0
+    property double attKiY: 0.0
+    property double attKiZ: 0.0
     property double zKp: 0.0
     property double zKi: 0.0
     property double zKd: 0.0
@@ -44,12 +48,18 @@ BasePanel {
     property double thetaMin: 0.0
     property double thetaMax: 0.0
 
+    // SetThrottle — live actuation values, deliberately NOT part of presets
+    // (a loaded preset must never silently change a running engine).
+    property double throttleLowerPct: 0.0
+    property double throttleUpperPct: 0.0
+
     // Snapshot every editable field for preset save.
     function currentValues() {
         return {
-            hasAttitudeKp: hasAttitudeKp, hasAttitudeKd: hasAttitudeKd,
+            hasAttitudeKp: hasAttitudeKp, hasAttitudeKd: hasAttitudeKd, hasAttitudeKi: hasAttitudeKi,
             attKpX: attKpX, attKpY: attKpY, attKpZ: attKpZ,
             attKdX: attKdX, attKdY: attKdY, attKdZ: attKdZ,
+            attKiX: attKiX, attKiY: attKiY, attKiZ: attKiZ,
             zKp: zKp, zKi: zKi, zKd: zKd, zIntegralLimit: zIntegralLimit,
             zRef: zRef, vzRef: vzRef,
             hasQRef: hasQRef, qRefW: qRefW, qRefX: qRefX, qRefY: qRefY, qRefZ: qRefZ,
@@ -62,12 +72,16 @@ BasePanel {
         if (!v) return
         if (v.hasAttitudeKp !== undefined) hasAttitudeKp = v.hasAttitudeKp
         if (v.hasAttitudeKd !== undefined) hasAttitudeKd = v.hasAttitudeKd
+        if (v.hasAttitudeKi !== undefined) hasAttitudeKi = v.hasAttitudeKi
         if (v.attKpX !== undefined) attKpX = v.attKpX
         if (v.attKpY !== undefined) attKpY = v.attKpY
         if (v.attKpZ !== undefined) attKpZ = v.attKpZ
         if (v.attKdX !== undefined) attKdX = v.attKdX
         if (v.attKdY !== undefined) attKdY = v.attKdY
         if (v.attKdZ !== undefined) attKdZ = v.attKdZ
+        if (v.attKiX !== undefined) attKiX = v.attKiX
+        if (v.attKiY !== undefined) attKiY = v.attKiY
+        if (v.attKiZ !== undefined) attKiZ = v.attKiZ
         if (v.zKp !== undefined) zKp = v.zKp
         if (v.zKi !== undefined) zKi = v.zKi
         if (v.zKd !== undefined) zKd = v.zKd
@@ -217,6 +231,32 @@ BasePanel {
                 }
             }
 
+            RowLayout {
+                Layout.fillWidth: true
+                SubLabel { text: "ATTITUDE — INTEGRAL" }
+                ThemedCheckBox {
+                    text: "ENABLE"
+                    checked: panel.hasAttitudeKi
+                    onToggled: { panel.hasAttitudeKi = checked; panel.dirty = true }
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 10
+                NumberField {
+                    label: "x"; value: panel.attKiX; fieldEnabled: panel.hasAttitudeKi
+                    onValueEdited: (v) => panel._edit((x) => panel.attKiX = x, v)
+                }
+                NumberField {
+                    label: "y"; value: panel.attKiY; fieldEnabled: panel.hasAttitudeKi
+                    onValueEdited: (v) => panel._edit((x) => panel.attKiY = x, v)
+                }
+                NumberField {
+                    label: "z"; value: panel.attKiZ; fieldEnabled: panel.hasAttitudeKi
+                    onValueEdited: (v) => panel._edit((x) => panel.attKiZ = x, v)
+                }
+            }
+
             SubLabel { text: "Z AXIS" }
             RowLayout {
                 Layout.fillWidth: true
@@ -249,6 +289,8 @@ BasePanel {
                         panel.attKpX, panel.attKpY, panel.attKpZ,
                         panel.hasAttitudeKd,
                         panel.attKdX, panel.attKdY, panel.attKdZ,
+                        panel.hasAttitudeKi,
+                        panel.attKiX, panel.attKiY, panel.attKiZ,
                         panel.zKp, panel.zKi, panel.zKd, panel.zIntegralLimit
                     ]
                     commandsender.sendPIDValues(panel.which, values)
@@ -371,6 +413,44 @@ BasePanel {
                     const values = [panel.mass, panel.tMin, panel.tMax, panel.thetaMin, panel.thetaMax]
                     commandsender.sendConfigValues(panel.which, values)
                 }
+            }
+
+            // ── THROTTLE ──────────────────────────────────────────────
+            SectionChip {
+                Layout.fillWidth: true
+                Layout.topMargin: 8
+                text: "THROTTLE"
+            }
+
+            SubLabel { text: "MANUAL THROTTLE (%) — PER MOTOR" }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 10
+                NumberField {
+                    label: "lower %"
+                    value: panel.throttleLowerPct
+                    // Direct write, not _edit: throttle is excluded from presets,
+                    // so it must not flip the preset MODIFIED indicator.
+                    onValueEdited: (v) => panel.throttleLowerPct = v
+                }
+                NumberField {
+                    label: "upper %"
+                    value: panel.throttleUpperPct
+                    onValueEdited: (v) => panel.throttleUpperPct = v
+                }
+            }
+
+            PrimaryButton {
+                text: "Send Throttle ▸"
+                Layout.alignment: Qt.AlignRight
+                Layout.topMargin: 4
+                Layout.bottomMargin: 6
+                // Clamp at send so the fields always show what was typed while
+                // the wire never carries more than 100 % (FC clamps again).
+                onClicked: commandsender.sendThrottle(
+                    panel.which,
+                    Math.max(0, Math.min(100, panel.throttleLowerPct)) / 100,
+                    Math.max(0, Math.min(100, panel.throttleUpperPct)) / 100)
             }
         }
     }
