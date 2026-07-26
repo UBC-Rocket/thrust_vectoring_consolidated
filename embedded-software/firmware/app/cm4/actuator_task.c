@@ -55,6 +55,8 @@
 #define ACTUATOR_MIN_WRITE_MS      20U   /* was 50 ms (~20 Hz); small step to ~25 Hz */
 #define ACTUATOR_FAIL_BACKOFF_MS   250U
 #define GIMBAL_CLAMP_DEG           10.0f
+#define GIMBAL_CLAMP_DEG_Y_MIN     (5.0f)
+#define GIMBAL_CLAMP_DEG_Y_MAX     (20.0f)
 #define GIMBAL_DEFAULT_DEG_X       0.0f
 #define GIMBAL_DEFAULT_DEG_Y       0.0f
 
@@ -65,6 +67,8 @@
 #define TILT_KI_Y                  0.00f
 #define TILT_INTEGRAL_LIMIT        1.0f   /* anti-windup [rad*s] */
 #define GIMBAL_CLAMP_RAD           (GIMBAL_CLAMP_DEG * ((float)M_PI / 180.0f))
+#define GIMBAL_CLAMP_RAD_Y_MIN     (GIMBAL_CLAMP_DEG_Y_MIN * ((float)M_PI / 180.0f))
+#define GIMBAL_CLAMP_RAD_Y_MAX     (GIMBAL_CLAMP_DEG_Y_MAX * ((float)M_PI / 180.0f))
 
 #define GIMBAL_CMD_DEADBAND_DEG    0.05f
 
@@ -110,7 +114,7 @@ static void actuator_pid_init(void)
     pid_init(&s_pid_y,
              0, TILT_KI_Y, 0,
              TILT_INTEGRAL_LIMIT,
-             -GIMBAL_CLAMP_RAD, GIMBAL_CLAMP_RAD);
+             -GIMBAL_CLAMP_RAD_Y_MIN, GIMBAL_CLAMP_RAD_Y_MAX);
 }
 
 static void updateConfiguration() {
