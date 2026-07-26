@@ -50,7 +50,7 @@
 #define ESC_RPM_DEADBAND (50) // TODO: adjust based on how fast RPM changes with higher throttles
 #define ESC_RPM_THROTTLE_ADJUSTMENT (1)
 
-#define ESC_RPM_DESIRED_RISE (10000) // TODO: find actual value
+#define ESC_RPM_DESIRED_RISE (15600) // TODO: find actual value
 #define ESC_RPM_DESIRED_LAND (8000) // TODO: find actual value
 
 static flight_controller_config_t s_live_config = {
