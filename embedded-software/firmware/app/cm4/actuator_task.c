@@ -321,7 +321,7 @@ void task_actuator(void *arg)
         vTaskDelay(pdMS_TO_TICKS(ACTUATOR_LOOP_MS));
         state_exchange_get_flight_state(&current_state);
 
-        if (current_state == APP_FLIGHT_RISE) {
+        if (current_state == APP_FLIGHT_RISE || current_state == APP_FLIGHT_DESCENT) {
             actuator_apply_tilt_pid(dxl);
         }
         else {
