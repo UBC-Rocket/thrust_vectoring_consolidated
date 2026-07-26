@@ -91,12 +91,15 @@ static uint32_t s_last_cfg_seq;
 static uint32_t s_last_throttle_seq;
 static volatile bool s_isr_ready;
 
-/* Operator throttle from the GCS (PR #82 SetThrottle), in DShot units. Written
- * by poll_tunables; read in the RISE/DESCENT path. A non-zero value overrides
- * #83's autonomous RPM-closed-loop throttle (manual bench testing); 0 — the
- * default, and what mission_manager publishes on every disarm — falls through
- * to autonomous, so a disarm can never zero out an autonomous RISE. */
-static volatile uint16_t s_operator_throttle;
+/* Operator throttle from the GCS (PR #82 SetThrottle), in DShot units, one
+ * value per motor (legacy single-float sends mirror lower into upper on CM4).
+ * Written by poll_tunables; read in the RISE/DESCENT path. A non-zero value
+ * overrides #83's autonomous RPM-closed-loop throttle for that motor (manual
+ * bench testing); 0 — the default, and what mission_manager publishes on
+ * every disarm — falls through to autonomous, so a disarm can never zero out
+ * an autonomous RISE. */
+static volatile uint16_t s_operator_throttle_lower;
+static volatile uint16_t s_operator_throttle_upper;
 
 void controls_on_tim_period_elapsed(void *htim_handle)
 {
@@ -190,7 +193,8 @@ static void poll_tunables(void) {
     app_throttle_cmd_t thr;
     seq = state_exchange_get_throttle_cmd(&thr);
     if (seq != s_last_throttle_seq) {
-        s_operator_throttle = ESC_PERCENTAGE_TO_THROTTLE(thr.throttle);
+        s_operator_throttle_lower = ESC_PERCENTAGE_TO_THROTTLE(thr.throttle_lower);
+        s_operator_throttle_upper = ESC_PERCENTAGE_TO_THROTTLE(thr.throttle_upper);
         s_last_throttle_seq = seq;
     }
 }
@@ -315,12 +319,16 @@ void task_controls(void *arg) {
 
         if (flight_state == APP_FLIGHT_RISE || flight_state == APP_FLIGHT_DESCENT) {
             /* PR #82 manual throttle: a non-zero operator command overrides the
-             * autonomous RPM-closed-loop value; 0 (default / disarm) keeps the
-             * autonomous throttle. */
-            uint16_t cmd = (s_operator_throttle > 0U) ? s_operator_throttle : motor_throttle;
-            cmd = MIN(cmd, ESC_THROTTLE_MAX);
-            esc_dshot_motor_set_throttle(ESC_MOTOR_ID_LOWER, cmd);
-            esc_dshot_motor_set_throttle(ESC_MOTOR_ID_UPPER, cmd);
+             * autonomous RPM-closed-loop value for that motor; 0 (default /
+             * disarm) keeps the autonomous throttle. */
+            uint16_t cmd_lower =
+                (s_operator_throttle_lower > 0U) ? s_operator_throttle_lower : motor_throttle;
+            uint16_t cmd_upper =
+                (s_operator_throttle_upper > 0U) ? s_operator_throttle_upper : motor_throttle;
+            cmd_lower = MIN(cmd_lower, ESC_THROTTLE_MAX);
+            cmd_upper = MIN(cmd_upper, ESC_THROTTLE_MAX);
+            esc_dshot_motor_set_throttle(ESC_MOTOR_ID_LOWER, cmd_lower);
+            esc_dshot_motor_set_throttle(ESC_MOTOR_ID_UPPER, cmd_upper);
 
             esc_motor_telemetry_t lower_motor_telemetry;
 

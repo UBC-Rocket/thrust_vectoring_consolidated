@@ -43,9 +43,11 @@ typedef enum {
  * --------------------------------------------------------------------------- */
 
 typedef struct {
-    /* Attitude gains — diagonals of 3x3 Kp/Kd in controls_attitude_config. */
+    /* Attitude gains — diagonals of 3x3 Kp/Kd in controls_attitude_config.
+     * attitude_ki feeds the CM4 tilt PID (x/y axes only; z unused). */
     float attitude_kp[3];
     float attitude_kd[3];
+    float attitude_ki[3];
 
     /* Z-axis altitude PID. */
     float z_kp;
@@ -70,7 +72,8 @@ typedef struct {
 } app_vehicle_config_t;
 
 typedef struct {
-    float throttle;   /* normalized 0..1 — already clamped by mission mgr   */
+    float throttle_lower;  /* normalized 0..1 — already clamped by mission mgr */
+    float throttle_upper;  /* normalized 0..1 — mirrors lower for legacy sends */
 } app_throttle_cmd_t;
 
 /* CM7 (controls) writes, CM4 (telemetry) reads. valid=false when the DShot
