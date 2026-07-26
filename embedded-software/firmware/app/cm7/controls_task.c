@@ -45,13 +45,21 @@
 #define ESC_THROTTLE_ZERO  ESC_PERCENTAGE_TO_THROTTLE(0.00f)
 #define ESC_THROTTLE_INITIAL ESC_PERCENTAGE_TO_THROTTLE(0.10f)
 
+#define ESC_THROTTLE_MIN ESC_PERCENTAGE_TO_THROTTLE(0.00f)
 #define ESC_THROTTLE_MAX ESC_PERCENTAGE_TO_THROTTLE(0.85f)
 
 #define ESC_RPM_DEADBAND (50) // TODO: adjust based on how fast RPM changes with higher throttles
 #define ESC_RPM_THROTTLE_ADJUSTMENT (1)
 
-#define ESC_RPM_DESIRED_RISE (16350) // TODO: find actual value
-#define ESC_RPM_DESIRED_LAND (8000) // TODO: find actual value
+#define ESC_RPM_MIN (0)
+#define ESC_RPM_MAX (25000)
+
+typedef struct esc_motors_rpm_gcs {
+    bool valid_lower;
+    bool valid_upper;
+    float rpm_lower;
+    float rpm_upper;
+} esc_motors_rpm_gcs_t;
 
 static flight_controller_config_t s_live_config = {
     .attitude = {
@@ -88,18 +96,11 @@ static flight_controller_ref_t s_live_ref = {
 static uint32_t s_last_pid_seq;
 static uint32_t s_last_ref_seq;
 static uint32_t s_last_cfg_seq;
-static uint32_t s_last_throttle_seq;
+static uint32_t s_last_rpm_setpoint_seq;
 static volatile bool s_isr_ready;
 
-/* Operator throttle from the GCS (SetThrottle), in DShot units, one value
- * per motor (legacy single-float sends mirror lower into upper on CM4).
- * Written by poll_tunables; read in the RISE/DESCENT path. A non-zero value
- * overrides the autonomous RPM-closed-loop throttle for that motor (manual
- * bench testing); 0 — the default, and what mission_manager publishes on
- * every disarm — falls through to autonomous, so a disarm can never zero out
- * an autonomous RISE. */
-static volatile uint16_t s_operator_throttle_lower;
-static volatile uint16_t s_operator_throttle_upper;
+static volatile uint16_t s_desired_rpm_setpoint_land;
+static volatile uint16_t s_desired_rpm_setpoint_launch;
 
 void controls_on_tim_period_elapsed(void *htim_handle)
 {
@@ -185,30 +186,24 @@ static void poll_tunables(void) {
         s_last_cfg_seq = seq;
     }
 
-    /* Manual-throttle uplink (SetThrottle), converted to DShot units. */
+    // ! NOTE: we are using throttle command as RPM setpoint, lower is land RPM, upper is launch RPM
     app_throttle_cmd_t thr;
     seq = state_exchange_get_throttle_cmd(&thr);
-    if (seq != s_last_throttle_seq) {
-        s_operator_throttle_lower = ESC_PERCENTAGE_TO_THROTTLE(thr.throttle_lower);
-        s_operator_throttle_upper = ESC_PERCENTAGE_TO_THROTTLE(thr.throttle_upper);
-        s_last_throttle_seq = seq;
+    if (seq != s_last_rpm_setpoint_seq) {
+        s_desired_rpm_setpoint_land = MIN(ESC_RPM_MAX, MAX(ESC_RPM_MIN, thr.throttle_lower));
+        s_desired_rpm_setpoint_launch = MIN(ESC_RPM_MAX, MAX(ESC_RPM_MIN, thr.throttle_upper));
+        s_last_rpm_setpoint_seq = seq;
     }
 }
 
-/* Motor RPM downlink to the GCS, sourced from the DShot driver's telemetry.
- * get_telemetry is a peek, so this is safe alongside the RISE/DESCENT
- * closed-loop read. valid=false when neither motor has fresh telemetry (not
- * spinning) so the GCS renders "—" rather than a stale value. */
-static void publish_motor_rpm(void)
+static void publish_motor_rpm(const esc_motors_rpm_gcs_t *rpm_gcs)
 {
-    esc_motor_telemetry_t lo, up;
-    bool lo_ok = esc_dshot_motor_get_telemetry(ESC_MOTOR_ID_LOWER, &lo);
-    bool up_ok = esc_dshot_motor_get_telemetry(ESC_MOTOR_ID_UPPER, &up);
     app_motor_rpm_t rpm = {
-        .rpm_lower = lo_ok ? lo.rpm : 0.0f,
-        .rpm_upper = up_ok ? up.rpm : 0.0f,
-        .valid     = lo_ok || up_ok,
+        .rpm_lower = rpm_gcs->valid_lower ? rpm_gcs->rpm_lower : 0.0f,
+        .rpm_upper = rpm_gcs->valid_upper ? rpm_gcs->rpm_upper : 0.0f,
+        .valid = rpm_gcs->valid_lower || rpm_gcs->valid_upper,
     };
+
     (void)state_exchange_publish_motor_rpm(&rpm);
 }
 
@@ -226,7 +221,8 @@ static void fmt_f3(char *buf, float v) {
 static uint16_t esc_get_rpm_adjusted_throttle(float desired_rpm, float actual_rpm,
                                               uint16_t current_throttle)
 {
-    int32_t new_throttle; // TODO: don't use signed integer for this...
+    // TODO: use signed integer this is to prevent underflow, properly handle this later...
+    int32_t new_throttle;
 
     if (actual_rpm > (desired_rpm + ESC_RPM_DEADBAND)) {
         new_throttle = current_throttle - ESC_RPM_THROTTLE_ADJUSTMENT;
@@ -236,7 +232,7 @@ static uint16_t esc_get_rpm_adjusted_throttle(float desired_rpm, float actual_rp
         new_throttle = current_throttle;
     }
 
-    return (uint16_t)MAX(0, new_throttle);
+    return MIN(ESC_THROTTLE_MAX, MAX(ESC_THROTTLE_MIN, new_throttle));
 }
 
 void task_controls(void *arg) {
@@ -256,7 +252,6 @@ void task_controls(void *arg) {
 
     for (;;) {
         poll_tunables();
-        publish_motor_rpm();
 
 #ifdef DEBUG_TEXT_CONSOLE
         if (++dbg_tick >= (1000U / TUNABLE_POLL_MS)) {
@@ -291,7 +286,7 @@ void task_controls(void *arg) {
         case APP_FLIGHT_RISE: {
             if (is_state_updated) {
                 rise_start_time = timestamp_us64();
-                motor_rpm_desired = ESC_RPM_DESIRED_RISE;
+                motor_rpm_desired = s_desired_rpm_setpoint_launch;
                 motor_throttle_lower = ESC_THROTTLE_INITIAL;
                 motor_throttle_upper = ESC_THROTTLE_INITIAL;
             }
@@ -299,7 +294,7 @@ void task_controls(void *arg) {
         }
         case APP_FLIGHT_DESCENT: {
             if (is_state_updated) {
-                motor_rpm_desired = ESC_RPM_DESIRED_LAND;
+                motor_rpm_desired = s_desired_rpm_setpoint_land;
             }
             break;
         }
@@ -315,19 +310,12 @@ void task_controls(void *arg) {
         }
 
         if (flight_state == APP_FLIGHT_RISE || flight_state == APP_FLIGHT_DESCENT) {
-            /* Manual throttle: a non-zero operator command overrides the
-             * autonomous RPM-closed-loop value for that motor; 0 (default /
-             * disarm) keeps the autonomous throttle. The closed loop keeps
-             * adjusting motor_throttle_* from telemetry either way, so
-             * clearing the override falls back without a step. */
-            uint16_t cmd_lower =
-                (s_operator_throttle_lower > 0U) ? s_operator_throttle_lower : motor_throttle_lower;
-            uint16_t cmd_upper =
-                (s_operator_throttle_upper > 0U) ? s_operator_throttle_upper : motor_throttle_upper;
-            cmd_lower = MIN(cmd_lower, ESC_THROTTLE_MAX);
-            cmd_upper = MIN(cmd_upper, ESC_THROTTLE_MAX);
-            esc_dshot_motor_set_throttle(ESC_MOTOR_ID_LOWER, cmd_lower);
-            esc_dshot_motor_set_throttle(ESC_MOTOR_ID_UPPER, cmd_upper);
+            esc_dshot_motor_set_throttle(ESC_MOTOR_ID_LOWER, motor_throttle_lower);
+            esc_dshot_motor_set_throttle(ESC_MOTOR_ID_UPPER, motor_throttle_upper);
+
+            esc_motors_rpm_gcs_t gcs_rpm;
+            gcs_rpm.rpm_lower = false;
+            gcs_rpm.rpm_upper = false;
 
             esc_motor_telemetry_t lower_motor_telemetry;
             esc_motor_telemetry_t upper_motor_telemetry;
@@ -342,6 +330,9 @@ void task_controls(void *arg) {
 
                 motor_throttle_lower = esc_get_rpm_adjusted_throttle(
                     motor_rpm_desired, lower_motor_telemetry.rpm, motor_throttle_lower);
+
+                gcs_rpm.valid_lower = true;
+                gcs_rpm.rpm_lower = lower_motor_telemetry.rpm;
             }
 
             if (esc_dshot_motor_get_telemetry(ESC_MOTOR_ID_UPPER, &upper_motor_telemetry)) {
@@ -354,10 +345,12 @@ void task_controls(void *arg) {
 
                 motor_throttle_upper = esc_get_rpm_adjusted_throttle(
                     motor_rpm_desired, upper_motor_telemetry.rpm, motor_throttle_upper);
+
+                gcs_rpm.valid_upper = true;
+                gcs_rpm.rpm_upper = upper_motor_telemetry.rpm;
             }
 
-            motor_throttle_lower = MIN(motor_throttle_lower, ESC_THROTTLE_MAX);
-            motor_throttle_upper = MIN(motor_throttle_upper, ESC_THROTTLE_MAX);
+            publish_motor_rpm(&gcs_rpm);
         }
 
         vTaskDelay(pdMS_TO_TICKS(TUNABLE_POLL_MS));
