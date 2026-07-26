@@ -154,6 +154,8 @@ BasePanel {
         implicitHeight: subheader_engine.implicitHeight
                         + panel_Angles_And_Engine.subheaderToDataSpacing
                         + boxThrust.height
+                        + panel_Angles_And_Engine.sectionSpacing
+                        + boxGimbalX.height
         height: implicitHeight
 
         anchors {
@@ -186,7 +188,8 @@ BasePanel {
             id: boxThrust
             anchors.top: subheader_engine.bottom
             anchors.topMargin: panel_Angles_And_Engine.subheaderToDataSpacing
-            sections: 3; section_num: 1
+            sections: 1; section_num: 1
+            width: boxGimbalX.width * 2 + 10   // align right edge with the gimbal row below
             dataName: "THRUST"
             dataValue: thrustCmd
             valueColor: Theme.success
@@ -194,17 +197,18 @@ BasePanel {
         }
 
         DataBox {
-            anchors.top: subheader_engine.bottom
-            anchors.topMargin: panel_Angles_And_Engine.subheaderToDataSpacing
-            sections: 3; section_num: 2
+            id: boxGimbalX
+            anchors.top: boxThrust.bottom
+            anchors.topMargin: panel_Angles_And_Engine.sectionSpacing
+            sections: 2; section_num: 1
             dataName: "GIMBAL X"
             dataValue: gimbalX
         }
 
         DataBox {
-            anchors.top: subheader_engine.bottom
-            anchors.topMargin: panel_Angles_And_Engine.subheaderToDataSpacing
-            sections: 3; section_num: 3
+            anchors.top: boxThrust.bottom
+            anchors.topMargin: panel_Angles_And_Engine.sectionSpacing
+            sections: 2; section_num: 2
             dataName: "GIMBAL Y"
             dataValue: gimbalY
         }
