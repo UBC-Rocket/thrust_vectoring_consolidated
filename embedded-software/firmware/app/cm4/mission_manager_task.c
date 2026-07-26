@@ -141,6 +141,14 @@ static inline void mm_publish(void) {
 static inline void mm_set_armed(bool armed) {
     s_armed = armed;
     state_exchange_publish_armed(armed);
+    if (!armed) {
+        /* Disarm must be physically inert: zero any operator throttle so
+         * CM7's next tunables poll (50 ms) drops the ESCs to minimum.
+         * Covers ABORT, landing and the heartbeat-loss watchdog, which
+         * all funnel through here. */
+        const app_throttle_cmd_t zero = { 0 };
+        (void)state_exchange_publish_throttle_cmd(&zero);
+    }
 }
 
 static inline void mm_set_state(app_flight_state_t s) {
@@ -222,6 +230,11 @@ static void mm_forward_pid_gains(const tvr_SetPidGains *src) {
         g.attitude_kd[1] = src->attitude_kd.y;
         g.attitude_kd[2] = src->attitude_kd.z;
     }
+    if (src->has_attitude_ki) {
+        g.attitude_ki[0] = src->attitude_ki.x;
+        g.attitude_ki[1] = src->attitude_ki.y;
+        g.attitude_ki[2] = src->attitude_ki.z;
+    }
     g.z_kp             = src->z_kp;
     g.z_ki             = src->z_ki;
     g.z_kd             = src->z_kd;
@@ -255,6 +268,25 @@ static void mm_forward_config(const tvr_SetConfig *src) {
     (void)state_exchange_publish_vehicle_config(&c);
 }
 
+/* NaN-safe clamp (!(v >= 0) also catches NaN → 0); CM7 clamps again at
+ * DShot conversion. */
+static float mm_clamp_throttle(float v) {
+    if (!(v >= 0.0f)) v = 0.0f;
+    if (v > 1.0f) v = 1.0f;
+    return v;
+}
+
+static void mm_forward_throttle(const tvr_SetThrottle *src) {
+    app_throttle_cmd_t t;
+    t.throttle_lower = mm_clamp_throttle(src->throttle);
+    /* Legacy senders (no throttle_upper on the wire) drive both motors with
+     * the single value, matching the pre-split behaviour. */
+    t.throttle_upper = src->has_throttle_upper
+        ? mm_clamp_throttle(src->throttle_upper)
+        : t.throttle_lower;
+    (void)state_exchange_publish_throttle_cmd(&t);
+}
+
 /* Process one decoded FlightCommand. Returns true if it should refresh
  * the heartbeat watchdog. */
 static bool mm_handle_command(const tvr_FlightCommand *cmd) {
@@ -272,6 +304,13 @@ static bool mm_handle_command(const tvr_FlightCommand *cmd) {
 
         case tvr_FlightCommand_set_config_tag:
             mm_forward_config(&cmd->payload.set_config);
+            return true;
+
+        case tvr_FlightCommand_set_throttle_tag:
+            /* No throttle-up while E-stopped, even though ESTOP itself is
+             * recoverable on this branch. */
+            if (s_flight_state == APP_FLIGHT_ESTOP) return false;
+            mm_forward_throttle(&cmd->payload.set_throttle);
             return true;
 
         default:

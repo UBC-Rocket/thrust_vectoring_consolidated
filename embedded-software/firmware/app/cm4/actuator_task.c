@@ -118,7 +118,10 @@ static void actuator_pid_init(void)
 }
 
 static void updateConfiguration() {
-    app_pid_gains_t pidGains;
+    /* Static so a failed slot read (writer mid-update / not yet published)
+     * keeps the last-applied gains instead of stomping them with whatever is
+     * on the stack — the getter leaves *out untouched on failure. */
+    static app_pid_gains_t pidGains = {0};
     state_exchange_get_pid_gains(&pidGains);
 
     s_pid_x.kd = -pidGains.attitude_kd[0];
@@ -127,9 +130,8 @@ static void updateConfiguration() {
     s_pid_x.kp = -pidGains.attitude_kp[0];
     s_pid_y.kp = pidGains.attitude_kp[1];
 
-    // stupid chud ground control station doesn't send I apparently
-    // s_pid_x.ki = pidGains.atti[0];
-    // s_pid_y.ki = pidGains.attitude_kp[1];
+    s_pid_x.ki = -pidGains.attitude_ki[0];
+    s_pid_y.ki = pidGains.attitude_ki[1];
 }
 
 /* Dynamixel X: PID on KF y (inverted mount). Dynamixel Y: PID on KF x. */

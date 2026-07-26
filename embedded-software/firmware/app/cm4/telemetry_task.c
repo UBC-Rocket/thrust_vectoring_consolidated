@@ -135,6 +135,14 @@ static void send_telemetry(radio_rfd900_t *radio) {
     t->gimbal_x   = co.theta_x_cmd;
     t->gimbal_y   = co.theta_y_cmd;
 
+    /* Motor RPM from CM7 (bidirectional-DShot when linked). Zero-init keeps
+     * valid=false when the slot read fails or nothing was published. */
+    app_motor_rpm_t rpm = {0};
+    (void)state_exchange_get_motor_rpm(&rpm);
+    t->motor_rpm_lower = rpm.rpm_lower;
+    t->motor_rpm_upper = rpm.rpm_upper;
+    t->motor_rpm_valid = rpm.valid;
+
     (void)send_downlink(radio, &dl);
 }
 
