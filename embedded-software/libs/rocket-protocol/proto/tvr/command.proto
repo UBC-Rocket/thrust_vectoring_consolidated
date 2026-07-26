@@ -17,8 +17,12 @@ message FlightCommand {
 // SetConfig: config fields use zeros-are-unset merge semantics, while a
 // commanded throttle of 0 is meaningful. Normalized 0..1 (the GCS UI shows
 // percent); the firmware clamps on receipt and again at PWM conversion.
+// throttle_upper is optional (presence-tracked, since 0 is meaningful):
+// absent → `throttle` drives both motors (legacy senders); present →
+// `throttle` is the lower motor, `throttle_upper` the upper.
 message SetThrottle {
-  float throttle = 1;   // 0.0 .. 1.0
+  float throttle = 1;                  // lower motor (or both) 0.0 .. 1.0
+  optional float throttle_upper = 2;   // upper motor 0.0 .. 1.0
 }
 
 // Four UWB anchor positions on the ground, in nav-frame meters relative to the
@@ -49,6 +53,7 @@ message SetPidGains {
   // Attitude controller (diagonal of 3x3 gain matrices)
   Vec3  attitude_kp = 1;   // proportional
   Vec3  attitude_kd = 2;   // derivative
+  Vec3  attitude_ki = 7;   // integral (tilt loop uses x/y only)
 
   // Z position PID
   float z_kp             = 3;
