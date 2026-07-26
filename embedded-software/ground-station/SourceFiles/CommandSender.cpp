@@ -100,15 +100,39 @@ bool CommandSender::sendPIDValues(int which, const QVariantList& PIDValues) {
         return false;
     }
 
+    const bool hasIntegralGroup = (PIDValues.size() >= 16);
     const bool hasExplicitFlags = (PIDValues.size() >= 12);
     if (!hasExplicitFlags && PIDValues.size() < 10) {
-        emit errorOccurred("PIDValues must contain 10 entries (legacy) or 12 entries (with has_* flags)");
+        emit errorOccurred("PIDValues must contain 10 entries (legacy), 12 entries (with has_* flags) or 16 entries (with attitude_ki)");
         return false;
     }
 
     tvr_SetPidGains pid = tvr_SetPidGains_init_zero;
-    if (hasExplicitFlags) {
+    if (hasIntegralGroup) {
         // New format:
+        // [has_attitude_kp, kp.x, kp.y, kp.z, has_attitude_kd, kd.x, kd.y, kd.z,
+        //  has_attitude_ki, ki.x, ki.y, ki.z, z_kp, z_ki, z_kd, z_integral_limit]
+        pid.has_attitude_kp = PIDValues[0].toBool();
+        pid.attitude_kp.x = static_cast<float>(PIDValues[1].toDouble());
+        pid.attitude_kp.y = static_cast<float>(PIDValues[2].toDouble());
+        pid.attitude_kp.z = static_cast<float>(PIDValues[3].toDouble());
+
+        pid.has_attitude_kd = PIDValues[4].toBool();
+        pid.attitude_kd.x = static_cast<float>(PIDValues[5].toDouble());
+        pid.attitude_kd.y = static_cast<float>(PIDValues[6].toDouble());
+        pid.attitude_kd.z = static_cast<float>(PIDValues[7].toDouble());
+
+        pid.has_attitude_ki = PIDValues[8].toBool();
+        pid.attitude_ki.x = static_cast<float>(PIDValues[9].toDouble());
+        pid.attitude_ki.y = static_cast<float>(PIDValues[10].toDouble());
+        pid.attitude_ki.z = static_cast<float>(PIDValues[11].toDouble());
+
+        pid.z_kp = static_cast<float>(PIDValues[12].toDouble());
+        pid.z_ki = static_cast<float>(PIDValues[13].toDouble());
+        pid.z_kd = static_cast<float>(PIDValues[14].toDouble());
+        pid.z_integral_limit = static_cast<float>(PIDValues[15].toDouble());
+    } else if (hasExplicitFlags) {
+        // Previous format (no attitude_ki — leaves has_attitude_ki false):
         // [has_attitude_kp, kp.x, kp.y, kp.z, has_attitude_kd, kd.x, kd.y, kd.z, z_kp, z_ki, z_kd, z_integral_limit]
         pid.has_attitude_kp = PIDValues[0].toBool();
         pid.attitude_kp.x = static_cast<float>(PIDValues[1].toDouble());
@@ -304,7 +328,7 @@ bool CommandSender::sendProbeLayout(const QVariantList& probes) {
 }
 
 
-bool CommandSender::sendThrottle(int which, double throttle) {
+bool CommandSender::sendThrottle(int which, double throttleLower, double throttleUpper) {
     if (!validWhich(which)) {
         emit errorOccurred("which must be 1 or 2");
         return false;
@@ -315,14 +339,21 @@ bool CommandSender::sendThrottle(int which, double throttle) {
         return false;
     }
 
-    /* Clamp here as well as on the FC — the QML field has no validator. */
-    float v = static_cast<float>(throttle);
-    if (v < 0.0f) v = 0.0f;
-    if (v > 1.0f) v = 1.0f;
+    /* Clamp here as well as on the FC — the QML fields have no validator. */
+    auto clamp01 = [](double d) {
+        float v = static_cast<float>(d);
+        if (v < 0.0f) v = 0.0f;
+        if (v > 1.0f) v = 1.0f;
+        return v;
+    };
+    const float lo = clamp01(throttleLower);
+    const float up = clamp01(throttleUpper);
 
     tvr_FlightCommand cmd = tvr_FlightCommand_init_zero;
     cmd.which_payload = tvr_FlightCommand_set_throttle_tag;
-    cmd.payload.set_throttle.throttle = v;
+    cmd.payload.set_throttle.throttle = lo;
+    cmd.payload.set_throttle.has_throttle_upper = true;
+    cmd.payload.set_throttle.throttle_upper = up;
 
     uint8_t packet[300];
     rp_packet_encode_result_t result = rp_packet_encode(
@@ -344,8 +375,9 @@ bool CommandSender::sendThrottle(int which, double throttle) {
         return false;
     }
 
-    emit messageSent(QString("SetThrottle sent (%1%)")
-                         .arg(static_cast<int>(v * 100.0f + 0.5f)));
+    emit messageSent(QString("SetThrottle sent (lower %1%, upper %2%)")
+                         .arg(static_cast<int>(lo * 100.0f + 0.5f))
+                         .arg(static_cast<int>(up * 100.0f + 0.5f)));
     return true;
 }
 

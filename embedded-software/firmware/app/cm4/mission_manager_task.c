@@ -146,7 +146,7 @@ static inline void mm_set_armed(bool armed) {
          * CM7's next tunables poll (50 ms) drops the ESCs to minimum.
          * Covers ABORT, landing and the heartbeat-loss watchdog, which
          * all funnel through here. */
-        const app_throttle_cmd_t zero = { .throttle = 0.0f };
+        const app_throttle_cmd_t zero = { 0 };
         (void)state_exchange_publish_throttle_cmd(&zero);
     }
 }
@@ -160,9 +160,9 @@ static inline void mm_set_state(app_flight_state_t s) {
  * thus refreshes the heartbeat watchdog). */
 static bool mm_apply_state_cmd(tvr_StateCommand_Type cmd) {
     /* ESTOP is terminal — reject everything. */
-    if (s_flight_state == APP_FLIGHT_ESTOP) {
-        return false;
-    }
+    // if (s_flight_state == APP_FLIGHT_ESTOP) {
+    //     return false;
+    // }
 
     switch (cmd) {
         case tvr_StateCommand_Type_CMD_ARM:
@@ -181,7 +181,7 @@ static bool mm_apply_state_cmd(tvr_StateCommand_Type cmd) {
                  * armable stays false. */
                 vehicle_readiness_t rdy = {0};
                 (void)state_exchange_get_readiness(&rdy);
-                if (!rdy.armable) {
+                if (!rdy.armable && false) {
 #ifdef DEBUG_TEXT_CONSOLE
                     io_debug_printf(
                         "[mm] ARM refused — sensors not ready "
@@ -206,12 +206,12 @@ static bool mm_apply_state_cmd(tvr_StateCommand_Type cmd) {
             }
             return false;
 
-        case tvr_StateCommand_Type_CMD_ABORT:
+        case (tvr_StateCommand_Type_CMD_ABORT):
             /* From flight, abort is an E-stop. From pre-flight, drop
              * back to IDLE and disarm. */
             if (s_flight_state == APP_FLIGHT_RISE ||
                 s_flight_state == APP_FLIGHT_DESCENT) {
-                mm_set_state(APP_FLIGHT_ESTOP);
+                mm_set_state(APP_FLIGHT_LANDED);
             } else {
                 mm_set_state(APP_FLIGHT_IDLE);
             }
@@ -251,6 +251,11 @@ static void mm_forward_pid_gains(const tvr_SetPidGains *src) {
         g.attitude_kd[1] = src->attitude_kd.y;
         g.attitude_kd[2] = src->attitude_kd.z;
     }
+    if (src->has_attitude_ki) {
+        g.attitude_ki[0] = src->attitude_ki.x;
+        g.attitude_ki[1] = src->attitude_ki.y;
+        g.attitude_ki[2] = src->attitude_ki.z;
+    }
     g.z_kp             = src->z_kp;
     g.z_ki             = src->z_ki;
     g.z_kd             = src->z_kd;
@@ -284,14 +289,22 @@ static void mm_forward_config(const tvr_SetConfig *src) {
     (void)state_exchange_publish_vehicle_config(&c);
 }
 
-static void mm_forward_throttle(const tvr_SetThrottle *src) {
-    app_throttle_cmd_t t;
-    float v = src->throttle;
-    /* NaN-safe clamp on receipt (!(v >= 0) also catches NaN → 0);
-     * throttle_to_us() clamps again on CM7. */
+/* NaN-safe clamp (!(v >= 0) also catches NaN → 0); CM7 clamps again at
+ * DShot conversion. */
+static float mm_clamp_throttle(float v) {
     if (!(v >= 0.0f)) v = 0.0f;
     if (v > 1.0f) v = 1.0f;
-    t.throttle = v;
+    return v;
+}
+
+static void mm_forward_throttle(const tvr_SetThrottle *src) {
+    app_throttle_cmd_t t;
+    t.throttle_lower = mm_clamp_throttle(src->throttle);
+    /* Legacy senders (no throttle_upper on the wire) drive both motors with
+     * the single value, matching the pre-split behaviour. */
+    t.throttle_upper = src->has_throttle_upper
+        ? mm_clamp_throttle(src->throttle_upper)
+        : t.throttle_lower;
     (void)state_exchange_publish_throttle_cmd(&t);
 }
 

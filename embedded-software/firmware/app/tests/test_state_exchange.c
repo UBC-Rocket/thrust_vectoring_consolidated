@@ -84,6 +84,8 @@ void test_pid_gains_publish_visible_to_fresh_reader(void)
     gains.z_kp             = 2.5f;
     gains.z_ki             = 0.75f;
     gains.z_integral_limit = 1.5f;
+    gains.attitude_ki[0]   = 0.02f;
+    gains.attitude_ki[1]   = 0.03f;
     (void)state_exchange_publish_pid_gains(&gains);
 
     fake_reader_boot();
@@ -98,6 +100,8 @@ void test_pid_gains_publish_visible_to_fresh_reader(void)
     TEST_ASSERT_EQUAL_FLOAT(2.5f,  got.z_kp);
     TEST_ASSERT_EQUAL_FLOAT(0.75f, got.z_ki);
     TEST_ASSERT_EQUAL_FLOAT(1.5f,  got.z_integral_limit);
+    TEST_ASSERT_EQUAL_FLOAT(0.02f, got.attitude_ki[0]);
+    TEST_ASSERT_EQUAL_FLOAT(0.03f, got.attitude_ki[1]);
 }
 
 void test_reference_publish_visible_to_fresh_reader(void)
@@ -173,8 +177,8 @@ void test_throttle_and_motor_rpm_slots_cross_core(void)
 {
     reset_module(0x00);
 
-    /* CM4 → CM7: operator throttle command. */
-    app_throttle_cmd_t thr = { .throttle = 0.42f };
+    /* CM4 → CM7: operator throttle command, one value per motor. */
+    app_throttle_cmd_t thr = { .throttle_lower = 0.42f, .throttle_upper = 0.55f };
     (void)state_exchange_publish_throttle_cmd(&thr);
     /* CM7 → CM4: RPM readback. */
     app_motor_rpm_t rpm = { .rpm_lower = 8342.0f, .rpm_upper = 8127.5f, .valid = true };
@@ -186,7 +190,8 @@ void test_throttle_and_motor_rpm_slots_cross_core(void)
     memset(&thr_got, 0, sizeof(thr_got));
     uint32_t seq = state_exchange_get_throttle_cmd(&thr_got);
     TEST_ASSERT_NOT_EQUAL_UINT32(0U, seq);
-    TEST_ASSERT_EQUAL_FLOAT(0.42f, thr_got.throttle);
+    TEST_ASSERT_EQUAL_FLOAT(0.42f, thr_got.throttle_lower);
+    TEST_ASSERT_EQUAL_FLOAT(0.55f, thr_got.throttle_upper);
 
     app_motor_rpm_t rpm_got;
     memset(&rpm_got, 0, sizeof(rpm_got));

@@ -83,7 +83,7 @@
  * retained as a fallback and selected at build time with USE_TILT_KF=1
  * (build.sh) / -DUSE_TILT_KF=ON, which defines TILT_KF_ONLY=1 here. */
 #ifndef TILT_KF_ONLY
-#define TILT_KF_ONLY              0
+#define TILT_KF_ONLY              1
 #endif
 
 #define GRAV_MPS2                 9.80665f

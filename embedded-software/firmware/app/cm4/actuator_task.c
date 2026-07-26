@@ -126,9 +126,8 @@ static void updateConfiguration() {
     s_pid_x.kp = -pidGains.attitude_kp[0];
     s_pid_y.kp = pidGains.attitude_kp[1];
 
-    // stupid chud ground control station doesn't send I apparently
-    // s_pid_x.ki = pidGains.atti[0];
-    // s_pid_y.ki = pidGains.attitude_kp[1];
+    s_pid_x.ki = -pidGains.attitude_ki[0];
+    s_pid_y.ki = pidGains.attitude_ki[1];
 }
 
 /* Dynamixel X: PID on KF y (inverted mount). Dynamixel Y: PID on KF x. */
@@ -324,7 +323,7 @@ void task_actuator(void *arg)
         vTaskDelay(pdMS_TO_TICKS(ACTUATOR_LOOP_MS));
         state_exchange_get_flight_state(&current_state);
 
-        if (current_state == APP_FLIGHT_RISE) {
+        if (current_state == APP_FLIGHT_RISE || current_state == APP_FLIGHT_DESCENT) {
             actuator_apply_tilt_pid(dxl);
         }
         else {
