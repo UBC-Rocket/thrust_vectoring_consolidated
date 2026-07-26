@@ -50,8 +50,8 @@ BasePanel {
 
     // SetThrottle — live actuation values, deliberately NOT part of presets
     // (a loaded preset must never silently change a running engine).
-    property double throttleLowerPct: 0.0
-    property double throttleUpperPct: 0.0
+    property double throttleLower: 0.0
+    property double throttleUpper: 0.0
 
     // Snapshot every editable field for preset save.
     function currentValues() {
@@ -422,21 +422,21 @@ BasePanel {
                 text: "THROTTLE"
             }
 
-            SubLabel { text: "MANUAL THROTTLE (%) — PER MOTOR" }
+            SubLabel { text: "MANUAL THROTTLE (0 – 25000) — PER MOTOR" }
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 10
                 NumberField {
-                    label: "lower %"
-                    value: panel.throttleLowerPct
+                    label: "lower"
+                    value: panel.throttleLower
                     // Direct write, not _edit: throttle is excluded from presets,
                     // so it must not flip the preset MODIFIED indicator.
-                    onValueEdited: (v) => panel.throttleLowerPct = v
+                    onValueEdited: (v) => panel.throttleLower = v
                 }
                 NumberField {
-                    label: "upper %"
-                    value: panel.throttleUpperPct
-                    onValueEdited: (v) => panel.throttleUpperPct = v
+                    label: "upper"
+                    value: panel.throttleUpper
+                    onValueEdited: (v) => panel.throttleUpper = v
                 }
             }
 
@@ -446,11 +446,11 @@ BasePanel {
                 Layout.topMargin: 4
                 Layout.bottomMargin: 6
                 // Clamp at send so the fields always show what was typed while
-                // the wire never carries more than 100 % (FC clamps again).
+                // the wire never carries more than 25000 (FC clamps again).
                 onClicked: commandsender.sendThrottle(
                     panel.which,
-                    Math.max(0, Math.min(100, panel.throttleLowerPct)) / 100,
-                    Math.max(0, Math.min(100, panel.throttleUpperPct)) / 100)
+                    Math.max(0, Math.min(25000, panel.throttleLower)),
+                    Math.max(0, Math.min(25000, panel.throttleUpper)))
             }
         }
     }

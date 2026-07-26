@@ -340,14 +340,14 @@ bool CommandSender::sendThrottle(int which, double throttleLower, double throttl
     }
 
     /* Clamp here as well as on the FC — the QML fields have no validator. */
-    auto clamp01 = [](double d) {
+    auto clampThrottle = [](double d) {
         float v = static_cast<float>(d);
         if (v < 0.0f) v = 0.0f;
-        if (v > 1.0f) v = 1.0f;
+        if (v > 25000.0f) v = 25000.0f;
         return v;
     };
-    const float lo = clamp01(throttleLower);
-    const float up = clamp01(throttleUpper);
+    const float lo = clampThrottle(throttleLower);
+    const float up = clampThrottle(throttleUpper);
 
     tvr_FlightCommand cmd = tvr_FlightCommand_init_zero;
     cmd.which_payload = tvr_FlightCommand_set_throttle_tag;
@@ -375,9 +375,9 @@ bool CommandSender::sendThrottle(int which, double throttleLower, double throttl
         return false;
     }
 
-    emit messageSent(QString("SetThrottle sent (lower %1%, upper %2%)")
-                         .arg(static_cast<int>(lo * 100.0f + 0.5f))
-                         .arg(static_cast<int>(up * 100.0f + 0.5f)));
+    emit messageSent(QString("SetThrottle sent (lower %1, upper %2)")
+                         .arg(static_cast<double>(lo))
+                         .arg(static_cast<double>(up)));
     return true;
 }
 
