@@ -42,6 +42,42 @@ void test_set_throttle_roundtrip(void)
     TEST_ASSERT_EQUAL_FLOAT(0.42f, got.payload.set_throttle.throttle);
 }
 
+void test_set_throttle_per_motor_roundtrip(void)
+{
+    /* Split lower/upper throttle: values and the has-flag must survive,
+     * including a meaningful upper of 0 (presence-tracked, not zero-elided). */
+    tvr_FlightCommand cmd = tvr_FlightCommand_init_zero;
+    cmd.which_payload = tvr_FlightCommand_set_throttle_tag;
+    cmd.payload.set_throttle.throttle           = 0.40f;
+    cmd.payload.set_throttle.has_throttle_upper = true;
+    cmd.payload.set_throttle.throttle_upper     = 0.0f;
+
+    tvr_FlightCommand got = tvr_FlightCommand_init_zero;
+    got.payload.set_throttle.throttle_upper = 0.99f;  /* stale sentinel */
+    roundtrip(tvr_FlightCommand_fields, &cmd, &got);
+
+    TEST_ASSERT_EQUAL_UINT(tvr_FlightCommand_set_throttle_tag, got.which_payload);
+    TEST_ASSERT_EQUAL_FLOAT(0.40f, got.payload.set_throttle.throttle);
+    TEST_ASSERT_TRUE(got.payload.set_throttle.has_throttle_upper);
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, got.payload.set_throttle.throttle_upper);
+}
+
+void test_set_throttle_legacy_single_roundtrip(void)
+{
+    /* A legacy sender (no throttle_upper) must decode with the has-flag
+     * false so the FC mirrors the single value to both motors. */
+    tvr_FlightCommand cmd = tvr_FlightCommand_init_zero;
+    cmd.which_payload = tvr_FlightCommand_set_throttle_tag;
+    cmd.payload.set_throttle.throttle = 0.42f;
+
+    tvr_FlightCommand got = tvr_FlightCommand_init_zero;
+    got.payload.set_throttle.has_throttle_upper = true;  /* stale sentinel */
+    roundtrip(tvr_FlightCommand_fields, &cmd, &got);
+
+    TEST_ASSERT_EQUAL_FLOAT(0.42f, got.payload.set_throttle.throttle);
+    TEST_ASSERT_FALSE(got.payload.set_throttle.has_throttle_upper);
+}
+
 void test_set_pid_gains_integral_roundtrip(void)
 {
     /* The originally reported symptom: z_ki / z_integral_limit "not sent".
@@ -152,6 +188,8 @@ int main(void)
 {
     UNITY_BEGIN();
     RUN_TEST(test_set_throttle_roundtrip);
+    RUN_TEST(test_set_throttle_per_motor_roundtrip);
+    RUN_TEST(test_set_throttle_legacy_single_roundtrip);
     RUN_TEST(test_set_pid_gains_integral_roundtrip);
     RUN_TEST(test_set_pid_gains_attitude_ki_roundtrip);
     RUN_TEST(test_set_pid_gains_attitude_ki_absent_roundtrip);

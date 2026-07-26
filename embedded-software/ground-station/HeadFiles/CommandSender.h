@@ -39,8 +39,10 @@ public:
     // Send config values as: [mass, T_min, T_max, theta_min, theta_max].
     Q_INVOKABLE bool sendConfigValues(int which, const QVariantList& configValues);
 
-    /// Send a manual engine throttle (normalized 0..1; QML passes percent/100).
-    Q_INVOKABLE bool sendThrottle(int which, double throttle);
+    /// Send manual engine throttles, one per motor (normalized 0..1; QML
+    /// passes percent/100). Encoded with has_throttle_upper so the FC applies
+    /// lower/upper independently.
+    Q_INVOKABLE bool sendThrottle(int which, double throttleLower, double throttleUpper);
 
     // Send UWB probe layout. probes is a QVariantList of exactly 4 anchor objects
     // with {x: float, y: float}. Sends on the bridge's currently selected TX channel.

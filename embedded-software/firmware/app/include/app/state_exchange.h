@@ -72,7 +72,8 @@ typedef struct {
 } app_vehicle_config_t;
 
 typedef struct {
-    float throttle;   /* normalized 0..1 — already clamped by mission mgr   */
+    float throttle_lower;  /* normalized 0..1 — already clamped by mission mgr */
+    float throttle_upper;  /* normalized 0..1 — mirrors lower for legacy sends */
 } app_throttle_cmd_t;
 
 /* CM7 (controls) writes, CM4 (telemetry) reads. valid=false when the DShot

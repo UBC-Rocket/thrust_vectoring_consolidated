@@ -177,8 +177,8 @@ void test_throttle_and_motor_rpm_slots_cross_core(void)
 {
     reset_module(0x00);
 
-    /* CM4 → CM7: operator throttle command. */
-    app_throttle_cmd_t thr = { .throttle = 0.42f };
+    /* CM4 → CM7: operator throttle command, one value per motor. */
+    app_throttle_cmd_t thr = { .throttle_lower = 0.42f, .throttle_upper = 0.55f };
     (void)state_exchange_publish_throttle_cmd(&thr);
     /* CM7 → CM4: RPM readback. */
     app_motor_rpm_t rpm = { .rpm_lower = 8342.0f, .rpm_upper = 8127.5f, .valid = true };
@@ -190,7 +190,8 @@ void test_throttle_and_motor_rpm_slots_cross_core(void)
     memset(&thr_got, 0, sizeof(thr_got));
     uint32_t seq = state_exchange_get_throttle_cmd(&thr_got);
     TEST_ASSERT_NOT_EQUAL_UINT32(0U, seq);
-    TEST_ASSERT_EQUAL_FLOAT(0.42f, thr_got.throttle);
+    TEST_ASSERT_EQUAL_FLOAT(0.42f, thr_got.throttle_lower);
+    TEST_ASSERT_EQUAL_FLOAT(0.55f, thr_got.throttle_upper);
 
     app_motor_rpm_t rpm_got;
     memset(&rpm_got, 0, sizeof(rpm_got));

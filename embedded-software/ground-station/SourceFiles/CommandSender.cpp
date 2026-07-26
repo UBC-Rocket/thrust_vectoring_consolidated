@@ -328,7 +328,7 @@ bool CommandSender::sendProbeLayout(const QVariantList& probes) {
 }
 
 
-bool CommandSender::sendThrottle(int which, double throttle) {
+bool CommandSender::sendThrottle(int which, double throttleLower, double throttleUpper) {
     if (!validWhich(which)) {
         emit errorOccurred("which must be 1 or 2");
         return false;
@@ -339,14 +339,21 @@ bool CommandSender::sendThrottle(int which, double throttle) {
         return false;
     }
 
-    /* Clamp here as well as on the FC — the QML field has no validator. */
-    float v = static_cast<float>(throttle);
-    if (v < 0.0f) v = 0.0f;
-    if (v > 1.0f) v = 1.0f;
+    /* Clamp here as well as on the FC — the QML fields have no validator. */
+    auto clamp01 = [](double d) {
+        float v = static_cast<float>(d);
+        if (v < 0.0f) v = 0.0f;
+        if (v > 1.0f) v = 1.0f;
+        return v;
+    };
+    const float lo = clamp01(throttleLower);
+    const float up = clamp01(throttleUpper);
 
     tvr_FlightCommand cmd = tvr_FlightCommand_init_zero;
     cmd.which_payload = tvr_FlightCommand_set_throttle_tag;
-    cmd.payload.set_throttle.throttle = v;
+    cmd.payload.set_throttle.throttle = lo;
+    cmd.payload.set_throttle.has_throttle_upper = true;
+    cmd.payload.set_throttle.throttle_upper = up;
 
     uint8_t packet[300];
     rp_packet_encode_result_t result = rp_packet_encode(
@@ -368,8 +375,9 @@ bool CommandSender::sendThrottle(int which, double throttle) {
         return false;
     }
 
-    emit messageSent(QString("SetThrottle sent (%1%)")
-                         .arg(static_cast<int>(v * 100.0f + 0.5f)));
+    emit messageSent(QString("SetThrottle sent (lower %1%, upper %2%)")
+                         .arg(static_cast<int>(lo * 100.0f + 0.5f))
+                         .arg(static_cast<int>(up * 100.0f + 0.5f)));
     return true;
 }
 

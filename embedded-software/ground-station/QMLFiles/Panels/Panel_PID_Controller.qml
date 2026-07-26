@@ -48,9 +48,10 @@ BasePanel {
     property double thetaMin: 0.0
     property double thetaMax: 0.0
 
-    // SetThrottle — live actuation value, deliberately NOT part of presets
+    // SetThrottle — live actuation values, deliberately NOT part of presets
     // (a loaded preset must never silently change a running engine).
-    property double throttlePct: 0.0
+    property double throttleLowerPct: 0.0
+    property double throttleUpperPct: 0.0
 
     // Snapshot every editable field for preset save.
     function currentValues() {
@@ -421,13 +422,22 @@ BasePanel {
                 text: "THROTTLE"
             }
 
-            SubLabel { text: "MANUAL THROTTLE (%)" }
-            NumberField {
-                label: "throttle %"
-                value: panel.throttlePct
-                // Direct write, not _edit: throttle is excluded from presets,
-                // so it must not flip the preset MODIFIED indicator.
-                onValueEdited: (v) => panel.throttlePct = v
+            SubLabel { text: "MANUAL THROTTLE (%) — PER MOTOR" }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 10
+                NumberField {
+                    label: "lower %"
+                    value: panel.throttleLowerPct
+                    // Direct write, not _edit: throttle is excluded from presets,
+                    // so it must not flip the preset MODIFIED indicator.
+                    onValueEdited: (v) => panel.throttleLowerPct = v
+                }
+                NumberField {
+                    label: "upper %"
+                    value: panel.throttleUpperPct
+                    onValueEdited: (v) => panel.throttleUpperPct = v
+                }
             }
 
             PrimaryButton {
@@ -435,11 +445,12 @@ BasePanel {
                 Layout.alignment: Qt.AlignRight
                 Layout.topMargin: 4
                 Layout.bottomMargin: 6
-                // Clamp at send so the field always shows what was typed while
+                // Clamp at send so the fields always show what was typed while
                 // the wire never carries more than 100 % (FC clamps again).
                 onClicked: commandsender.sendThrottle(
                     panel.which,
-                    Math.max(0, Math.min(100, panel.throttlePct)) / 100)
+                    Math.max(0, Math.min(100, panel.throttleLowerPct)) / 100,
+                    Math.max(0, Math.min(100, panel.throttleUpperPct)) / 100)
             }
         }
     }
