@@ -208,7 +208,8 @@ void task_controls(void *arg) {
     app_flight_state_t last_flight_state = APP_FLIGHT_IDLE;
 
     uint16_t motor_rpm_desired = 0;
-    uint16_t motor_throttle = 0;
+    uint16_t motor_throttle_lower = 0;
+    uint16_t motor_throttle_upper = 0;
 
     uint64_t rise_start_time = timestamp_us64();
 
@@ -253,7 +254,8 @@ void task_controls(void *arg) {
             if (is_state_updated) {
                 rise_start_time = timestamp_us64();
                 motor_rpm_desired = ESC_RPM_DESIRED_RISE;
-                motor_throttle = ESC_THROTTLE_INITIAL;
+                motor_throttle_lower = ESC_THROTTLE_INITIAL;
+                motor_throttle_upper = ESC_THROTTLE_INITIAL;
             }
             break;
         }
@@ -265,7 +267,8 @@ void task_controls(void *arg) {
         }
         default: {
             motor_rpm_desired = 0;
-            motor_throttle = 0;
+            motor_throttle_lower = 0;
+            motor_throttle_upper = 0;
             esc_dshot_motor_set_throttle(ESC_MOTOR_ID_LOWER, ESC_THROTTLE_ZERO);
             esc_dshot_motor_set_throttle(ESC_MOTOR_ID_UPPER, ESC_THROTTLE_ZERO);
             esc_dshot_set_armed(false);
@@ -274,24 +277,38 @@ void task_controls(void *arg) {
         }
 
         if (flight_state == APP_FLIGHT_RISE || flight_state == APP_FLIGHT_DESCENT) {
-            esc_dshot_motor_set_throttle(ESC_MOTOR_ID_LOWER, motor_throttle);
-            esc_dshot_motor_set_throttle(ESC_MOTOR_ID_UPPER, motor_throttle);
+            esc_dshot_motor_set_throttle(ESC_MOTOR_ID_LOWER, motor_throttle_lower);
+            esc_dshot_motor_set_throttle(ESC_MOTOR_ID_UPPER, motor_throttle_upper);
 
             esc_motor_telemetry_t lower_motor_telemetry;
+            esc_motor_telemetry_t upper_motor_telemetry;
 
             if (esc_dshot_motor_get_telemetry(ESC_MOTOR_ID_LOWER, &lower_motor_telemetry)) {
                 char rpm[16];
                 char throttle[16];
                 fmt_f3(rpm, lower_motor_telemetry.rpm);
-                fmt_f3(throttle, motor_throttle);
+                fmt_f3(throttle, motor_throttle_lower);
 
-                io_debug_printf("[ctl] esc rpm=%s throttle=%s\r\n", rpm, throttle);
+                io_debug_printf("[ctl] esc-lower rpm=%s throttle=%s\r\n", rpm, throttle);
 
-                motor_throttle = esc_get_rpm_adjusted_throttle(
-                    motor_rpm_desired, lower_motor_telemetry.rpm, motor_throttle);
+                motor_throttle_lower = esc_get_rpm_adjusted_throttle(
+                    motor_rpm_desired, lower_motor_telemetry.rpm, motor_throttle_lower);
             }
 
-            motor_throttle = MIN(motor_throttle, ESC_THROTTLE_MAX);
+            if (esc_dshot_motor_get_telemetry(ESC_MOTOR_ID_UPPER, &upper_motor_telemetry)) {
+                char rpm[16];
+                char throttle[16];
+                fmt_f3(rpm, upper_motor_telemetry.rpm);
+                fmt_f3(throttle, motor_throttle_upper);
+
+                io_debug_printf("[ctl] esc-upper rpm=%s throttle=%s\r\n", rpm, throttle);
+
+                motor_throttle_upper = esc_get_rpm_adjusted_throttle(
+                    motor_rpm_desired, upper_motor_telemetry.rpm, motor_throttle_upper);
+            }
+
+            motor_throttle_lower = MIN(motor_throttle_lower, ESC_THROTTLE_MAX);
+            motor_throttle_upper = MIN(motor_throttle_upper, ESC_THROTTLE_MAX);
         }
 
         vTaskDelay(pdMS_TO_TICKS(TUNABLE_POLL_MS));
