@@ -60,6 +60,8 @@ typedef struct _tvr_SetPidGains {
     float z_ki;
     float z_kd;
     float z_integral_limit;
+    bool has_attitude_ki;
+    tvr_Vec3 attitude_ki; /* integral (tilt loop uses x/y only) */
 } tvr_SetPidGains;
 
 /* Setpoint / reference commands */
@@ -115,14 +117,14 @@ extern "C" {
 #define tvr_SetThrottle_init_default             {0}
 #define tvr_SetProbeLayout_init_default          {false, tvr_Vec2_init_default, false, tvr_Vec2_init_default, false, tvr_Vec2_init_default, false, tvr_Vec2_init_default}
 #define tvr_StateCommand_init_default            {_tvr_StateCommand_Type_MIN}
-#define tvr_SetPidGains_init_default             {false, tvr_Vec3_init_default, false, tvr_Vec3_init_default, 0, 0, 0, 0}
+#define tvr_SetPidGains_init_default             {false, tvr_Vec3_init_default, false, tvr_Vec3_init_default, 0, 0, 0, 0, false, tvr_Vec3_init_default}
 #define tvr_SetReference_init_default            {0, 0, false, tvr_Quaternion_init_default}
 #define tvr_SetConfig_init_default               {0, 0, 0, 0, 0}
 #define tvr_FlightCommand_init_zero              {0, {tvr_StateCommand_init_zero}}
 #define tvr_SetThrottle_init_zero                {0}
 #define tvr_SetProbeLayout_init_zero             {false, tvr_Vec2_init_zero, false, tvr_Vec2_init_zero, false, tvr_Vec2_init_zero, false, tvr_Vec2_init_zero}
 #define tvr_StateCommand_init_zero               {_tvr_StateCommand_Type_MIN}
-#define tvr_SetPidGains_init_zero                {false, tvr_Vec3_init_zero, false, tvr_Vec3_init_zero, 0, 0, 0, 0}
+#define tvr_SetPidGains_init_zero                {false, tvr_Vec3_init_zero, false, tvr_Vec3_init_zero, 0, 0, 0, 0, false, tvr_Vec3_init_zero}
 #define tvr_SetReference_init_zero               {0, 0, false, tvr_Quaternion_init_zero}
 #define tvr_SetConfig_init_zero                  {0, 0, 0, 0, 0}
 
@@ -139,6 +141,7 @@ extern "C" {
 #define tvr_SetPidGains_z_ki_tag                 4
 #define tvr_SetPidGains_z_kd_tag                 5
 #define tvr_SetPidGains_z_integral_limit_tag     6
+#define tvr_SetPidGains_attitude_ki_tag          7
 #define tvr_SetReference_z_ref_tag               1
 #define tvr_SetReference_vz_ref_tag              2
 #define tvr_SetReference_q_ref_tag               3
@@ -199,11 +202,13 @@ X(a, STATIC,   OPTIONAL, MESSAGE,  attitude_kd,       2) \
 X(a, STATIC,   SINGULAR, FLOAT,    z_kp,              3) \
 X(a, STATIC,   SINGULAR, FLOAT,    z_ki,              4) \
 X(a, STATIC,   SINGULAR, FLOAT,    z_kd,              5) \
-X(a, STATIC,   SINGULAR, FLOAT,    z_integral_limit,   6)
+X(a, STATIC,   SINGULAR, FLOAT,    z_integral_limit,   6) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  attitude_ki,       7)
 #define tvr_SetPidGains_CALLBACK NULL
 #define tvr_SetPidGains_DEFAULT NULL
 #define tvr_SetPidGains_attitude_kp_MSGTYPE tvr_Vec3
 #define tvr_SetPidGains_attitude_kd_MSGTYPE tvr_Vec3
+#define tvr_SetPidGains_attitude_ki_MSGTYPE tvr_Vec3
 
 #define tvr_SetReference_FIELDLIST(X, a) \
 X(a, STATIC,   SINGULAR, FLOAT,    z_ref,             1) \
@@ -241,9 +246,9 @@ extern const pb_msgdesc_t tvr_SetConfig_msg;
 
 /* Maximum encoded size of messages (where known) */
 #define TVR_COMMAND_PB_H_MAX_SIZE                tvr_FlightCommand_size
-#define tvr_FlightCommand_size                   56
+#define tvr_FlightCommand_size                   73
 #define tvr_SetConfig_size                       25
-#define tvr_SetPidGains_size                     54
+#define tvr_SetPidGains_size                     71
 #define tvr_SetProbeLayout_size                  48
 #define tvr_SetReference_size                    32
 #define tvr_SetThrottle_size                     5

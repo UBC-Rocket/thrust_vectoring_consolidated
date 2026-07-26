@@ -26,7 +26,9 @@ public:
 
     // Send PID values.
     // Legacy 10-element format: [attKpX, attKpY, attKpZ, attKdX, attKdY, attKdZ, zKp, zKi, zKd, zIntegralLimit].
-    // Preferred 12-element format: [has_attitude_kp, kp.x, kp.y, kp.z, has_attitude_kd, kd.x, kd.y, kd.z, z_kp, z_ki, z_kd, z_integral_limit].
+    // Legacy 12-element format: [has_attitude_kp, kp.x, kp.y, kp.z, has_attitude_kd, kd.x, kd.y, kd.z, z_kp, z_ki, z_kd, z_integral_limit].
+    // Preferred 16-element format: [has_attitude_kp, kp.x, kp.y, kp.z, has_attitude_kd, kd.x, kd.y, kd.z,
+    //                               has_attitude_ki, ki.x, ki.y, ki.z, z_kp, z_ki, z_kd, z_integral_limit].
     Q_INVOKABLE bool sendPIDValues(int which, const QVariantList& PIDValues);
 
     // Send reference values.

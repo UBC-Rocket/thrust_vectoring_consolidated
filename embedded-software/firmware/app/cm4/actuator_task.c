@@ -126,9 +126,8 @@ static void updateConfiguration() {
     s_pid_x.kp = -pidGains.attitude_kp[0];
     s_pid_y.kp = pidGains.attitude_kp[1];
 
-    // stupid chud ground control station doesn't send I apparently
-    // s_pid_x.ki = pidGains.atti[0];
-    // s_pid_y.ki = pidGains.attitude_kp[1];
+    s_pid_x.ki = -pidGains.attitude_ki[0];
+    s_pid_y.ki = pidGains.attitude_ki[1];
 }
 
 /* Dynamixel X: PID on KF y (inverted mount). Dynamixel Y: PID on KF x. */

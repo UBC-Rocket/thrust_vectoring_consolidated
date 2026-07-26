@@ -61,6 +61,43 @@ void test_set_pid_gains_integral_roundtrip(void)
     TEST_ASSERT_EQUAL_FLOAT(1.5f,  got.payload.set_pid_gains.z_integral_limit);
 }
 
+void test_set_pid_gains_attitude_ki_roundtrip(void)
+{
+    /* attitude_ki is the newest SetPidGains field (tag 7) — prove both the
+     * values and the has-flag survive the wire. */
+    tvr_FlightCommand cmd = tvr_FlightCommand_init_zero;
+    cmd.which_payload = tvr_FlightCommand_set_pid_gains_tag;
+    cmd.payload.set_pid_gains.has_attitude_ki = true;
+    cmd.payload.set_pid_gains.attitude_ki.x   = 0.02f;
+    cmd.payload.set_pid_gains.attitude_ki.y   = 0.03f;
+    cmd.payload.set_pid_gains.attitude_ki.z   = 0.0f;
+
+    tvr_FlightCommand got = tvr_FlightCommand_init_zero;
+    roundtrip(tvr_FlightCommand_fields, &cmd, &got);
+
+    TEST_ASSERT_EQUAL_UINT(tvr_FlightCommand_set_pid_gains_tag, got.which_payload);
+    TEST_ASSERT_TRUE(got.payload.set_pid_gains.has_attitude_ki);
+    TEST_ASSERT_EQUAL_FLOAT(0.02f, got.payload.set_pid_gains.attitude_ki.x);
+    TEST_ASSERT_EQUAL_FLOAT(0.03f, got.payload.set_pid_gains.attitude_ki.y);
+    TEST_ASSERT_EQUAL_FLOAT(0.0f,  got.payload.set_pid_gains.attitude_ki.z);
+}
+
+void test_set_pid_gains_attitude_ki_absent_roundtrip(void)
+{
+    /* A sender built before attitude_ki existed omits the field entirely —
+     * the decoder must report has_attitude_ki=false so the FC holds its
+     * current tilt integral gains. */
+    tvr_FlightCommand cmd = tvr_FlightCommand_init_zero;
+    cmd.which_payload = tvr_FlightCommand_set_pid_gains_tag;
+    cmd.payload.set_pid_gains.z_kp = 2.0f;   /* keep the frame non-empty */
+
+    tvr_FlightCommand got = tvr_FlightCommand_init_zero;
+    got.payload.set_pid_gains.has_attitude_ki = true;  /* stale sentinel */
+    roundtrip(tvr_FlightCommand_fields, &cmd, &got);
+
+    TEST_ASSERT_FALSE(got.payload.set_pid_gains.has_attitude_ki);
+}
+
 void test_set_reference_zref_roundtrip(void)
 {
     tvr_FlightCommand cmd = tvr_FlightCommand_init_zero;
@@ -116,6 +153,8 @@ int main(void)
     UNITY_BEGIN();
     RUN_TEST(test_set_throttle_roundtrip);
     RUN_TEST(test_set_pid_gains_integral_roundtrip);
+    RUN_TEST(test_set_pid_gains_attitude_ki_roundtrip);
+    RUN_TEST(test_set_pid_gains_attitude_ki_absent_roundtrip);
     RUN_TEST(test_set_reference_zref_roundtrip);
     RUN_TEST(test_telemetry_motor_rpm_roundtrip);
     RUN_TEST(test_telemetry_motor_rpm_invalid_roundtrip);

@@ -49,6 +49,7 @@ message SetPidGains {
   // Attitude controller (diagonal of 3x3 gain matrices)
   Vec3  attitude_kp = 1;   // proportional
   Vec3  attitude_kd = 2;   // derivative
+  Vec3  attitude_ki = 7;   // integral (tilt loop uses x/y only)
 
   // Z position PID
   float z_kp             = 3;

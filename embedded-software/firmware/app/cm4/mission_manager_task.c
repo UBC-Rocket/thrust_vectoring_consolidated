@@ -251,6 +251,11 @@ static void mm_forward_pid_gains(const tvr_SetPidGains *src) {
         g.attitude_kd[1] = src->attitude_kd.y;
         g.attitude_kd[2] = src->attitude_kd.z;
     }
+    if (src->has_attitude_ki) {
+        g.attitude_ki[0] = src->attitude_ki.x;
+        g.attitude_ki[1] = src->attitude_ki.y;
+        g.attitude_ki[2] = src->attitude_ki.z;
+    }
     g.z_kp             = src->z_kp;
     g.z_ki             = src->z_ki;
     g.z_kd             = src->z_kd;

@@ -100,15 +100,39 @@ bool CommandSender::sendPIDValues(int which, const QVariantList& PIDValues) {
         return false;
     }
 
+    const bool hasIntegralGroup = (PIDValues.size() >= 16);
     const bool hasExplicitFlags = (PIDValues.size() >= 12);
     if (!hasExplicitFlags && PIDValues.size() < 10) {
-        emit errorOccurred("PIDValues must contain 10 entries (legacy) or 12 entries (with has_* flags)");
+        emit errorOccurred("PIDValues must contain 10 entries (legacy), 12 entries (with has_* flags) or 16 entries (with attitude_ki)");
         return false;
     }
 
     tvr_SetPidGains pid = tvr_SetPidGains_init_zero;
-    if (hasExplicitFlags) {
+    if (hasIntegralGroup) {
         // New format:
+        // [has_attitude_kp, kp.x, kp.y, kp.z, has_attitude_kd, kd.x, kd.y, kd.z,
+        //  has_attitude_ki, ki.x, ki.y, ki.z, z_kp, z_ki, z_kd, z_integral_limit]
+        pid.has_attitude_kp = PIDValues[0].toBool();
+        pid.attitude_kp.x = static_cast<float>(PIDValues[1].toDouble());
+        pid.attitude_kp.y = static_cast<float>(PIDValues[2].toDouble());
+        pid.attitude_kp.z = static_cast<float>(PIDValues[3].toDouble());
+
+        pid.has_attitude_kd = PIDValues[4].toBool();
+        pid.attitude_kd.x = static_cast<float>(PIDValues[5].toDouble());
+        pid.attitude_kd.y = static_cast<float>(PIDValues[6].toDouble());
+        pid.attitude_kd.z = static_cast<float>(PIDValues[7].toDouble());
+
+        pid.has_attitude_ki = PIDValues[8].toBool();
+        pid.attitude_ki.x = static_cast<float>(PIDValues[9].toDouble());
+        pid.attitude_ki.y = static_cast<float>(PIDValues[10].toDouble());
+        pid.attitude_ki.z = static_cast<float>(PIDValues[11].toDouble());
+
+        pid.z_kp = static_cast<float>(PIDValues[12].toDouble());
+        pid.z_ki = static_cast<float>(PIDValues[13].toDouble());
+        pid.z_kd = static_cast<float>(PIDValues[14].toDouble());
+        pid.z_integral_limit = static_cast<float>(PIDValues[15].toDouble());
+    } else if (hasExplicitFlags) {
+        // Previous format (no attitude_ki — leaves has_attitude_ki false):
         // [has_attitude_kp, kp.x, kp.y, kp.z, has_attitude_kd, kd.x, kd.y, kd.z, z_kp, z_ki, z_kd, z_integral_limit]
         pid.has_attitude_kp = PIDValues[0].toBool();
         pid.attitude_kp.x = static_cast<float>(PIDValues[1].toDouble());

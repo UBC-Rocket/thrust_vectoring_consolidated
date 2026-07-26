@@ -84,6 +84,8 @@ void test_pid_gains_publish_visible_to_fresh_reader(void)
     gains.z_kp             = 2.5f;
     gains.z_ki             = 0.75f;
     gains.z_integral_limit = 1.5f;
+    gains.attitude_ki[0]   = 0.02f;
+    gains.attitude_ki[1]   = 0.03f;
     (void)state_exchange_publish_pid_gains(&gains);
 
     fake_reader_boot();
@@ -98,6 +100,8 @@ void test_pid_gains_publish_visible_to_fresh_reader(void)
     TEST_ASSERT_EQUAL_FLOAT(2.5f,  got.z_kp);
     TEST_ASSERT_EQUAL_FLOAT(0.75f, got.z_ki);
     TEST_ASSERT_EQUAL_FLOAT(1.5f,  got.z_integral_limit);
+    TEST_ASSERT_EQUAL_FLOAT(0.02f, got.attitude_ki[0]);
+    TEST_ASSERT_EQUAL_FLOAT(0.03f, got.attitude_ki[1]);
 }
 
 void test_reference_publish_visible_to_fresh_reader(void)
