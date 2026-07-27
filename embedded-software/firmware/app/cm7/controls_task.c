@@ -167,10 +167,10 @@ static void poll_tunables(void) {
 
     app_pid_gains_t pid_gains;
     seq = state_exchange_get_pid_gains(&pid_gains);
-    if (seq != s_last_pid_seq) {
-        merge_pid_gains(&pid_gains);
-        s_last_pid_seq = seq;
-    }
+
+    // ! NOTE: we are using PID values as RPM setpoint
+    s_desired_rpm_setpoint_land = MIN(ESC_RPM_MAX, MAX(ESC_RPM_MIN, pid_gains.z_kp));
+    s_desired_rpm_setpoint_launch = MIN(ESC_RPM_MAX, MAX(ESC_RPM_MIN, pid_gains.z_kd));
 
     app_reference_t ref;
     seq = state_exchange_get_reference(&ref);
@@ -186,12 +186,9 @@ static void poll_tunables(void) {
         s_last_cfg_seq = seq;
     }
 
-    // ! NOTE: we are using throttle command as RPM setpoint, lower is land RPM, upper is launch RPM
     app_throttle_cmd_t thr;
     seq = state_exchange_get_throttle_cmd(&thr);
     if (seq != s_last_rpm_setpoint_seq) {
-        s_desired_rpm_setpoint_land = MIN(ESC_RPM_MAX, MAX(ESC_RPM_MIN, thr.throttle_lower));
-        s_desired_rpm_setpoint_launch = MIN(ESC_RPM_MAX, MAX(ESC_RPM_MIN, thr.throttle_upper));
         s_last_rpm_setpoint_seq = seq;
     }
 }
