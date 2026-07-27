@@ -377,6 +377,10 @@ void task_state_estimation(void *arg)
                                        s_icm_raw, DRAIN_BATCH);
         }
         for (size_t i = 0; i < n_icm; i++) {
+            /* Raw primary-IMU log record (SD only, all drained samples). */
+            const vec3_f32_t icm_a = { s_icm_raw[i].ax, s_icm_raw[i].ay, s_icm_raw[i].az };
+            const vec3_f32_t icm_g = { s_icm_raw[i].gx, s_icm_raw[i].gy, s_icm_raw[i].gz };
+            PUB_IMU_SAMPLE(s_icm_raw[i].t_us, 0U, icm_a, icm_g, s_icm_raw[i].temp_c);
 #if TILT_KF_ONLY
             tilt_kf_update(&s_tilt_kf,
                            s_icm_raw[i].t_us,
@@ -497,6 +501,13 @@ void task_state_estimation(void *arg)
          * the primary IMU has gone silent for too long. */
         size_t n_bmi = imu_bmi088_drain(sensors->bmi088,
                                         s_bmi_raw, DRAIN_BATCH);
+        /* Raw secondary-IMU log record (SD only) — every drained sample,
+         * regardless of whether failover feeds it to the EKF. */
+        for (size_t i = 0; i < n_bmi; i++) {
+            const vec3_f32_t bmi_a = { s_bmi_raw[i].ax, s_bmi_raw[i].ay, s_bmi_raw[i].az };
+            const vec3_f32_t bmi_g = { s_bmi_raw[i].gx, s_bmi_raw[i].gy, s_bmi_raw[i].gz };
+            PUB_IMU_SAMPLE(s_bmi_raw[i].t_us, 1U, bmi_a, bmi_g, s_bmi_raw[i].temp_c);
+        }
         const uint64_t now_us = io_timestamp_us();
         const bool primary_silent =
             (last_primary_imu_us == 0 && n_icm == 0) ||
@@ -524,6 +535,9 @@ void task_state_estimation(void *arg)
         size_t n_br = baro_ms5611_drain(sensors->baro,
                                         s_baro_raw, DRAIN_BATCH);
         for (size_t i = 0; i < n_br && n_baro < DRAIN_BATCH; i++) {
+            /* Raw baro log record (SD only) — before the height/EMA/ref math. */
+            PUB_BARO_SAMPLE(s_baro_raw[i].t_us, s_baro_raw[i].pressure_pa,
+                            s_baro_raw[i].temp_c);
             /* pressure_to_height takes Pa even though the param is
              * named *_centi — it divides by 101325.0f (Pa) internally. */
             float h = pressure_to_height((int32_t)s_baro_raw[i].pressure_pa);
@@ -600,6 +614,13 @@ void task_state_estimation(void *arg)
                                            s_gps_raw,
                                            sizeof(s_gps_raw) / sizeof(s_gps_raw[0]));
         for (size_t i = 0; i < n_gp && n_gps < (sizeof(s_gps_buf)/sizeof(s_gps_buf[0])); i++) {
+            /* Raw GPS fix log record (SD only) — every drained fix, including
+             * no-fix, so the log shows the receiver is alive even without lock. */
+            PUB_GPS_FIX(s_gps_raw[i].t_us,
+                        s_gps_raw[i].latitude_deg, s_gps_raw[i].longitude_deg,
+                        s_gps_raw[i].altitude_m, s_gps_raw[i].ground_speed_mps,
+                        s_gps_raw[i].course_deg, s_gps_raw[i].hdop,
+                        s_gps_raw[i].fix_type, s_gps_raw[i].sats_used);
             if (!s_gps_raw[i].valid || s_gps_raw[i].fix_type == 0) continue;
 
             /* Latch GPS lock for the readiness gate. */

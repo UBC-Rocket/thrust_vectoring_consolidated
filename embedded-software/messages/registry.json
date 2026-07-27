@@ -209,13 +209,13 @@
         "servo_status": {
           "msg_id": 1,
           "class": "A",
-          "description": "Commanded pulse width vs. (when available) read-back angle for both axes.",
+          "description": "Commanded gimbal angle vs. (when available) read-back angle for both axes. The gimbal servos (Dynamixel / Feetech) are position-commanded in degrees.",
           "fields": [
             { "name": "t_us",            "type": "u64", "description": "Sample timestamp.",                                "units": "us" },
-            { "name": "cmd_us_x",        "type": "u16", "description": "Commanded pulse width, X axis.",                  "units": "us" },
-            { "name": "cmd_us_y",        "type": "u16", "description": "Commanded pulse width, Y axis.",                  "units": "us" },
-            { "name": "readback_deg_x",  "type": "f32", "description": "Encoder read-back, X axis (NaN if unavailable).", "units": "deg" },
-            { "name": "readback_deg_y",  "type": "f32", "description": "Encoder read-back, Y axis (NaN if unavailable).", "units": "deg" },
+            { "name": "cmd_deg_x",       "type": "f32", "description": "Commanded gimbal angle, X axis.",                 "units": "deg" },
+            { "name": "cmd_deg_y",       "type": "f32", "description": "Commanded gimbal angle, Y axis.",                 "units": "deg" },
+            { "name": "readback_deg_x",  "type": "f32", "description": "Servo present-position read-back, X axis (NaN if unavailable).", "units": "deg" },
+            { "name": "readback_deg_y",  "type": "f32", "description": "Servo present-position read-back, Y axis (NaN if unavailable).", "units": "deg" },
             { "name": "fault_flags",     "type": "u8",  "description": "Bitfield: bit0=X stall, bit1=Y stall, bit2=X over-temp, bit3=Y over-temp." }
           ],
           "routing": {
@@ -244,6 +244,89 @@
         "out_of_range":  { "code": 1, "description": "Self-test commanded angle outside calibrated mechanical limits." },
         "cal_timeout":   { "code": 2, "description": "Self-test never observed read-back movement within the expected window." },
         "armed_refused": { "code": 3, "description": "trigger_selftest called while the mission manager is in an armed state." }
+      }
+    },
+
+    "imu": {
+      "module_id": 4,
+      "description": "Inertial measurement units. ICM-40609 (primary) and BMI088 (secondary) calibrated samples as drained by the state-estimation task before EKF fusion. Logging both lets the estimator be replayed offline.",
+
+      "messages": {
+        "sample": {
+          "msg_id": 1,
+          "class": "A",
+          "description": "Per-sample accel + gyro from one IMU. imu_id distinguishes the primary from the secondary so both streams share one message type.",
+          "fields": [
+            { "name": "t_us",   "type": "u64",            "description": "Sample timestamp.",                       "units": "us" },
+            { "name": "imu_id", "type": "u8",             "description": "0 = ICM-40609 (primary), 1 = BMI088 (secondary)." },
+            { "name": "accel",  "type": "type:vec3_f32",  "description": "Body-frame acceleration.",                "units": "m/s^2" },
+            { "name": "gyro",   "type": "type:vec3_f32",  "description": "Body-frame angular rate.",                "units": "rad/s" },
+            { "name": "temp_c", "type": "f32",            "description": "On-chip temperature.",                    "units": "degC" }
+          ],
+          "routing": {
+            "sd": { "enabled": true, "max_rate_hz": 1000 }
+          }
+        }
+      },
+
+      "errors": {
+        "ring_overflow": { "code": 1, "description": "IMU driver ring overflowed — the state-estimation task drained too slowly; samples since the previous drain are lost." }
+      }
+    },
+
+    "baro": {
+      "module_id": 5,
+      "description": "MS5611 barometer. Raw pressure + temperature samples as drained by the state-estimation task before the z update.",
+
+      "messages": {
+        "sample": {
+          "msg_id": 1,
+          "class": "A",
+          "description": "Per-sample absolute pressure and compensated temperature.",
+          "fields": [
+            { "name": "t_us",        "type": "u64", "description": "Sample timestamp.",         "units": "us" },
+            { "name": "pressure_pa", "type": "f32", "description": "Absolute pressure.",        "units": "Pa" },
+            { "name": "temp_c",      "type": "f32", "description": "Compensated temperature.",  "units": "degC" }
+          ],
+          "routing": {
+            "sd": { "enabled": true, "max_rate_hz": 100 }
+          }
+        }
+      },
+
+      "errors": {
+        "ring_overflow": { "code": 1, "description": "Baro driver ring overflowed before the state-estimation task drained it." }
+      }
+    },
+
+    "gps": {
+      "module_id": 6,
+      "description": "NMEA GPS receiver. Raw fixes; on the bench with no antenna fix_type is typically 0 (no fix).",
+
+      "messages": {
+        "fix": {
+          "msg_id": 1,
+          "class": "A",
+          "description": "Per-fix position, velocity and quality as parsed from NMEA.",
+          "fields": [
+            { "name": "t_us",             "type": "u64", "description": "Fix timestamp.",                    "units": "us" },
+            { "name": "latitude_deg",     "type": "f64", "description": "Latitude (WGS84).",                "units": "deg" },
+            { "name": "longitude_deg",    "type": "f64", "description": "Longitude (WGS84).",               "units": "deg" },
+            { "name": "altitude_m",       "type": "f32", "description": "Altitude above mean sea level.",   "units": "m" },
+            { "name": "ground_speed_mps", "type": "f32", "description": "Ground speed.",                    "units": "m/s" },
+            { "name": "course_deg",       "type": "f32", "description": "Course over ground.",              "units": "deg" },
+            { "name": "hdop",             "type": "f32", "description": "Horizontal dilution of precision." },
+            { "name": "fix_type",         "type": "u8",  "description": "0 = no fix, 2 = 2D, 3 = 3D." },
+            { "name": "sats_used",        "type": "u8",  "description": "Satellites used in the fix." }
+          ],
+          "routing": {
+            "sd": { "enabled": true, "max_rate_hz": 10 }
+          }
+        }
+      },
+
+      "errors": {
+        "ring_overflow": { "code": 1, "description": "GPS driver ring overflowed before the state-estimation task drained it." }
       }
     }
   }

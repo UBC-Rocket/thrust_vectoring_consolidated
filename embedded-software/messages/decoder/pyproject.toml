@@ -15,6 +15,7 @@ messages-console = "messages_decoder.console:main"
 
 [project.optional-dependencies]
 dev = ["jsonschema>=4.0"]
+mf4 = ["asammdf>=7.0", "numpy>=1.23"]
 
 [tool.setuptools.packages.find]
 include = ["messages_decoder*"]
