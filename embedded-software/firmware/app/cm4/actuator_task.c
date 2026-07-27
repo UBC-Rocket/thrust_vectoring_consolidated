@@ -55,8 +55,8 @@
 #define ACTUATOR_MIN_WRITE_MS      20U   /* was 50 ms (~20 Hz); small step to ~25 Hz */
 #define ACTUATOR_FAIL_BACKOFF_MS   250U
 #define GIMBAL_CLAMP_DEG           10.0f
-#define GIMBAL_CLAMP_DEG_Y_MIN     (5.0f)
-#define GIMBAL_CLAMP_DEG_Y_MAX     (20.0f)
+#define GIMBAL_CLAMP_DEG_Y_MIN     (15.0f)
+#define GIMBAL_CLAMP_DEG_Y_MAX     (15.0f)
 #define GIMBAL_DEFAULT_DEG_X       0.0f
 #define GIMBAL_DEFAULT_DEG_Y       0.0f
 
