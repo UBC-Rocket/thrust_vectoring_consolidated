@@ -1,7 +1,7 @@
 Protel Design System Design Rule Check
-PCB File : C:\Users\kjh32\Documents\GitHub\thrust_vectoring_consolidated\electrical-hardware\esc\board-design\PCB1.PcbDoc
-Date     : 2026-07-05
-Time     : 1:57:09 PM
+PCB File : D:\UBC_Rocket_TVR\electrical-hardware\esc\board-design\PCB1.PcbDoc
+Date     : 2026-08-13
+Time     : 1:18:35 PM
 
 Processing Rule : Clearance Constraint (Gap=3.937mil) (All),(All)
 Rule Violations :0
@@ -58,12 +58,21 @@ Rule Violations :0
 
 Processing Rule : Net Antennae (Tolerance=0mil) (All)
    Violation between Net Antennae: Track (341.535mil,1611.22mil)(342.52mil,1612.205mil) on Top Layer 
-Rule Violations :1
+   Violation between Net Antennae: Via (152.805mil,1016.106mil) from Top Layer to Bottom Layer 
+   Violation between Net Antennae: Via (154.118mil,892.09mil) from Top Layer to Bottom Layer 
+   Violation between Net Antennae: Via (155.43mil,955.082mil) from Top Layer to Bottom Layer 
+   Violation between Net Antennae: Via (31.227mil,1016.106mil) from Top Layer to Bottom Layer 
+   Violation between Net Antennae: Via (31.227mil,895.043mil) from Top Layer to Bottom Layer 
+   Violation between Net Antennae: Via (31.227mil,958.035mil) from Top Layer to Bottom Layer 
+   Violation between Net Antennae: Via (92.016mil,1016.106mil) from Top Layer to Bottom Layer 
+   Violation between Net Antennae: Via (92.673mil,894.058mil) from Top Layer to Bottom Layer 
+   Violation between Net Antennae: Via (93.329mil,955.082mil) from Top Layer to Bottom Layer 
+Rule Violations :10
 
 Processing Rule : Height Constraint (Min=0mil) (Max=1000mil) (Prefered=500mil) (All)
 Rule Violations :0
 
 
-Violations Detected : 6
+Violations Detected : 15
 Waived Violations : 0
-Time Elapsed        : 00:00:00
+Time Elapsed        : 00:00:01
