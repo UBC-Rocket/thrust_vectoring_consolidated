@@ -1,9 +1,0 @@
-Removed Pin From Net: NetName=SPC Pin=Q6-1
-Removed Pin From Net: NetName=SPC Pin=Q6-2
-Removed Pin From Net: NetName=SPC Pin=Q6-3
-Removed Pin From Net: NetName=GLC Pin=Q6-4
-Removed Pin From Net: NetName=PHASE C Pin=Q6-5
-Removed Pin From Net: NetName=PHASE C Pin=Q6-6
-Removed Pin From Net: NetName=PHASE C Pin=Q6-7
-Removed Pin From Net: NetName=PHASE C Pin=Q6-8
-Removed Member From Class: ClassName=Gate Drive Member=Q6
