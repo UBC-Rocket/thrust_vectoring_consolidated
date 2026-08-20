@@ -1,3 +1,4 @@
 # Electrical Hardware
 
-PCB designs, schematics, and release versions of TVR electrical hardware.
+![High Level Hardware Overview](./TVR_Hardware_Stack_2026-27.drawio.svg)
+
