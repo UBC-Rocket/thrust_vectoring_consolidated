@@ -72,6 +72,8 @@
 
 - Looked into how to spec switching frequency for PWM and target rise and fall time, learnt that higher freq. / lower rise time means smoother drive but more switching losses and vice-versa. General ESC PWM freqency is between 25-96 KHz, with 48 KHz being generally used value. Thinking of just using 48 KHz, and **looking into rise and fall time calculation, need to learn a few things first.**
 
-- 
+- Thinking about the high level of battery monitoring / balancing, mainly which circuit should be in ESC board and which in Backplane cause anything carrying current related to battery preferred to have it on ESC board to keep current loop small but if on Backplane, then that funcionality can be used without ESC board.
+
+
 
 
