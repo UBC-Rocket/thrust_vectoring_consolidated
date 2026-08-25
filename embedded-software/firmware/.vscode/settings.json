@@ -1,8 +1,0 @@
-{
-    // ── Active board ─────────────────────────────────────────────
-    "cmake.sourceDirectory": "${workspaceFolder}/flight_controller",
-    "cmake.useCMakePresets": "always",
-    // ── Cortex-Debug ─────────────────────────────────────────────
-    "cortex-debug.variableUseNaturalFormat": true,
-    "cortex-debug.armToolchainPath": "/Applications/ArmGNUToolchain/15.3.rel1/arm-none-eabi/bin"
-}
