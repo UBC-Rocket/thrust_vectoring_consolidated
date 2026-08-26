@@ -74,6 +74,20 @@
 
 - Thinking about the high level of battery monitoring / balancing, mainly which circuit should be in ESC board and which in Backplane cause anything carrying current related to battery preferred to have it on ESC board to keep current loop small but if on Backplane, then that funcionality can be used without ESC board.
 
+## Date August 20, 2026
 
+- Still stuck on where to put the balancing circuit and charger circuit. Looking into switching to different connector with hgih current rating so can run balance current and charging current using multiple pins in parallel
+
+- Looked through like 1000 connectors across samtech, molex, TE, LCSC. Only found one in TE that might work but out of stock. Considering order now itself and will receive when in stock
+
+- **Important:** Need to account for return path of current as well. So a GND pin next to each balance and charge pin to force most current to return through these GND pins or else current will return on same pins as signal's. (Current takes the path of least resistance)
+
+## Date August 21, 2026
+
+- Clarified that one of the core jobs of the decoupling cap network in VBAT in to half bridge is to absorb Ldi/dt spike and inductive kick back (regn.) to protect the bus and TVS as final layer of protection to clamp any more spikes. **Imporper sizing will blow the fets up**
+
+- Switching to 
+
+##
 
 
