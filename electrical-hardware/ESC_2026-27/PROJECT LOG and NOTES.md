@@ -76,7 +76,7 @@
 
 ## Date August 20, 2026
 
-- Still stuck on where to put the balancing circuit and charger circuit. Looking into switching to different connector with hgih current rating so can run balance current and charging current using multiple pins in parallel
+- Still stuck on where to put the balancing circuit and charger circuit. Looking into switching to different connector with high current rating so can run balance current and charging current using multiple pins in parallel
 
 - Looked through like 1000 connectors across samtech, molex, TE, LCSC. Only found one in TE that might work but out of stock. Considering order now itself and will receive when in stock
 
@@ -87,6 +87,8 @@
 - Clarified that one of the core jobs of the decoupling cap network in VBAT in to half bridge is to absorb Ldi/dt spike and inductive kick back (regn.) to protect the bus and TVS as final layer of protection to clamp any more spikes. **Imporper sizing will blow the fets up**
 
 - Switching to 294152-E / 5-104550-6 board to board connector cause it can handle 3.6A per pin but no stock in LCSC so i am going to get free samples from TE. Can run charging and balancing current through a few pins in parallel
+
+- Final Decision made: Battery charging and monitoring / balancing circuit goes in backplane, Only fuel gauge and current monitoring circuit with shunt in ESC and Fuel Gauge I2C to FC
 
 ## Date August 24, 2026
 
@@ -100,4 +102,12 @@
 
 - I am so stupid, i can just put the battery balance connector in the backplane itself, they are mounted vertically so they are next to each other. how did i not think of that. Just the charging current needs to go from Backplane to ESC. Decided.
 
-- Work around for out of stock TE connector, decided on using the 50 pin version which is in stock.
+- Work around for out of stock TE connector, decided on using the 50 pin version which is in stock. Will order the samples soon
+
+- **Important:** Size the inter board digital buses keeping in mind that it runs through connectors and bus length is long so keep the bus capacitance under limits and use strong pull ups for lower rise time.
+
+- Started looking into overshoot and undershoot, causes, risks and how to handle it etc.. **(Reminder that undershoot may be more fatal cause a chip's internal weak clamp / ESD diode would forward bias and blow itself up)**
+
+## Date August 26, 2026
+
+- Saw some cool stuff at work, saw a full H-bridge PWM waveform with dead time, rise time, fall time, undershoot, overshoot, inductive kickback etc.. very cool
