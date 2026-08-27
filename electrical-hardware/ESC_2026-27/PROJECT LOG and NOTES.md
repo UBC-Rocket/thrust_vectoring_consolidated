@@ -86,8 +86,18 @@
 
 - Clarified that one of the core jobs of the decoupling cap network in VBAT in to half bridge is to absorb Ldi/dt spike and inductive kick back (regn.) to protect the bus and TVS as final layer of protection to clamp any more spikes. **Imporper sizing will blow the fets up**
 
-- Switching to 
+- Switching to 294152-E / 5-104550-6 board to board connector cause it can handle 3.6A per pin but no stock in LCSC so i am going to get free samples from TE. Can run charging and balancing current through a few pins in parallel
 
-##
+## Date August 24, 2026
 
+- Learnt about miller effect - the gate voltage plateaus when the FET turns on (Vgs above threshold voltage) which charges the gate - drain cap and gate current flows to charge this cap instead of Gate - Source cap which holds the gate voltage constant and once drain voltage settles at full drive voltage, garte voltage rises again. 
 
+- Problem is when the high side FET hits miller plateau, the source voltage of high side FET (SW node) rises to full drive voltage which charges the gate - drain cap of low side FET and that current splits at gate cause of gate-source capacitance and gate resistor connected driver, the current flowing out of gate into gate resistor causes a voltage drop which rises the gate voltage of low side FET and if it crosses the threshold voltage, then low side FET will turn-on causing shoot-through and **blowing the FET's up**.
+
+- Solutions are strong pull down or active miller clamp (FET to GND). DRV8353SRTAR has inbuilt strong pull down to prevent this exact false turn on due to dv/dt. **Yay**
+
+## Date August 25, 2026
+
+- I am so stupid, i can just put the battery balance connector in the backplane itself, they are mounted vertically so they are next to each other. how did i not think of that. Just the charging current needs to go from Backplane to ESC. Decided.
+
+- Work around for out of stock TE connector, decided on using the 50 pin version which is in stock.
