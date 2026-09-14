@@ -10,7 +10,7 @@
 | 4 | Gate Driver SPI       | 2×    | 8    |
 | 5 | ESC MCU UART          | 1×    | 2    |
 | 6 | Gate Driver EN        | 2×    | 2    |
-| 7 | ESC Temp Sensor       | 2×    | 4    |
+| 7 | ESC Temp Sensor I2C   | 2×    | 4    |
 | 8 | Cell Voltages         | 7x     | 7    |
 | 9 | Fuel Gauge I2C        | 1×    | 2    |
 | 10| Cell Monitoring I2C   | 1×    | 2    |
