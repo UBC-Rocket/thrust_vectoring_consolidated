@@ -5,66 +5,80 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "FC-OpenOCD-Debug-CM7",
+            "name": "Debug CM7 + CM4",
+            "type": "cortex-debug",
+            "request": "launch",
             "cwd": "${workspaceFolder}",
             "executable": "${workspaceFolder}/flight_controller/CM7/build/ulysses-fc_CM7.elf",
             "loadFiles": [
-                "${workspaceFolder}/flight_controller/CM7/build/ulysses-fc_CM7.elf",
-                "${workspaceFolder}/flight_controller/CM4/build/ulysses-fc_CM4.elf"
+                "${workspaceFolder}/flight_controller/CM4/build/ulysses-fc_CM4.elf",
+                "${workspaceFolder}/flight_controller/CM7/build/ulysses-fc_CM7.elf"
             ],
             "symbolFiles": [
-                "${workspaceFolder}/flight_controller/CM7/build/ulysses-fc_CM7.elf",
-                "${workspaceFolder}/flight_controller/CM4/build/ulysses-fc_CM4.elf"
-            ],
-            "request": "launch",
-            "type": "cortex-debug",
-            "servertype": "openocd",
-            "serverpath": "/Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.openocd.macosaarch64_1.0.100.202604080855/tools/bin/openocd",
-            "configFiles": [
-                "interface/stlink-dap.cfg",
-                "board/flight_controller.cfg"
+                "${workspaceFolder}/flight_controller/CM7/build/ulysses-fc_CM7.elf"
             ],
             "svdFile": "${workspaceFolder}/platform/svd/STM32H747_CM7.svd",
-            "searchDir": [
-                "/Users/andykim/Documents/ubc_rocket/thrust_vectoring_consolidated/embedded-software/firmware/platform/tcl/",
-                "/Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.debug.openocd_2.3.400.202606220929/resources/openocd/st_scripts/"
+            "servertype": "pyocd",
+            "targetId": "stm32h745zitx",
+            "numberOfProcessors": 2,
+            "targetProcessor": 0,
+            "breakAfterReset": true,
+            "preLaunchCommands": [
+                // Default launch commands only reset halt the selected core,
+                // so we must manually reset halt the other core to ensure
+                // we are broken in on the reset vector
+                "monitor core 1",
+                "monitor halt",
+                "monitor set vector-catch hr",
+                "monitor core 0"
             ],
-            "showDevDebugOutput": "vscode",
-            "openOCDPreConfigLaunchCommands": [
-                "set AP_NUM 0"
+            "postLaunchCommands": [
+                // Reset vector catch options
+                "monitor core 1",
+                "monitor set vector-catch h",
+                "monitor core 0"
             ],
-            "preLaunchTask": "fc-build-debug"
+            "showDevDebugOutput": "raw",
+            "serverArgs": [
+                "-O",
+                "connect_mode=under-reset", // Need to wake CM4 in case it is in deep sleep
+                "-O",
+                "enable_multicore_debug=true",
+                "-O",
+                "primary_core=0",
+                "-O",
+                "pack.debug_sequences.debugvars=DbgMCU_CR |= 0x38;", // Ensure D2 is always debuggable
+                "--script",
+                "platform/pyocd/pyocd_fix_cm7_flash.py",
+            ],
+            "chainedConfigurations": {
+                "enabled": true,
+                "waitOnEvent": "postInit",
+                "detached": false,
+                "lifecycleManagedByParent": true,
+                "launches": [
+                    {
+                        "name": "CM4"
+                    }
+                ]
+            }
         },
         {
-            "name": "FC-OpenOCD-Debug-CM4",
+            "name": "CM4",
+            "type": "cortex-debug",
+            "request": "attach",
             "cwd": "${workspaceFolder}",
             "executable": "${workspaceFolder}/flight_controller/CM4/build/ulysses-fc_CM4.elf",
-            "loadFiles": [
-                "${workspaceFolder}/flight_controller/CM7/build/ulysses-fc_CM7.elf",
-                "${workspaceFolder}/flight_controller/CM4/build/ulysses-fc_CM4.elf"
-            ],
-            "symbolFiles": [
-                "${workspaceFolder}/flight_controller/CM7/build/ulysses-fc_CM7.elf",
-                "${workspaceFolder}/flight_controller/CM4/build/ulysses-fc_CM4.elf"
-            ],
-            "request": "launch",
-            "type": "cortex-debug",
-            "servertype": "openocd",
-            "serverpath": "/Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.openocd.macosaarch64_1.0.100.202604080855/tools/bin/openocd",
-            "configFiles": [
-                "interface/stlink-dap.cfg",
-                "board/flight_controller.cfg"
-            ],
             "svdFile": "${workspaceFolder}/platform/svd/STM32H747_CM4.svd",
-            "searchDir": [
-                "/Users/andykim/Documents/ubc_rocket/thrust_vectoring_consolidated/embedded-software/firmware/platform/tcl/",
-                "/Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.debug.openocd_2.3.400.202606220929/resources/openocd/st_scripts/"
-            ],
-            "showDevDebugOutput": "vscode",
-            "openOCDPreConfigLaunchCommands": [
-                "set AP_NUM 3"
-            ],
-            "preLaunchTask": "fc-build-debug"
-        }
+            "servertype": "pyocd",
+            "targetId": "stm32h745zitx",
+            "numberOfProcessors": 2,
+            "targetProcessor": 1,
+            "breakAfterReset": true,
+            "showDevDebugOutput": "raw",
+            "presentation": {
+                "hidden": true
+            }
+        },
     ]
 }
