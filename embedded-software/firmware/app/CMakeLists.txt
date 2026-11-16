@@ -15,7 +15,7 @@ option(DEBUG_TEXT_CONSOLE "LPUART1/VCP = plain-text debug console (CoolTerm)" ON
 # selftest ramp is skipped. Turn OFF only for powered motor tests with props
 # removed — there is no armed-state gating in the ISR yet, and the controller
 # commands hover-level thrust (T_cmd ≈ m·g) whenever it runs.
-option(BENCH_NO_MOTORS "Bring-up: never arm ESCs; control loop runs, DShot output suppressed" ON)
+option(BENCH_NO_MOTORS "Bring-up: never arm ESCs; control loop runs, DShot output suppressed" OFF)
 
 #
 # Shared layer — built into both cores.
